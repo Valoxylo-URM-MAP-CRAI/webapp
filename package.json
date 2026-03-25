@@ -1,0 +1,8 @@
+{
+  "name": "valobois",
+  "private": true,
+  "scripts": {
+    "build:standalone": "node scripts/build-standalone.mjs",
+    "serve": "npx --yes serve ."
+  }
+}
