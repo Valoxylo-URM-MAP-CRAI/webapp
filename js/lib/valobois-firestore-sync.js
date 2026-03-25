@@ -141,6 +141,12 @@
         return s || 'Sans nom';
     }
 
+    function notifyPersistenceUi(appInstance) {
+        if (appInstance && typeof appInstance.refreshPersistenceUi === 'function') {
+            appInstance.refreshPersistenceUi();
+        }
+    }
+
     function attachValoboisFirestoreSync(app) {
         var skipNewEvalIntent =
             urlIndicatesNewEval() || consumeNewEvalHash() || consumeNewEvalIntentFromSession();
@@ -156,6 +162,7 @@
                     app.reloadGuestStateFromLocalStorage();
                 }
             }
+            notifyPersistenceUi(app);
             return;
         }
 
@@ -164,6 +171,7 @@
                 app.persistenceMode = 'cloud';
             }
         }
+        notifyPersistenceUi(app);
 
         var loading = false;
         var scheduledTimer = null;
@@ -270,6 +278,7 @@
             if (typeof appInstance.reloadGuestStateFromLocalStorage === 'function') {
                 appInstance.reloadGuestStateFromLocalStorage();
             }
+            notifyPersistenceUi(appInstance);
         }
 
         function enterCloudModeOnIndex(appInstance, user) {
@@ -287,6 +296,7 @@
             }
 
             appInstance.persistenceMode = 'cloud';
+            notifyPersistenceUi(appInstance);
 
             try {
                 localStorage.removeItem('valobois_v1');

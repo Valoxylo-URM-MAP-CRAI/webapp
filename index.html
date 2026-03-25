@@ -3178,7 +3178,9 @@
 
                 <button type="button" class="btn btn-secondary footer-action-btn"
                     id="btnResetAll">Réinitialiser</button>
-                <button type="button" class="btn btn-secondary footer-action-btn" id="btnSaveAll">Sauvegarder</button>
+                <button type="button" class="btn btn-secondary footer-action-btn" id="btnImportJson">Importer</button>
+                <input type="file" id="importJsonInput" accept=".json,application/json" class="hidden"
+                    aria-hidden="true" tabindex="-1">
                 <button type="button" class="btn btn-primary footer-action-btn" id="btnEtiqueter">Étiqueter</button>
                 <button type="button" class="btn btn-primary footer-action-btn" id="btnExportPdf">Exporter</button>
             </div>
@@ -3248,23 +3250,6 @@
             </div>
         </div>
 
-        <!-- Modale confirmation sauvegarde -->
-        <div class="modal-backdrop hidden" id="saveConfirmBackdrop" aria-hidden="true">
-            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="saveConfirmTitle">
-                <header class="modal-header">
-                    <h2 id="saveConfirmTitle" class="text-center">Sauvegarder</h2>
-                    <button class="modal-close" type="button" id="btnCloseSaveConfirm">×</button>
-                </header>
-                <div class="modal-body">
-                    <p>Voulez-vous sauvegarder l’état actuel de cette page pour la réouvrir plus tard&nbsp;?</p>
-                </div>
-                <footer class="modal-footer">
-                    <button class="btn btn-secondary" type="button" id="btnCancelSave">Annuler</button>
-                    <button class="btn btn-primary" type="button" id="btnConfirmSave">Oui, sauvegarder</button>
-                </footer>
-            </div>
-        </div>
-
         <div class="modal-backdrop hidden" id="exportPdfBackdrop" aria-hidden="true">
             <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportPdfTitle">
                 <header class="modal-header">
@@ -3272,8 +3257,9 @@
                     <button class="modal-close" type="button" id="btnCloseExportPdf">×</button>
                 </header>
                 <div class="modal-body">
-                    <p>Choisissez le contenu et le format à exporter.</p>
-                    <div style="margin-top: 16px; border-top: 1px solid #E6E6E6; padding-top: 16px;">
+                    <p id="exportModalIntro">Choisissez le contenu et le format à exporter.</p>
+                    <div id="exportModalLotsSection"
+                        style="margin-top: 16px; border-top: 1px solid #E6E6E6; padding-top: 16px;">
                         <p style="margin-bottom: 8px; font-weight: 600;">Lots à exporter pour la vue lot</p>
                         <div id="exportPdfLotsList"
                             style="display: grid; gap: 8px; max-height: 220px; overflow-y: auto;"></div>
@@ -3287,16 +3273,19 @@
                             <select id="exportFileFormatSelect" class="export-modal-select">
                                 <option value="pdf">PDF</option>
                                 <option value="csv">CSV</option>
+                                <option value="json">JSON</option>
                             </select>
                         </label>
-                        <label style="display: grid; gap: 6px;">
-                            <span style="font-size: 13px; font-weight: 600;">Niveau de détail</span>
-                            <select id="exportContentModeSelect" class="export-modal-select">
-                                <option value="synthese">Synthèse</option>
-                                <option value="lots-selectionnes">Revue complète des informations relatives au(x) lot(s)
-                                </option>
-                            </select>
-                        </label>
+                        <div id="exportModalDetailSection">
+                            <label style="display: grid; gap: 6px;">
+                                <span style="font-size: 13px; font-weight: 600;">Niveau de détail</span>
+                                <select id="exportContentModeSelect" class="export-modal-select">
+                                    <option value="synthese">Synthèse</option>
+                                    <option value="lots-selectionnes">Revue complète des informations relatives au(x) lot(s)
+                                    </option>
+                                </select>
+                            </label>
+                        </div>
                     </div>
                 </div>
                 <footer class="modal-footer" style="flex-direction: column; align-items: stretch;">

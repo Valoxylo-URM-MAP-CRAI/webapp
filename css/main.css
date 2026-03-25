@@ -6162,7 +6162,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             background-color: #152d6e;
         }
 
-        #btnSaveAll,
+        #btnImportJson,
         #btnEtiqueter,
         #btnExportPdf {
             background-color: var(--bleu-crai);
@@ -6170,7 +6170,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             border: 1px solid var(--bleu-crai);
         }
 
-        #btnSaveAll:hover,
+        #btnImportJson:hover,
         #btnEtiqueter:hover,
         #btnExportPdf:hover {
             background-color: #152d6e;

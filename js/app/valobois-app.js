@@ -15,6 +15,7 @@ class ValoboisApp {
         if (typeof attachValoboisFirestoreSync === 'function') {
             attachValoboisFirestoreSync(this);
         }
+        this.refreshPersistenceUi();
     }
 
     ensureTermesBoisDatalist() {
@@ -1827,12 +1828,37 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         // CTA bas de page
         const btnResetAll = document.getElementById('btnResetAll');
-        const btnSaveAll = document.getElementById('btnSaveAll');
+        const btnImportJson = document.getElementById('btnImportJson');
+        const importJsonInput = document.getElementById('importJsonInput');
         const btnEtiqueter = document.getElementById('btnEtiqueter');
         const btnExportPdf = document.getElementById('btnExportPdf');
 
         if (btnResetAll) btnResetAll.addEventListener('click', () => this.openResetConfirmModal());
-        if (btnSaveAll) btnSaveAll.addEventListener('click', () => this.openSaveConfirmModal());
+        if (btnImportJson && importJsonInput) {
+            btnImportJson.addEventListener('click', () => importJsonInput.click());
+            importJsonInput.addEventListener('change', () => {
+                const file = importJsonInput.files && importJsonInput.files[0];
+                importJsonInput.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const text = String(reader.result || '');
+                        const parsed = JSON.parse(text);
+                        if (!this.applyEvaluationPayload(parsed)) {
+                            alert(
+                                'Fichier JSON invalide : la structure doit contenir un tableau « lots » (export VALOBOIS / nuage).'
+                            );
+                        }
+                    } catch (err) {
+                        console.error(err);
+                        alert('Impossible de lire ce fichier comme JSON VALOBOIS.');
+                    }
+                };
+                reader.onerror = () => alert('Lecture du fichier impossible.');
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
         if (btnEtiqueter) btnEtiqueter.addEventListener('click', () => this.openEtiqueterModal());
         if (btnExportPdf) btnExportPdf.addEventListener('click', () => this.openExportPdfModal());
 
@@ -1850,27 +1876,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             btnConfirmReset.addEventListener('click', () => this.confirmResetAction());
         }
 
-        const saveBackdrop = document.getElementById('saveConfirmBackdrop');
-        const btnCloseSaveConfirm = document.getElementById('btnCloseSaveConfirm');
-        const btnCancelSave = document.getElementById('btnCancelSave');
-        const btnConfirmSave = document.getElementById('btnConfirmSave');
-
-        if (saveBackdrop && btnCloseSaveConfirm && btnCancelSave && btnConfirmSave) {
-            const closeSave = () => {
-                saveBackdrop.classList.add('hidden');
-                saveBackdrop.setAttribute('aria-hidden', 'true');
-            };
-            btnCloseSaveConfirm.addEventListener('click', closeSave);
-            btnCancelSave.addEventListener('click', closeSave);
-            saveBackdrop.addEventListener('click', (e) => {
-                if (e.target === saveBackdrop) closeSave();
-            });
-            btnConfirmSave.addEventListener('click', async () => {
-                await this.saveAsHtmlFile();
-                closeSave();
-            });
-        }
-
         const exportPdfBackdrop = document.getElementById('exportPdfBackdrop');
         const btnCloseExportPdf = document.getElementById('btnCloseExportPdf');
         const btnCancelExportPdf = document.getElementById('btnCancelExportPdf');
@@ -1879,10 +1884,14 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const exportContentModeSelect = document.getElementById('exportContentModeSelect');
         const exportLotsHint = document.getElementById('exportLotsHint');
         const exportPdfLotsList = document.getElementById('exportPdfLotsList');
+        const exportModalLotsSection = document.getElementById('exportModalLotsSection');
+        const exportModalDetailSection = document.getElementById('exportModalDetailSection');
+        const exportModalIntro = document.getElementById('exportModalIntro');
 
         if (exportPdfBackdrop && btnCloseExportPdf && btnCancelExportPdf && btnRunExport && exportFileFormatSelect && exportContentModeSelect && exportPdfLotsList) {
             const closeExportPdf = () => this.closeExportPdfModal();
             const updateExportLotsState = () => {
+                if (exportFileFormatSelect.value === 'json') return;
                 const requiresLotSelection = exportContentModeSelect.value === 'lots-selectionnes';
                 const lotCheckboxes = exportPdfLotsList.querySelectorAll('[data-export-pdf-lot]');
                 lotCheckboxes.forEach((checkbox) => {
@@ -1896,6 +1905,28 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 }
             };
 
+            const updateExportModalFormatState = () => {
+                const isJson = exportFileFormatSelect.value === 'json';
+                if (exportModalLotsSection) {
+                    exportModalLotsSection.classList.toggle('hidden', isJson);
+                    exportModalLotsSection.toggleAttribute('hidden', isJson);
+                }
+                if (exportModalDetailSection) {
+                    exportModalDetailSection.classList.toggle('hidden', isJson);
+                    exportModalDetailSection.toggleAttribute('hidden', isJson);
+                }
+                if (exportModalIntro) {
+                    exportModalIntro.textContent = isJson
+                        ? 'Export JSON : données d’évaluation (même structure que l’enregistrement nuage).'
+                        : 'Choisissez le contenu et le format à exporter.';
+                }
+                if (isJson) {
+                    exportPdfLotsList.style.opacity = '1';
+                } else {
+                    updateExportLotsState();
+                }
+            };
+
             btnCloseExportPdf.addEventListener('click', closeExportPdf);
             btnCancelExportPdf.addEventListener('click', closeExportPdf);
             exportPdfBackdrop.addEventListener('click', (e) => {
@@ -1903,10 +1934,17 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             });
 
             exportContentModeSelect.addEventListener('change', updateExportLotsState);
+            exportFileFormatSelect.addEventListener('change', updateExportModalFormatState);
 
             btnRunExport.addEventListener('click', () => {
+                const formatVal = exportFileFormatSelect.value;
+                if (formatVal === 'json') {
+                    closeExportPdf();
+                    this.exportEvaluationJson();
+                    return;
+                }
                 const mode = exportContentModeSelect.value === 'lots-selectionnes' ? 'lots-selectionnes' : 'synthese';
-                const format = exportFileFormatSelect.value === 'csv' ? 'csv' : 'pdf';
+                const format = formatVal === 'csv' ? 'csv' : 'pdf';
                 let selectedLotIndices = [];
 
                 if (mode === 'lots-selectionnes') {
@@ -1926,7 +1964,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 }
             });
 
-            updateExportLotsState();
+            updateExportModalFormatState();
         }
 
         const etiqueterBackdrop = document.getElementById('etiqueterBackdrop');
@@ -3350,20 +3388,14 @@ closeEvalOpModal() {
         }
     }
 
-    openSaveConfirmModal() {
-        const backdrop = document.getElementById('saveConfirmBackdrop');
-        if (backdrop) {
-            backdrop.classList.remove('hidden');
-            backdrop.setAttribute('aria-hidden', 'false');
-        }
-    }
-
     openExportPdfModal() {
         const backdrop = document.getElementById('exportPdfBackdrop');
         if (backdrop) {
             this.renderExportPdfLotOptions();
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
+            const exportFormatSel = document.getElementById('exportFileFormatSelect');
+            if (exportFormatSel) exportFormatSel.dispatchEvent(new Event('change'));
         }
     }
 
@@ -7474,6 +7506,54 @@ renderRadar() {
 
     } // FERMETURE DE renderEvalOp
 
+    refreshPersistenceUi() {
+        const btn = document.getElementById('btnResetAll');
+        if (!btn) return;
+        const show = this.persistenceMode === 'guest';
+        btn.classList.toggle('hidden', !show);
+        btn.toggleAttribute('hidden', !show);
+        btn.disabled = !show;
+    }
+
+    /** Applique un objet racine identique au payload Firestore (méta, ui, lots). */
+    applyEvaluationPayload(parsed) {
+        if (!parsed || !parsed.lots || !Array.isArray(parsed.lots)) return false;
+        this.data = parsed;
+        this.data.meta = this.getDefaultMeta(this.data.meta || {});
+        this.data.ui = this.getDefaultUi(this.data.ui || {});
+        this.data.lots.forEach((lot) => {
+            this.normalizeLotEssenceFields(lot);
+            this.normalizeLotAllotissementFields(lot);
+        });
+        const n = this.data.lots.length;
+        if (typeof this.currentLotIndex === 'number' && this.currentLotIndex >= n) {
+            this.currentLotIndex = Math.max(0, n - 1);
+        }
+        this.saveData();
+        this.render();
+        return true;
+    }
+
+    exportEvaluationJson() {
+        try {
+            const stamp = new Date().toISOString().slice(0, 10);
+            const blob = new Blob([JSON.stringify(this.data, null, 2)], {
+                type: 'application/json;charset=utf-8',
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `valobois_evaluation_${stamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Export JSON impossible.');
+        }
+    }
+
     /* ---- Reset / Save / Export ---- */
     resetAllData() {
         if (this.persistenceMode === 'guest') {
@@ -7490,32 +7570,6 @@ renderRadar() {
         }
         this.saveData();
         this.render();
-    }
-
-    async saveAsHtmlFile() {
-        let filename = prompt('Nom du fichier à télécharger :', 'valobois_evaluation_' + new Date().toISOString().slice(0, 10));
-        if (filename === null) return;
-
-        filename = (filename.trim() || 'valobois_evaluation_' + new Date().toISOString().slice(0, 10)).replace(/[^a-zA-Z0-9_-]/g, '_') + '.html';
-
-        try {
-            if (typeof window.buildValoboisStandaloneHtml !== 'function') {
-                throw new Error('buildValoboisStandaloneHtml manquant');
-            }
-            const html = await window.buildValoboisStandaloneHtml({ data: this.data });
-            const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        } catch (error) {
-            console.error(error);
-            alert('Export HTML impossible. Servez l’application via HTTP (pas file://) ou exécutez npm run build:standalone.');
-        }
     }
 
     async exportEtiquettes(lotIndices = []) {
