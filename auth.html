@@ -16,74 +16,86 @@
     <script>
         (function () {
             try {
-                if (localStorage.getItem('valoboisTheme') !== 'night') {
-                    document.body.classList.add('day-mode');
-                }
+                var v = localStorage.getItem('valobois_lang');
+                if (v === 'en' || v === 'fr') document.documentElement.lang = v;
             } catch (e) { /* ignore */ }
         })();
     </script>
+    <div class="auth-top-banner auth-page-top-banner" role="toolbar" data-i18n-aria-label="banner.toolbarDisplay"
+        aria-label="Affichage">
+        <label id="valobois-lang-label" class="sr-only" for="valobois-lang-select" data-i18n="banner.langSelectLabel">Langue</label>
+        <select id="valobois-lang-select" class="auth-lang-select" aria-labelledby="valobois-lang-label">
+            <option value="fr" data-i18n="lang.optionFr">Français</option>
+            <option value="en" data-i18n="lang.optionEn">English</option>
+        </select>
+        <button type="button" class="theme-toggle-btn theme-toggle-btn--banner" id="btnThemeToggle"
+            data-i18n-title="theme.toggleTitle" title="Basculer entre mode jour et mode nuit">
+            <span id="btnThemeToggleLabel" data-i18n="theme.modeNight">Mode nuit</span>
+        </button>
+    </div>
     <main class="auth-main">
         <p class="auth-back">
-            <a href="index.html">← Retour à l'évaluation</a>
+            <a href="index.html" data-i18n="authPage.backLink">← Retour à l'évaluation</a>
         </p>
 
         <div class="card auth-card">
-            <h1 class="auth-title">Compte VALOBOIS</h1>
+            <h1 class="auth-title" data-i18n="authPage.title">Compte VALOBOIS</h1>
 
             <p id="authConfigHint" class="auth-config-hint" hidden>
-                La configuration Firebase n’est pas renseignée. Éditez
-                <code>js/config/firebase-config.js</code>.
+                <span data-i18n="authPage.configHintBefore">La configuration Firebase n’est pas renseignée. Éditez </span><code>js/config/firebase-config.js</code><span data-i18n="authPage.configHintAfter">.</span>
             </p>
 
             <p id="authError" class="auth-error" role="alert" hidden></p>
 
             <div id="authLoggedInPanel" class="auth-logged-in hidden" role="status">
-                <p class="auth-logged-in-text">Connecté en tant que <strong id="authLoggedInEmail"></strong>.</p>
+                <p class="auth-logged-in-text"><span data-i18n="authPage.loggedInIntro">Connecté en tant que </span><strong id="authLoggedInEmail"></strong>.</p>
                 <div class="auth-logged-in-actions">
-                    <a class="btn btn-secondary" href="index.html">Ouvrir l'outil</a>
-                    <button type="button" class="btn btn-primary" id="btnSignOut">Se déconnecter</button>
+                    <a class="btn btn-secondary" href="index.html" data-i18n="authPage.openTool">Ouvrir l'outil</a>
+                    <button type="button" class="btn btn-primary" id="btnSignOut" data-i18n="authPage.signOut">Se déconnecter</button>
                 </div>
             </div>
 
             <div id="authFormsBlock">
-                <div class="auth-tabs" role="tablist" aria-label="Mode de connexion">
+                <div class="auth-tabs" role="tablist" data-i18n-aria-label="authPage.tablistAria" aria-label="Mode de connexion">
                     <button type="button" class="auth-tab" id="tabSignIn" role="tab" aria-selected="true"
-                        aria-controls="panelSignIn">Connexion</button>
+                        aria-controls="panelSignIn" data-i18n="authPage.tabSignIn">Connexion</button>
                     <button type="button" class="auth-tab" id="tabSignUp" role="tab" aria-selected="false"
-                        aria-controls="panelSignUp">Créer un compte</button>
+                        aria-controls="panelSignUp" data-i18n="authPage.tabSignUp">Créer un compte</button>
                 </div>
 
                 <div id="panelSignIn" class="auth-panel" role="tabpanel" aria-labelledby="tabSignIn">
                     <form id="formSignIn" class="auth-form" autocomplete="on">
-                        <label class="auth-label" for="signInEmail">E-mail</label>
+                        <label class="auth-label" for="signInEmail" data-i18n="authPage.labelEmail">E-mail</label>
                         <input class="auth-input" type="email" id="signInEmail" name="email" required
                             autocomplete="username" inputmode="email">
 
-                        <label class="auth-label" for="signInPassword">Mot de passe</label>
+                        <label class="auth-label" for="signInPassword" data-i18n="authPage.labelPassword">Mot de passe</label>
                         <input class="auth-input" type="password" id="signInPassword" name="password" required
                             autocomplete="current-password">
 
-                        <button type="submit" class="btn btn-primary btn-full auth-submit">Se connecter</button>
+                        <button type="submit" class="btn btn-primary btn-full auth-submit" data-i18n="authPage.submitSignIn">Se connecter</button>
                     </form>
                 </div>
 
                 <div id="panelSignUp" class="auth-panel hidden" role="tabpanel" aria-labelledby="tabSignUp">
                     <form id="formSignUp" class="auth-form" autocomplete="on">
-                        <label class="auth-label" for="signUpEmail">E-mail</label>
+                        <label class="auth-label" for="signUpEmail" data-i18n="authPage.labelEmail">E-mail</label>
                         <input class="auth-input" type="email" id="signUpEmail" name="email" required
                             autocomplete="username" inputmode="email">
 
-                        <label class="auth-label" for="signUpPassword">Mot de passe</label>
+                        <label class="auth-label" for="signUpPassword" data-i18n="authPage.labelPassword">Mot de passe</label>
                         <input class="auth-input" type="password" id="signUpPassword" name="new-password" required
                             autocomplete="new-password" minlength="6">
 
-                        <button type="submit" class="btn btn-primary btn-full auth-submit">Créer le compte</button>
+                        <button type="submit" class="btn btn-primary btn-full auth-submit" data-i18n="authPage.submitSignUp">Créer le compte</button>
                     </form>
                 </div>
             </div>
         </div>
     </main>
 
+    <script defer src="js/i18n/valobois-locales.js"></script>
+    <script defer src="js/i18n/valobois-i18n.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
     <script defer src="js/config/firebase-config.js"></script>

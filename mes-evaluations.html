@@ -13,54 +13,56 @@
 </head>
 
 <body>
-    <div class="auth-top-banner mes-eval-page-banner" role="toolbar" aria-label="Affichage">
-        <span id="auth-header-status" aria-live="polite"></span>
-        <button type="button" class="theme-toggle-btn theme-toggle-btn--banner" id="btnThemeToggle"
-            title="Basculer entre mode jour et mode nuit">
-            Mode nuit
-        </button>
-    </div>
     <script>
         (function () {
             try {
-                if (localStorage.getItem('valoboisTheme') !== 'night') {
-                    document.body.classList.add('day-mode');
-                }
+                var v = localStorage.getItem('valobois_lang');
+                if (v === 'en' || v === 'fr') document.documentElement.lang = v;
             } catch (e) { /* ignore */ }
-            var btn = document.getElementById('btnThemeToggle');
-            if (btn) {
-                btn.textContent = document.body.classList.contains('day-mode') ? 'Mode nuit' : 'Mode jour';
-            }
         })();
     </script>
+    <div class="auth-top-banner mes-eval-page-banner" role="toolbar" data-i18n-aria-label="banner.toolbarDisplay"
+        aria-label="Affichage">
+        <span id="auth-header-status" aria-live="polite"></span>
+        <label id="valobois-lang-label" class="sr-only" for="valobois-lang-select" data-i18n="banner.langSelectLabel">Langue</label>
+        <select id="valobois-lang-select" class="auth-lang-select" aria-labelledby="valobois-lang-label">
+            <option value="fr" data-i18n="lang.optionFr">Français</option>
+            <option value="en" data-i18n="lang.optionEn">English</option>
+        </select>
+        <button type="button" class="theme-toggle-btn theme-toggle-btn--banner" id="btnThemeToggle"
+            data-i18n-title="theme.toggleTitle" title="Basculer entre mode jour et mode nuit">
+            <span id="btnThemeToggleLabel" data-i18n="theme.modeNight">Mode nuit</span>
+        </button>
+    </div>
     <main class="auth-main mes-eval-main">
         <p class="auth-back">
-            <a href="index.html">← Retour à l'évaluation</a>
+            <a href="index.html" data-i18n="mesEval.backLink">← Retour à l'évaluation</a>
         </p>
 
         <div class="card auth-card mes-eval-card">
-            <h1 class="auth-title">Mes évaluations</h1>
+            <h1 class="auth-title" data-i18n="mesEval.title">Mes évaluations</h1>
 
             <p id="mesEvalConfigHint" class="auth-config-hint" hidden>
-                La configuration Firebase n’est pas renseignée. Éditez
-                <code>js/config/firebase-config.js</code>.
+                <span data-i18n="mesEval.configHintBefore">La configuration Firebase n’est pas renseignée. Éditez </span><code>js/config/firebase-config.js</code><span data-i18n="mesEval.configHintAfter">.</span>
             </p>
 
             <p id="mesEvalError" class="auth-error" role="alert" hidden></p>
 
-            <p id="mesEvalLoading" class="mes-eval-loading">Chargement…</p>
+            <p id="mesEvalLoading" class="mes-eval-loading" data-i18n="mesEval.loading">Chargement…</p>
 
             <div id="mesEvalToolbar" class="mes-eval-toolbar hidden">
-                <a class="btn btn-primary" id="mesEvalNewEvalLink" href="index.html?eval=new">Nouvelle évaluation</a>
+                <a class="btn btn-primary" id="mesEvalNewEvalLink" href="index.html?eval=new" data-i18n="mesEval.newEval">Nouvelle évaluation</a>
             </div>
 
-            <ul id="mesEvalList" class="mes-eval-list hidden" aria-label="Liste des évaluations"></ul>
+            <ul id="mesEvalList" class="mes-eval-list hidden" data-i18n-aria-label="mesEval.listAria" aria-label="Liste des évaluations"></ul>
 
-            <p id="mesEvalEmpty" class="mes-eval-empty hidden">Aucune évaluation enregistrée dans le nuage pour ce
+            <p id="mesEvalEmpty" class="mes-eval-empty hidden" data-i18n="mesEval.empty">Aucune évaluation enregistrée dans le nuage pour ce
                 compte.</p>
         </div>
     </main>
 
+    <script defer src="js/i18n/valobois-locales.js"></script>
+    <script defer src="js/i18n/valobois-i18n.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-auth-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore-compat.js"></script>

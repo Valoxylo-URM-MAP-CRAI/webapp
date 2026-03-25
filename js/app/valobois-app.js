@@ -461,7 +461,7 @@ class ValoboisApp {
         const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
         if (valueKg >= 1000) {
             return {
-                value: (valueKg / 1000).toLocaleString('fr-FR', {
+                value: (valueKg / 1000).toLocaleString(getValoboisIntlLocale(), {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }),
@@ -469,7 +469,7 @@ class ValoboisApp {
             };
         }
         return {
-            value: Math.round(valueKg).toLocaleString('fr-FR', { maximumFractionDigits: 0 }),
+            value: Math.round(valueKg).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }),
             unit: 'kg CO₂ (NF EN 16449)'
         };
     }
@@ -478,7 +478,7 @@ class ValoboisApp {
         const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
         if (valueKg >= 1000) {
             return {
-                value: (valueKg / 1000).toLocaleString('fr-FR', {
+                value: (valueKg / 1000).toLocaleString(getValoboisIntlLocale(), {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2
                 }),
@@ -486,7 +486,7 @@ class ValoboisApp {
             };
         }
         return {
-            value: valueKg.toLocaleString('fr-FR', { maximumFractionDigits: 1 }),
+            value: valueKg.toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 1 }),
             unit: 'kg'
         };
     }
@@ -497,7 +497,7 @@ class ValoboisApp {
         const card = document.querySelector(`.lot-card[data-lot-index="${lotIndex}"]`);
         if (!card) return;
 
-        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString('fr-FR', {
+        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
@@ -1021,17 +1021,27 @@ deleteLot(index) {
 
         // Bouton mode jour / nuit
         const btnThemeToggle = document.getElementById('btnThemeToggle');
+        const syncThemeToggleLabel = () => {
+            if (!btnThemeToggle) return;
+            btnThemeToggle.setAttribute('title', t('theme.toggleTitle'));
+            const modeLabel = document.getElementById('btnThemeToggleLabel');
+            const isDay = document.body.classList.contains('day-mode');
+            const labelText = isDay ? t('theme.modeNight') : t('theme.modeDay');
+            if (modeLabel) modeLabel.textContent = labelText;
+            else btnThemeToggle.textContent = labelText;
+        };
         if (btnThemeToggle) {
             const savedTheme = localStorage.getItem('valoboisTheme');
             if (savedTheme !== 'night') {
                 document.body.classList.add('day-mode');
-                btnThemeToggle.textContent = 'Mode nuit';
             }
+            syncThemeToggleLabel();
             btnThemeToggle.addEventListener('click', () => {
                 const isDay = document.body.classList.toggle('day-mode');
-                btnThemeToggle.textContent = isDay ? 'Mode nuit' : 'Mode jour';
+                syncThemeToggleLabel();
                 localStorage.setItem('valoboisTheme', isDay ? 'day' : 'night');
             });
+            window.addEventListener('valobois:langchange', syncThemeToggleLabel);
         }
 
         // Toggle À propos
@@ -3621,7 +3631,7 @@ closeEvalOpModal() {
     }
 
     renderDefaultPieceCardHTML(lot) {
-        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString('fr-FR', {
+        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
@@ -3781,7 +3791,7 @@ closeEvalOpModal() {
     }
 
     renderPieceCardHTML(piece, pieceIndex, lot) {
-        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString('fr-FR', {
+        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
@@ -3993,7 +4003,7 @@ closeEvalOpModal() {
 
     // BOUCLE SUR CHAQUE LOT
     lots.forEach((lot, index) => {
-        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString('fr-FR', {
+        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
@@ -4636,7 +4646,7 @@ closeEvalOpModal() {
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotLabel) lotLabel.textContent = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot';
 
-        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString('fr-FR', {
+        const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
@@ -7302,7 +7312,7 @@ renderRadar() {
         const formatGroupedValue = (value, digits = 0) => {
             const num = parseFloat(value);
             if (!Number.isFinite(num)) return '';
-            return num.toLocaleString('fr-FR', {
+            return num.toLocaleString(getValoboisIntlLocale(), {
                 minimumFractionDigits: digits,
                 maximumFractionDigits: digits
             });
@@ -7490,8 +7500,8 @@ renderRadar() {
             if (el) el.textContent = val;
         };
 
-        const fmt = (v) => new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
-        const fmtVol = (v) => new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + " m³";
+        const fmt = (v) => new Intl.NumberFormat(getValoboisIntlLocale(), { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(v);
+        const fmtVol = (v) => new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(v) + " m³";
 
         setVal('vol-reemploi', fmtVol(volReemploi));
         setVal('prix-reemploi', fmt(priceReemploi));
@@ -7501,7 +7511,7 @@ renderRadar() {
         setVal('prix-recyc', fmt(priceRecyc));
         setVal('vol-incin', fmtVol(volIncin));
         setVal('prix-incin', fmt(priceIncin));
-        setVal('circularite', new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(circularite) + "%");
+        setVal('circularite', new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(circularite) + "%");
         setVal('bilan-monetaire', fmt(bilanMonetaireGlobal));
 
     } // FERMETURE DE renderEvalOp
@@ -7777,7 +7787,7 @@ renderRadar() {
         }
 
         /* ── Note de page ── */
-        const today = new Date().toLocaleDateString('fr-FR');
+        const today = new Date().toLocaleDateString(getValoboisIntlLocale());
         const pageNoteY = Math.min(PH - PAGE_MARGIN, oy + areaH + 2);
         const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="2.1" fill="#BBBBBB" text-anchor="middle">VALOBOIS \u00B7 ${e(lotRef)} \u00B7 ${COLS * ROWS} \u00E9tiquettes \u00B7 ${today}</text>`;
 
@@ -7895,7 +7905,7 @@ renderRadar() {
     }
 
     formatPdfDecimal(value, minimumFractionDigits = 0, maximumFractionDigits = 0) {
-        return new Intl.NumberFormat('fr-FR', {
+        return new Intl.NumberFormat(getValoboisIntlLocale(), {
             minimumFractionDigits,
             maximumFractionDigits
         }).format(Number.isFinite(value) ? value : 0);
@@ -7906,7 +7916,7 @@ renderRadar() {
     }
 
     formatPdfCurrency(value) {
-        return new Intl.NumberFormat('fr-FR', {
+        return new Intl.NumberFormat(getValoboisIntlLocale(), {
             style: 'currency',
             currency: 'EUR',
             maximumFractionDigits: 0

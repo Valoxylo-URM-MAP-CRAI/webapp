@@ -7,13 +7,13 @@
             container.appendChild(document.createTextNode(user.email + ' · '));
             var listLink = document.createElement('a');
             listLink.href = 'mes-evaluations.html';
-            listLink.textContent = 'Mes évaluations';
+            listLink.textContent = t('auth.header.myEvaluations');
             container.appendChild(listLink);
             container.appendChild(document.createTextNode(' · '));
             var signOutBtn = document.createElement('button');
             signOutBtn.type = 'button';
             signOutBtn.className = 'auth-banner-signout';
-            signOutBtn.textContent = 'Se déconnecter';
+            signOutBtn.textContent = t('auth.header.signOut');
             signOutBtn.addEventListener('click', function () {
                 if (!authInstance) return;
                 authInstance
@@ -32,29 +32,48 @@
             container.appendChild(signOutBtn);
             return;
         }
-        container.appendChild(document.createTextNode('Non connecté · '));
+        container.appendChild(
+            document.createTextNode(t('auth.header.notSignedIn') + ' · ')
+        );
         var link = document.createElement('a');
         link.href = 'auth.html';
-        link.textContent = 'Connexion';
+        link.textContent = t('auth.header.signIn');
         container.appendChild(link);
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
+    function bindAuthBanner() {
         var el = document.getElementById('auth-header-status');
         if (!el) return;
 
-        var auth = typeof getValoboisAuth === 'function' ? getValoboisAuth() : null;
-        if (!auth) {
-            el.innerHTML = '';
-            var linkOnly = document.createElement('a');
-            linkOnly.href = 'auth.html';
-            linkOnly.textContent = 'Connexion';
-            el.appendChild(linkOnly);
-            return;
+        var bannerUser = null;
+        var bannerAuth = null;
+
+        function renderFromState() {
+            if (!bannerAuth) {
+                el.innerHTML = '';
+                var linkOnly = document.createElement('a');
+                linkOnly.href = 'auth.html';
+                linkOnly.textContent = t('auth.header.signIn');
+                el.appendChild(linkOnly);
+                return;
+            }
+            renderAuthStatus(el, bannerUser, bannerAuth);
         }
 
-        auth.onAuthStateChanged(function (user) {
-            renderAuthStatus(el, user, auth);
-        });
-    });
+        var auth = typeof getValoboisAuth === 'function' ? getValoboisAuth() : null;
+        if (!auth) {
+            bannerAuth = null;
+            renderFromState();
+        } else {
+            bannerAuth = auth;
+            auth.onAuthStateChanged(function (user) {
+                bannerUser = user;
+                renderFromState();
+            });
+        }
+
+        window.addEventListener('valobois:langchange', renderFromState);
+    }
+
+    document.addEventListener('DOMContentLoaded', bindAuthBanner);
 })();

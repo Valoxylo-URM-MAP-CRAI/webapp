@@ -223,6 +223,19 @@
     min-width: 0;
 }
 
+.auth-top-banner .auth-lang-select {
+    flex-shrink: 0;
+    max-width: 9rem;
+    padding: 4px 8px;
+    font: inherit;
+    font-size: var(--font-size-sm);
+    color: inherit;
+    background-color: var(--color-white);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    cursor: pointer;
+}
+
 .auth-top-banner .theme-toggle-btn--banner {
     flex-shrink: 0;
     padding: 5px 10px;
@@ -6607,6 +6620,12 @@ body:not(.day-mode) .auth-top-banner {
     color: var(--color-text);
     border: 1px solid var(--color-border);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+}
+
+body:not(.day-mode) .auth-top-banner .auth-lang-select {
+    background-color: #2d3139;
+    color: var(--color-text);
+    border-color: var(--color-border);
 }
 
 /* Méta accueil & sous-blocs */

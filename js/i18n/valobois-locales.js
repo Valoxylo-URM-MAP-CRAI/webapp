@@ -1,0 +1,153 @@
+(function () {
+    'use strict';
+
+    window.ValoboisLocales = {
+        fr: {
+            banner: {
+                langSelectLabel: 'Langue',
+                toolbarDisplay: 'Affichage',
+            },
+            lang: {
+                optionFr: 'Français',
+                optionEn: 'English',
+            },
+            theme: {
+                toggleTitle: 'Basculer entre mode jour et mode nuit',
+                modeNight: 'Mode nuit',
+                modeDay: 'Mode jour',
+            },
+            auth: {
+                header: {
+                    myEvaluations: 'Mes évaluations',
+                    signOut: 'Se déconnecter',
+                    notSignedIn: 'Non connecté',
+                    signIn: 'Connexion',
+                },
+            },
+            mesEval: {
+                backLink: '← Retour à l’évaluation',
+                title: 'Mes évaluations',
+                configHintBefore: 'La configuration Firebase n’est pas renseignée. Éditez ',
+                configHintAfter: '.',
+                loading: 'Chargement…',
+                newEval: 'Nouvelle évaluation',
+                listAria: 'Liste des évaluations',
+                empty: 'Aucune évaluation enregistrée dans le nuage pour ce compte.',
+                firebaseNotConfigured: 'Firebase n’est pas configuré ou Firestore est indisponible.',
+                defaultName: 'Évaluation',
+                delete: 'Supprimer',
+                deleteAria: 'Supprimer l’évaluation « {title} »',
+                deleteConfirm: 'Supprimer cette évaluation ? Cette action est définitive.',
+                deleteFailed: 'Suppression impossible. Vérifiez votre connexion ou les droits Firestore.',
+                loadListFailed:
+                    'Impossible de charger la liste. Si le message mentionne un index, créez l’index Firestore indiqué dans la console.',
+            },
+            authPage: {
+                backLink: '← Retour à l’évaluation',
+                title: 'Compte VALOBOIS',
+                configHintBefore: 'La configuration Firebase n’est pas renseignée. Éditez ',
+                configHintAfter: '.',
+                loggedInIntro: 'Connecté en tant que ',
+                openTool: 'Ouvrir l’outil',
+                signOut: 'Se déconnecter',
+                tablistAria: 'Mode de connexion',
+                tabSignIn: 'Connexion',
+                tabSignUp: 'Créer un compte',
+                labelEmail: 'E-mail',
+                labelPassword: 'Mot de passe',
+                submitSignIn: 'Se connecter',
+                submitSignUp: 'Créer le compte',
+                firebaseNotConfigured:
+                    'Firebase n’est pas configuré. Renseignez js/config/firebase-config.js (voir commentaires en tête du fichier).',
+                unknownError: 'Erreur inconnue.',
+                genericError: 'Une erreur est survenue. Réessayez.',
+            },
+            authErrors: {
+                invalidEmail: 'Adresse e-mail invalide.',
+                userDisabled: 'Ce compte a été désactivé.',
+                userNotFound: 'Aucun compte ne correspond à cet e-mail.',
+                wrongPassword: 'Mot de passe incorrect.',
+                invalidCredential: 'E-mail ou mot de passe incorrect.',
+                emailInUse: 'Un compte existe déjà avec cet e-mail.',
+                weakPassword: 'Le mot de passe est trop faible (minimum 6 caractères).',
+                tooManyRequests: 'Trop de tentatives. Réessayez plus tard.',
+                networkFailed: 'Problème de réseau. Vérifiez votre connexion.',
+                operationNotAllowed:
+                    'La connexion par e-mail n’est pas activée sur ce projet Firebase.',
+            },
+        },
+        en: {
+            banner: {
+                langSelectLabel: 'Language',
+                toolbarDisplay: 'Display',
+            },
+            lang: {
+                optionFr: 'Français',
+                optionEn: 'English',
+            },
+            theme: {
+                toggleTitle: 'Switch between day and night mode',
+                modeNight: 'Night mode',
+                modeDay: 'Day mode',
+            },
+            auth: {
+                header: {
+                    myEvaluations: 'My evaluations',
+                    signOut: 'Sign out',
+                    notSignedIn: 'Not signed in',
+                    signIn: 'Sign in',
+                },
+            },
+            mesEval: {
+                backLink: '← Back to evaluation',
+                title: 'My evaluations',
+                configHintBefore: 'Firebase is not configured. Edit ',
+                configHintAfter: '.',
+                loading: 'Loading…',
+                newEval: 'New evaluation',
+                listAria: 'Evaluation list',
+                empty: 'No evaluations saved in the cloud for this account.',
+                firebaseNotConfigured: 'Firebase is not configured or Firestore is unavailable.',
+                defaultName: 'Evaluation',
+                delete: 'Delete',
+                deleteAria: 'Delete evaluation “{title}”',
+                deleteConfirm: 'Delete this evaluation? This cannot be undone.',
+                deleteFailed: 'Could not delete. Check your connection or Firestore rules.',
+                loadListFailed:
+                    'Could not load the list. If the message mentions an index, create the Firestore index indicated in the console.',
+            },
+            authPage: {
+                backLink: '← Back to evaluation',
+                title: 'VALOBOIS account',
+                configHintBefore: 'Firebase is not configured. Edit ',
+                configHintAfter: '.',
+                loggedInIntro: 'Signed in as ',
+                openTool: 'Open the tool',
+                signOut: 'Sign out',
+                tablistAria: 'Sign-in mode',
+                tabSignIn: 'Sign in',
+                tabSignUp: 'Create account',
+                labelEmail: 'Email',
+                labelPassword: 'Password',
+                submitSignIn: 'Sign in',
+                submitSignUp: 'Create account',
+                firebaseNotConfigured:
+                    'Firebase is not configured. Fill in js/config/firebase-config.js (see comments at the top of the file).',
+                unknownError: 'Unknown error.',
+                genericError: 'Something went wrong. Please try again.',
+            },
+            authErrors: {
+                invalidEmail: 'Invalid email address.',
+                userDisabled: 'This account has been disabled.',
+                userNotFound: 'No account matches this email.',
+                wrongPassword: 'Incorrect password.',
+                invalidCredential: 'Incorrect email or password.',
+                emailInUse: 'An account already exists with this email.',
+                weakPassword: 'Password is too weak (minimum 6 characters).',
+                tooManyRequests: 'Too many attempts. Try again later.',
+                networkFailed: 'Network problem. Check your connection.',
+                operationNotAllowed: 'Email sign-in is not enabled for this Firebase project.',
+            },
+        },
+    };
+})();

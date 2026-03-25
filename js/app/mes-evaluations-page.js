@@ -7,6 +7,31 @@
     var SESSION_INTENT_NEW_EVAL = 'valobois_intent_new_eval';
     var SESSION_PENDING_EVAL_ID = 'valobois_pending_eval_id';
 
+    var mesEvalCurrentUser = null;
+
+    function applyBodyThemeFromStorage() {
+        try {
+            if (localStorage.getItem('valoboisTheme') !== 'night') {
+                document.body.classList.add('day-mode');
+            } else {
+                document.body.classList.remove('day-mode');
+            }
+        } catch (e) {
+            /* ignore */
+        }
+    }
+
+    function syncThemeToggleLabel() {
+        var btn = document.getElementById('btnThemeToggle');
+        if (!btn) return;
+        btn.setAttribute('title', t('theme.toggleTitle'));
+        var label = document.getElementById('btnThemeToggleLabel');
+        var isDay = document.body.classList.contains('day-mode');
+        var text = isDay ? t('theme.modeNight') : t('theme.modeDay');
+        if (label) label.textContent = text;
+        else btn.textContent = text;
+    }
+
     function bindNewEvaluationIntentLink() {
         var link = document.getElementById('mesEvalNewEvalLink');
         if (!link) return;
@@ -45,7 +70,7 @@
     }
 
     function displayNameFromDoc(d) {
-        if (!d) return 'Évaluation';
+        if (!d) return t('mesEval.defaultName');
         var name = d.operationName;
         if (name != null && String(name).trim()) return String(name).trim();
         try {
@@ -55,13 +80,13 @@
         } catch (e) {
             /* ignore */
         }
-        return 'Évaluation';
+        return t('mesEval.defaultName');
     }
 
     function formatDate(ts) {
         if (!ts || typeof ts.toDate !== 'function') return '';
         try {
-            return ts.toDate().toLocaleString('fr-FR', {
+            return ts.toDate().toLocaleString(typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : 'fr-FR', {
                 dateStyle: 'short',
                 timeStyle: 'short',
             });
@@ -76,17 +101,20 @@
     }
 
     function initThemeToggle() {
+        applyBodyThemeFromStorage();
+        syncThemeToggleLabel();
         var btn = document.getElementById('btnThemeToggle');
         if (!btn) return;
         btn.addEventListener('click', function () {
             var isDay = document.body.classList.toggle('day-mode');
-            btn.textContent = isDay ? 'Mode nuit' : 'Mode jour';
+            syncThemeToggleLabel();
             try {
                 localStorage.setItem('valoboisTheme', isDay ? 'day' : 'night');
             } catch (e) {
                 /* ignore */
             }
         });
+        window.addEventListener('valobois:langchange', syncThemeToggleLabel);
     }
 
     document.addEventListener('DOMContentLoaded', function () {
@@ -107,7 +135,10 @@
         if (!auth || !db) {
             if (hintEl) hintEl.hidden = false;
             if (loadingEl) loadingEl.classList.add('hidden');
-            showError(errEl, 'Firebase n’est pas configuré ou Firestore est indisponible.');
+            showError(errEl, t('mesEval.firebaseNotConfigured'));
+            window.addEventListener('valobois:langchange', function () {
+                if (errEl && !errEl.hidden) showError(errEl, t('mesEval.firebaseNotConfigured'));
+            });
             return;
         }
         if (hintEl) hintEl.hidden = true;
@@ -174,16 +205,15 @@
                         var delBtn = document.createElement('button');
                         delBtn.type = 'button';
                         delBtn.className = 'btn btn-secondary mes-eval-delete-btn';
-                        delBtn.textContent = 'Supprimer';
-                        delBtn.setAttribute('aria-label', 'Supprimer l’évaluation « ' + title + ' »');
+                        delBtn.textContent = t('mesEval.delete');
+                        delBtn.setAttribute(
+                            'aria-label',
+                            t('mesEval.deleteAria').replace(/\{title\}/g, title)
+                        );
                         delBtn.addEventListener('click', function (e) {
                             e.preventDefault();
                             e.stopPropagation();
-                            if (
-                                !window.confirm(
-                                    'Supprimer cette évaluation ? Cette action est définitive.'
-                                )
-                            ) {
+                            if (!window.confirm(t('mesEval.deleteConfirm'))) {
                                 return;
                             }
                             delBtn.disabled = true;
@@ -196,10 +226,7 @@
                                 .catch(function (delErr) {
                                     delBtn.disabled = false;
                                     console.error('Mes évaluations — suppression', delErr);
-                                    showError(
-                                        errEl,
-                                        'Suppression impossible. Vérifiez votre connexion ou les droits Firestore.'
-                                    );
+                                    showError(errEl, t('mesEval.deleteFailed'));
                                 });
                         });
                         actions.appendChild(delBtn);
@@ -213,18 +240,21 @@
                 .catch(function (e) {
                     setLoaded();
                     console.error('Mes évaluations', e);
-                    showError(
-                        errEl,
-                        'Impossible de charger la liste. Si le message mentionne un index, créez l’index Firestore indiqué dans la console.'
-                    );
+                    showError(errEl, t('mesEval.loadListFailed'));
                 });
         }
 
+        window.addEventListener('valobois:langchange', function () {
+            if (mesEvalCurrentUser) fetchAndRenderEvaluations(mesEvalCurrentUser);
+        });
+
         auth.onAuthStateChanged(function (user) {
             if (!user) {
+                mesEvalCurrentUser = null;
                 redirectToAuth();
                 return;
             }
+            mesEvalCurrentUser = user;
             fetchAndRenderEvaluations(user);
         });
     });
