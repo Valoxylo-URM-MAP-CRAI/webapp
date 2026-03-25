@@ -25,7 +25,6 @@
                 },
             },
             mesEval: {
-                backLink: '← Retour à l’évaluation',
                 title: 'Mes évaluations',
                 configHintBefore: 'La configuration Firebase n’est pas renseignée. Éditez ',
                 configHintAfter: '.',
@@ -99,7 +98,6 @@
                 },
             },
             mesEval: {
-                backLink: '← Back to evaluation',
                 title: 'My evaluations',
                 configHintBefore: 'Firebase is not configured. Edit ',
                 configHintAfter: '.',

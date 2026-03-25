@@ -203,12 +203,12 @@
     top: var(--space-16);
     right: var(--space-16);
     z-index: 40;
-    max-width: min(32rem, calc(100vw - var(--space-16) * 2));
+    max-width: calc(100vw - var(--space-16) * 2);
     padding: 6px 10px;
     font-size: var(--font-size-sm);
     line-height: 1.35;
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: flex-end;
     gap: var(--space-8);
@@ -221,6 +221,9 @@
 
 .auth-top-banner #auth-header-status {
     min-width: 0;
+    flex: 1 1 auto;
+    white-space: nowrap;
+    text-align: right;
 }
 
 .auth-top-banner .auth-lang-select {
@@ -258,6 +261,18 @@
     text-decoration: underline;
     text-underline-offset: 2px;
     cursor: pointer;
+}
+
+/* Mobile : bandeau dans le flux pour ne pas masquer le haut de page (headline, logo) */
+@media (max-width: 640px) {
+    .auth-top-banner {
+        position: static;
+        top: auto;
+        right: auto;
+        max-width: none;
+        width: 100%;
+        margin: 0 0 var(--space-16);
+    }
 }
 
 /* Page Compte Firebase (auth.html) */
@@ -493,14 +508,6 @@ body:not(.day-mode) .mes-eval-empty,
 body:not(.day-mode) .mes-eval-loading {
     color: var(--color-text-secondary);
     opacity: 1;
-}
-
-body:not(.day-mode) .mes-eval-main .auth-back a {
-    color: var(--color-text-secondary);
-}
-
-body:not(.day-mode) .mes-eval-main .auth-back a:hover {
-    color: var(--color-text);
 }
 
 .accueil-apropos-toggle {

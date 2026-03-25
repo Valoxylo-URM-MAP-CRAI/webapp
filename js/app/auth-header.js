@@ -4,7 +4,6 @@
     function renderAuthStatus(container, user, authInstance) {
         container.textContent = '';
         if (user && user.email) {
-            container.appendChild(document.createTextNode(user.email + ' · '));
             var listLink = document.createElement('a');
             listLink.href = 'mes-evaluations.html';
             listLink.textContent = t('auth.header.myEvaluations');
