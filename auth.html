@@ -13,6 +13,15 @@
 </head>
 
 <body>
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('valoboisTheme') !== 'night') {
+                    document.body.classList.add('day-mode');
+                }
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
     <main class="auth-main">
         <p class="auth-back">
             <a href="index.html">← Retour à l'évaluation</a>
