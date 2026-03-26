@@ -2241,7 +2241,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: var(--space-12);
 }
 
-/* Grille 4 colonnes (reset / critère / note+info / slider) */
+/* Grille de base (écrasée plus bas dans la cascade) */
 
 .inspection-row {
     display: grid;
@@ -6247,8 +6247,7 @@ body.day-mode .lot-group--collapsible summary:hover {
   .debit-row,
   .geo-row,
   .essence-row,
-  .ancien-row,
-  .inspection-row {
+  .ancien-row {
     display: grid;
         /* 4 colonnes : Slider (large) | valeur / reset | critère | info */
     grid-template-columns:
@@ -7299,8 +7298,7 @@ body.day-mode .evalop-column-title {
     .debit-row,
     .geo-row,
     .essence-row,
-    .ancien-row,
-    .inspection-row
+    .ancien-row
 ) {
     display: grid;
     grid-template-columns:
@@ -7839,8 +7837,7 @@ body.day-mode .evalop-column-title {
     .debit-row,
     .geo-row,
     .essence-row,
-    .ancien-row,
-    .inspection-row
+    .ancien-row
 ) {
     display: grid;
     grid-template-columns:
@@ -7855,27 +7852,6 @@ body.day-mode .evalop-column-title {
     row-gap: var(--space-6);
 }
 
-/* Inspection : grille 2x2 (valeur/reset au-dessus de critère/info) */
-.inspection-row:not([data-inspection-field="integrite"]) {
-    grid-template-columns:
-        minmax(0, 1fr)
-        minmax(112px, 136px)
-        32px;
-    grid-template-areas:
-      "slider value reset"
-      "slider label info";
-}
-
-.cards-grid .inspection-row:not([data-inspection-field="integrite"]) {
-    grid-template-columns:
-        minmax(0, 1fr)
-        minmax(100px, 122px)
-        30px;
-    grid-template-areas:
-      "slider value reset"
-      "slider label info";
-}
-
 /* Bloc notation : en-tête critère horizontale + ruban valeur vertical gauche */
 :is(
     .bio-row,
@@ -7887,8 +7863,7 @@ body.day-mode .evalop-column-title {
     .debit-row,
     .geo-row,
     .essence-row,
-    .ancien-row,
-    .inspection-row:not([data-inspection-field="integrite"])
+    .ancien-row
 ) {
     grid-template-columns: 32px minmax(0, 1fr) 32px;
     grid-template-rows: 32px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(32px, auto);
@@ -7914,8 +7889,7 @@ body.day-mode .evalop-column-title {
     .debit-row,
     .geo-row,
     .essence-row,
-    .ancien-row,
-    .inspection-row:not([data-inspection-field="integrite"])
+    .ancien-row
 ) {
     grid-template-columns: 30px minmax(0, 1fr) 30px;
     grid-template-rows: 30px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(30px, auto);
@@ -7941,6 +7915,9 @@ body.day-mode .evalop-column-title {
         "spacer slider ."
         "spacer slider ."
         "spacer slider info";
+    align-items: stretch;
+    column-gap: var(--space-8);
+    row-gap: var(--space-4);
 }
 
 .cards-grid .inspection-row:not([data-inspection-field="integrite"]) {
@@ -7952,6 +7929,9 @@ body.day-mode .evalop-column-title {
         "spacer slider ."
         "spacer slider ."
         "spacer slider info";
+    align-items: stretch;
+    column-gap: var(--space-6);
+    row-gap: var(--space-3);
 }
 
 /* Spacer : même apparence que la colonne "ignore" */
@@ -8892,6 +8872,9 @@ body.day-mode .evalop-column-title {
       "ignore slider actions"
       "ignore slider actions"
       "ignore slider actions";
+    align-items: stretch;
+    column-gap: var(--space-8);
+    row-gap: var(--space-4);
 }
 
 .cards-grid .inspection-row[data-inspection-field="integrite"] {
