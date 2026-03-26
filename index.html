@@ -845,10 +845,13 @@
             <section class="card detail-lot-section mt-16" id="detailLotSection" data-i18n-aria-label="editor.common.lotDetail" aria-label="Détail du lot"
                 style="display:none;">
                 <header class="detail-lot-header">
-                    <div class="detail-lot-lot-badge" id="detailLotActiveLotLabel" data-i18n="editor.common.lotEllipsis">Lot …</div>
+                    <div class="allotissement-lot-badge detail-lot-lot-badge" id="detailLotActiveLotLabel" data-i18n="editor.common.lotEllipsis">Lot …</div>
+                    <button class="allotissement-info-btn detail-lot-info-btn" type="button" id="btnDetailLotInfo" data-i18n="editor.common.info">info</button>
+                </header>
+                <div class="detail-lot-toolbar">
                     <h2 class="card-title detail-lot-title" style="margin-bottom:0;" data-i18n="editor.common.lotDetail">Détail du lot</h2>
                     <button class="btn btn-primary" type="button" id="btnAddPiece">+ Ajouter une pièce</button>
-                </header>
+                </div>
                 <div class="detail-lot-scroll">
                     <div class="piece-rail" id="pieceRail">
                         <!-- Les formulaires de pièces sont injectés ici via JS -->
@@ -864,7 +867,7 @@
                         <button class="modal-close" type="button" id="btnCloseAlertPiecesModal">&times;</button>
                     </header>
                     <div class="modal-body">
-                        <p style="text-align:center;">Ce lot contient des pièces non détaillées.</p>
+                        <p id="alertPiecesModalMessage" style="text-align:center;">Ce lot contient des pièces non détaillées.</p>
                     </div>
                     <footer class="modal-footer">
                         <button class="btn btn-primary" type="button" id="btnOkAlertPiecesModal">OK</button>
@@ -961,6 +964,45 @@
                     </div>
                     <footer class="modal-footer">
                         <button class="btn btn-primary btn-full" type="button" id="btnCloseAllotissementModalFooter">
+                            J’ai compris
+                        </button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale info détail du lot -->
+            <div class="modal-backdrop hidden" id="detailLotModalBackdrop" aria-hidden="true">
+                <div class="modal modal--info-sheet" role="dialog" aria-modal="true"
+                    aria-labelledby="detailLotModalTitle">
+                    <header class="modal-header">
+                        <h2 id="detailLotModalTitle">À propos du détail du lot</h2>
+                        <button class="modal-close" type="button" id="btnCloseDetailLotModal">×</button>
+                    </header>
+                    <div class="modal-body">
+                        <div class="info-sheet">
+                            <div class="info-sheet-intro">
+                                Le détail du lot permet de renseigner les principales informations relatives aux pièces de bois évaluées : type de pièce, essence, dimensions, prix. Les informations relatives aux volumes, surfaces et masses sont calculées automatiquement.
+                            </div>
+
+                            <section class="info-sheet-section">
+                                <p>Ces données sont ensuite combinées pour être affichées sous forme de moyennes dans le formulaire du lot.</p>
+                            </section>
+
+                            <section class="info-sheet-section">
+                                <h3>Le détail du lot se fait par l’intermédiaire de deux types de formulaires :</h3>
+                                <ul>
+                                    <li>Le formulaire de « Pièce par défaut » permet, pour un usage rapide, de renseigner les dimensions approximatives d’un lot de pièces jugées similaires. Ce formulaire est utile pour disposer d’un aperçu synthétique de pré-diagnostic.</li>
+                                    <li>Le formulaire de « Pièce » permet de créer une identité de pièce unique et ainsi de détailler le type de pièce, l’essence, les dimensions et le prix pour chaque pièce contenue dans un lot.</li>
+                                </ul>
+                            </section>
+
+                            <div class="info-sheet-note">
+                                <strong>À retenir :</strong> Par convention il est préférable de composer des lots qui ne contiennent que des pièces similaires en type, essence et prix. Le panachage reste possible.
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary btn-full" type="button" id="btnCloseDetailLotModalFooter">
                             J’ai compris
                         </button>
                     </footer>

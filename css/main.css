@@ -1179,6 +1179,13 @@ body.day-mode .accueil-collapsible-summary:hover {
     min-width: 0;
 }
 
+.lot-card-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+}
+
 .lot-reset-btn {
   padding: var(--space-4) var(--space-8);
   background-color: var(--color-black);
@@ -1344,6 +1351,40 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-inline-grid--2 {
     grid-template-columns: 1fr;
+}
+
+.lot-location-group-nav {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+    gap: 8px;
+    align-items: center;
+}
+
+.lot-location-group-content {
+    display: grid;
+    gap: 8px;
+}
+
+.lot-location-group-title {
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    min-height: 16px;
+}
+
+.lot-location-group-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--color-border);
+    background: #F2EFE7;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.lot-location-group-btn:disabled {
+    opacity: 0.45;
+    cursor: default;
 }
 
 .lot-essence-picker {
@@ -1598,9 +1639,26 @@ body.day-mode .lot-group--collapsible summary:hover {
     color: #E69F00;
 }
 
+.lot-alert-btn[data-alert-active="false"][data-alert-missing="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
 .lot-alert-btn svg {
     width: 20px;
     height: 20px;
+}
+
+.lot-alert-btn--header[data-alert-notation="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--header[data-alert-notation="false"] {
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 .lot-price-market-row {
@@ -2005,26 +2063,29 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .detail-lot-header {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: var(--space-8);
+    align-items: center;
+    margin-bottom: var(--space-12);
+}
+
+.detail-lot-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-12);
     margin-bottom: var(--space-12);
 }
 
 .detail-lot-title {
-    flex: 1;
-    text-align: center;
     margin-bottom: 0;
 }
 
 .detail-lot-lot-badge {
-    padding: var(--space-4) var(--space-12);
-    background-color: var(--color-white);
-    color: var(--color-text);
-    border-radius: var(--radius-base);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
     white-space: nowrap;
+}
+
+.detail-lot-info-btn {
+    flex-shrink: 0;
 }
 
 .detail-lot-scroll {
@@ -2065,6 +2126,25 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-shrink: 0;
 }
 
+.piece-card--active {
+    border-color: var(--bleu-crai);
+    box-shadow: 0 0 0 2px rgba(29, 61, 150, 0.15);
+}
+
+.piece-card--passive {
+    opacity: 0.58;
+    filter: grayscale(0.45);
+    cursor: pointer;
+}
+
+.piece-card--passive input:disabled,
+.piece-card--passive button:disabled,
+.piece-card--passive select:disabled,
+.piece-card--passive textarea:disabled {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .piece-card-header {
     display: flex;
     align-items: center;
@@ -2076,6 +2156,46 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
+}
+
+.piece-card-title-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.piece-card-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 4px);
+    flex-shrink: 0;
+}
+
+.piece-card-actions--stacked {
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.piece-duplicate-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 28px;
+    padding: var(--space-4) var(--space-8);
+    background-color: var(--bleu-crai);
+    color: var(--blanc-pur);
+    border-radius: var(--radius-base);
+    border: none;
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    flex-shrink: 0;
+    opacity: 1;
+}
+
+.piece-duplicate-btn:hover:not(:disabled) {
+    background-color: #162e72;
+    color: var(--blanc-pur);
 }
 
 .piece-delete-btn {
@@ -2094,6 +2214,25 @@ body.day-mode .lot-group--collapsible summary:hover {
     color: var(--blanc-pur);
 }
 
+.piece-delete-btn:disabled,
+.piece-duplicate-btn:disabled {
+    background-color: #97A6D4;
+    color: #EDEFF7;
+}
+
+/* Le reset de la pièce par défaut reprend exactement la boîte du bouton suppression pièce */
+.piece-card .piece-delete-btn.btn-reset {
+    min-width: 28px;
+    min-height: 24px;
+    padding: var(--space-4) var(--space-8);
+    line-height: 1;
+}
+
+.piece-card .piece-delete-btn.btn-reset svg {
+    width: 12px;
+    height: 12px;
+}
+
 /* Pièce par défaut */
 .piece-card--default {
     border: 2px dashed var(--bleu-crai);
@@ -2105,6 +2244,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .piece-card--default .piece-default-count {
+    display: inline-flex;
+    align-items: center;
     font-size: var(--font-size-xs);
     color: var(--color-text-muted, #888);
     font-weight: var(--font-weight-semibold);
@@ -2112,7 +2253,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .piece-card--disabled {
     opacity: 0.35;
-    pointer-events: none;
     filter: grayscale(0.6);
 }
 
@@ -9164,6 +9304,11 @@ body.day-mode .inspection-ignore-box {
     background: #FFFFFF !important;
     color: var(--color-text) !important;
     border-color: var(--color-border) !important;
+}
+
+/* Hors mode "Ignorer", le terme du ruban reste masqué */
+.inspection-row[data-inspection-field="integrite"]:not(.inspection-row--ignored) .inspection-ignore-box {
+    color: transparent !important;
 }
 
 .inspection-row[data-inspection-field="integrite"] .inspection-ignore-reset {

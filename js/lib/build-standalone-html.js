@@ -59,7 +59,8 @@
                 parts.push(full);
             } else {
                 const js = await fetchText(new URL(src, dirHref));
-                parts.push('<script>\n' + js + '\n</script>');
+                const safeJs = js.replace(/<\/script/gi, '<\\/script');
+                parts.push('<script>\n' + safeJs + '\n</script>');
             }
             lastIndex = match.index + full.length;
         }

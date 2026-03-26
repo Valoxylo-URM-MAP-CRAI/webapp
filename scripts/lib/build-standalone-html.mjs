@@ -16,7 +16,7 @@ function injectValoboisDataScript(html, data) {
     scriptTag += 'window.__VALOBOIS_DATA__=JSON.parse(decodeURIComponent(escape(atob(';
     scriptTag += '"' + base64Json + '"';
     scriptTag += '))));';
-    scriptTag += '</script>';
+    scriptTag += '<\/script>';
     return html.replace(/<head[^>]*>/i, (m) => m + '\n  ' + scriptTag);
 }
 
@@ -39,7 +39,8 @@ function inlineLocalScripts(html, rootDir) {
         if (isRemoteHref(src)) return full;
         const fp = path.join(rootDir, src);
         const js = fs.readFileSync(fp, 'utf8');
-        return `<script>\n${js}\n</script>`;
+        const safeJs = js.replace(/<\/script/gi, '<\\/script');
+        return `<script>\n${safeJs}\n</script>`;
     });
 }
 
