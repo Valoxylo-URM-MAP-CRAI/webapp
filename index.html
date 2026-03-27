@@ -875,6 +875,22 @@
                 </div>
             </div>
 
+            <!-- Modale pièces de la combinaison localisation/situation -->
+            <div class="modal-backdrop hidden" id="lotLocationPiecesModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lotLocationPiecesModalTitle">
+                    <header class="modal-header">
+                        <h2 id="lotLocationPiecesModalTitle" class="text-center">Pièces de la combinaison</h2>
+                        <button class="modal-close" type="button" id="btnCloseLotLocationPiecesModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p id="lotLocationPiecesModalMessage" style="text-align:left; white-space:pre-line;">Aucune pièce renseignée pour cette combinaison.</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkLotLocationPiecesModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale confirmation suppression de pièce -->
             <div class="modal-backdrop hidden" id="deletePieceConfirmBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deletePieceConfirmTitle">
@@ -886,9 +902,27 @@
                         <p id="deletePieceConfirmMessage" style="text-align:center;">Voulez-vous vraiment supprimer
                             cette pièce&nbsp;?</p>
                     </div>
-                    <footer class="modal-footer">
-                        <button class="btn btn-secondary" type="button" id="btnCancelDeletePiece">Annuler</button>
-                        <button class="btn btn-primary" type="button" id="btnConfirmDeletePiece">Oui, supprimer</button>
+                    <footer class="modal-footer" style="flex-direction: column; align-items: stretch;">
+                        <button class="btn btn-primary btn-full" type="button" id="btnConfirmDeletePieceRestore">Oui, supprimer et restituer au compteur par défaut</button>
+                        <button class="btn btn-secondary btn-full" type="button" id="btnConfirmDeletePiece">Supprimer sans restituer</button>
+                        <button class="btn btn-secondary btn-full" type="button" id="btnCancelDeletePiece">Annuler</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale confirmation déduction pièce par défaut -->
+            <div class="modal-backdrop hidden" id="createPieceDeductionBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createPieceDeductionTitle">
+                    <header class="modal-header">
+                        <h2 id="createPieceDeductionTitle" class="text-center">Déduction des pièces par défaut</h2>
+                        <button class="modal-close" type="button" id="btnCloseCreatePieceDeduction">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p id="createPieceDeductionMessage" style="text-align:center;">Souhaitez-vous déduire cette nouvelle pièce de la quantité des Pièces par défaut ?</p>
+                    </div>
+                    <footer class="modal-footer" style="flex-direction: column; align-items: stretch;">
+                        <button class="btn btn-primary btn-full" type="button" id="btnCreatePieceDeductionYes">Oui, déduire</button>
+                        <button class="btn btn-secondary btn-full" type="button" id="btnCreatePieceDeductionNo">Non, conserver la quantité</button>
                     </footer>
                 </div>
             </div>

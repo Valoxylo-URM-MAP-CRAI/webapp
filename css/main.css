@@ -1355,9 +1355,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-location-group-nav {
     display: grid;
-    grid-template-columns: 36px minmax(0, 1fr) 36px;
     gap: 8px;
-    align-items: center;
 }
 
 .lot-location-group-content {
@@ -1365,21 +1363,73 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: 8px;
 }
 
+.lot-location-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.lot-location-field-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.lot-location-pieces-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+}
+
 .lot-location-group-title {
     margin: 0;
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);
-    min-height: 16px;
+    min-height: 14px;
 }
 
 .lot-location-group-btn {
-    width: 36px;
-    height: 36px;
+    width: 100%;
+    height: auto;
     border-radius: var(--radius-sm);
     border: 1px solid var(--color-border);
     background: #F2EFE7;
     color: var(--color-text);
     cursor: pointer;
+}
+
+.lot-location-open-btn {
+    align-self: stretch;
+}
+
+.lot-location-cycle-btn {
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    flex-shrink: 0;
+}
+
+.lot-location-cycle-icon {
+    width: 28px;
+    height: 28px;
+    display: block;
+    fill: currentColor;
+}
+
+.lot-location-pieces-row .lot-input {
+    min-width: 0;
+}
+
+@media (max-width: 720px) {
+    .lot-location-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
 .lot-location-group-btn:disabled {
@@ -1404,6 +1454,49 @@ body.day-mode .lot-group--collapsible summary:hover {
     display: grid;
     grid-template-columns: 1fr;
     gap: 8px;
+}
+
+.lot-type-with-detail {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
+}
+
+.lot-essence-with-detail {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+    align-items: start;
+}
+
+.lot-type-with-detail.has-detail-btn,
+.lot-essence-with-detail.has-detail-btn {
+    grid-template-columns: minmax(0, 1fr) clamp(116px, 38%, 152px);
+}
+
+.lot-detail-btn {
+    width: 100%;
+    padding: var(--space-4) var(--space-8);
+    justify-self: end;
+    font-size: var(--font-size-xs);
+    line-height: 1.2;
+    white-space: nowrap;
+    text-align: center;
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    border: 1px solid var(--bleu-crai);
+    min-height: 26px;
+}
+
+.lot-type-with-detail .lot-input,
+.lot-essence-with-detail .lot-input {
+    min-height: 26px;
+}
+
+.lot-detail-btn:hover {
+    background-color: #152d6e;
+    border-color: #152d6e;
 }
 
 .lot-inline-grid--lot-dimensions {
@@ -1440,15 +1533,8 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding-right: 28px;
 }
 
-/* Quand le champ est vide (placeholder visible), le « mm » est invisible :
-   on supprime le padding-right pour que le placeholder ait toute la largeur */
-.lot-dimension-input-wrap:not([data-has-value="true"]) .lot-input--with-placeholder {
+.lot-dimension-input-wrap:not([data-has-value="true"]) .lot-input {
     padding-right: var(--space-8);
-}
-
-.lot-input--with-placeholder::placeholder {
-    font-size: 10px;
-    letter-spacing: -0.01em;
 }
 
 .lot-dimension-unit {
@@ -2121,8 +2207,8 @@ body.day-mode .lot-group--collapsible summary:hover {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-base);
     padding: var(--space-12);
-    min-width: 300px;
-    max-width: 340px;
+    min-width: 280px;
+    max-width: 320px;
     flex-shrink: 0;
 }
 
@@ -6346,6 +6432,17 @@ body.day-mode .lot-group--collapsible summary:hover {
             background-color: #F2F2F2;
         }
 
+        .btn.btn-secondary.lot-detail-btn {
+            background-color: var(--bleu-crai);
+            color: var(--color-white);
+            border: 1px solid var(--bleu-crai);
+        }
+
+        .btn.btn-secondary.lot-detail-btn:hover {
+            background-color: #152d6e;
+            border-color: #152d6e;
+        }
+
         #exportPdfBackdrop .export-modal-select {
             width: 100%;
             border-radius: var(--radius-sm);
@@ -6952,6 +7049,17 @@ body:not(.day-mode) .btn.btn-secondary {
 
 body:not(.day-mode) .btn.btn-secondary:hover {
     background-color: #4a5360;
+}
+
+body:not(.day-mode) .btn.btn-secondary.lot-detail-btn {
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    border: 1px solid var(--bleu-crai);
+}
+
+body:not(.day-mode) .btn.btn-secondary.lot-detail-btn:hover {
+    background-color: #152d6e;
+    border-color: #152d6e;
 }
 
 body:not(.day-mode) #exportPdfBackdrop .export-modal-select {
