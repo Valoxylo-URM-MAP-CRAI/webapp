@@ -10454,46 +10454,130 @@ renderRadar() {
         let priceIncin = 0;
         let totalVolGlobal = 0;
         let bilanMonetaireGlobal = 0;
+        const lotsParOrientation = {
+            reemploi: [],
+            reutilisation: [],
+            recyclage: [],
+            combustion: []
+        };
+        const lotsCirculaires = [];
 
-        lots.forEach((lot) => {
+        lots.forEach((lot, index) => {
             const allotissement = lot.allotissement || {};
             const volume = parseFloat(allotissement.volumeLot) || 0;
             const price = parseFloat(allotissement.prixLot) || 0;
             const orientation = this.getPdfOrientationSummary(lot).label;
+            const lotLabel = this.getPdfLotLabel(lot, index);
             totalVolGlobal += volume;
 
             if (orientation === 'Combustion') {
                 bilanMonetaireGlobal -= price;
                 volIncin += volume;
                 priceIncin += price;
+                lotsParOrientation.combustion.push(lotLabel);
             } else {
                 bilanMonetaireGlobal += price;
                 if (orientation === 'Réemploi') {
                     volReemploi += volume;
                     priceReemploi += price;
+                    lotsParOrientation.reemploi.push(lotLabel);
+                    lotsCirculaires.push(lotLabel);
                 } else if (orientation === 'Réutilisation') {
                     volReutil += volume;
                     priceReutil += price;
+                    lotsParOrientation.reutilisation.push(lotLabel);
+                    lotsCirculaires.push(lotLabel);
                 } else if (orientation === 'Recyclage') {
                     volRecyc += volume;
                     priceRecyc += price;
+                    lotsParOrientation.recyclage.push(lotLabel);
                 }
             }
         });
 
         const circularite = totalVolGlobal > 0 ? ((volReemploi + volReutil) / totalVolGlobal) * 100 : 0;
+        const volCirculaire = volReemploi + volReutil;
+        const partReemploi = totalVolGlobal > 0 ? (volReemploi / totalVolGlobal) * 100 : 0;
+        const partReutil = totalVolGlobal > 0 ? (volReutil / totalVolGlobal) * 100 : 0;
+        const partRecyc = totalVolGlobal > 0 ? (volRecyc / totalVolGlobal) * 100 : 0;
+        const partIncin = totalVolGlobal > 0 ? (volIncin / totalVolGlobal) * 100 : 0;
 
         return {
             orientations: [
-                { label: 'Réemploi', volume: volReemploi, price: priceReemploi },
-                { label: 'Réutilisation', volume: volReutil, price: priceReutil },
-                { label: 'Recyclage', volume: volRecyc, price: priceRecyc },
-                { label: 'Combustion', volume: volIncin, price: priceIncin }
+                { label: 'Réemploi', volume: volReemploi, price: priceReemploi, part: partReemploi, lots: lotsParOrientation.reemploi },
+                { label: 'Réutilisation', volume: volReutil, price: priceReutil, part: partReutil, lots: lotsParOrientation.reutilisation },
+                { label: 'Recyclage', volume: volRecyc, price: priceRecyc, part: partRecyc, lots: lotsParOrientation.recyclage },
+                { label: 'Combustion', volume: volIncin, price: priceIncin, part: partIncin, lots: lotsParOrientation.combustion }
             ],
             totalVolume: totalVolGlobal,
+            volCirculaire,
             circularite,
-            bilanMonetaire: bilanMonetaireGlobal
+            bilanMonetaire: bilanMonetaireGlobal,
+            lotsCirculaires
         };
+    }
+
+    formatPdfLotsList(lots) {
+        return Array.isArray(lots) && lots.length ? lots.join(', ') : '—';
+    }
+
+    getPdfLotCompositionValue(lot, fieldName) {
+        if (!lot || !fieldName) return '—';
+
+        const allotissement = lot.allotissement || {};
+        const aggregated = this.getLotAggregatedTextValue(lot, fieldName);
+
+        // Cas multiples : afficher le décompte "Essence (nb), Essence2 (nb2)"
+        if (aggregated === 'Multiples') {
+            const counted = this.getLotOrientationCountedDisplay(lot, fieldName);
+            return counted || 'Multiples';
+        }
+
+        // Cas valeur unique déjà résolue (depuis pièces ou allotissement)
+        if (aggregated) {
+            if (fieldName === 'essenceNomCommun') {
+                return this.getEssenceCommonLabel(aggregated) || aggregated;
+            }
+            return aggregated;
+        }
+
+        // Dernier recours : lecture directe allotissement
+        if (fieldName === 'essenceNomCommun') {
+            return this.getEssenceCommonLabel(allotissement.essenceNomCommun || allotissement.essence || '') || '—';
+        }
+        return (allotissement.typePiece || allotissement.typePieces || '').toString().trim() || '—';
+    }
+
+    appendPdfOperationSummary(card, options = {}) {
+        const operationSummary = this.getPdfOperationSummary();
+        const rows = operationSummary.orientations.map((item) => [
+            item.label,
+            this.formatPdfVolume(item.volume),
+            this.formatPdfCurrency(item.price),
+            this.formatPdfPercent(item.part),
+            this.formatPdfLotsList(item.lots)
+        ]);
+
+        this.appendPdfTable(
+            card,
+            ['Orientation', 'Volume', 'Prix', 'Part', 'Lots'],
+            rows,
+            {
+                fontSize: options.tableFontSize || '8px',
+                compact: options.compact !== false,
+                lineHeight: options.lineHeight || '1.2'
+            }
+        );
+
+        const summaryWrap = document.createElement('div');
+        summaryWrap.style.marginTop = '8px';
+        this.appendPdfKeyValueGrid(summaryWrap, [
+            { label: 'Volume circulaire', value: this.formatPdfVolume(operationSummary.volCirculaire) },
+            { label: 'Bilan monétaire', value: this.formatPdfCurrency(operationSummary.bilanMonetaire) },
+            { label: 'Circularité', value: this.formatPdfPercent(operationSummary.circularite) },
+            { label: 'Lots circulaires', value: this.formatPdfLotsList(operationSummary.lotsCirculaires) }
+        ], 2);
+        card.appendChild(summaryWrap);
     }
 
     createPdfCard(titleText) {
@@ -10531,6 +10615,7 @@ renderRadar() {
             box.style.borderRadius = '10px';
             box.style.padding = '8px';
             box.style.background = '#ffffff';
+            box.style.minWidth = '0';
 
             const label = document.createElement('div');
             label.textContent = pair.label;
@@ -10539,12 +10624,17 @@ renderRadar() {
             label.style.letterSpacing = '0.05em';
             label.style.color = '#6a6257';
             label.style.marginBottom = '4px';
+            label.style.whiteSpace = 'normal';
+            label.style.overflowWrap = 'anywhere';
 
             const value = document.createElement('div');
             value.textContent = pair.value || '—';
             value.style.fontSize = '12px';
             value.style.fontWeight = '600';
             value.style.lineHeight = '1.25';
+            value.style.whiteSpace = 'normal';
+            value.style.overflowWrap = 'anywhere';
+            value.style.wordBreak = 'break-word';
 
             box.appendChild(label);
             box.appendChild(value);
@@ -10572,6 +10662,7 @@ renderRadar() {
             th.style.color = '#6a6257';
             th.style.fontWeight = '700';
             th.style.background = '#f6f1e8';
+            th.style.overflowWrap = 'anywhere';
             headRow.appendChild(th);
         });
         thead.appendChild(headRow);
@@ -10589,6 +10680,9 @@ renderRadar() {
                 td.style.padding = options.compact ? '4px 5px' : '6px 7px';
                 td.style.borderBottom = '1px solid #eee7db';
                 td.style.verticalAlign = 'top';
+                td.style.whiteSpace = 'normal';
+                td.style.overflowWrap = 'anywhere';
+                td.style.wordBreak = 'break-word';
                 row.appendChild(td);
             });
             tbody.appendChild(row);
@@ -10678,18 +10772,7 @@ renderRadar() {
         );
 
         const evalCard = this.createPdfCard('Évaluation de l’opération');
-        const operationSummary = this.getPdfOperationSummary();
-        const evalRows = operationSummary.orientations.map((item) => [
-            item.label,
-            this.formatPdfVolume(item.volume),
-            this.formatPdfCurrency(item.price)
-        ]);
-        evalRows.push([
-            'Circularité',
-            this.formatPdfPercent(operationSummary.circularite),
-            this.formatPdfCurrency(operationSummary.bilanMonetaire)
-        ]);
-        this.appendPdfTable(evalCard, ['Orientation', 'Volume', 'Prix / bilan'], evalRows, { fontSize: '10px' });
+        this.appendPdfOperationSummary(evalCard, { tableFontSize: '9px', compact: true, lineHeight: '1.2' });
 
         exportRoot.appendChild(metaCard);
         exportRoot.appendChild(lotsCard);
@@ -10750,6 +10833,9 @@ renderRadar() {
             commentText.textContent = meta.commentaires;
             commentText.style.fontSize = '8px';
             commentText.style.lineHeight = '1.4';
+            commentText.style.whiteSpace = 'normal';
+            commentText.style.overflowWrap = 'anywhere';
+            commentText.style.wordBreak = 'break-word';
             commentWrap.appendChild(commentLabel);
             commentWrap.appendChild(commentText);
             metaCard.appendChild(commentWrap);
@@ -10757,15 +10843,28 @@ renderRadar() {
 
         const allotissement = currentLot.allotissement || {};
         const integrity = currentLot.inspection && currentLot.inspection.integrite;
+        const hasDetailDimensions = this.getLotQuantityFromDetail(currentLot) > 0;
+        const displayLongueur = hasDetailDimensions ? String(Math.round(allotissement._avgLongueur || 0)) : (allotissement.longueur || '');
+        const displayLargeur  = hasDetailDimensions ? String(Math.round(allotissement._avgLargeur  || 0)) : (allotissement.largeur  || '');
+        const displayHauteur  = hasDetailDimensions ? String(Math.round(allotissement._avgHauteur  || 0)) : (allotissement.hauteur  || '');
+        const displayDiametre = allotissement.diametre || '';
+        const hasDim = displayLongueur !== '' || displayLargeur !== '' || displayHauteur !== '' || displayDiametre !== '';
+        let dimensionsValue;
+        if (!hasDim) {
+            dimensionsValue = '—';
+        } else if (displayDiametre !== '') {
+            dimensionsValue = (displayLongueur ? displayLongueur + ' × ' : '') + 'ø' + displayDiametre;
+        } else {
+            dimensionsValue = [displayLongueur, displayLargeur, displayHauteur]
+                .map((v) => v || '0').join(' × ');
+        }
         const lotCard = this.createPdfCard('Fiche lot');
         lotCard.style.padding = '9px';
         this.appendPdfKeyValueGrid(lotCard, [
-            { label: 'Type de pièces', value: allotissement.typePiece || '—' },
-            { label: 'Essence', value: allotissement.essenceNomCommun || '—' },
+            { label: 'Type de pièces', value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
+            { label: 'Essence', value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
             { label: 'Quantité', value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
-            { label: 'Dimensions (mm)', value: [allotissement.longueur, allotissement.largeur, allotissement.hauteur].some((v) => v != null && v !== '')
-                ? [allotissement.longueur || '0', allotissement.largeur || '0', allotissement.hauteur || '0'].join(' × ')
-                : '—' },
+            { label: 'Dimensions moyennes (mm) (L × l × e)', value: dimensionsValue },
             { label: 'Volume lot', value: this.formatPdfVolume(allotissement.volumeLot) },
             { label: 'Prix marché /m³', value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
             { label: 'Coeff. intégrité', value: integrity && integrity.ignore ? 'Ignoré' : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
@@ -10994,14 +11093,7 @@ renderRadar() {
 
         const evalCard = this.createPdfCard('Évaluation de l’opération');
         evalCard.style.padding = '9px';
-        const opSummary = this.getPdfOperationSummary();
-        const evalRows = opSummary.orientations.map((item) => [
-            item.label,
-            this.formatPdfVolume(item.volume),
-            this.formatPdfCurrency(item.price)
-        ]);
-        evalRows.push(['Circularité', this.formatPdfPercent(opSummary.circularite), this.formatPdfCurrency(opSummary.bilanMonetaire)]);
-        this.appendPdfTable(evalCard, ['Orientation', 'Volume', 'Prix / bilan'], evalRows, { fontSize: '8px', compact: true, lineHeight: '1.2' });
+        this.appendPdfOperationSummary(evalCard, { tableFontSize: '8px', compact: true, lineHeight: '1.2' });
 
         leftCol.appendChild(metaCard);
         leftCol.appendChild(lotCard);
