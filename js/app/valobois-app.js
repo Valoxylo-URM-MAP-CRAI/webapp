@@ -10140,105 +10140,160 @@ renderRadar() {
         return this.buildEtiquetteSvgPages(lotIndex)[0] || '';
     }
 
-    createPdfBaseRoot(titleText) {
-        const exportRoot = document.createElement('div');
-        exportRoot.style.position = 'fixed';
-        exportRoot.style.left = '-20000px';
-        exportRoot.style.top = '0';
-        exportRoot.style.width = '1120px';
-        exportRoot.style.padding = '32px';
-        exportRoot.style.background = '#ffffff';
-        exportRoot.style.color = '#111111';
-        exportRoot.style.boxSizing = 'border-box';
-        exportRoot.style.display = 'flex';
-        exportRoot.style.flexDirection = 'column';
-        exportRoot.style.gap = '24px';
-        exportRoot.setAttribute('data-pdf-export-root', 'true');
+    /* ═══════ pdfmake — palette & styles ═══════ */
 
-        const title = document.createElement('div');
-        title.textContent = titleText;
-        title.style.fontSize = '24px';
-        title.style.fontWeight = '700';
-        title.style.textAlign = 'center';
-        title.style.marginBottom = '4px';
-        exportRoot.appendChild(title);
-
-        document.body.appendChild(exportRoot);
-        return exportRoot;
+    getPdfmakeColors() {
+        return {
+            border: '#d7d0c4',
+            cardBg: '#fffdf8',
+            headerBg: '#f6f1e8',
+            altRowBg: '#fcfaf5',
+            labelColor: '#6a6257',
+            textColor: '#111111',
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#D55E00',
+            neutral: '#E6E6E6'
+        };
     }
 
-    syncCloneCanvases(sourceRoot, cloneRoot) {
-        if (!sourceRoot || !cloneRoot) return;
-        const sourceCanvases = sourceRoot.querySelectorAll('canvas');
-        const cloneCanvases = cloneRoot.querySelectorAll('canvas');
-        sourceCanvases.forEach((sourceCanvas, index) => {
-            const cloneCanvas = cloneCanvases[index];
-            if (!cloneCanvas) return;
-            cloneCanvas.width = sourceCanvas.width;
-            cloneCanvas.height = sourceCanvas.height;
-            cloneCanvas.style.width = sourceCanvas.style.width || sourceCanvas.clientWidth + 'px';
-            cloneCanvas.style.height = sourceCanvas.style.height || sourceCanvas.clientHeight + 'px';
-            const ctx = cloneCanvas.getContext('2d');
-            if (ctx) ctx.drawImage(sourceCanvas, 0, 0);
-        });
+    getPdfmakeStyles() {
+        return {
+            title: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 6] },
+            cardTitle: { fontSize: 11, bold: true, margin: [0, 0, 0, 6] },
+            kvLabel: { fontSize: 7.5, color: '#6a6257', bold: false, margin: [0, 0, 0, 2] },
+            kvValue: { fontSize: 10.5, bold: true },
+            tableHeader: { fontSize: 8, bold: true, color: '#6a6257', fillColor: '#f6f1e8' },
+            tableCell: { fontSize: 8 },
+            tableCellSmall: { fontSize: 7 },
+            smallTitle: { fontSize: 15, bold: true, alignment: 'center', margin: [0, 0, 0, 4] }
+        };
     }
 
-    getPdfMaxBytes() {
-        return 5 * 1024 * 1024;
-    }
+    /* ═══════ pdfmake — helpers de construction ═══════ */
 
-    getDataUrlSizeBytes(dataUrl) {
-        const commaIndex = dataUrl.indexOf(',');
-        const base64 = commaIndex >= 0 ? dataUrl.slice(commaIndex + 1) : dataUrl;
-        return Math.ceil((base64.length * 3) / 4);
-    }
-
-    resizeCanvas(sourceCanvas, scale) {
-        const width = Math.max(1, Math.round(sourceCanvas.width * scale));
-        const height = Math.max(1, Math.round(sourceCanvas.height * scale));
-        const resizedCanvas = document.createElement('canvas');
-        resizedCanvas.width = width;
-        resizedCanvas.height = height;
-        const ctx = resizedCanvas.getContext('2d');
-        if (ctx) {
-            ctx.imageSmoothingEnabled = true;
-            ctx.imageSmoothingQuality = 'high';
-            ctx.drawImage(sourceCanvas, 0, 0, width, height);
+    pdfCard(titleText, bodyContent, options = {}) {
+        const c = this.getPdfmakeColors();
+        const content = [];
+        if (titleText) {
+            content.push({ text: titleText, style: 'cardTitle' });
         }
-        return resizedCanvas;
+        if (Array.isArray(bodyContent)) {
+            content.push(...bodyContent);
+        } else if (bodyContent) {
+            content.push(bodyContent);
+        }
+        return {
+            table: {
+                widths: ['*'],
+                body: [
+                    [{
+                        stack: content,
+                        margin: options.padding || [8, 6, 8, 6]
+                    }]
+                ]
+            },
+            layout: {
+                hLineWidth: () => 0.6,
+                vLineWidth: () => 0.6,
+                hLineColor: () => c.border,
+                vLineColor: () => c.border,
+                fillColor: () => c.cardBg,
+                paddingLeft: () => 0,
+                paddingRight: () => 0,
+                paddingTop: () => 0,
+                paddingBottom: () => 0
+            },
+            margin: options.margin || [0, 0, 0, 6]
+        };
     }
 
-    createCompressedImageData(sourceCanvas, targetBytes) {
-        let workingCanvas = sourceCanvas;
-        let scale = 1;
-        let quality = 0.82;
-        let attempts = 0;
-        let dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
-        let sizeBytes = this.getDataUrlSizeBytes(dataUrl);
-
-        while (sizeBytes > targetBytes && attempts < 10) {
-            const shouldDownscale = scale > 0.42;
-            if (shouldDownscale) {
-                scale *= sizeBytes > targetBytes * 1.8 ? 0.8 : 0.9;
-                workingCanvas = this.resizeCanvas(sourceCanvas, scale);
+    pdfKeyValueGrid(pairs, columns = 2) {
+        const c = this.getPdfmakeColors();
+        const rows = [];
+        for (let i = 0; i < pairs.length; i += columns) {
+            const row = [];
+            for (let j = 0; j < columns; j++) {
+                const pair = pairs[i + j];
+                if (pair) {
+                    row.push({
+                        stack: [
+                            { text: (pair.label || '').toUpperCase(), style: 'kvLabel' },
+                            { text: pair.value || '—', style: 'kvValue' }
+                        ],
+                        margin: [4, 3, 4, 3]
+                    });
+                } else {
+                    row.push({ text: '', margin: [4, 3, 4, 3] });
+                }
             }
-
-            if (quality > 0.46) {
-                quality -= sizeBytes > targetBytes * 1.5 ? 0.1 : 0.06;
-            }
-
-            quality = Math.max(0.46, quality);
-            dataUrl = workingCanvas.toDataURL('image/jpeg', quality);
-            sizeBytes = this.getDataUrlSizeBytes(dataUrl);
-            attempts += 1;
+            rows.push(row);
         }
+        const widths = Array(columns).fill('*');
+        return {
+            table: { widths, body: rows },
+            layout: {
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => '#e7e1d6',
+                vLineColor: () => '#e7e1d6',
+                fillColor: () => '#ffffff',
+                paddingLeft: () => 0,
+                paddingRight: () => 0,
+                paddingTop: () => 0,
+                paddingBottom: () => 0
+            }
+        };
+    }
+
+    pdfDataTable(headers, dataRows, options = {}) {
+        const c = this.getPdfmakeColors();
+        const fontSize = options.fontSize || 8;
+        const headerStyle = options.headerStyle || 'tableHeader';
+        const cellStyle = options.cellStyle || 'tableCell';
+        const widths = options.widths || headers.map(() => '*');
+
+        const headRow = headers.map((h) => ({
+            text: h,
+            style: headerStyle,
+            fontSize
+        }));
+
+        const bodyRows = (dataRows.length ? dataRows : [headers.map(() => '—')]).map((row, rowIdx) =>
+            row.map((cell) => ({
+                text: cell == null || cell === '' ? '—' : String(cell),
+                style: cellStyle,
+                fontSize,
+                fillColor: rowIdx % 2 === 1 ? c.altRowBg : null
+            }))
+        );
 
         return {
-            dataUrl,
-            width: workingCanvas.width,
-            height: workingCanvas.height,
-            sizeBytes
+            table: {
+                headerRows: 1,
+                widths,
+                body: [headRow, ...bodyRows]
+            },
+            layout: {
+                hLineWidth: () => 0.4,
+                vLineWidth: () => 0,
+                hLineColor: () => '#eee7db',
+                paddingLeft: () => 4,
+                paddingRight: () => 4,
+                paddingTop: () => 3,
+                paddingBottom: () => 3
+            }
         };
+    }
+
+    getCanvasDataUrl(canvasEl) {
+        if (!canvasEl) return null;
+        try {
+            return canvasEl.toDataURL('image/png');
+        } catch (e) {
+            return null;
+        }
     }
 
     formatPdfDecimal(value, minimumFractionDigits = 0, maximumFractionDigits = 0) {
@@ -10548,149 +10603,9 @@ renderRadar() {
         return (allotissement.typePiece || allotissement.typePieces || '').toString().trim() || '—';
     }
 
-    appendPdfOperationSummary(card, options = {}) {
-        const operationSummary = this.getPdfOperationSummary();
-        const rows = operationSummary.orientations.map((item) => [
-            item.label,
-            this.formatPdfVolume(item.volume),
-            this.formatPdfCurrency(item.price),
-            this.formatPdfPercent(item.part),
-            this.formatPdfLotsList(item.lots)
-        ]);
 
-        this.appendPdfTable(
-            card,
-            ['Orientation', 'Volume', 'Prix', 'Part', 'Lots'],
-            rows,
-            {
-                fontSize: options.tableFontSize || '8px',
-                compact: options.compact !== false,
-                lineHeight: options.lineHeight || '1.2'
-            }
-        );
 
-        const summaryWrap = document.createElement('div');
-        summaryWrap.style.marginTop = '8px';
-        this.appendPdfKeyValueGrid(summaryWrap, [
-            { label: 'Volume circulaire', value: this.formatPdfVolume(operationSummary.volCirculaire) },
-            { label: 'Bilan monétaire', value: this.formatPdfCurrency(operationSummary.bilanMonetaire) },
-            { label: 'Circularité', value: this.formatPdfPercent(operationSummary.circularite) },
-            { label: 'Lots circulaires', value: this.formatPdfLotsList(operationSummary.lotsCirculaires) }
-        ], 2);
-        card.appendChild(summaryWrap);
-    }
 
-    createPdfCard(titleText) {
-        const card = document.createElement('section');
-        card.style.border = '1px solid #d7d0c4';
-        card.style.borderRadius = '12px';
-        card.style.padding = '12px';
-        card.style.background = '#fffdf8';
-        card.style.boxSizing = 'border-box';
-        card.style.breakInside = 'avoid';
-        card.style.pageBreakInside = 'avoid';
-
-        if (titleText) {
-            const title = document.createElement('div');
-            title.textContent = titleText;
-            title.style.fontSize = '13px';
-            title.style.fontWeight = '700';
-            title.style.marginBottom = '8px';
-            title.style.letterSpacing = '0.02em';
-            card.appendChild(title);
-        }
-
-        return card;
-    }
-
-    appendPdfKeyValueGrid(card, pairs, columns = 2) {
-        const grid = document.createElement('div');
-        grid.style.display = 'grid';
-        grid.style.gridTemplateColumns = `repeat(${columns}, minmax(0, 1fr))`;
-        grid.style.gap = '8px';
-
-        pairs.forEach((pair) => {
-            const box = document.createElement('div');
-            box.style.border = '1px solid #e7e1d6';
-            box.style.borderRadius = '10px';
-            box.style.padding = '8px';
-            box.style.background = '#ffffff';
-            box.style.minWidth = '0';
-
-            const label = document.createElement('div');
-            label.textContent = pair.label;
-            label.style.fontSize = '9px';
-            label.style.textTransform = 'uppercase';
-            label.style.letterSpacing = '0.05em';
-            label.style.color = '#6a6257';
-            label.style.marginBottom = '4px';
-            label.style.whiteSpace = 'normal';
-            label.style.overflowWrap = 'anywhere';
-
-            const value = document.createElement('div');
-            value.textContent = pair.value || '—';
-            value.style.fontSize = '12px';
-            value.style.fontWeight = '600';
-            value.style.lineHeight = '1.25';
-            value.style.whiteSpace = 'normal';
-            value.style.overflowWrap = 'anywhere';
-            value.style.wordBreak = 'break-word';
-
-            box.appendChild(label);
-            box.appendChild(value);
-            grid.appendChild(box);
-        });
-
-        card.appendChild(grid);
-    }
-
-    appendPdfTable(card, headers, rows, options = {}) {
-        const table = document.createElement('table');
-        table.style.width = '100%';
-        table.style.borderCollapse = 'collapse';
-        table.style.fontSize = options.fontSize || '10px';
-        table.style.lineHeight = options.lineHeight || '1.25';
-
-        const thead = document.createElement('thead');
-        const headRow = document.createElement('tr');
-        headers.forEach((headerText) => {
-            const th = document.createElement('th');
-            th.textContent = headerText;
-            th.style.textAlign = 'left';
-            th.style.padding = options.compact ? '4px 5px' : '6px 7px';
-            th.style.borderBottom = '1px solid #d7d0c4';
-            th.style.color = '#6a6257';
-            th.style.fontWeight = '700';
-            th.style.background = '#f6f1e8';
-            th.style.overflowWrap = 'anywhere';
-            headRow.appendChild(th);
-        });
-        thead.appendChild(headRow);
-        table.appendChild(thead);
-
-        const tbody = document.createElement('tbody');
-        rows.forEach((rowValues, rowIndex) => {
-            const row = document.createElement('tr');
-            if (rowIndex % 2 === 1) {
-                row.style.background = '#fcfaf5';
-            }
-            rowValues.forEach((value) => {
-                const td = document.createElement('td');
-                td.textContent = value == null || value === '' ? '—' : String(value);
-                td.style.padding = options.compact ? '4px 5px' : '6px 7px';
-                td.style.borderBottom = '1px solid #eee7db';
-                td.style.verticalAlign = 'top';
-                td.style.whiteSpace = 'normal';
-                td.style.overflowWrap = 'anywhere';
-                td.style.wordBreak = 'break-word';
-                row.appendChild(td);
-            });
-            tbody.appendChild(row);
-        });
-        table.appendChild(tbody);
-
-        card.appendChild(table);
-    }
 
     getPdfNotationRowValue(lot, sectionKey, fieldKey) {
         if (sectionKey === 'inspection') {
@@ -10736,113 +10651,114 @@ renderRadar() {
         };
     }
 
-    createPdfSynthesisRoot() {
-        const exportRoot = this.createPdfBaseRoot('Synthèse de l’évaluation');
+    /* ═══════ pdfmake — document definitions ═══════ */
 
-        const metaCard = this.createPdfCard('Opération');
+    buildPdfOperationEvalContent() {
+        const opSummary = this.getPdfOperationSummary();
+        const rows = opSummary.orientations.map((item) => [
+            item.label,
+            this.formatPdfVolume(item.volume),
+            this.formatPdfCurrency(item.price),
+            this.formatPdfPercent(item.part),
+            this.formatPdfLotsList(item.lots)
+        ]);
+
+        const summaryPairs = [
+            { label: 'Volume circulaire', value: this.formatPdfVolume(opSummary.volCirculaire) },
+            { label: 'Bilan monétaire', value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
+            { label: 'Circularité', value: this.formatPdfPercent(opSummary.circularite) },
+            { label: 'Lots circulaires', value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
+        ];
+
+        return [
+            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part', 'Lots'], rows, { fontSize: 8 }),
+            { text: '', margin: [0, 4, 0, 0] },
+            this.pdfKeyValueGrid(summaryPairs, 2)
+        ];
+    }
+
+    buildPdfSynthesisDocDef() {
         const meta = this.data.meta || {};
-        this.appendPdfKeyValueGrid(metaCard, [
+        const lots = this.data.lots || [];
+
+        const metaPairs = [
             { label: 'Référence gisement', value: this.getReferenceGisement(meta) || '—' },
             { label: 'Opération', value: meta.operation || '—' },
             { label: 'Diagnostiqueur', value: meta.diagnostiqueurContact || '—' },
             { label: 'Localisation', value: meta.localisation || '—' },
             { label: 'Date', value: meta.date || '—' }
-        ], 5);
+        ];
 
-        const lotsCard = this.createPdfCard('Synthèse des lots');
-        const lotRows = (this.data.lots || []).map((lot, index) => {
+        const lotHeaders = ['Lot', 'Type', 'Essence', 'Volume', 'Prix', 'Orientation', 'Taux', 'Éco', 'Écolo', 'Méca', 'Hist', 'Esth'];
+        const lotRows = lots.map((lot, index) => {
             const allotissement = lot.allotissement || {};
             const orientation = this.getPdfOrientationSummary(lot);
             return [
                 this.getPdfLotLabel(lot, index),
-                allotissement.typePiece || '—',
-                allotissement.essenceNomCommun || '—',
+                this.getPdfLotCompositionValue(lot, 'typePiece'),
+                this.getPdfLotCompositionValue(lot, 'essenceNomCommun'),
                 this.formatPdfVolume(allotissement.volumeLot),
                 this.formatPdfCurrency(allotissement.prixLot),
                 orientation.label,
                 this.formatPdfPercent(orientation.percentage),
-                ...this.getPdfCategoryDefinitions().map((category) => this.formatPdfDecimal(parseFloat(orientation.scores[category.key]) || 0, 0, 0) + '/30')
+                ...this.getPdfCategoryDefinitions().map((c) => this.formatPdfDecimal(parseFloat(orientation.scores[c.key]) || 0, 0, 0) + '/30')
             ];
         });
-        this.appendPdfTable(
-            lotsCard,
-            ['Lot', 'Type', 'Essence', 'Volume', 'Prix', 'Orientation', 'Taux', 'Éco', 'Écolo', 'Méca', 'Hist', 'Esth'],
-            lotRows.length ? lotRows : [['Aucun lot', '', '', '', '', '', '', '', '', '', '', '']],
-            { fontSize: '9px', compact: true }
-        );
 
-        const evalCard = this.createPdfCard('Évaluation de l’opération');
-        this.appendPdfOperationSummary(evalCard, { tableFontSize: '9px', compact: true, lineHeight: '1.2' });
+        const evalContent = this.buildPdfOperationEvalContent();
 
-        exportRoot.appendChild(metaCard);
-        exportRoot.appendChild(lotsCard);
-        exportRoot.appendChild(evalCard);
-        return exportRoot;
+        return {
+            pageSize: 'A4',
+            pageOrientation: 'portrait',
+            pageMargins: [20, 24, 20, 30],
+            defaultStyle: { font: 'Roboto', fontSize: 9 },
+            styles: this.getPdfmakeStyles(),
+            footer: (currentPage, pageCount) => ({
+                text: 'Page ' + currentPage + ' / ' + pageCount,
+                alignment: 'center',
+                fontSize: 8,
+                color: '#464646',
+                margin: [0, 8, 0, 0]
+            }),
+            content: [
+                { text: 'Synthèse de l\u2019évaluation', style: 'title' },
+                this.pdfCard('Opération', [this.pdfKeyValueGrid(metaPairs, 5)]),
+                this.pdfCard('Synthèse des lots', [
+                    this.pdfDataTable(lotHeaders,
+                        lotRows.length ? lotRows : [lotHeaders.map(() => '—')],
+                        { fontSize: 7.5, widths: ['auto', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
+                    )
+                ]),
+                this.pdfCard('Évaluation de l\u2019opération', evalContent)
+            ]
+        };
     }
 
-    createPdfActiveLotRoot(lotIndex = this.currentLotIndex) {
+    buildPdfActiveLotDocDef(lotIndex) {
         const currentLot = this.data.lots && this.data.lots[lotIndex];
         if (!currentLot) return null;
 
-        const exportRoot = this.createPdfBaseRoot(this.getPdfLotLabel(currentLot, lotIndex));
-        exportRoot.style.width = '980px';
-        exportRoot.style.padding = '16px';
-        exportRoot.style.gap = '12px';
-
-        const exportTitle = exportRoot.firstElementChild;
-        if (exportTitle) {
-            exportTitle.style.fontSize = '18px';
-            exportTitle.style.marginBottom = '2px';
-        }
-
-        // ══ MOITIÉ HAUTE : quart gauche | quart droit ══
-        const topRow = document.createElement('div');
-        topRow.style.display = 'grid';
-        topRow.style.gridTemplateColumns = '1fr 1fr';
-        topRow.style.gap = '12px';
-        topRow.style.alignItems = 'stretch';
-
-        // ══ QUART HAUT GAUCHE : méta opération + fiche lot + inspection + évaluation ══
-        const leftCol = document.createElement('div');
-        leftCol.style.display = 'flex';
-        leftCol.style.flexDirection = 'column';
-        leftCol.style.gap = '10px';
-
         const meta = this.data.meta || {};
-        const metaCard = this.createPdfCard('Opération');
-        metaCard.style.padding = '9px';
-        this.appendPdfKeyValueGrid(metaCard, [
+        const allotissement = currentLot.allotissement || {};
+        const integrity = currentLot.inspection && currentLot.inspection.integrite;
+
+        // ── Opération card ──
+        const metaPairs = [
             { label: 'Référence gisement', value: this.getReferenceGisement(meta) || '—' },
             { label: 'Opération', value: meta.operation || '—' },
             { label: 'Diagnostiqueur', value: meta.diagnostiqueurContact || '—' },
             { label: 'Localisation', value: meta.localisation || '—' },
             { label: 'Date', value: meta.date || '—' }
-        ], 2);
+        ];
+        const metaContent = [this.pdfKeyValueGrid(metaPairs, 2)];
         if (meta.commentaires && meta.commentaires.trim()) {
-            const commentWrap = document.createElement('div');
-            commentWrap.style.marginTop = '6px';
-            const commentLabel = document.createElement('div');
-            commentLabel.textContent = 'Commentaires';
-            commentLabel.style.fontSize = '9px';
-            commentLabel.style.textTransform = 'uppercase';
-            commentLabel.style.letterSpacing = '0.05em';
-            commentLabel.style.color = '#6a6257';
-            commentLabel.style.fontWeight = '700';
-            commentLabel.style.marginBottom = '2px';
-            const commentText = document.createElement('div');
-            commentText.textContent = meta.commentaires;
-            commentText.style.fontSize = '8px';
-            commentText.style.lineHeight = '1.4';
-            commentText.style.whiteSpace = 'normal';
-            commentText.style.overflowWrap = 'anywhere';
-            commentText.style.wordBreak = 'break-word';
-            commentWrap.appendChild(commentLabel);
-            commentWrap.appendChild(commentText);
-            metaCard.appendChild(commentWrap);
+            metaContent.push(
+                { text: 'COMMENTAIRES', style: 'kvLabel', margin: [0, 4, 0, 1] },
+                { text: meta.commentaires, fontSize: 7, lineHeight: 1.3 }
+            );
         }
 
-        const allotissement = currentLot.allotissement || {};
-        const integrity = currentLot.inspection && currentLot.inspection.integrite;
+        // ── Fiche lot card ──
         const hasDetailDimensions = this.getLotQuantityFromDetail(currentLot) > 0;
         const displayLongueur = hasDetailDimensions ? String(Math.round(allotissement._avgLongueur || 0)) : (allotissement.longueur || '');
         const displayLargeur  = hasDetailDimensions ? String(Math.round(allotissement._avgLargeur  || 0)) : (allotissement.largeur  || '');
@@ -10855,12 +10771,10 @@ renderRadar() {
         } else if (displayDiametre !== '') {
             dimensionsValue = (displayLongueur ? displayLongueur + ' × ' : '') + 'ø' + displayDiametre;
         } else {
-            dimensionsValue = [displayLongueur, displayLargeur, displayHauteur]
-                .map((v) => v || '0').join(' × ');
+            dimensionsValue = [displayLongueur, displayLargeur, displayHauteur].map((v) => v || '0').join(' × ');
         }
-        const lotCard = this.createPdfCard('Fiche lot');
-        lotCard.style.padding = '9px';
-        this.appendPdfKeyValueGrid(lotCard, [
+
+        const lotPairs = [
             { label: 'Type de pièces', value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
             { label: 'Essence', value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
             { label: 'Quantité', value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
@@ -10869,288 +10783,186 @@ renderRadar() {
             { label: 'Prix marché /m³', value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
             { label: 'Coeff. intégrité', value: integrity && integrity.ignore ? 'Ignoré' : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
             { label: 'Prix lot', value: this.formatPdfCurrency(allotissement.prixLot) }
-        ], 2);
+        ];
 
-        const radarCard = this.createPdfCard('');
-        radarCard.style.padding = '6px';
-        radarCard.style.display = 'flex';
-        radarCard.style.flexDirection = 'column';
-        radarCard.style.justifyContent = 'flex-start';
-        radarCard.style.alignItems = 'stretch';
-        radarCard.style.width = '100%';
-        radarCard.style.minWidth = '0';
-        radarCard.style.alignSelf = 'stretch';
-        radarCard.style.height = '400px';
-        radarCard.style.maxHeight = '400px';
-        radarCard.style.overflow = 'hidden';
-        const radarTitle = document.createElement('div');
-        radarTitle.textContent = 'Radar';
-        radarTitle.style.fontSize = '13px';
-        radarTitle.style.fontWeight = '700';
-        radarTitle.style.textAlign = 'left';
-        radarTitle.style.margin = '0 0 4px 0';
-        radarTitle.style.flexShrink = '0';
-        radarCard.appendChild(radarTitle);
-        const radarSource = document.getElementById('radarSection');
-        if (radarSource) {
-            const radarClone = radarSource.cloneNode(true);
-            radarClone.style.marginTop = '0';
-            radarClone.style.border = '0';
-            radarClone.style.boxShadow = 'none';
-            radarClone.style.background = 'transparent';
-            radarClone.style.width = '100%';
-            radarClone.style.height = 'calc(100% - 18px)';
-            radarClone.style.maxWidth = 'none';
-            radarClone.style.display = 'flex';
-            radarClone.style.flexDirection = 'column';
-            radarClone.style.flex = '1 1 auto';
-            radarClone.style.minHeight = '0';
-            radarClone.style.justifyContent = 'center';
-            radarClone.style.alignItems = 'center';
-            radarClone.querySelectorAll('button').forEach((btn) => btn.remove());
-            const radarHdr = radarClone.querySelector('.radar-header');
-            if (radarHdr) radarHdr.remove();
-            const canvasWrapper = radarClone.querySelector('.radar-canvas-wrapper');
-            if (canvasWrapper) {
-                canvasWrapper.style.width = '100%';
-                canvasWrapper.style.height = '100%';
-                canvasWrapper.style.maxWidth = 'none';
-                canvasWrapper.style.maxHeight = 'none';
-                canvasWrapper.style.margin = '0 auto';
-                canvasWrapper.style.display = 'flex';
-                canvasWrapper.style.justifyContent = 'center';
-                canvasWrapper.style.alignItems = 'center';
-                canvasWrapper.style.overflow = 'hidden';
-            }
-            const radarCanvas = radarClone.querySelector('canvas');
-            if (radarCanvas) {
-                radarCanvas.style.display = 'block';
-                radarCanvas.style.maxWidth = '100%';
-                radarCanvas.style.maxHeight = '100%';
-                radarCanvas.style.width = '100%';
-                radarCanvas.style.height = '100%';
-                radarCanvas.style.objectFit = 'contain';
-                radarCanvas.style.margin = '0 auto';
-            }
-            const radarBodyText = radarClone.querySelector('#radarBodyText');
-            if (radarBodyText) {
-                radarBodyText.style.display = 'none';
-            }
-            radarCard.appendChild(radarClone);
-            this.syncCloneCanvases(radarSource, radarClone);
-        }
+        // ── Inspection card ──
+        const inspectionRows = this.getPdfSectionDefinitions()
+            .find((s) => s.key === 'inspection')
+            .rows.map((rowDef) => {
+                const rv = this.getPdfNotationRowValue(currentLot, 'inspection', rowDef.key);
+                return [rowDef.label, rv.niveau, rv.note];
+            });
 
-        // ══ QUART HAUT DROIT : jauges + radar ══
-        const rightCol = document.createElement('div');
-        rightCol.style.display = 'flex';
-        rightCol.style.flexDirection = 'column';
-        rightCol.style.gap = '10px';
-        rightCol.style.height = '100%';
+        // ── Évaluation opération card ──
+        const evalContent = this.buildPdfOperationEvalContent();
 
-        const inspectionCard = this.createPdfCard('Inspection');
-        inspectionCard.style.padding = '9px';
-        this.appendPdfTable(
-            inspectionCard,
-            ['Critère', 'Niveau', 'Note'],
-            this.getPdfSectionDefinitions()
-                .find((s) => s.key === 'inspection')
-                .rows.map((rowDef) => {
-                    const rv = this.getPdfNotationRowValue(currentLot, 'inspection', rowDef.key);
-                    return [rowDef.label, rv.niveau, rv.note];
-                }),
-            { fontSize: '8px', compact: true, lineHeight: '1.2' }
-        );
-
-        let jaugesCard = null;
+        // ── Jauges (raster) ──
+        let jaugesImage = null;
         const seuilsSource = document.getElementById('seuils-section');
         if (seuilsSource) {
-            const pdfGaugeLayout = {
-                cardMinHeight: '250px',
-                bodyGap: '8px',
-                itemGap: '4px',
-                percentRow: '24px',
-                gaugeRow: '210px',
-                labelRow: '18px',
-                scoreRow: '22px',
-                gaugeWidth: '48px',
-                percentTextSize: '12px',
-                labelTextSize: '10px',
-                scoreTextSize: '10px'
-            };
-
-            jaugesCard = this.createPdfCard('Jauges');
-            jaugesCard.style.padding = '9px';
-            jaugesCard.style.minHeight = pdfGaugeLayout.cardMinHeight;
-            jaugesCard.style.flex = '1 1 auto';
-            jaugesCard.style.display = 'flex';
-            jaugesCard.style.flexDirection = 'column';
-            jaugesCard.style.width = '100%';
-            jaugesCard.style.minWidth = '0';
-            jaugesCard.style.alignSelf = 'stretch';
-            const jaugesCardTitle = jaugesCard.firstElementChild;
-            if (jaugesCardTitle) {
-                jaugesCardTitle.style.marginBottom = '6px';
-                jaugesCardTitle.style.flexShrink = '0';
-            }
-            const seuilsClone = seuilsSource.cloneNode(true);
-            seuilsClone.style.marginTop = 'auto';
-            seuilsClone.style.border = '0';
-            seuilsClone.style.boxShadow = 'none';
-            seuilsClone.style.background = 'transparent';
-            seuilsClone.style.padding = '0';
-            seuilsClone.style.width = '100%';
-            seuilsClone.style.flex = '0 0 auto';
-            seuilsClone.style.display = 'flex';
-            seuilsClone.style.flexDirection = 'column';
-            seuilsClone.querySelectorAll('button').forEach((btn) => btn.remove());
-            const seuilsHdr = seuilsClone.querySelector('.seuils-header');
-            if (seuilsHdr) seuilsHdr.remove();
-            const seuilsBody = seuilsClone.querySelector('.seuils-body');
-            if (seuilsBody) {
-                seuilsBody.style.flex = '0 0 auto';
-                seuilsBody.style.display = 'grid';
-                seuilsBody.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
-                seuilsBody.style.alignItems = 'end';
-                seuilsBody.style.gap = pdfGaugeLayout.bodyGap;
-                seuilsBody.style.justifyContent = 'center';
-                seuilsBody.style.justifyItems = 'stretch';
-                seuilsBody.style.marginTop = '0';
-            }
-            seuilsClone.querySelectorAll('.seuils-item').forEach((item) => {
-                item.style.padding = '2px';
-                item.style.gap = pdfGaugeLayout.itemGap;
-                item.style.display = 'grid';
-                item.style.gridTemplateRows = `${pdfGaugeLayout.percentRow} ${pdfGaugeLayout.gaugeRow} ${pdfGaugeLayout.labelRow} ${pdfGaugeLayout.scoreRow}`;
-                item.style.alignItems = 'end';
-                item.style.justifyItems = 'center';
-                item.style.justifyContent = 'stretch';
-            });
-            seuilsClone.querySelectorAll('.seuils-item-header').forEach((el) => {
-                el.style.display = 'flex';
-                el.style.alignItems = 'center';
-                el.style.justifyContent = 'center';
-                el.style.width = '100%';
-                el.style.height = pdfGaugeLayout.percentRow;
-                el.style.minHeight = pdfGaugeLayout.percentRow;
-                el.style.maxHeight = pdfGaugeLayout.percentRow;
-                el.style.textAlign = 'center';
-                el.style.gridRow = '1';
-            });
-            seuilsClone.querySelectorAll('.seuils-percent').forEach((el) => {
-                el.style.display = 'inline-block';
-                el.style.width = '100%';
-                el.style.textAlign = 'center';
-                el.style.fontWeight = '700';
-                el.style.color = '#000000';
-                el.style.fontSize = pdfGaugeLayout.percentTextSize;
-                el.style.lineHeight = '1';
-                el.style.whiteSpace = 'nowrap';
-            });
-            seuilsClone.querySelectorAll('.seuils-label').forEach((el) => {
-                el.style.display = 'block';
-                el.style.minHeight = pdfGaugeLayout.labelRow;
-                el.style.width = '100%';
-                el.style.textAlign = 'center';
-                el.style.fontWeight = '700';
-                el.style.color = '#111111';
-                el.style.gridRow = '3';
-                el.style.fontSize = pdfGaugeLayout.labelTextSize;
-                el.style.lineHeight = '1.1';
-            });
-            seuilsClone.querySelectorAll('.seuils-gauge-wrapper').forEach((el) => {
-                el.style.gridRow = '2';
-                el.style.alignSelf = 'end';
-                el.style.height = pdfGaugeLayout.gaugeRow;
-                el.style.width = pdfGaugeLayout.gaugeWidth;
-            });
-            seuilsClone.querySelectorAll('.seuils-score-box').forEach((el) => {
-                el.style.gridRow = '4';
-                el.style.fontSize = pdfGaugeLayout.scoreTextSize;
-                el.style.lineHeight = '1.1';
-            });
-            jaugesCard.appendChild(seuilsClone);
-            this.syncCloneCanvases(seuilsSource, seuilsClone);
-
-            // Important: la copie des canvas remet la taille source.
-            // On redimensionne ici le canvas exporté pour que gaugeRow/gaugeWidth pilotent bien le visuel.
-            const targetGaugeWidth = Math.max(1, Math.round(parseFloat(pdfGaugeLayout.gaugeWidth) || 1));
-            const targetGaugeHeight = Math.max(1, Math.round(parseFloat(pdfGaugeLayout.gaugeRow) || 1));
-            const sourceGaugeCanvases = seuilsSource.querySelectorAll('.seuils-gauge-canvas');
-            const cloneGaugeCanvases = seuilsClone.querySelectorAll('.seuils-gauge-canvas');
-            cloneGaugeCanvases.forEach((cloneCanvas, index) => {
-                const sourceCanvas = sourceGaugeCanvases[index];
-                cloneCanvas.width = targetGaugeWidth;
-                cloneCanvas.height = targetGaugeHeight;
-                cloneCanvas.style.width = '100%';
-                cloneCanvas.style.height = '100%';
-                const ctx = cloneCanvas.getContext('2d');
-                if (ctx && sourceCanvas) {
-                    ctx.clearRect(0, 0, targetGaugeWidth, targetGaugeHeight);
-                    ctx.drawImage(sourceCanvas, 0, 0, targetGaugeWidth, targetGaugeHeight);
+            const gaugeCanvases = seuilsSource.querySelectorAll('.seuils-gauge-canvas');
+            if (gaugeCanvases.length) {
+                const GAUGE_W = 48;
+                const GAUGE_H = 210;
+                const GAP = 8;
+                const totalW = gaugeCanvases.length * GAUGE_W + (gaugeCanvases.length - 1) * GAP;
+                const combined = document.createElement('canvas');
+                combined.width = totalW;
+                combined.height = GAUGE_H;
+                const ctx = combined.getContext('2d');
+                if (ctx) {
+                    gaugeCanvases.forEach((gc, i) => {
+                        ctx.drawImage(gc, i * (GAUGE_W + GAP), 0, GAUGE_W, GAUGE_H);
+                    });
+                    try {
+                        jaugesImage = combined.toDataURL('image/png');
+                    } catch (e) { /* CORS */ }
                 }
-            });
+            }
         }
 
-        const evalCard = this.createPdfCard('Évaluation de l’opération');
-        evalCard.style.padding = '9px';
-        this.appendPdfOperationSummary(evalCard, { tableFontSize: '8px', compact: true, lineHeight: '1.2' });
-
-        leftCol.appendChild(metaCard);
-        leftCol.appendChild(lotCard);
-        leftCol.appendChild(inspectionCard);
-        leftCol.appendChild(evalCard);
-
-        if (jaugesCard) rightCol.appendChild(jaugesCard);
-        radarCard.style.marginTop = 'auto';
-        rightCol.appendChild(radarCard);
-
-        topRow.appendChild(leftCol);
-        topRow.appendChild(rightCol);
-
-        // ══ MOITIÉ BASSE : 10 blocs de notation en 5 colonnes × 2 lignes ══
-        const bottomGrid = document.createElement('div');
-        bottomGrid.style.display = 'grid';
-        bottomGrid.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
-        bottomGrid.style.gap = '8px';
-        bottomGrid.style.alignItems = 'start';
-
-        this.getPdfSectionDefinitions()
-            .filter((s) => s.key !== 'inspection')
-            .forEach((sectionDef) => {
-                const sCard = this.createPdfCard(sectionDef.title);
-                sCard.style.padding = '7px';
-                this.appendPdfTable(
-                    sCard,
-                    ['Critère', 'Niveau', 'Note'],
-                    sectionDef.rows.map((rowDef) => {
-                        const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
-                        return [rowDef.label, rv.niveau, rv.note];
-                    }),
-                    { fontSize: '7.5px', compact: true, lineHeight: '1.15' }
-                );
-                bottomGrid.appendChild(sCard);
-            });
-
-        exportRoot.appendChild(topRow);
-        exportRoot.appendChild(bottomGrid);
-
-        return exportRoot;
-    }
-
-    addPdfPageNumbers(pdf) {
-        const totalPages = pdf.getNumberOfPages();
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-        const margin = 20;
-        const pageLabelY = pageHeight - (margin / 2);
-
-        for (let page = 1; page <= totalPages; page += 1) {
-            pdf.setPage(page);
-            pdf.setFontSize(9);
-            pdf.setTextColor(70, 70, 70);
-            pdf.text(`Page ${page} / ${totalPages}`, pageWidth / 2, pageLabelY, { align: 'center' });
+        // ── Labels jauges ──
+        let jaugesLabels = null;
+        if (seuilsSource) {
+            const labels = seuilsSource.querySelectorAll('.seuils-label');
+            const percents = seuilsSource.querySelectorAll('.seuils-percent');
+            const scores = seuilsSource.querySelectorAll('.seuils-score-box');
+            if (labels.length) {
+                const headerRow = [];
+                const percentRow = [];
+                const scoreRow = [];
+                labels.forEach((lbl, i) => {
+                    headerRow.push({ text: (lbl.textContent || '').trim(), bold: true, fontSize: 7, alignment: 'center' });
+                    percentRow.push({ text: percents[i] ? (percents[i].textContent || '').trim() : '', fontSize: 8, bold: true, alignment: 'center' });
+                    scoreRow.push({ text: scores[i] ? (scores[i].textContent || '').trim() : '', fontSize: 7, alignment: 'center' });
+                });
+                jaugesLabels = { headerRow, percentRow, scoreRow, count: labels.length };
+            }
         }
+
+        // ── Radar (raster) ──
+        let radarImage = null;
+        const radarCanvas = document.querySelector('#radarSection canvas');
+        if (radarCanvas) {
+            try { radarImage = radarCanvas.toDataURL('image/png'); } catch (e) { /* CORS */ }
+        }
+
+        // ── Left column ──
+        const leftContent = [
+            this.pdfCard('Opération', metaContent, { margin: [0, 0, 0, 4] }),
+            this.pdfCard('Fiche lot', [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, 4] }),
+            this.pdfCard('Inspection', [
+                this.pdfDataTable(['Critère', 'Niveau', 'Note'], inspectionRows, { fontSize: 7 })
+            ], { margin: [0, 0, 0, 4] }),
+            this.pdfCard('Évaluation de l\u2019opération', evalContent, { margin: [0, 0, 0, 4] })
+        ];
+
+        // ── Right column ──
+        const rightContent = [];
+        if (jaugesLabels) {
+            const gaugeLabelTable = {
+                table: {
+                    widths: Array(jaugesLabels.count).fill('*'),
+                    body: [jaugesLabels.percentRow]
+                },
+                layout: 'noBorders',
+                margin: [0, 0, 0, 2]
+            };
+            const gaugeElements = [gaugeLabelTable];
+            if (jaugesImage) {
+                gaugeElements.push({
+                    image: jaugesImage,
+                    width: 220,
+                    alignment: 'center',
+                    margin: [0, 2, 0, 2]
+                });
+            }
+            const gaugeLabelTable2 = {
+                table: {
+                    widths: Array(jaugesLabels.count).fill('*'),
+                    body: [jaugesLabels.headerRow, jaugesLabels.scoreRow]
+                },
+                layout: 'noBorders',
+                margin: [0, 0, 0, 0]
+            };
+            gaugeElements.push(gaugeLabelTable2);
+            rightContent.push(this.pdfCard('Jauges', gaugeElements, { margin: [0, 0, 0, 4] }));
+        }
+
+        if (radarImage) {
+            rightContent.push(this.pdfCard('Radar', [
+                { image: radarImage, width: 220, alignment: 'center' }
+            ], { margin: [0, 0, 0, 4] }));
+        }
+
+        // ── Bottom grid: 10 notation sections in 5-col layout ──
+        const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
+        const notationCards = notationSections.map((sectionDef) => {
+            const rows = sectionDef.rows.map((rowDef) => {
+                const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
+                return [rowDef.label, rv.niveau, rv.note];
+            });
+            return this.pdfCard(sectionDef.title, [
+                this.pdfDataTable(['Critère', 'Niveau', 'Note'], rows, { fontSize: 6.5, cellStyle: 'tableCellSmall' })
+            ], { margin: [0, 0, 0, 0], padding: [4, 4, 4, 4] });
+        });
+
+        // Build grid rows (5 columns × 2 rows)
+        const gridRows = [];
+        for (let i = 0; i < notationCards.length; i += 5) {
+            const row = [];
+            for (let j = 0; j < 5; j++) {
+                row.push(notationCards[i + j] || { text: '' });
+            }
+            gridRows.push(row);
+        }
+
+        const bottomGrid = {
+            table: {
+                widths: ['*', '*', '*', '*', '*'],
+                body: gridRows
+            },
+            layout: {
+                hLineWidth: () => 0,
+                vLineWidth: () => 0,
+                paddingLeft: () => 2,
+                paddingRight: () => 2,
+                paddingTop: () => 2,
+                paddingBottom: () => 2
+            }
+        };
+
+        return {
+            pageSize: 'A4',
+            pageOrientation: 'portrait',
+            pageMargins: [14, 18, 14, 26],
+            defaultStyle: { font: 'Roboto', fontSize: 8 },
+            styles: this.getPdfmakeStyles(),
+            footer: (currentPage, pageCount) => ({
+                text: 'Page ' + currentPage + ' / ' + pageCount,
+                alignment: 'center',
+                fontSize: 8,
+                color: '#464646',
+                margin: [0, 6, 0, 0]
+            }),
+            content: [
+                { text: this.getPdfLotLabel(currentLot, lotIndex), style: 'smallTitle' },
+                {
+                    columns: [
+                        { width: '50%', stack: leftContent },
+                        { width: '50%', stack: rightContent }
+                    ],
+                    columnGap: 6
+                },
+                { text: '', margin: [0, 4, 0, 0] },
+                bottomGrid
+            ]
+        };
     }
+
+
+
+
 
     normalizeDecimalForCsv(value) {
         if (value == null) return '';
@@ -11282,9 +11094,10 @@ renderRadar() {
         this.downloadCsvFile(`valobois_evaluation_${suffix}_${stamp}.csv`, headers, rows);
     }
 
+
     exportToPdf(mode = 'synthese', lotIndices = []) {
-        if (typeof html2canvas === 'undefined' || (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined')) {
-            alert('Export PDF indisponible (bibliothèques manquantes).');
+        if (typeof pdfMake === 'undefined') {
+            alert('Export PDF indisponible (bibliothèque pdfmake manquante).');
             return;
         }
 
@@ -11293,107 +11106,66 @@ renderRadar() {
             return;
         }
 
-        const root = this.createPdfSynthesisRoot();
-        if (!root) {
-            alert('Export PDF indisponible (contenu introuvable).');
-            return;
-        }
-
-        html2canvas(root, {
-            scrollY: -window.scrollY,
-            scale: 1.4,
-            backgroundColor: '#ffffff'
-        }).then((canvas) => {
-            const targetBytes = Math.floor(this.getPdfMaxBytes() * 0.78);
-            const compressedImage = this.createCompressedImageData(canvas, targetBytes);
-            const { jsPDF } = window.jspdf || window;
-            const pdf = new jsPDF('p', 'mm', 'a4');
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const margin = 10;
-            const contentWidth = pageWidth - (margin * 2);
-            const contentHeight = pageHeight - (margin * 2);
-            const imgWidth = contentWidth;
-            const imgHeight = compressedImage.height * imgWidth / compressedImage.width;
-            let position = margin;
-            let heightLeft = imgHeight;
-            pdf.addImage(compressedImage.dataUrl, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-            heightLeft -= contentHeight;
-            while (heightLeft > 0) {
-                pdf.addPage();
-                position = margin - (imgHeight - heightLeft);
-                pdf.addImage(compressedImage.dataUrl, 'JPEG', margin, position, imgWidth, imgHeight, undefined, 'FAST');
-                heightLeft -= contentHeight;
-            }
-            this.addPdfPageNumbers(pdf);
-            const now = new Date();
-            const stamp = now.toISOString().slice(0, 10);
-            pdf.save(`valobois_evaluation_synthese_${stamp}.pdf`);
-        }).catch((error) => {
+        try {
+            const docDef = this.buildPdfSynthesisDocDef();
+            const stamp = new Date().toISOString().slice(0, 10);
+            pdfMake.createPdf(docDef).download('valobois_evaluation_synthese_' + stamp + '.pdf');
+        } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
-        }).finally(() => {
-            if (root && root.parentNode) {
-                root.parentNode.removeChild(root);
-            }
-        });
-
+        }
     }
 
     async exportSelectedLotsToPdf(lotIndices) {
         const validLotIndices = Array.isArray(lotIndices) ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index]) : [];
         if (!validLotIndices.length) {
-            alert('Aucun lot valide sélectionné pour l’export.');
+            alert('Aucun lot valide sélectionné pour l\u2019export.');
+            return;
+        }
+
+        if (typeof pdfMake === 'undefined') {
+            alert('Export PDF indisponible (bibliothèque pdfmake manquante).');
             return;
         }
 
         const previousLotIndex = this.currentLotIndex;
-        const { jsPDF } = window.jspdf || window;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const perLotTargetBytes = Math.max(350 * 1024, Math.floor((this.getPdfMaxBytes() * 0.82) / validLotIndices.length));
 
         try {
-            for (let pageIndex = 0; pageIndex < validLotIndices.length; pageIndex += 1) {
-                const lotIndex = validLotIndices[pageIndex];
+            const docDefPages = [];
+
+            for (let i = 0; i < validLotIndices.length; i++) {
+                const lotIndex = validLotIndices[i];
                 this.currentLotIndex = lotIndex;
                 this.render();
-
                 await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
-                const root = this.createPdfActiveLotRoot(lotIndex);
-                if (!root) continue;
-
-                try {
-                    const canvas = await html2canvas(root, {
-                        scrollY: -window.scrollY,
-                        scale: 1.25,
-                        backgroundColor: '#ffffff'
-                    });
-
-                    const compressedImage = this.createCompressedImageData(canvas, perLotTargetBytes);
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const margin = 10;
-                    const contentWidth = pageWidth - (margin * 2);
-                    const contentHeight = pageHeight - (margin * 2);
-                    const ratio = Math.min(contentWidth / compressedImage.width, contentHeight / compressedImage.height);
-                    const imgWidth = compressedImage.width * ratio;
-                    const imgHeight = compressedImage.height * ratio;
-                    const x = margin + ((contentWidth - imgWidth) / 2);
-                    const y = margin;
-
-                    if (pageIndex > 0) pdf.addPage();
-                    pdf.addImage(compressedImage.dataUrl, 'JPEG', x, y, imgWidth, imgHeight, undefined, 'FAST');
-                } finally {
-                    if (root.parentNode) root.parentNode.removeChild(root);
-                }
+                const lotDocDef = this.buildPdfActiveLotDocDef(lotIndex);
+                if (!lotDocDef) continue;
+                docDefPages.push(lotDocDef);
             }
 
-            this.addPdfPageNumbers(pdf);
+            if (!docDefPages.length) {
+                alert('Aucun lot valide à exporter.');
+                return;
+            }
+
+            // Merge all lot doc definitions into a single document
+            const mergedContent = [];
+            docDefPages.forEach((dd, idx) => {
+                if (idx > 0) {
+                    mergedContent.push({ text: '', pageBreak: 'before' });
+                }
+                mergedContent.push(...(Array.isArray(dd.content) ? dd.content : [dd.content]));
+            });
+
+            const mergedDocDef = {
+                ...docDefPages[0],
+                content: mergedContent
+            };
 
             const stamp = new Date().toISOString().slice(0, 10);
             const suffix = validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne';
-            pdf.save(`valobois_evaluation_${suffix}_${stamp}.pdf`);
+            pdfMake.createPdf(mergedDocDef).download('valobois_evaluation_' + suffix + '_' + stamp + '.pdf');
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
@@ -11402,6 +11174,7 @@ renderRadar() {
             this.render();
         }
     }
+
    
 } // FERMETURE DE LA CLASSE ValoboisApp
 
