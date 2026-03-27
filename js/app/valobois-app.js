@@ -9594,10 +9594,10 @@ renderRadar() {
         try {
             for (let i = 0; i < validLotIndices.length; i += 1) {
                 const lotIndex = validLotIndices[i];
-                const svg = this.buildEtiquetteSvgPage(lotIndex);
+                const svgPages = this.buildEtiquetteSvgPages(lotIndex);
                 const lotLabel = this.getPdfLotLabel(this.data.lots[lotIndex], lotIndex);
                 const safeLabel = lotLabel.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
-                await this.downloadEtiquettePdf(svg, `valobois_etiquettes_${safeLabel}.pdf`);
+                await this.downloadEtiquettePdf(svgPages, `valobois_etiquettes_${safeLabel}.pdf`);
             }
         } catch (error) {
             console.error(error);
@@ -9605,52 +9605,139 @@ renderRadar() {
         }
     }
 
-    async downloadEtiquettePdf(svgMarkup, filename) {
+    async downloadEtiquettePdf(svgPages, filename) {
         const { jsPDF } = window.jspdf || window;
         const pdf = new jsPDF('p', 'mm', 'a4');
-        const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-        const svgUrl = URL.createObjectURL(svgBlob);
+        const pages = Array.isArray(svgPages) ? svgPages : [svgPages];
 
         try {
-            const image = await new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = () => resolve(img);
-                img.onerror = () => reject(new Error('Impossible de charger le SVG des étiquettes.'));
-                img.src = svgUrl;
-            });
+            for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
+                const svgMarkup = pages[pageIndex];
+                const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
 
-            const canvas = document.createElement('canvas');
-            const upscale = 2;
-            canvas.width = Math.max(1, Math.round(image.naturalWidth * upscale));
-            canvas.height = Math.max(1, Math.round(image.naturalHeight * upscale));
-            const ctx = canvas.getContext('2d');
-            if (!ctx) throw new Error('Contexte canvas indisponible pour l\'export PDF.');
+                try {
+                    const image = await new Promise((resolve, reject) => {
+                        const img = new Image();
+                        img.onload = () => resolve(img);
+                        img.onerror = () => reject(new Error('Impossible de charger le SVG des étiquettes.'));
+                        img.src = svgUrl;
+                    });
 
-            ctx.fillStyle = '#FFFFFF';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+                    const canvas = document.createElement('canvas');
+                    const upscale = 2;
+                    canvas.width = Math.max(1, Math.round(image.naturalWidth * upscale));
+                    canvas.height = Math.max(1, Math.round(image.naturalHeight * upscale));
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) throw new Error('Contexte canvas indisponible pour l\'export PDF.');
 
-            const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-            const pageWidth = pdf.internal.pageSize.getWidth();
-            const pageHeight = pdf.internal.pageSize.getHeight();
-            const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-            const drawWidth = canvas.width * ratio;
-            const drawHeight = canvas.height * ratio;
-            const x = (pageWidth - drawWidth) / 2;
-            const y = (pageHeight - drawHeight) / 2;
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
 
-            pdf.addImage(dataUrl, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    const pageWidth = pdf.internal.pageSize.getWidth();
+                    const pageHeight = pdf.internal.pageSize.getHeight();
+                    const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
+                    const drawWidth = canvas.width * ratio;
+                    const drawHeight = canvas.height * ratio;
+                    const x = (pageWidth - drawWidth) / 2;
+                    const y = (pageHeight - drawHeight) / 2;
+
+                    if (pageIndex > 0) pdf.addPage('a4', 'p');
+                    pdf.addImage(dataUrl, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
+                } finally {
+                    URL.revokeObjectURL(svgUrl);
+                }
+            }
+
             pdf.save(filename);
-        } finally {
-            URL.revokeObjectURL(svgUrl);
-        }
+        } finally {}
     }
 
-    buildEtiquetteSvgPage(lotIndex) {
+    buildEtiquettePieceItems(lot, lotIndex) {
+        const items = [];
+        const allot = (lot && lot.allotissement) || {};
+        const meta = this.data.meta || {};
+        const defaultPiece = this.ensureDefaultPieceData(lot);
+
+        const asText = (value) => (value == null ? '' : String(value)).trim();
+        const firstFilled = (...values) => values.map(asText).find(Boolean) || '';
+        const formatMm = (value) => {
+            const num = parseFloat(value);
+            return Number.isFinite(num) && num > 0 ? `${Math.round(num)} mm` : '—';
+        };
+        const formatDimensionsLabel = (longueur, largeur, epaisseur) => {
+            return `${formatMm(longueur)} (L) - ${formatMm(largeur)} (l) - ${formatMm(epaisseur)} (e)`;
+        };
+        const joinCompanyAndEmail = (company, email) => {
+            const parts = [asText(company), asText(email)].filter(Boolean);
+            return parts.length ? parts.join(' - ') : '';
+        };
+
+        const lotRef = this.getPdfLotLabel(lot, lotIndex);
+        const vol = parseFloat(allot.volumeLot) || 0;
+        const diagInfo = joinCompanyAndEmail(
+            firstFilled(meta.diagnostiqueurNom, meta.diagnostiqueurContact),
+            firstFilled(meta.diagnostiqueurMail, meta.diagnostiqueurEmail)
+        );
+        const deconInfo = joinCompanyAndEmail(
+            firstFilled(meta.entrepriseDeconstructionNom, meta.deconstructeurNom),
+            firstFilled(meta.entrepriseDeconstructionMail, meta.entrepriseDeconstructionEmail, meta.deconstructeurMail)
+        );
+        const destinationInfo = joinCompanyAndEmail(
+            firstFilled(allot.destination),
+            firstFilled(allot.destinationMail, allot.destinationEmail)
+        );
+
+        const createBaseItem = (pieceLabel, typePiece, essenceNomCommun, dimensionsLabel) => ({
+            lotRef,
+            pieceLabel,
+            dimensionsLabel,
+            typePiece: asText(typePiece) || '—',
+            essenceNomCommun: asText(essenceNomCommun) || '—',
+            volumeLot: vol,
+            origine: asText(meta.localisation) || '—',
+            diagnostiqueur: diagInfo || '—',
+            deconstructeur: deconInfo || '—',
+            destination: destinationInfo || '—'
+        });
+
+        const pieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
+        pieces.forEach((piece, index) => {
+            items.push(createBaseItem(
+                `Pièce ${index + 1}`,
+                firstFilled(piece && piece.typePiece, allot.typePiece),
+                firstFilled(piece && piece.essenceNomCommun, allot.essenceNomCommun),
+                formatDimensionsLabel(
+                    firstFilled(piece && piece.longueur, allot.longueur),
+                    firstFilled(piece && piece.largeur, allot.largeur),
+                    firstFilled(piece && piece.hauteur, allot.hauteur)
+                )
+            ));
+        });
+
+        const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
+        for (let i = 0; i < defaultQty; i += 1) {
+            items.push(createBaseItem(
+                `Pièce par défaut n°${i + 1}`,
+                firstFilled(defaultPiece.typePiece, allot.typePiece),
+                firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
+                formatDimensionsLabel(
+                    firstFilled(defaultPiece.longueur, allot.longueur),
+                    firstFilled(defaultPiece.largeur, allot.largeur),
+                    firstFilled(defaultPiece.hauteur, allot.hauteur)
+                )
+            ));
+        }
+
+        return items;
+    }
+
+    buildEtiquetteSvgPages(lotIndex) {
         const lot   = this.data.lots[lotIndex] || {};
-        const allot = lot.allotissement || {};
-        const meta  = this.data.meta || {};
         const orientation = this.getPdfOrientationSummary(lot);
+        const items = this.buildEtiquettePieceItems(lot, lotIndex);
 
         /* ── Page A4 (mm) ── */
         const PW = 210, PH = 297;
@@ -9667,17 +9754,156 @@ renderRadar() {
         const e = (s) => String(s || '')
             .replace(/&/g, '&amp;').replace(/</g, '&lt;')
             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const wrapText = (value, maxChars) => {
+            const text = String(value || '').trim();
+            if (!text) return [''];
+
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = [];
+            let current = '';
+
+            const pushCurrent = () => {
+                if (current) {
+                    lines.push(current);
+                    current = '';
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > maxChars) {
+                    pushCurrent();
+                    for (let i = 0; i < word.length; i += maxChars) {
+                        lines.push(word.slice(i, i + maxChars));
+                    }
+                    return;
+                }
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= maxChars) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+
+            pushCurrent();
+            return lines.length ? lines : [''];
+        };
+        const maxCharsForWidth = (widthMm, fontSize) => {
+            return Math.max(6, Math.floor(widthMm / (fontSize * 0.55)));
+        };
+        const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
+            const safeText = String(text || '').trim() || '—';
+            let size = baseSize;
+            while (size > minSize && safeText.length > maxCharsForWidth(widthMm, size)) {
+                size -= 0.05;
+            }
+            return Math.max(minSize, Number(size.toFixed(2)));
+        };
+        const drawWrappedLines = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill,
+                fontWeight = '400'
+            } = opts;
+            const lines = wrapText(text, maxCharsForWidth(widthMm, fontSize));
+            lines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + idx * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(line)}</text>`);
+            });
+            return y + lines.length * lineHeight;
+        };
+        const drawSingleLine = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                fontWeight = '400',
+                textAnchor = 'start'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
+            return y;
+        };
+        const drawLabeledWrappedValue = (out, opts) => {
+            const {
+                label,
+                value,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill
+            } = opts;
+
+            const labelText = String(label || '').trim();
+            const valueText = String(value || '').trim() || '—';
+            const maxChars = maxCharsForWidth(widthMm, fontSize);
+            const firstLineCap = Math.max(6, maxChars - labelText.length - 1);
+
+            const words = valueText.split(/\s+/).filter(Boolean);
+            const valueLines = [];
+            let current = '';
+            let currentCap = firstLineCap;
+
+            const pushCurrent = () => {
+                if (current) {
+                    valueLines.push(current);
+                    current = '';
+                    currentCap = maxChars;
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > currentCap) {
+                    if (current) pushCurrent();
+                    if (word.length > maxChars) {
+                        for (let i = 0; i < word.length; i += maxChars) {
+                            valueLines.push(word.slice(i, i + maxChars));
+                        }
+                        currentCap = maxChars;
+                    } else {
+                        current = word;
+                    }
+                    return;
+                }
+
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= currentCap) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+            pushCurrent();
+
+            const firstValue = valueLines.shift() || '—';
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" fill="${fill}"><tspan font-weight="700">${e(labelText)}</tspan><tspan font-weight="400"> ${e(firstValue)}</tspan></text>`);
+
+            valueLines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + (idx + 1) * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="400" fill="${fill}">${e(line)}</text>`);
+            });
+
+            return y + (1 + valueLines.length) * lineHeight;
+        };
+        const formatOneDecimal = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        });
 
         /* ── Données du lot ── */
-        const lotRef    = this.getPdfLotLabel(lot, lotIndex);
-        const typePiece = (allot.typePiece || '').trim();
-        const essComm   = (allot.essenceNomCommun || '').trim();
-        const qty       = parseFloat(allot.quantite) || 0;
-        const vol       = parseFloat(allot.volumeLot) || 0;
-        const opLoc     = (meta.localisation || '').trim();
-        const diagMail  = (meta.diagnostiqueurMail || meta.diagnostiqueurEmail || '').trim();
-        const deconMail = (meta.entrepriseDeconstructionMail || meta.entrepriseDeconstructionEmail || meta.deconstructeurMail || '').trim();
-        const destination = (allot.destination || '').trim();
+        const lotRef = this.getPdfLotLabel(lot, lotIndex);
 
         /* ── Orientation ── */
         const OC = { reemploi: '#009E73', reutilisation: '#56B4E9', recyclage: '#E69F00', combustion: '#D55E00', none: '#CCCCCC' };
@@ -9685,21 +9911,29 @@ renderRadar() {
         const oColor = OC[oCode] || '#CCCCCC';
         const oLabel = orientation.label || '—';
 
-        /* ── Chaînes ── */
-        const volStr = vol > 0 ? `${Math.round(vol)}\u202fm\u00b3` : '';
-        const qtyStr = qty > 0 ? `${qty}\u202fpi\u00e8ce${qty > 1 ? 's' : ''}` : '';
-
         /* ── Typographie ── */
         const FF = 'Roboto,Arial,sans-serif';
-        const F  = { ref: 3.6, header: 4.2, main: 3.2, essence: 3.0, small: 2.0, tiny: 1.7 };
+        const F  = { header: 3.0, content: 2.25, small: 1.95, dim: 2.05 };
         const C  = { dark: '#111111', mid: '#333333', muted: '#555555', light: '#777777' };
 
         /* ── Constructeur d'une étiquette 51×51 mm ── */
-        const buildLabel = (lx, ly, uid) => {
+        const buildLabel = (lx, ly, uid, item) => {
             const R  = 2;
-            const HH = 9;
-            const MARGIN = 2;
+            const HH = 10.5;
+            const MARGIN = 2.4;
             const out = [];
+
+            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m3` : '0,0 m3';
+            const headerLot = item.lotRef || '—';
+            const headerOrientation = oLabel || '—';
+            const pieceLabel = item.pieceLabel || '—';
+            const dimensionsLabel = item.dimensionsLabel || '—';
+            const typePiece = item.typePiece || '—';
+            const essenceNomCommun = item.essenceNomCommun || '—';
+            const origine = item.origine || '—';
+            const diagnostiqueur = item.diagnostiqueur || '—';
+            const deconstructeur = item.deconstructeur || '—';
+            const destination = item.destination || '—';
 
             /* ClipPath arrondi */
             out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${SZ}" height="${SZ}" rx="${R}"/></clipPath>`);
@@ -9710,50 +9944,143 @@ renderRadar() {
             /* ══════ BLOC 1 : EN-TÊTE (1/5) ══════ */
             out.push(`<rect x="${lx}" y="${ly}" width="${SZ}" height="${HH}" rx="${R}" fill="${oColor}"/>`);
             out.push(`<rect x="${lx}" y="${ly + R}" width="${SZ}" height="${HH - R}" fill="${oColor}"/>`);
-            out.push(`<text x="${lx + 2.5}" y="${ly + HH - 2.2}" font-family="${FF}" font-size="${F.header}" font-weight="700" fill="${C.dark}">${e(lotRef)}</text>`);
-            if (volStr) {
-                out.push(`<text x="${lx + SZ - 2.5}" y="${ly + 3.2}" font-family="${FF}" font-size="${F.main}" font-weight="700" fill="${C.dark}" text-anchor="end">${e(volStr)}</text>`);
-            }
-            out.push(`<text x="${lx + SZ - 2.5}" y="${ly + HH - 2.2}" font-family="${FF}" font-size="${F.main}" font-weight="700" fill="${C.dark}" text-anchor="end">${e(oLabel)}</text>`);
+            const headerPad = 2.8;
+            const headerGap = 1.2;
+            const headerBodyW = SZ - (headerPad * 2) - (headerGap * 2);
+            const lotW = headerBodyW * 0.25;
+            const volW = headerBodyW * 0.25;
+            const orientationW = headerBodyW * 0.5;
+            const headerY = ly + 6.4;
+
+            drawSingleLine(out, {
+                text: headerLot,
+                x: lx + headerPad + (lotW / 2),
+                y: headerY,
+                widthMm: lotW,
+                baseFontSize: F.header,
+                minFontSize: 2.05,
+                fill: C.dark,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+            drawSingleLine(out, {
+                text: volumeStr,
+                x: lx + headerPad + lotW + headerGap + (volW / 2),
+                y: headerY,
+                widthMm: volW,
+                baseFontSize: F.header,
+                minFontSize: 2.05,
+                fill: C.dark,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+            drawSingleLine(out, {
+                text: headerOrientation,
+                x: lx + headerPad + lotW + headerGap + volW + headerGap + (orientationW / 2),
+                y: headerY,
+                widthMm: orientationW,
+                baseFontSize: F.header,
+                minFontSize: 2.05,
+                fill: C.dark,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
 
             /* ── Contenu clippé ── */
             out.push(`<g clip-path="url(#cp${uid})">`);
 
-/* ══════ BLOC 2 : TYPE + ESSENCE (1/5) ══════ */
-            const bloc2Top = ly + HH + MARGIN;
-            const bloc2Y1 = bloc2Top + 2.5;
-            if (typePiece) {
-                out.push(`<text x="${lx + SZ - 2.5}" y="${bloc2Y1}" font-family="${FF}" font-size="${F.main}" fill="${C.mid}" text-anchor="end">${e(typePiece)}</text>`);
-            }
-            const bloc2Y2 = bloc2Y1 + F.main + 1.0;
-            if (essComm) {
-                out.push(`<text x="${lx + SZ - 2.5}" y="${bloc2Y2}" font-family="${FF}" font-size="${F.essence}" fill="${C.muted}" text-anchor="end">${e(essComm)}</text>`);
-            }
+            const contentX = lx + 2.8;
+            let lineY = ly + HH + MARGIN + 2.1;
+            const bodyWidth = SZ - 5.6;
+            const lineHContent = 2.55;
+            const lineHSmall = 2.4;
 
-            /* ══════ BLOC 3 : PIED 4 LIGNES (1/5) ══════ */
-            const bloc3Top = bloc2Top + 9 + MARGIN;
-            const FS = F.tiny;
-            const FLD = FS + 0.9;
-            const foot1Y = bloc3Top + 1.5;
-            out.push(`<text x="${lx + 2.5}" y="${foot1Y}" font-family="${FF}" font-size="${FS}" fill="${C.mid}"><tspan font-weight="400">Origine\u202f: </tspan><tspan font-weight="700">${e(opLoc || '\u2014')}</tspan></text>`);
-            const foot2Y = foot1Y + FLD;
-            out.push(`<text x="${lx + 2.5}" y="${foot2Y}" font-family="${FF}" font-size="${FS}" fill="${C.mid}"><tspan font-weight="400">Diagnostiqueur\u202f: </tspan><tspan font-weight="700">${e(diagMail || '\u2014')}</tspan></text>`);
-            const foot3Y = foot2Y + FLD;
-            out.push(`<text x="${lx + 2.5}" y="${foot3Y}" font-family="${FF}" font-size="${FS}" fill="${C.mid}"><tspan font-weight="400">D\u00e9constructeur\u202f: </tspan><tspan font-weight="700">${e(deconMail || '\u2014')}</tspan></text>`);
-            const foot4Y = foot3Y + FLD;
-            out.push(`<text x="${lx + 2.5}" y="${foot4Y}" font-family="${FF}" font-size="${FS}" fill="${C.mid}"><tspan font-weight="400">Destination\u202f: </tspan><tspan font-weight="700">${e(destination || '\u2014')}</tspan></text>`);
+            lineY = drawWrappedLines(out, {
+                text: pieceLabel,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.content,
+                lineHeight: lineHContent,
+                fill: C.dark,
+                fontWeight: '700'
+            });
+            lineY += 0.1;
+            drawSingleLine(out, {
+                text: dimensionsLabel,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                baseFontSize: F.dim,
+                minFontSize: 1.55,
+                fill: C.mid
+            });
+            lineY += lineHContent;
+            lineY = drawLabeledWrappedValue(out, {
+                label: 'Type:',
+                value: typePiece,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.content,
+                lineHeight: lineHContent,
+                fill: C.mid
+            });
+            lineY = drawLabeledWrappedValue(out, {
+                label: 'Essence:',
+                value: essenceNomCommun,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.content,
+                lineHeight: lineHContent,
+                fill: C.mid
+            });
 
-            /* ══════ BLOC 4 : N° PIÈCE (PIED) (2/5) ══════ */
-            const bloc4Top = bloc3Top + 9 + MARGIN;
-            const zoneLabel = bloc4Top + 2.5;
-            out.push(`<text x="${lx + 2.5}" y="${zoneLabel}" font-family="${FF}" font-size="${F.tiny}" fill="${C.light}">N\u00b0 pi\u00e8ce</text>`);
-            const handTopY = zoneLabel + 2.0;
-            const handBottomY = ly + SZ - 2.0;
-            const splitX = lx + SZ * 0.62;
-            out.push(`<rect x="${lx + 2.5}" y="${handTopY}" width="${splitX - (lx + 2.5)}" height="${handBottomY - handTopY}" fill="none" stroke="#B8B8B8" stroke-width="0.25" stroke-dasharray="1.2 0.8"/>`);
-            if (qtyStr) {
-                out.push(`<text x="${lx + SZ - 2.5}" y="${handTopY + 3.0}" font-family="${FF}" font-size="${F.main}" fill="${C.mid}" text-anchor="end">${e(qtyStr)}</text>`);
-            }
+            lineY += 1.0;
+            out.push(`<line x1="${contentX}" y1="${lineY}" x2="${contentX + bodyWidth}" y2="${lineY}" stroke="#D6D6D6" stroke-width="0.25"/>`);
+
+            lineY += 3.2;
+            lineY = drawLabeledWrappedValue(out, {
+                label: 'Origine du lot:',
+                value: origine,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.small,
+                lineHeight: lineHSmall,
+                fill: C.mid
+            });
+            lineY = drawLabeledWrappedValue(out, {
+                label: 'Diagnostiqueur:',
+                value: diagnostiqueur,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.small,
+                lineHeight: lineHSmall,
+                fill: C.mid
+            });
+            lineY = drawLabeledWrappedValue(out, {
+                label: 'Déconstructeur:',
+                value: deconstructeur,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.small,
+                lineHeight: lineHSmall,
+                fill: C.mid
+            });
+            drawLabeledWrappedValue(out, {
+                label: 'Destination du lot:',
+                value: destination,
+                x: contentX,
+                y: lineY,
+                widthMm: bodyWidth,
+                fontSize: F.small,
+                lineHeight: lineHSmall,
+                fill: C.mid
+            });
 
             out.push('</g>');
             return out.join('');
@@ -9771,30 +10098,46 @@ renderRadar() {
             marks.push(`<line x1="${ox}" y1="${ry}" x2="${ox + areaW}" y2="${ry}" ${dash}/>`);
         }
 
-        /* ── Grille d'étiquettes ── */
-        const cells = [];
-        for (let r = 0; r < ROWS; r++) {
-            for (let c = 0; c < COLS; c++) {
-                const uid = r * COLS + c;
-                cells.push(buildLabel(ox + c * (SZ + GAP), oy + r * (SZ + GAP), uid));
+        const labelsPerPage = COLS * ROWS;
+        const totalLabels = items.length;
+        const totalPages = Math.max(1, Math.ceil(totalLabels / labelsPerPage));
+        const today = new Date().toLocaleDateString(getValoboisIntlLocale());
+
+        const svgPages = [];
+        for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
+            const start = pageIndex * labelsPerPage;
+            const pageItems = items.slice(start, start + labelsPerPage);
+
+            const cells = [];
+            for (let idx = 0; idx < pageItems.length; idx += 1) {
+                const row = Math.floor(idx / COLS);
+                const col = idx % COLS;
+                const uid = `p${pageIndex}_${idx}`;
+                const x = ox + col * (SZ + GAP);
+                const y = oy + row * (SZ + GAP);
+                cells.push(buildLabel(x, y, uid, pageItems[idx]));
             }
+
+            const pageNoteY = PH - 10;
+            const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="2.1" fill="#BBBBBB" text-anchor="middle">VALOXYLO · ${e(lotRef)} · ${totalLabels} étiquettes · page ${pageIndex + 1}/${totalPages} · ${today}</text>`;
+
+            svgPages.push([
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${PW}mm" height="${PH}mm" viewBox="0 0 ${PW} ${PH}">`,
+                `<rect width="${PW}" height="${PH}" fill="#F4F4F4"/>`,
+                '<defs></defs>',
+                marks.join('\n'),
+                cells.join('\n'),
+                pageNote,
+                '</svg>'
+            ].join('\n'));
         }
 
-        /* ── Note de page ── */
-        const today = new Date().toLocaleDateString(getValoboisIntlLocale());
-        const pageNoteY = Math.min(PH - PAGE_MARGIN, oy + areaH + 2);
-        const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="2.1" fill="#BBBBBB" text-anchor="middle">VALOBOIS \u00B7 ${e(lotRef)} \u00B7 ${COLS * ROWS} \u00E9tiquettes \u00B7 ${today}</text>`;
+        return svgPages;
+    }
 
-        return [
-            '<?xml version="1.0" encoding="UTF-8"?>',
-            `<svg xmlns="http://www.w3.org/2000/svg" width="${PW}mm" height="${PH}mm" viewBox="0 0 ${PW} ${PH}">`,
-            `<rect width="${PW}" height="${PH}" fill="#F4F4F4"/>`,
-            '<defs></defs>',
-            marks.join('\n'),
-            cells.join('\n'),
-            pageNote,
-            '</svg>'
-        ].join('\n');
+    buildEtiquetteSvgPage(lotIndex) {
+        return this.buildEtiquetteSvgPages(lotIndex)[0] || '';
     }
 
     createPdfBaseRoot(titleText) {
