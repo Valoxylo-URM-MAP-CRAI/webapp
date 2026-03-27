@@ -8654,6 +8654,65 @@ getValueScoresForLot(lot) {
     return totals;
 }  
 
+getOrientationThresholdConfig() {
+    const translate = (key, fallback) => {
+        if (typeof t === 'function') {
+            const translated = t(key);
+            if (translated && translated !== key) return translated;
+        }
+        return fallback;
+    };
+
+    return [
+        {
+            code: 'combustion',
+            orientationLabel: 'Combustion',
+            minPercent: 0,
+            radarValue: 30,
+            radarLabel: translate('editor.radar.thresholdIncinerable', 'Incinérable'),
+            color: '#D55E00'
+        },
+        {
+            code: 'recyclage',
+            orientationLabel: 'Recyclage',
+            minPercent: 30,
+            radarValue: 50,
+            radarLabel: translate('editor.radar.thresholdRecyclable', 'Recyclable'),
+            color: '#E69F00'
+        },
+        {
+            code: 'reutilisation',
+            orientationLabel: 'Réutilisation',
+            minPercent: 50,
+            radarValue: 70,
+            radarLabel: translate('editor.radar.thresholdReutilisable', 'Réutilisable'),
+            color: '#56B4E9'
+        },
+        {
+            code: 'reemploi',
+            orientationLabel: 'Réemploi',
+            minPercent: 70,
+            radarValue: 100,
+            radarLabel: translate('editor.radar.thresholdReemployable', 'Réemployable'),
+            color: '#009E73'
+        }
+    ];
+}
+
+getOrientationThresholdForPercent(percent) {
+    const thresholds = this.getOrientationThresholdConfig();
+    const safePercent = Number.isFinite(percent) ? percent : 0;
+    let activeThreshold = thresholds[0];
+
+    thresholds.forEach((threshold) => {
+        if (safePercent >= threshold.minPercent) {
+            activeThreshold = threshold;
+        }
+    });
+
+    return activeThreshold;
+}
+
 hasAnyNotationForLot(lot) {
     if (!lot) return false;
 
@@ -8821,6 +8880,8 @@ hasNotationForCategory(lot, category) {
 renderSeuils() {
     const lot = this.getCurrentLot();
     if (!lot) return; // Sécurité si aucun lot
+    const thresholdConfig = this.getOrientationThresholdConfig();
+    const defaultThreshold = thresholdConfig[0];
 
     const seuilsLotLabel = document.getElementById('seuilsActiveLotLabel');
     const lots = this.data.lots || [];
@@ -8873,12 +8934,11 @@ renderSeuils() {
             const ctx = gauge.getContext('2d');
             if (!ctx) return;
 
-            let track = isAlertState ? "#D55E00" : "#E6E6E6";
+            let track = isAlertState ? defaultThreshold.color : "#E6E6E6";
             let fill = "#E6E6E6";
-            if (score > 0 && percent >= 70) fill = "#009E73";
-            else if (score > 0 && percent >= 50) fill = "#56B4E9";
-            else if (score > 0 && percent >= 30) fill = "#E69F00";
-            else if (score > 0) fill = "#D55E00";
+            if (score > 0) {
+                fill = this.getOrientationThresholdForPercent(percent).color;
+            }
 
             const barWidth = Math.max(10, Math.min(18, Math.round(width * 0.7)));
             const barX = Math.round((width - barWidth) / 2);
@@ -8916,6 +8976,12 @@ renderSeuils() {
 renderRadar() {
     const lot = this.getCurrentLot();
     if (!lot) return;
+    const thresholdLevels = this.getOrientationThresholdConfig().map((threshold) => ({
+        value: threshold.radarValue,
+        label: threshold.radarLabel,
+        color: threshold.color
+    }));
+    const thresholdValues = thresholdLevels.map((threshold) => threshold.value);
 
     const radarLotLabel = document.getElementById('radarActiveLotLabel');
     const lots = this.data.lots || [];
@@ -8941,8 +9007,74 @@ renderRadar() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
+    const thresholdBandsPlugin = {
+        id: 'radarThresholdBands',
+        afterDraw(chart, args, pluginOptions) {
+            const radialScale = chart.scales && chart.scales.r;
+            const levels = pluginOptions && Array.isArray(pluginOptions.levels) ? pluginOptions.levels : [];
+            if (!radialScale || !levels.length) return;
+
+            const chartContext = chart.ctx;
+            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
+            if (!axisCount) return;
+            const startPoint = radialScale.getPointPositionForValue(0, 100);
+            const endPoint = radialScale.getPointPositionForValue(1, 100);
+            const segmentAngle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
+
+            chartContext.save();
+            chartContext.font = '600 12px sans-serif';
+            chartContext.textAlign = 'center';
+            chartContext.textBaseline = 'bottom';
+
+            // Dessine explicitement chaque anneau de seuil pour garantir la visibilité du palier 30.
+            levels.forEach((level) => {
+                chartContext.save();
+                chartContext.strokeStyle = 'rgba(0, 0, 0, 0.22)';
+                chartContext.lineWidth = level.value === 30 ? 1.3 : 1;
+                chartContext.beginPath();
+
+                for (let i = 0; i < axisCount; i += 1) {
+                    const point = radialScale.getPointPositionForValue(i, level.value);
+                    if (i === 0) chartContext.moveTo(point.x, point.y);
+                    else chartContext.lineTo(point.x, point.y);
+                }
+
+                chartContext.closePath();
+                chartContext.stroke();
+                chartContext.restore();
+            });
+
+            levels.forEach((level) => {
+                const firstPoint = radialScale.getPointPositionForValue(0, level.value);
+                const secondPoint = radialScale.getPointPositionForValue(1, level.value);
+                const midX = (firstPoint.x + secondPoint.x) / 2;
+                const midY = (firstPoint.y + secondPoint.y) / 2;
+                const segmentLength = Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y);
+                const guideLength = Math.max(10, Math.min(28, segmentLength - 4));
+                const guideHalf = guideLength / 2;
+
+                chartContext.save();
+                chartContext.translate(midX, midY);
+                chartContext.rotate(segmentAngle);
+                chartContext.globalAlpha = 0.5;
+                chartContext.strokeStyle = level.color;
+                chartContext.lineWidth = 1;
+                chartContext.beginPath();
+                chartContext.moveTo(-guideHalf, 0);
+                chartContext.lineTo(guideHalf, 0);
+                chartContext.stroke();
+                chartContext.fillStyle = level.color;
+                chartContext.fillText(level.label, 0, -2);
+                chartContext.restore();
+            });
+
+            chartContext.restore();
+        }
+    };
+
     if (!this.radarChart) {
             this.radarChart = new Chart(ctx, {
+            plugins: [thresholdBandsPlugin],
             type: 'radar',
             data: {
                 labels,
@@ -8961,8 +9093,11 @@ renderRadar() {
                     responsive: true,
                     scales: {
                         r: {
-                            suggestedMin: 0,
-                            suggestedMax: 100,
+                            min: 0,
+                            max: 100,
+                            afterBuildTicks(scale) {
+                                scale.ticks = thresholdValues.map((value) => ({ value }));
+                            },
                             ticks: {
                                 display: false
                             },
@@ -8976,12 +9111,16 @@ renderRadar() {
                     },
                     plugins: {
                         legend: { display: false },
-                        tooltip: { enabled: false }
+                        tooltip: { enabled: false },
+                        radarThresholdBands: {
+                            levels: thresholdLevels
+                        }
                     }
                 }
             });
         } else {
             this.radarChart.data.datasets[0].data = data;
+            this.radarChart.options.plugins.radarThresholdBands.levels = thresholdLevels;
             this.radarChart.update();
         }
 
@@ -9170,19 +9309,9 @@ renderRadar() {
         let code = "none";
 
         if (avg > 0 || avg < 0) {
-            if (percentage >= 70) {
-                label = "Réemploi";
-                code = "reemploi";
-            } else if (percentage >= 50) {
-                label = "Réutilisation";
-                code = "reutilisation";
-            } else if (percentage >= 30) {
-                label = "Recyclage";
-                code = "recyclage";
-            } else {
-                label = "Combustion";
-                code = "combustion";
-            }
+            const threshold = this.getOrientationThresholdForPercent(percentage);
+            label = threshold.orientationLabel;
+            code = threshold.code;
         }
 
         lot.orientationLabel = label;

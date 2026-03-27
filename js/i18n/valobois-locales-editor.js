@@ -253,6 +253,10 @@
             },
             radar: {
                 modalIntro: 'Seuils atteints par le lot de bois évalué pour ses différentes valeurs.',
+                thresholdIncinerable: 'Incinérable',
+                thresholdRecyclable: 'Recyclable',
+                thresholdReutilisable: 'Réutilisable',
+                thresholdReemployable: 'Réemployable',
             },
             orientation: {
                 modalIntro: 'Synthèse des lots notés.',
@@ -527,6 +531,10 @@
             },
             radar: {
                 modalIntro: 'Thresholds reached by the assessed lot for each value dimension.',
+                thresholdIncinerable: 'Incinerable',
+                thresholdRecyclable: 'Recyclable',
+                thresholdReutilisable: 'Repurposable',
+                thresholdReemployable: 'Reusable',
             },
             orientation: {
                 modalIntro: 'Summary of assessed lots.',

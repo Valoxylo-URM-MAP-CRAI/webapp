@@ -6361,6 +6361,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             aspect-ratio: 1 / 1;
         }
 
+        #radarChart,
         #radarChartCanvas {
             width: 100%;
             height: 100%;
