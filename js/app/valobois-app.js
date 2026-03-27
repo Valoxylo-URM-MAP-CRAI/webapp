@@ -9269,14 +9269,22 @@ renderRadar() {
         const partIncin    = totalVolGlobal > 0 ? (volIncin    / totalVolGlobal) * 100 : 0;
 
         const lotsParOrientation = { reemploi: [], reutil: [], recyc: [], incin: [] };
+        const lotsCirculaires = [];
         this.data.lots.forEach((lot, idx) => {
             const label = `Lot ${idx + 1}`;
-            if (lot.orientationLabel === 'Réemploi')      lotsParOrientation.reemploi.push(label);
-            else if (lot.orientationLabel === 'Réutilisation') lotsParOrientation.reutil.push(label);
+            if (lot.orientationLabel === 'Réemploi') {
+                lotsParOrientation.reemploi.push(label);
+                lotsCirculaires.push(label);
+            }
+            else if (lot.orientationLabel === 'Réutilisation') {
+                lotsParOrientation.reutil.push(label);
+                lotsCirculaires.push(label);
+            }
             else if (lot.orientationLabel === 'Recyclage')    lotsParOrientation.recyc.push(label);
             else if (lot.orientationLabel === 'Combustion')   lotsParOrientation.incin.push(label);
         });
         const fmtLots = (arr) => arr.length > 0 ? arr.join(', ') : '—';
+        const volCirculaire = volReemploi + volReutil;
 
         const setVal = (key, val) => {
             const el = root.querySelector(`[data-eval="${key}"]`);
@@ -9306,6 +9314,8 @@ renderRadar() {
         setVal('lots-reutil',   fmtLots(lotsParOrientation.reutil));
         setVal('lots-recyc',    fmtLots(lotsParOrientation.recyc));
         setVal('lots-incin',    fmtLots(lotsParOrientation.incin));
+        setVal('vol-circulaire', fmtVol(volCirculaire));
+        setVal('lots-circulaires', fmtLots(lotsCirculaires));
 
         const gaugeTrack = root.querySelector('[data-eval-gauge]');
         const gaugeLegend = root.querySelector('[data-eval-gauge-legend]');

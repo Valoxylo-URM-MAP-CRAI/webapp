@@ -6489,7 +6489,9 @@ body.day-mode .lot-group--collapsible summary:hover {
         }
 
         .evalop-field-box[data-eval="circularite"],
-        .evalop-field-box[data-eval="bilan-monetaire"] {
+        .evalop-field-box[data-eval="bilan-monetaire"],
+        .evalop-field-box[data-eval="vol-circulaire"],
+        .evalop-field-box[data-eval="lots-circulaires"] {
             background-color: #E6E6E6;
         }
 
@@ -6506,6 +6508,10 @@ body.day-mode .lot-group--collapsible summary:hover {
                 font-size: 9px;
             }
         }
+
+        .evalop-column .evalop-field-box:nth-child(3) { background-image: linear-gradient(rgba(255,255,255,.2), rgba(255,255,255,.2)); }
+        .evalop-column .evalop-field-box:nth-child(4) { background-image: linear-gradient(rgba(255,255,255,.4), rgba(255,255,255,.4)); }
+        .evalop-column .evalop-field-box:nth-child(5) { background-image: linear-gradient(rgba(255,255,255,.6), rgba(255,255,255,.6)); }
 
         .evalop-gauge-wrap {
             margin-top: var(--space-16);
@@ -6542,10 +6548,7 @@ body.day-mode .lot-group--collapsible summary:hover {
         }
 
         .evalop-gauge-legend {
-            margin-top: var(--space-8);
-            display: flex;
-            flex-wrap: wrap;
-            gap: var(--space-8);
+            display: none;
         }
 
         .evalop-gauge-legend-item {
