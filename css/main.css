@@ -710,9 +710,30 @@ body.day-mode .accueil-collapsible-summary:hover {
     gap: 4px;
 }
 
+.accueil-meta-label[for="sliderStatutEtude"] + .bio-slider-wrapper {
+    margin-top: var(--space-8);
+}
+
 .bio-slider-scale--statut .bio-slider-label {
     text-align: center;
     line-height: 1.15;
+    font-size: 13px;
+    font-weight: var(--font-weight-semibold);
+}
+
+.study-status-help {
+    margin-top: var(--space-10);
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid #c8d9ff;
+    background: #edf3ff;
+}
+
+.study-status-help__text {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.5;
+    color: #1f2a44;
 }
 
 @media (max-width: 900px) {
@@ -1131,11 +1152,18 @@ body.day-mode .accueil-collapsible-summary:hover {
     min-height: 220px;
 }
 
+.allotissement-section,
+.detail-lot-section {
+    --lot-piece-card-min-width: 280px;
+    --lot-piece-card-max-width: 320px;
+}
+
 /* Carte de lot */
 
 .lot-card {
-    min-width: 280px;
-    max-width: 320px;
+    min-width: var(--lot-piece-card-min-width);
+    max-width: var(--lot-piece-card-max-width);
+    flex: 0 0 var(--lot-piece-card-min-width);
     background-color: rgba(230, 230, 230, 0.6); /* grisé par défaut */
     border-radius: var(--radius-base);
     padding: var(--space-12);
@@ -1946,17 +1974,24 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 4px;
     width: 100%;
+    align-items: stretch;
 }
 
 .lot-price-unit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     border: 1px solid var(--color-border);
     background-color: #E6E6E6;
     color: var(--color-text-secondary);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-xs);
-    padding: 0 var(--space-6);
+    padding: 0 var(--space-4);
     cursor: pointer;
-    min-width: 52px;
+    width: 100%;
+    min-width: 0;
+    line-height: 1.2;
+    white-space: nowrap;
 }
 
 @media (max-width: 640px) {
@@ -2275,9 +2310,9 @@ body.day-mode .lot-group--collapsible summary:hover {
     border: 1px solid var(--color-border);
     border-radius: var(--radius-base);
     padding: var(--space-12);
-    min-width: 280px;
-    max-width: 320px;
-    flex-shrink: 0;
+    min-width: var(--lot-piece-card-min-width);
+    max-width: var(--lot-piece-card-max-width);
+    flex: 0 0 var(--lot-piece-card-min-width);
 }
 
 .piece-card--active {
@@ -5842,7 +5877,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .bio-slider-wrapper:has(.bio-slider--statut) {
     --statut-slider-scale-width: 86%;
-    --statut-slider-track-width: calc(var(--statut-slider-scale-width) * 2 / 3);
+    --statut-slider-thumb-radius: calc(var(--slider-thumb-size) / 2);
+    --statut-slider-track-width: calc((var(--statut-slider-scale-width) * 4 / 5) + var(--slider-thumb-size));
     row-gap: 6px;
 }
 
@@ -5861,21 +5897,57 @@ body.day-mode .lot-group--collapsible summary:hover {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     align-items: start;
-    gap: 6px;
+    gap: 0;
     text-align: center;
 }
 
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-display-line--statut {
+    position: relative;
+    display: block;
+    background: transparent;
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-display-line--statut::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: var(--statut-slider-thumb-radius);
+    right: var(--statut-slider-thumb-radius);
+    height: var(--slider-track-height);
+    transform: translateY(-50%);
+    background: var(--bleu-crai);
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut {
+    position: absolute;
+    top: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut:nth-child(1) {
+    left: var(--statut-slider-thumb-radius);
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut:nth-child(2) {
+    left: calc(var(--statut-slider-thumb-radius) + (100% - 2 * var(--statut-slider-thumb-radius)) / 4);
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut:nth-child(3) {
+    left: 50%;
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut:nth-child(4) {
+    left: calc(100% - var(--statut-slider-thumb-radius) - (100% - 2 * var(--statut-slider-thumb-radius)) / 4);
+}
+
+.bio-slider-wrapper:has(.bio-slider--statut) .bio-slider-dot--statut:nth-child(5) {
+    left: calc(100% - var(--statut-slider-thumb-radius));
+}
+
 .bio-slider-scale--statut .bio-slider-label {
-    font-size: 11px;
+    font-size: 13px;
+    font-weight: var(--font-weight-semibold);
     letter-spacing: 0.01em;
-}
-
-.bio-slider-scale--statut .bio-slider-label[data-index="0"] {
-    transform: translateX(5px);
-}
-
-.bio-slider-scale--statut .bio-slider-label[data-index="4"] {
-    transform: translateX(-5px);
 }
 
 .bio-slider-scale--statut .bio-slider-label--active {
@@ -5887,24 +5959,16 @@ body.day-mode .lot-group--collapsible summary:hover {
 @media (max-width: 900px) {
     .bio-slider-wrapper:has(.bio-slider--statut) {
         --statut-slider-scale-width: 100%;
-        --statut-slider-track-width: calc(100% * 2 / 3);
+        --statut-slider-track-width: calc((100% * 4 / 5) + var(--slider-thumb-size));
     }
 
     .bio-slider-scale.bio-slider-scale--statut {
         min-height: 44px;
-        gap: 4px;
+        gap: 0;
     }
 
     .bio-slider-scale--statut .bio-slider-label {
-        font-size: 10px;
-    }
-
-    .bio-slider-scale--statut .bio-slider-label[data-index="0"] {
-        transform: translateX(4px);
-    }
-
-    .bio-slider-scale--statut .bio-slider-label[data-index="4"] {
-        transform: translateX(-4px);
+        font-size: 11px;
     }
 }
 

@@ -997,6 +997,34 @@ class ValoboisApp {
         };
     }
 
+    getStudyStatusValues() {
+        return ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
+    }
+
+    getStudyStatusHelpTextByIndex(index) {
+        const texts = [
+            'Ce statut est recommandé pour initier le diagnostic en renseignant tous les champs de description de l’opération. En pré-diagnostic il est conseillé d’initier une première démarche d’évaluation en créant des lots de pièces par défaut, afin de disposer d’un aperçu rapide de la qualité du gisement. Dans ce statut la notation des critères peut être partielle.',
+            'Ce statut est recommandé pour étendre le Pré-diagnostic et détailler le contenu des lots pièce par pièce. Dans ce statut la notation des critères doit être complète.',
+            'Ce statut est recommandé pour affiner les informations et le contenu des lots. Il est possible de modifier des éléments préalablement renseignés, supprimer des pièces ou des lots.',
+            'Ce statut ne permet pas de supprimer des lots ou de pièces. Les éléments précédemment notés peuvent être désactivés et seront conservés. Des duplicatas de correction peuvent être généré. Les lots ou pièces qui pourraient être supprimés seront signalés comme des « pertes ». Suivant la même logique, les données ne peuvent pas être réinitialisées. Le signalement de ce statut est à privilégier dans une situation de récolement, après le déconstruction ou le transfert de propriété des bois.',
+            'Cette évaluation est clôturée, seul sa lecture et les fonctionnalités d’exports restent encore opérationnelles.'
+        ];
+
+        const safeIndex = Number.isFinite(index) ? Math.min(Math.max(index, 0), texts.length - 1) : 0;
+        return texts[safeIndex] || '';
+    }
+
+    getStudyStatusIndexFromValue(statusValue) {
+        const index = this.getStudyStatusValues().indexOf(statusValue);
+        return index >= 0 ? index : 0;
+    }
+
+    renderStudyStatusHelpByIndex(index) {
+        const helpTextEl = document.getElementById('studyStatusHelpText');
+        if (!helpTextEl) return;
+        helpTextEl.textContent = this.getStudyStatusHelpTextByIndex(index);
+    }
+
     getEssenceCommonLabel(rawValue) {
         const raw = (rawValue || '').toString().trim();
         if (!raw) return '';
@@ -1958,8 +1986,9 @@ deleteLot(index) {
                 
                 // Special handling for statute slider
                 if (field === 'statutEtude' && el.type === 'range') {
-                    const statutMapValues = ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
-                    this.data.meta[field] = statutMapValues[parseInt(el.value)] || '';
+                    const sliderIndex = parseInt(el.value, 10);
+                    this.data.meta[field] = this.getStudyStatusValues()[sliderIndex] || '';
+                    this.renderStudyStatusHelpByIndex(sliderIndex);
                     
                     // Update active label styling
                     const sliderWrapper = el.closest('.bio-slider-wrapper');
@@ -4678,11 +4707,11 @@ closeEvalOpModal() {
             
             // Special handling for statute slider
             if (field === 'statutEtude' && el.type === 'range') {
-                const statutMapValues = ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
-                const sliderIndex = statutMapValues.indexOf(nextValue);
+                const sliderIndex = this.getStudyStatusIndexFromValue(nextValue);
                 if (el.value !== String(sliderIndex >= 0 ? sliderIndex : 0)) {
                     el.value = String(sliderIndex >= 0 ? sliderIndex : 0);
                 }
+                this.renderStudyStatusHelpByIndex(sliderIndex);
                 
                 // Initialize active label styling
                 const sliderWrapper = el.closest('.bio-slider-wrapper');
@@ -5248,6 +5277,18 @@ closeEvalOpModal() {
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
         const locationSituationGroups = this.getLotLocationSituationGroups(lot);
         const hasLocationGroups = locationSituationGroups.length > 0;
+        const localisationDistinctCount = new Set(
+            locationSituationGroups
+                .map((group) => (group.localisation || '').toString().trim())
+                .filter(Boolean)
+        ).size;
+        const situationDistinctCount = new Set(
+            locationSituationGroups
+                .map((group) => (group.situation || '').toString().trim())
+                .filter(Boolean)
+        ).size;
+        const localisationTitle = localisationDistinctCount > 1 ? `Localisations (${localisationDistinctCount})` : 'Localisation';
+        const situationTitle = situationDistinctCount > 1 ? `Situations (${situationDistinctCount})` : 'Situation';
         const hasNotationAlert = this.hasIncompleteNotationCriteria(lot);
         const hasDestinationAlert = this.hasIncompleteDestinationFields(lot);
         const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
@@ -5277,21 +5318,21 @@ closeEvalOpModal() {
                         <div class="lot-location-group-nav" data-lot-location-groups data-group-count="${locationSituationGroups.length}">
                             <div class="lot-location-grid">
                                 <div class="lot-field-block">
-                                    <label class="lot-field-label">Localisation</label>
+                                    <label class="lot-field-label" data-lot-location-label="localisation">${localisationTitle}</label>
                                     <div class="lot-location-field-row">
                                         <input type="text" class="lot-input" value="" readonly data-lot-location-field="localisation">
                                         <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-next ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison suivante"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l8 6-8 6V6z"/></svg></button>
                                     </div>
                                 </div>
                                 <div class="lot-field-block">
-                                    <label class="lot-field-label">Situation</label>
+                                    <label class="lot-field-label" data-lot-location-label="situation">${situationTitle}</label>
                                     <div class="lot-location-field-row">
                                         <input type="text" class="lot-input" value="" readonly data-lot-location-field="situation">
                                         <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-prev ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison précédente"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-8 6 8 6V6z"/></svg></button>
                                     </div>
                                 </div>
                                 <div class="lot-field-block">
-                                    <label class="lot-field-label">Pièces de cette combinaison</label>
+                                    <label class="lot-field-label" data-lot-location-label="pieces">Pièce dans cette combinaison</label>
                                     <div class="lot-location-pieces-row">
                                         <input type="text" class="lot-input" value="" readonly data-lot-location-field="pieceNames">
                                         <button type="button" class="btn btn-secondary lot-detail-btn lot-location-open-btn" data-lot-location-open-pieces ${hasLocationGroups ? '' : 'disabled'}>Détail</button>
@@ -5675,6 +5716,27 @@ closeEvalOpModal() {
             const sitInput = nav.querySelector('[data-lot-location-field="situation"]');
             const piecesInput = nav.querySelector('[data-lot-location-field="pieceNames"]');
             const openPiecesBtn = nav.querySelector('[data-lot-location-open-pieces]');
+            const localisationLabel = nav.querySelector('[data-lot-location-label="localisation"]');
+            const situationLabel = nav.querySelector('[data-lot-location-label="situation"]');
+            const piecesLabel = nav.querySelector('[data-lot-location-label="pieces"]');
+
+            const localisationDistinctCount = new Set(
+                groups
+                    .map((group) => (group.localisation || '').toString().trim())
+                    .filter(Boolean)
+            ).size;
+            const situationDistinctCount = new Set(
+                groups
+                    .map((group) => (group.situation || '').toString().trim())
+                    .filter(Boolean)
+            ).size;
+
+            if (localisationLabel) {
+                localisationLabel.textContent = localisationDistinctCount > 1 ? `Localisations (${localisationDistinctCount})` : 'Localisation';
+            }
+            if (situationLabel) {
+                situationLabel.textContent = situationDistinctCount > 1 ? `Situations (${situationDistinctCount})` : 'Situation';
+            }
 
             if (!count) {
                 nav.dataset.groupCount = '0';
@@ -5682,6 +5744,7 @@ closeEvalOpModal() {
                 if (locInput) locInput.value = '';
                 if (sitInput) sitInput.value = '';
                 if (piecesInput) piecesInput.value = '';
+                if (piecesLabel) piecesLabel.textContent = 'Pièce dans cette combinaison';
                 if (prevBtn) prevBtn.disabled = true;
                 if (nextBtn) nextBtn.disabled = true;
                 if (openPiecesBtn) {
@@ -5706,6 +5769,11 @@ closeEvalOpModal() {
                     piecesInput.value = labels.slice(0, 2).join(', ') + ' ...';
                 } else {
                     piecesInput.value = labels.join(', ');
+                }
+                if (piecesLabel) {
+                    piecesLabel.textContent = labels.length > 1
+                        ? `Pièces dans cette combinaison (${labels.length})`
+                        : 'Pièce dans cette combinaison';
                 }
             }
             if (prevBtn) prevBtn.disabled = count <= 1;
