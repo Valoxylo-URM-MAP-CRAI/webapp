@@ -453,7 +453,12 @@
             <section class="accueil-dashboard" data-i18n-aria-label="editor.meta.dashboardAria" aria-label="Informations d'accueil">
                 <article class="accueil-panel">
                     <details class="accueil-collapsible" data-ui-collapsible="reference-operation">
-                        <summary class="accueil-collapsible-summary" data-i18n="editor.meta.summaryRefOp">Référence de l'opération</summary>
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryRefOp">Référence de l'opération</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--operation-reference" data-alert-operation-reference="true" data-operation-reference-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                        </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
                                 <div class="accueil-meta-row">
@@ -513,7 +518,12 @@
 
                 <article class="accueil-panel">
                     <details class="accueil-collapsible" data-ui-collapsible="diagnostiqueur">
-                        <summary class="accueil-collapsible-summary" data-i18n="editor.meta.summaryDiagnostician">Diagnostiqueur</summary>
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryDiagnostician">Diagnostiqueur</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                        </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
                                 <div class="accueil-meta-row">
@@ -552,7 +562,12 @@
 
                 <article class="accueil-panel">
                     <details class="accueil-collapsible" data-ui-collapsible="contacts">
-                        <summary class="accueil-collapsible-summary" data-i18n="editor.meta.summaryContacts">Contacts de l'opération</summary>
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryContacts">Contacts de l'opération</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--contacts" data-alert-contacts="true" data-contacts-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                        </summary>
                         <div class="accueil-collapsible-body">
                             <section class="accueil-subsection">
                                 <h3 class="accueil-subsection-title" data-i18n="editor.meta.moTitle">Maîtrise d’ouvrage</h3>
@@ -665,7 +680,12 @@
 
                 <article class="accueil-panel">
                     <details class="accueil-collapsible" data-ui-collapsible="contexte-technique">
-                        <summary class="accueil-collapsible-summary" data-i18n="editor.meta.summaryTechnical">Contexte technique</summary>
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryTechnical">Contexte technique</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--contexte-technique" data-alert-contexte-technique="true" data-contexte-technique-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                        </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
                                 <div class="accueil-meta-row">
@@ -871,6 +891,86 @@
                     </div>
                     <footer class="modal-footer">
                         <button class="btn btn-primary" type="button" id="btnOkAlertPiecesModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale alerte destination du lot -->
+            <div class="modal-backdrop hidden" id="alertDestinationModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertDestinationModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertDestinationModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertDestinationModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Les informations sur la destination du lot sont à renseigner ou à compléter</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertDestinationModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale alerte contexte technique -->
+            <div class="modal-backdrop hidden" id="alertContexteTechniqueModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertContexteTechniqueModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertContexteTechniqueModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertContexteTechniqueModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Le contexte technique de l’opération est à renseigner ou à compléter</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertContexteTechniqueModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale alerte contacts de l'opération -->
+            <div class="modal-backdrop hidden" id="alertContactsModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertContactsModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertContactsModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertContactsModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Les informations sur les contacts de l’opération sont à renseigner ou à compléter</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertContactsModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale alerte diagnostiqueur -->
+            <div class="modal-backdrop hidden" id="alertDiagnostiqueurModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertDiagnostiqueurModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertDiagnostiqueurModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertDiagnostiqueurModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Les informations sur le diagnostiqueur de l'opération sont à renseigner ou à compléter</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertDiagnostiqueurModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale alerte référence de l'opération -->
+            <div class="modal-backdrop hidden" id="alertOperationReferenceModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertOperationReferenceModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertOperationReferenceModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertOperationReferenceModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Les informations sur le référencement de l’opération sont à renseigner ou à compléter</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertOperationReferenceModal">OK</button>
                     </footer>
                 </div>
             </div>

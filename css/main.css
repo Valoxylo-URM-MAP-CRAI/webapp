@@ -601,6 +601,19 @@ body:not(.day-mode) .mes-eval-loading {
     font-weight: var(--font-weight-semibold);
 }
 
+.accueil-collapsible-summary--with-alert {
+    justify-content: flex-start;
+}
+
+.accueil-collapsible-summary--with-alert .lot-alert-btn--destination,
+.accueil-collapsible-summary--with-alert .lot-alert-btn--operation-reference,
+.accueil-collapsible-summary--with-alert .lot-alert-btn--diagnostiqueur,
+.accueil-collapsible-summary--with-alert .lot-alert-btn--contacts,
+.accueil-collapsible-summary--with-alert .lot-alert-btn--contexte-technique {
+    margin-left: auto;
+    margin-right: 6px;
+}
+
 .accueil-collapsible-summary::-webkit-details-marker {
     display: none;
 }
@@ -1743,6 +1756,61 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-alert-btn--header[data-alert-notation="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--destination[data-alert-destination="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--destination[data-alert-destination="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--operation-reference[data-alert-operation-reference="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--operation-reference[data-alert-operation-reference="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--diagnostiqueur[data-alert-diagnostiqueur="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--diagnostiqueur[data-alert-diagnostiqueur="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--contacts[data-alert-contacts="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--contacts[data-alert-contacts="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--contexte-technique[data-alert-contexte-technique="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--contexte-technique[data-alert-contexte-technique="false"] {
     opacity: 0.3;
     pointer-events: none;
 }

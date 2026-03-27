@@ -906,6 +906,63 @@ class ValoboisApp {
         return blocks.some(([block, fields]) => checkBlock(block, fields));
     }
 
+    hasIncompleteDestinationFields(lot) {
+        if (!lot || !lot.allotissement) return true;
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const destinationFields = [
+            'destination',
+            'destinationAdresse',
+            'destinationContact',
+            'destinationMail',
+            'destinationTelephone'
+        ];
+        return destinationFields.some((field) => !hasValue(lot.allotissement[field]));
+    }
+
+    hasIncompleteOperationReferenceFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const operationReferenceFields = ['operation', 'date', 'versionEtude', 'statutEtude'];
+        return operationReferenceFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
+    hasIncompleteDiagnostiqueurFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const diagnostiqueurFields = [
+            'diagnostiqueurNom',
+            'diagnostiqueurContact',
+            'diagnostiqueurMail',
+            'diagnostiqueurTelephone',
+            'diagnostiqueurAdresse'
+        ];
+        return diagnostiqueurFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
+    hasIncompleteContactsFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const contactsFields = [
+            'maitriseOuvrageNom', 'maitriseOuvrageContact', 'maitriseOuvrageMail',
+            'maitriseOuvrageTelephone', 'maitriseOuvrageAdresse',
+            'maitriseOeuvreNom', 'maitriseOeuvreContact', 'maitriseOeuvreMail',
+            'maitriseOeuvreTelephone', 'maitriseOeuvreAdresse',
+            'entrepriseDeconstructionNom', 'entrepriseDeconstructionContact', 'entrepriseDeconstructionMail',
+            'entrepriseDeconstructionTelephone', 'entrepriseDeconstructionAdresse'
+        ];
+        return contactsFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
+    hasIncompleteContexteTechniqueFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const contexteTechniqueFields = [
+            'typeBatiment', 'periodeConstruction', 'phaseIntervention',
+            'localisation', 'conditionnementType', 'protectionType'
+        ];
+        return contexteTechniqueFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
     formatPco2Display(valueKgRaw) {
         const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
         if (valueKg >= 1000) {
@@ -1203,6 +1260,10 @@ class ValoboisApp {
         const notationAlertBtn = el('[data-lot-notation-alert-btn]');
         if (notationAlertBtn) {
             notationAlertBtn.dataset.alertNotation = this.hasIncompleteNotationCriteria(lot) ? 'true' : 'false';
+        }
+        const destinationAlertBtn = el('[data-lot-destination-alert-btn]');
+        if (destinationAlertBtn) {
+            destinationAlertBtn.dataset.alertDestination = this.hasIncompleteDestinationFields(lot) ? 'true' : 'false';
         }
 
         const typePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
@@ -1831,6 +1892,62 @@ deleteLot(index) {
             });
         });
 
+        const operationReferenceAlertBtn = document.querySelector('[data-operation-reference-alert-btn]');
+        if (operationReferenceAlertBtn) {
+            operationReferenceAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (operationReferenceAlertBtn.dataset.alertOperationReference !== 'true') return;
+                const backdrop = document.getElementById('alertOperationReferenceModalBackdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('hidden');
+                    backdrop.setAttribute('aria-hidden', 'false');
+                }
+            });
+        }
+
+        const diagnostiqueurAlertBtn = document.querySelector('[data-diagnostiqueur-alert-btn]');
+        if (diagnostiqueurAlertBtn) {
+            diagnostiqueurAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (diagnostiqueurAlertBtn.dataset.alertDiagnostiqueur !== 'true') return;
+                const backdrop = document.getElementById('alertDiagnostiqueurModalBackdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('hidden');
+                    backdrop.setAttribute('aria-hidden', 'false');
+                }
+            });
+        }
+
+        const contactsAlertBtn = document.querySelector('[data-contacts-alert-btn]');
+        if (contactsAlertBtn) {
+            contactsAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (contactsAlertBtn.dataset.alertContacts !== 'true') return;
+                const backdrop = document.getElementById('alertContactsModalBackdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('hidden');
+                    backdrop.setAttribute('aria-hidden', 'false');
+                }
+            });
+        }
+
+        const contexteTechniqueAlertBtn = document.querySelector('[data-contexte-technique-alert-btn]');
+        if (contexteTechniqueAlertBtn) {
+            contexteTechniqueAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (contexteTechniqueAlertBtn.dataset.alertContexteTechnique !== 'true') return;
+                const backdrop = document.getElementById('alertContexteTechniqueModalBackdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('hidden');
+                    backdrop.setAttribute('aria-hidden', 'false');
+                }
+            });
+        }
+
         // Champs méta
         const metainputs = document.querySelectorAll('[data-meta-field]');
         metainputs.forEach((el) => {
@@ -2156,6 +2273,96 @@ deleteLot(index) {
             if (btnOkAlertPieces) btnOkAlertPieces.addEventListener('click', closeAlertPiecesModal);
             alertPiecesBackdrop.addEventListener('click', (e) => {
                 if (e.target === alertPiecesBackdrop) closeAlertPiecesModal();
+            });
+        }
+
+        // Modale alerte destination du lot
+        const alertDestinationBackdrop = document.getElementById('alertDestinationModalBackdrop');
+        const btnCloseAlertDestination = document.getElementById('btnCloseAlertDestinationModal');
+        const btnOkAlertDestination = document.getElementById('btnOkAlertDestinationModal');
+        const closeAlertDestinationModal = () => {
+            if (alertDestinationBackdrop) {
+                alertDestinationBackdrop.classList.add('hidden');
+                alertDestinationBackdrop.setAttribute('aria-hidden', 'true');
+            }
+        };
+        if (alertDestinationBackdrop) {
+            if (btnCloseAlertDestination) btnCloseAlertDestination.addEventListener('click', closeAlertDestinationModal);
+            if (btnOkAlertDestination) btnOkAlertDestination.addEventListener('click', closeAlertDestinationModal);
+            alertDestinationBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertDestinationBackdrop) closeAlertDestinationModal();
+            });
+        }
+
+        // Modale alerte contexte technique
+        const alertContexteTechniqueBackdrop = document.getElementById('alertContexteTechniqueModalBackdrop');
+        const btnCloseAlertContexteTechnique = document.getElementById('btnCloseAlertContexteTechniqueModal');
+        const btnOkAlertContexteTechnique = document.getElementById('btnOkAlertContexteTechniqueModal');
+        const closeAlertContexteTechniqueModal = () => {
+            if (alertContexteTechniqueBackdrop) {
+                alertContexteTechniqueBackdrop.classList.add('hidden');
+                alertContexteTechniqueBackdrop.setAttribute('aria-hidden', 'true');
+            }
+        };
+        if (alertContexteTechniqueBackdrop) {
+            if (btnCloseAlertContexteTechnique) btnCloseAlertContexteTechnique.addEventListener('click', closeAlertContexteTechniqueModal);
+            if (btnOkAlertContexteTechnique) btnOkAlertContexteTechnique.addEventListener('click', closeAlertContexteTechniqueModal);
+            alertContexteTechniqueBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertContexteTechniqueBackdrop) closeAlertContexteTechniqueModal();
+            });
+        }
+
+        // Modale alerte contacts de l'opération
+        const alertContactsBackdrop = document.getElementById('alertContactsModalBackdrop');
+        const btnCloseAlertContacts = document.getElementById('btnCloseAlertContactsModal');
+        const btnOkAlertContacts = document.getElementById('btnOkAlertContactsModal');
+        const closeAlertContactsModal = () => {
+            if (alertContactsBackdrop) {
+                alertContactsBackdrop.classList.add('hidden');
+                alertContactsBackdrop.setAttribute('aria-hidden', 'true');
+            }
+        };
+        if (alertContactsBackdrop) {
+            if (btnCloseAlertContacts) btnCloseAlertContacts.addEventListener('click', closeAlertContactsModal);
+            if (btnOkAlertContacts) btnOkAlertContacts.addEventListener('click', closeAlertContactsModal);
+            alertContactsBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertContactsBackdrop) closeAlertContactsModal();
+            });
+        }
+
+        // Modale alerte diagnostiqueur
+        const alertDiagnostiqueurBackdrop = document.getElementById('alertDiagnostiqueurModalBackdrop');
+        const btnCloseAlertDiagnostiqueur = document.getElementById('btnCloseAlertDiagnostiqueurModal');
+        const btnOkAlertDiagnostiqueur = document.getElementById('btnOkAlertDiagnostiqueurModal');
+        const closeAlertDiagnostiqueurModal = () => {
+            if (alertDiagnostiqueurBackdrop) {
+                alertDiagnostiqueurBackdrop.classList.add('hidden');
+                alertDiagnostiqueurBackdrop.setAttribute('aria-hidden', 'true');
+            }
+        };
+        if (alertDiagnostiqueurBackdrop) {
+            if (btnCloseAlertDiagnostiqueur) btnCloseAlertDiagnostiqueur.addEventListener('click', closeAlertDiagnostiqueurModal);
+            if (btnOkAlertDiagnostiqueur) btnOkAlertDiagnostiqueur.addEventListener('click', closeAlertDiagnostiqueurModal);
+            alertDiagnostiqueurBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertDiagnostiqueurBackdrop) closeAlertDiagnostiqueurModal();
+            });
+        }
+
+        // Modale alerte référence de l'opération
+        const alertOperationReferenceBackdrop = document.getElementById('alertOperationReferenceModalBackdrop');
+        const btnCloseAlertOperationReference = document.getElementById('btnCloseAlertOperationReferenceModal');
+        const btnOkAlertOperationReference = document.getElementById('btnOkAlertOperationReferenceModal');
+        const closeAlertOperationReferenceModal = () => {
+            if (alertOperationReferenceBackdrop) {
+                alertOperationReferenceBackdrop.classList.add('hidden');
+                alertOperationReferenceBackdrop.setAttribute('aria-hidden', 'true');
+            }
+        };
+        if (alertOperationReferenceBackdrop) {
+            if (btnCloseAlertOperationReference) btnCloseAlertOperationReference.addEventListener('click', closeAlertOperationReferenceModal);
+            if (btnOkAlertOperationReference) btnOkAlertOperationReference.addEventListener('click', closeAlertOperationReferenceModal);
+            alertOperationReferenceBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertOperationReferenceBackdrop) closeAlertOperationReferenceModal();
             });
         }
 
@@ -3155,8 +3362,27 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         };
 
         const contents = {
-            visibilite: 'À renseigner',
-            instrumentation: 'À renseigner',
+            visibilite: `Noter le niveau de visibilité et d’accessibilité aux pièces de bois évaluées.
+
+Une visibilité et une accessibilité forte vaut pour des conditions de diagnostic qui permettent une mesure de toutes les dimensions de toutes les pièces évalués pour le lot créé.
+
+Une visibilité et une accessibilité faible vaut pour des conditions de diagnostic pour lesquelles les mesures sont limités, voire absente.`,
+            instrumentation: `Noter le niveau d’instrumentation de l’évaluation des pièces de bois.
+
+    Une instrumentation faible vaut pour l’usage de dispositifs permettant :
+    • la prise de côtes partielle,
+    • un relevé photographique partiel, limité à des prises de vues globales des pièces,
+    • l’utilisation de cette application ou de dispositifs similaires.
+
+    Une instrumentation moyenne vaut pour l’usage de dispositifs permettant :
+    • le relevé de l’humidité des pièces,
+    • un relevé photographique incluant des prises de vues de détails des pièces,
+    • la prise de côtes,
+    • et pour le précédent niveau.
+
+    Une instrumentation forte vaut pour l’usage de dispositifs permettant :
+    • le classement mécanique des pièces bois à l’aide machine,
+    • et pour les précédents niveaux.`,
             integrite: `Intégrité générale.
 
 La notation de l’intégrité générale permet de statuer sur une évaluation rapide de la qualité d’un lot. Cette notation applique un coefficient qui dégrade et ajuste le prix de marché du lot donné au regard de son état général. Il est un indicateur indépendant du choix d’orientation du bois lié à la notation des critères. Il signale implicitement le degré de travail (tri, coupe, préparation…) nécessaire à la prolongation de l’usage des bois d’un lot.`
@@ -4477,6 +4703,26 @@ closeEvalOpModal() {
         const refInput = document.getElementById('inputReferenceGisement');
         if (refInput) refInput.value = this.getReferenceGisement(meta);
 
+        const operationReferenceAlertBtn = document.querySelector('[data-operation-reference-alert-btn]');
+        if (operationReferenceAlertBtn) {
+            operationReferenceAlertBtn.dataset.alertOperationReference = this.hasIncompleteOperationReferenceFields(meta) ? 'true' : 'false';
+        }
+
+        const diagnostiqueurAlertBtn = document.querySelector('[data-diagnostiqueur-alert-btn]');
+        if (diagnostiqueurAlertBtn) {
+            diagnostiqueurAlertBtn.dataset.alertDiagnostiqueur = this.hasIncompleteDiagnostiqueurFields(meta) ? 'true' : 'false';
+        }
+
+        const contactsAlertBtn = document.querySelector('[data-contacts-alert-btn]');
+        if (contactsAlertBtn) {
+            contactsAlertBtn.dataset.alertContacts = this.hasIncompleteContactsFields(meta) ? 'true' : 'false';
+        }
+
+        const contexteTechniqueAlertBtn = document.querySelector('[data-contexte-technique-alert-btn]');
+        if (contexteTechniqueAlertBtn) {
+            contexteTechniqueAlertBtn.dataset.alertContexteTechnique = this.hasIncompleteContexteTechniqueFields(meta) ? 'true' : 'false';
+        }
+
         // Sync boutons toggle diagnostics
         ['diagnosticStructure', 'diagnosticAmiante', 'diagnosticPlomb'].forEach((field) => {
             this.syncMetaToggleGroup(field);
@@ -5003,6 +5249,7 @@ closeEvalOpModal() {
         const locationSituationGroups = this.getLotLocationSituationGroups(lot);
         const hasLocationGroups = locationSituationGroups.length > 0;
         const hasNotationAlert = this.hasIncompleteNotationCriteria(lot);
+        const hasDestinationAlert = this.hasIncompleteDestinationFields(lot);
         const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
         const displayLongueur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLongueur || 0)) : lot.allotissement.longueur;
         const displayLargeur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLargeur || 0)) : lot.allotissement.largeur;
@@ -5252,7 +5499,12 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <details class="lot-group lot-group--collapsible accueil-collapsible">
-                        <summary class="accueil-collapsible-summary">Destination du lot</summary>
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span>Destination du lot</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--destination" data-alert-destination="${hasDestinationAlert ? 'true' : 'false'}" data-lot-destination-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                        </summary>
                         <div class="lot-group-content">
                             <div class="lot-field-block">
                                 <input type="text" class="lot-input" value="${lot.allotissement.destination ?? ''}" placeholder="Entreprise" data-lot-input="destination">
@@ -5340,6 +5592,10 @@ closeEvalOpModal() {
             const notationAlertBtnUpd = card.querySelector('[data-lot-notation-alert-btn]');
             if (notationAlertBtnUpd) {
                 notationAlertBtnUpd.dataset.alertNotation = this.hasIncompleteNotationCriteria(lot) ? 'true' : 'false';
+            }
+            const destinationAlertBtnUpd = card.querySelector('[data-lot-destination-alert-btn]');
+            if (destinationAlertBtnUpd) {
+                destinationAlertBtnUpd.dataset.alertDestination = this.hasIncompleteDestinationFields(lot) ? 'true' : 'false';
             }
 
             const qtyInput = card.querySelector('input[data-lot-input="quantite"]');
@@ -5548,6 +5804,20 @@ closeEvalOpModal() {
                 }
                 const backdrop = document.getElementById('alertPiecesModalBackdrop');
                 if (backdrop) { backdrop.classList.remove('hidden'); backdrop.setAttribute('aria-hidden', 'false'); }
+            });
+        }
+
+        const destinationAlertBtn = card.querySelector('[data-lot-destination-alert-btn]');
+        if (destinationAlertBtn) {
+            destinationAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (destinationAlertBtn.dataset.alertDestination !== 'true') return;
+                const backdrop = document.getElementById('alertDestinationModalBackdrop');
+                if (backdrop) {
+                    backdrop.classList.remove('hidden');
+                    backdrop.setAttribute('aria-hidden', 'false');
+                }
             });
         }
 
