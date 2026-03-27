@@ -5985,8 +5985,21 @@ body.day-mode .lot-group--collapsible summary:hover {
 .orientation-lot-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+    gap: var(--space-8);
     font-size: var(--font-size-xs);
+}
+
+.orientation-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.orientation-field-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text);
+    opacity: 0.85;
+    padding: 0 2px;
+    margin-bottom: 2px;
 }
 
 .orientation-field-box {

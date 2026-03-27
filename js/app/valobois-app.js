@@ -940,6 +940,86 @@ class ValoboisApp {
         };
     }
 
+    getEssenceCommonLabel(rawValue) {
+        const raw = (rawValue || '').toString().trim();
+        if (!raw) return '';
+        const parts = raw.split(' - ');
+        return (parts[0] || '').toString().trim();
+    }
+
+    getLotOrientationCountedDisplay(lot, fieldName) {
+        if (!lot || !lot.allotissement || !fieldName) return '';
+
+        const counts = new Map();
+        let nextOrder = 0;
+        const formatLabel = (rawValue) => {
+            if (fieldName === 'essenceNomCommun') {
+                return this.getEssenceCommonLabel(rawValue);
+            }
+            return (rawValue || '').toString().trim();
+        };
+
+        const addCount = (rawLabel, qtyRaw) => {
+            const label = formatLabel(rawLabel);
+            const qty = Math.max(0, Math.round(parseFloat(qtyRaw) || 0));
+            if (!label || qty <= 0) return;
+            const key = label.toLowerCase();
+            if (!counts.has(key)) {
+                counts.set(key, { label, qty: 0, order: nextOrder++ });
+            }
+            counts.get(key).qty += qty;
+        };
+
+        const allot = lot.allotissement || {};
+        const baseType = (allot.typePiece || allot.typePieces || '').toString().trim();
+        const baseEssence = this.getEssenceCommonLabel(allot.essenceNomCommun || allot.essence || '');
+        const baseValue = fieldName === 'essenceNomCommun' ? baseEssence : baseType;
+
+        const defaultPiece = this.ensureDefaultPieceData(lot);
+        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+        if (defaultQty > 0) {
+            const defaultRaw = (defaultPiece && defaultPiece[fieldName]) || '';
+            addCount(defaultRaw || baseValue, defaultQty);
+        }
+
+        (lot.pieces || []).forEach((piece) => {
+            if (!piece || typeof piece !== 'object') return;
+            const pieceRaw = (piece[fieldName] || '').toString().trim();
+            addCount(pieceRaw || baseValue, 1);
+        });
+
+        const sortedItems = Array.from(counts.values()).sort((a, b) => {
+            if (b.qty !== a.qty) return b.qty - a.qty;
+            return a.order - b.order;
+        });
+
+        if (!sortedItems.length) return '';
+        return sortedItems
+            .map((item) => `${item.label} (${item.qty.toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 })})`)
+            .join(', ');
+    }
+
+    getLotUnfavorableCriteria(lot) {
+        if (!lot) return '';
+        const getVal = (entry) => {
+            if (!entry) return 0;
+            if (typeof entry === 'number') return entry;
+            if (typeof entry === 'object') return parseFloat(entry.valeur) || 0;
+            return 0;
+        };
+        const checks = [
+            { section: 'bio',    field: 'expansion',          label: 'Expansion' },
+            { section: 'bio',    field: 'integriteBio',       label: 'Intégrité bio.' },
+            { section: 'mech',   field: 'integriteMech',      label: 'Intégrité méc.' },
+            { section: 'denat',  field: 'contaminationDenat', label: 'Contamination' },
+            { section: 'traces', field: 'alterationTraces',   label: 'Altération' },
+        ];
+        return checks
+            .filter(({ section, field }) => getVal(lot[section] && lot[section][field]) === -10)
+            .map(({ label }) => label)
+            .join(', ');
+    }
+
     getLotAggregatedTextValue(lot, fieldName) {
         if (!lot || !lot.allotissement || !fieldName) return '';
 
@@ -8658,14 +8738,17 @@ renderRadar() {
 
         const qty = info.quantite != null ? info.quantite : (info.quantitePieces != null ? info.quantitePieces : '');
         const qtyLabel = qty === '' ? '' : formatGroupedValue(qty, 0);
-        const typePiece = info.typePiece != null ? info.typePiece : (info.typePieces != null ? info.typePieces : '');
-        const essence = info.essenceNomCommun != null ? info.essenceNomCommun : (info.essence != null ? info.essence : '');
+        const typePiece = this.getLotOrientationCountedDisplay(lot, 'typePiece');
+        const essence = this.getLotOrientationCountedDisplay(lot, 'essenceNomCommun');
+        const unfavorable = this.getLotUnfavorableCriteria(lot);
         const volumeLot = info.volumeLot != null ? info.volumeLot : (info.volume_m3 != null ? info.volume_m3 : '');
         const volumeLotLabel = volumeLot === '' ? '' : formatGroupedValue(volumeLot, 1);
         const surfaceLot = info.surfaceLot != null ? info.surfaceLot : (info.surface_m2 != null ? info.surface_m2 : '');
         const surfaceLotLabel = surfaceLot === '' ? '' : formatGroupedValue(surfaceLot, 1);
         const lineaireLot = info.lineaireLot != null ? info.lineaireLot : (info.lineaire_ml != null ? info.lineaire_ml : '');
         const lineaireLotLabel = lineaireLot === '' ? '' : formatGroupedValue(lineaireLot, 1);
+        const pco2Display = this.formatPco2Display(info.carboneBiogeniqueEstime);
+        const pco2LotLabel = pco2Display.value ? (pco2Display.value + ' ' + pco2Display.unit) : '';
         const priceUnitRaw = info.prixUnite != null ? info.prixUnite : (info.prix_unite != null ? info.prix_unite : 'm3');
         const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
         const prixLot = info.prixLot != null ? info.prixLot : (info.prix_total != null ? info.prix_total : '');
@@ -8674,7 +8757,7 @@ renderRadar() {
         const fieldDefs = [
             { label: 'Quantité', value: qtyLabel },
             { label: 'Type de pièce', value: typePiece },
-            { label: 'Essence', value: essence }
+            { label: 'Essence', value: essence },
         ];
 
         if (priceUnit === 'ml') {
@@ -8685,14 +8768,23 @@ renderRadar() {
 
         fieldDefs.push(
             { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
-            { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' }
+            { label: 'PCO2 du lot', value: pco2LotLabel },
+            { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
+            { label: 'Critères défavorables', value: unfavorable, fallback: 'Aucun' }
         );
 
         fieldDefs.forEach((f) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'orientation-field';
+            const labelEl = document.createElement('div');
+            labelEl.className = 'orientation-field-label';
+            labelEl.textContent = f.label;
             const box = document.createElement('div');
             box.className = 'orientation-field-box';
-            box.innerHTML = `${f.label}<br><span>${f.value || '—'}</span>`;
-            grid.appendChild(box);
+            box.innerHTML = `<span>${f.value || f.fallback || '—'}</span>`;
+            wrapper.appendChild(labelEl);
+            wrapper.appendChild(box);
+            grid.appendChild(wrapper);
         });
 
         card.appendChild(header);
