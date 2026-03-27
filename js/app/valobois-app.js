@@ -9263,6 +9263,21 @@ renderRadar() {
 
         const circularite = totalVolGlobal > 0 ? ((volReemploi + volReutil) / totalVolGlobal) * 100 : 0;
 
+        const partReemploi = totalVolGlobal > 0 ? (volReemploi / totalVolGlobal) * 100 : 0;
+        const partReutil   = totalVolGlobal > 0 ? (volReutil   / totalVolGlobal) * 100 : 0;
+        const partRecyc    = totalVolGlobal > 0 ? (volRecyc    / totalVolGlobal) * 100 : 0;
+        const partIncin    = totalVolGlobal > 0 ? (volIncin    / totalVolGlobal) * 100 : 0;
+
+        const lotsParOrientation = { reemploi: [], reutil: [], recyc: [], incin: [] };
+        this.data.lots.forEach((lot, idx) => {
+            const label = `Lot ${idx + 1}`;
+            if (lot.orientationLabel === 'Réemploi')      lotsParOrientation.reemploi.push(label);
+            else if (lot.orientationLabel === 'Réutilisation') lotsParOrientation.reutil.push(label);
+            else if (lot.orientationLabel === 'Recyclage')    lotsParOrientation.recyc.push(label);
+            else if (lot.orientationLabel === 'Combustion')   lotsParOrientation.incin.push(label);
+        });
+        const fmtLots = (arr) => arr.length > 0 ? arr.join(', ') : '—';
+
         const setVal = (key, val) => {
             const el = root.querySelector(`[data-eval="${key}"]`);
             if (el) el.textContent = val;
@@ -9281,6 +9296,16 @@ renderRadar() {
         setVal('prix-incin', fmt(priceIncin));
         setVal('circularite', new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(circularite) + "%");
         setVal('bilan-monetaire', fmt(bilanMonetaireGlobal));
+
+        const fmtPart = new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        setVal('part-reemploi', fmtPart.format(partReemploi) + '%');
+        setVal('part-reutil',   fmtPart.format(partReutil)   + '%');
+        setVal('part-recyc',    fmtPart.format(partRecyc)    + '%');
+        setVal('part-incin',    fmtPart.format(partIncin)    + '%');
+        setVal('lots-reemploi', fmtLots(lotsParOrientation.reemploi));
+        setVal('lots-reutil',   fmtLots(lotsParOrientation.reutil));
+        setVal('lots-recyc',    fmtLots(lotsParOrientation.recyc));
+        setVal('lots-incin',    fmtLots(lotsParOrientation.incin));
 
         const gaugeTrack = root.querySelector('[data-eval-gauge]');
         const gaugeLegend = root.querySelector('[data-eval-gauge-legend]');

@@ -6461,28 +6461,50 @@ body.day-mode .lot-group--collapsible summary:hover {
         }
 
         .evalop-field-box[data-eval="vol-reemploi"],
-        .evalop-field-box[data-eval="prix-reemploi"] {
+        .evalop-field-box[data-eval="prix-reemploi"],
+        .evalop-field-box[data-eval="part-reemploi"],
+        .evalop-field-box[data-eval="lots-reemploi"] {
             background-color: #009E73;
         }
 
         .evalop-field-box[data-eval="vol-reutil"],
-        .evalop-field-box[data-eval="prix-reutil"] {
+        .evalop-field-box[data-eval="prix-reutil"],
+        .evalop-field-box[data-eval="part-reutil"],
+        .evalop-field-box[data-eval="lots-reutil"] {
             background-color: #56B4E9;
         }
 
         .evalop-field-box[data-eval="vol-recyc"],
-        .evalop-field-box[data-eval="prix-recyc"] {
+        .evalop-field-box[data-eval="prix-recyc"],
+        .evalop-field-box[data-eval="part-recyc"],
+        .evalop-field-box[data-eval="lots-recyc"] {
             background-color: #E69F00;
         }
 
         .evalop-field-box[data-eval="vol-incin"],
-        .evalop-field-box[data-eval="prix-incin"] {
+        .evalop-field-box[data-eval="prix-incin"],
+        .evalop-field-box[data-eval="part-incin"],
+        .evalop-field-box[data-eval="lots-incin"] {
             background-color: #D55E00;
         }
 
         .evalop-field-box[data-eval="circularite"],
         .evalop-field-box[data-eval="bilan-monetaire"] {
             background-color: #E6E6E6;
+        }
+
+        .evalop-field-box--lots {
+            font-size: var(--font-size-sm);
+            flex-wrap: wrap;
+            word-break: break-word;
+            min-height: 30px;
+            height: auto;
+        }
+
+        @media (max-width: 640px) {
+            .evalop-field-box--lots {
+                font-size: 9px;
+            }
         }
 
         .evalop-gauge-wrap {
