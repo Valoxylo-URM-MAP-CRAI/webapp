@@ -8944,6 +8944,68 @@ renderRadar() {
         setVal('circularite', new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(circularite) + "%");
         setVal('bilan-monetaire', fmt(bilanMonetaireGlobal));
 
+        const gaugeTrack = root.querySelector('[data-eval-gauge]');
+        const gaugeLegend = root.querySelector('[data-eval-gauge-legend]');
+        if (gaugeTrack && gaugeLegend) {
+            const orientations = [
+                { key: 'reemploi', label: 'Réemployable', volume: volReemploi, color: '#009E73' },
+                { key: 'reutilisation', label: 'Réutilisable', volume: volReutil, color: '#56B4E9' },
+                { key: 'recyclage', label: 'Recyclable', volume: volRecyc, color: '#E69F00' },
+                { key: 'incinerable', label: 'Incinérable', volume: volIncin, color: '#D55E00' }
+            ];
+
+            const totalOriente = orientations.reduce((sum, item) => sum + (Number.isFinite(item.volume) ? item.volume : 0), 0);
+            const activeOrientations = orientations.filter(item => item.volume > 0);
+            const fmtPercent = new Intl.NumberFormat(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+            gaugeTrack.innerHTML = '';
+            gaugeLegend.innerHTML = '';
+
+            if (totalOriente <= 0 || activeOrientations.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'evalop-gauge-empty';
+                empty.textContent = '0.0%';
+                gaugeTrack.appendChild(empty);
+                gaugeTrack.setAttribute('aria-label', 'Répartition des orientations par volume: 0%');
+            } else {
+                let ariaParts = [];
+                activeOrientations.forEach((item, index) => {
+                    const ratio = item.volume / totalOriente;
+                    const percent = ratio * 100;
+
+                    const segment = document.createElement('div');
+                    segment.className = 'evalop-gauge-segment';
+                    if (index > 0) segment.classList.add('evalop-gauge-segment--split');
+                    segment.style.width = `${percent.toFixed(6)}%`;
+                    segment.style.backgroundColor = item.color;
+                    gaugeTrack.appendChild(segment);
+
+                    const legendItem = document.createElement('div');
+                    legendItem.className = 'evalop-gauge-legend-item';
+
+                    const swatch = document.createElement('span');
+                    swatch.className = 'evalop-gauge-legend-swatch';
+                    swatch.style.backgroundColor = item.color;
+
+                    const label = document.createElement('span');
+                    label.textContent = item.label;
+
+                    const value = document.createElement('span');
+                    value.className = 'evalop-gauge-legend-value';
+                    value.textContent = `${fmtPercent.format(percent)}% • ${fmtVol(item.volume)}`;
+
+                    legendItem.appendChild(swatch);
+                    legendItem.appendChild(label);
+                    legendItem.appendChild(value);
+                    gaugeLegend.appendChild(legendItem);
+
+                    ariaParts.push(`${item.label} ${fmtPercent.format(percent)}%`);
+                });
+
+                gaugeTrack.setAttribute('aria-label', `Répartition des orientations par volume: ${ariaParts.join(', ')}`);
+            }
+        }
+
     } // FERMETURE DE renderEvalOp
 
     refreshPersistenceUi() {
