@@ -483,103 +483,96 @@ class ValoboisApp {
     }
 
     createEmptyLot(index) {
-    return {
-        id: Date.now() + index,
-        nom: `Lot ${index + 1}`,
-        localisation: '',
-        situation: '',
-        // LES DONNÉES DE BASE
-        allotissement: {
-            quantite: '1',
-            typePiece: '',
-            essenceNomCommun: '',
-            essenceNomScientifique: '',
-            essence: '',
-            longueur: '',
-            largeur: '',
-            hauteur: '',
-            diametre: '',
-            prixUnite: 'm3',
-            prixMarche: '',
-            surfacePiece: 0,
-            surfaceLot: 0,
-            volumePiece: 0,
-            volumeLot: 0,
-            prixLot: 0,
-            prixLotAjusteIntegrite: 0,
-            lineaireLot: 0,
-            masseVolumique: DEFAULT_MASSE_VOLUMIQUE,
-            masseLot: 0,
-            humidite: 12,
-            fractionCarbonee: 50,
-            bois: 100,
-            carboneBiogeniqueEstime: '',
-            destination: ''
-        },
-        orientation: 'none',
-        volumePiece: 0,
-        volumeLot: 0,
-        prixLot: 0,
-        
-        // STRUCTURES DE NOTATION
-        inspection: {
-            visibilite: null,
-            instrumentation: null,
-            integrite: { niveau: null, ignore: false, coeff: null }
-        },
-        bio: {
-            purge: null, expansion: null, integriteBio: null, exposition: null, confianceBio: null
-        },
-        mech: {
-            purgeMech: null, feuMech: null, integriteMech: null, expositionMech: null, confianceMech: null
-        },
-        usage: {
-            confianceUsage: null, durabiliteUsage: null, classementUsage: null, humiditeUsage: null, aspectUsage: null
-        },
-        denat: {
-            depollutionDenat: null, contaminationDenat: null, durabiliteConfDenat: null, confianceDenat: null, naturaliteDenat: null
-        },
-        debit: {
-            regulariteDebit: null, volumetrieDebit: null, stabiliteDebit: null, artisanaliteDebit: null, rusticiteDebit: null
-        },
-        geo: {
-            adaptabiliteGeo: null, massiviteGeo: null, deformationGeo: null, industrialiteGeo: null, inclusiviteGeo: null
-        },
-        essence: {
-            confianceEssence: null, rareteEcoEssence: null, masseVolEssence: null, rareteHistEssence: null, singulariteEssence: null
-        },
-        ancien: {
-            confianceAncien: null, amortissementAncien: null, vieillissementAncien: null, microhistoireAncien: null, demontabiliteAncien: null
-        },
-        traces: {
-            confianceTraces: null, etiquetageTraces: null, alterationTraces: null, documentationTraces: null, singularitesTraces: null
-        },
-        provenance: {
-            confianceProv: null, transportProv: null, reputationProv: null, macroProv: null, territorialiteProv: null
-        },
-        defaultPiece: {
-            quantite: '1',
+        return {
+            id: Date.now() + index,
+            nom: `Lot ${index + 1}`,
             localisation: '',
             situation: '',
-            typePiece: '',
-            essenceNomCommun: '',
-            essenceNomScientifique: '',
-            essence: '',
-            longueur: '',
-            largeur: '',
-            hauteur: '',
-            diametre: '',
-            prixUnite: '',
-            prixMarche: '',
-            masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
-            humidite: '',
-            fractionCarbonee: '',
-            bois: ''
-        },
-        pieces: [],
-        criteres: [] 
-    };
-}
+            allotissement: {
+                quantite: '1',
+                typePiece: '',
+                essenceNomCommun: '',
+                essenceNomScientifique: '',
+                essence: '',
+                longueur: '',
+                largeur: '',
+                hauteur: '',
+                diametre: '',
+                prixUnite: 'm3',
+                prixMarche: '',
+                surfacePiece: 0,
+                surfaceLot: 0,
+                volumePiece: 0,
+                volumeLot: 0,
+                prixLot: 0,
+                prixLotAjusteIntegrite: 0,
+                lineaireLot: 0,
+                masseVolumique: DEFAULT_MASSE_VOLUMIQUE,
+                masseLot: 0,
+                humidite: 12,
+                fractionCarbonee: 50,
+                bois: 100,
+                carboneBiogeniqueEstime: '',
+                destination: ''
+            },
+            inspection: {
+                visibilite: null,
+                instrumentation: null,
+                integrite: { niveau: null, ignore: false, coeff: null }
+            },
+            bio: {
+                purge: null, expansion: null, integriteBio: null, exposition: null, confianceBio: null
+            },
+            mech: {
+                purgeMech: null, feuMech: null, integriteMech: null, expositionMech: null, confianceMech: null
+            },
+            usage: {
+                confianceUsage: null, durabiliteUsage: null, classementUsage: null, humiditeUsage: null, aspectUsage: null
+            },
+            denat: {
+                depollutionDenat: null, contaminationDenat: null, durabiliteConfDenat: null, confianceDenat: null, naturaliteDenat: null
+            },
+            debit: {
+                regulariteDebit: null, volumetrieDebit: null, stabiliteDebit: null, artisanaliteDebit: null, rusticiteDebit: null
+            },
+            geo: {
+                adaptabiliteGeo: null, massiviteGeo: null, deformationGeo: null, industrialiteGeo: null, inclusiviteGeo: null
+            },
+            essence: {
+                confianceEssence: null, rareteEcoEssence: null, masseVolEssence: null, rareteHistEssence: null, singulariteEssence: null
+            },
+            ancien: {
+                confianceAncien: null, amortissementAncien: null, vieillissementAncien: null, microhistoireAncien: null, demontabiliteAncien: null
+            },
+            traces: {
+                confianceTraces: null, etiquetageTraces: null, alterationTraces: null, documentationTraces: null, singularitesTraces: null
+            },
+            provenance: {
+                confianceProv: null, transportProv: null, reputationProv: null, macroProv: null, territorialiteProv: null
+            },
+            defaultPiece: {
+                quantite: '1',
+                localisation: '',
+                situation: '',
+                typePiece: '',
+                essenceNomCommun: '',
+                essenceNomScientifique: '',
+                essence: '',
+                longueur: '',
+                largeur: '',
+                hauteur: '',
+                diametre: '',
+                prixUnite: '',
+                prixMarche: '',
+                masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
+                humidite: '',
+                fractionCarbonee: '',
+                bois: ''
+            },
+            pieces: [],
+            criteres: []
+        };
+    }
 
     createEmptyPiece(index) {
         return {
@@ -4511,17 +4504,30 @@ closeEvalOpModal() {
         if (backdrop) {
             this.renderExportPdfLotOptions();
             backdrop.classList.remove('hidden');
+            backdrop.removeAttribute('inert');
             backdrop.setAttribute('aria-hidden', 'false');
             const exportFormatSel = document.getElementById('exportFileFormatSelect');
-            if (exportFormatSel) exportFormatSel.dispatchEvent(new Event('change'));
+            if (exportFormatSel) {
+                exportFormatSel.dispatchEvent(new Event('change'));
+                exportFormatSel.focus();
+            }
         }
     }
 
     closeExportPdfModal() {
         const backdrop = document.getElementById('exportPdfBackdrop');
         if (backdrop) {
+            const activeEl = document.activeElement;
+            if (activeEl && backdrop.contains(activeEl) && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+            }
+            backdrop.setAttribute('inert', '');
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
+            const trigger = document.getElementById('btnExportPdf');
+            if (trigger && typeof trigger.focus === 'function') {
+                trigger.focus();
+            }
         }
     }
 
@@ -10144,12 +10150,12 @@ renderRadar() {
 
     getPdfmakeColors() {
         return {
-            border: '#d7d0c4',
-            cardBg: '#fffdf8',
-            headerBg: '#f6f1e8',
-            altRowBg: '#fcfaf5',
-            labelColor: '#6a6257',
-            textColor: '#111111',
+            border: '#000000',
+            cardBg: '#ffffff',
+            headerBg: '#E6E6E6',
+            altRowBg: '#ffffff',
+            labelColor: '#808080',
+            textColor: '#000000',
             reemploi: '#009E73',
             reutilisation: '#56B4E9',
             recyclage: '#E69F00',
@@ -10158,16 +10164,33 @@ renderRadar() {
         };
     }
 
-    getPdfmakeStyles() {
+    getPdfFontScale() {
         return {
-            title: { fontSize: 18, bold: true, alignment: 'center', margin: [0, 0, 0, 6] },
-            cardTitle: { fontSize: 11, bold: true, margin: [0, 0, 0, 6] },
-            kvLabel: { fontSize: 7.5, color: '#6a6257', bold: false, margin: [0, 0, 0, 2] },
-            kvValue: { fontSize: 10.5, bold: true },
-            tableHeader: { fontSize: 8, bold: true, color: '#6a6257', fillColor: '#f6f1e8' },
-            tableCell: { fontSize: 8 },
-            tableCellSmall: { fontSize: 7 },
-            smallTitle: { fontSize: 15, bold: true, alignment: 'center', margin: [0, 0, 0, 4] }
+            title: 16,
+            smallTitle: 13,
+            cardTitle: 10,
+            sectionTitle: 9,
+            body: 8,
+            value: 8,
+            table: 8,
+            label: 8,
+            tableCompact: 7,
+            gaugeValue: 7,
+            gaugeLabel: 7,
+            footer: 7,
+            notation: 6
+        };
+    }
+
+    getPdfmakeStyles() {
+        const f = this.getPdfFontScale();
+        return {
+            title: { fontSize: f.title, bold: true, alignment: 'center', margin: [0, 0, 0, 6] },
+            cardTitle: { fontSize: f.cardTitle, bold: true, margin: [0, 0, 0, 3] },
+            kvLabel: { fontSize: f.label, color: '#6a6257', bold: false, margin: [0, 0, 0, 1] },
+            kvValue: { fontSize: f.value, bold: true },
+            tableCell: { fontSize: f.table },
+            smallTitle: { fontSize: f.smallTitle, bold: true, alignment: 'center', margin: [0, 0, 0, 2] }
         };
     }
 
@@ -10184,14 +10207,12 @@ renderRadar() {
         } else if (bodyContent) {
             content.push(bodyContent);
         }
-        return {
+        const pad = options.padding || [5, 4, 5, 4];
+        const cardTable = {
             table: {
                 widths: ['*'],
                 body: [
-                    [{
-                        stack: content,
-                        margin: options.padding || [8, 6, 8, 6]
-                    }]
+                    [{ stack: content }]
                 ]
             },
             layout: {
@@ -10200,69 +10221,80 @@ renderRadar() {
                 hLineColor: () => c.border,
                 vLineColor: () => c.border,
                 fillColor: () => c.cardBg,
-                paddingLeft: () => 0,
-                paddingRight: () => 0,
-                paddingTop: () => 0,
-                paddingBottom: () => 0
+                paddingLeft: () => pad[0],
+                paddingRight: () => pad[2],
+                paddingTop: () => pad[1],
+                paddingBottom: () => pad[3],
+                defaultBorder: false,
+                borderRadius: () => 4
             },
             margin: options.margin || [0, 0, 0, 6]
         };
+        
+        // Si unbreakable est activé, wrapper la carte pour éviter les césures
+        if (options.unbreakable !== false) {
+            return { stack: [cardTable], unbreakable: true };
+        }
+        return cardTable;
     }
 
     pdfKeyValueGrid(pairs, columns = 2) {
-        const c = this.getPdfmakeColors();
         const rows = [];
         for (let i = 0; i < pairs.length; i += columns) {
             const row = [];
             for (let j = 0; j < columns; j++) {
                 const pair = pairs[i + j];
                 if (pair) {
+                    const safeLabel = this.sanitizePdfText(pair.label || '', { fallback: '' });
+                    // Wrap long strings properly so they don't break the layout
+                    const safeValue = this.sanitizePdfText(pair.value || '—', { wrapLongWords: true });
                     row.push({
                         stack: [
-                            { text: (pair.label || '').toUpperCase(), style: 'kvLabel' },
-                            { text: pair.value || '—', style: 'kvValue' }
-                        ],
-                        margin: [4, 3, 4, 3]
+                            { text: safeLabel, style: 'kvLabel' },
+                            { text: safeValue, style: 'kvValue' }
+                        ]
                     });
                 } else {
-                    row.push({ text: '', margin: [4, 3, 4, 3] });
+                    row.push({ text: '' });
                 }
             }
             rows.push(row);
         }
         const widths = Array(columns).fill('*');
         return {
-            table: { widths, body: rows },
+            table: { dontBreakRows: true, widths, body: rows },
             layout: {
                 hLineWidth: () => 0.5,
                 vLineWidth: () => 0.5,
                 hLineColor: () => '#e7e1d6',
                 vLineColor: () => '#e7e1d6',
                 fillColor: () => '#ffffff',
-                paddingLeft: () => 0,
-                paddingRight: () => 0,
-                paddingTop: () => 0,
-                paddingBottom: () => 0
+                paddingLeft: () => 3,
+                paddingRight: () => 3,
+                paddingTop: () => 2,
+                paddingBottom: () => 2
             }
         };
     }
 
     pdfDataTable(headers, dataRows, options = {}) {
         const c = this.getPdfmakeColors();
-        const fontSize = options.fontSize || 8;
-        const headerStyle = options.headerStyle || 'tableHeader';
+        const f = this.getPdfFontScale();
+        const fontSize = options.fontSize || f.table;
         const cellStyle = options.cellStyle || 'tableCell';
         const widths = options.widths || headers.map(() => '*');
 
         const headRow = headers.map((h) => ({
-            text: h,
-            style: headerStyle,
-            fontSize
+            text: this.sanitizePdfText(h, { fallback: '' }),
+            bold: true,
+            fontSize,
+            color: c.labelColor,
+            fillColor: c.headerBg
         }));
 
         const bodyRows = (dataRows.length ? dataRows : [headers.map(() => '—')]).map((row, rowIdx) =>
             row.map((cell) => ({
-                text: cell == null || cell === '' ? '—' : String(cell),
+                text: this.sanitizePdfText(cell == null || cell === '' ? '—' : String(cell)),
                 style: cellStyle,
                 fontSize,
                 fillColor: rowIdx % 2 === 1 ? c.altRowBg : null
@@ -10271,6 +10303,7 @@ renderRadar() {
 
         return {
             table: {
+                dontBreakRows: true,
                 headerRows: 1,
                 widths,
                 body: [headRow, ...bodyRows]
@@ -10279,10 +10312,10 @@ renderRadar() {
                 hLineWidth: () => 0.4,
                 vLineWidth: () => 0,
                 hLineColor: () => '#eee7db',
-                paddingLeft: () => 4,
-                paddingRight: () => 4,
-                paddingTop: () => 3,
-                paddingBottom: () => 3
+                paddingLeft: () => 3,
+                paddingRight: () => 3,
+                paddingTop: () => 2,
+                paddingBottom: () => 2
             }
         };
     }
@@ -10294,6 +10327,66 @@ renderRadar() {
         } catch (e) {
             return null;
         }
+    }
+
+    sanitizePdfText(value, options = {}) {
+        if (value == null) return '';
+        const fallback = options.fallback == null ? '—' : String(options.fallback);
+        const preserveLineBreaks = options.preserveLineBreaks !== false;
+        const collapseSpaces = options.collapseSpaces !== false;
+
+        let text = String(value);
+        if (text === '') return fallback;
+
+        // Keep canonical UTF-8 composition for accents and ligatures.
+        text = text.normalize('NFC');
+
+        // Remove invisible direction markers and BOM that can render as parasitic glyphs. (Preserve \u200B for wrapping)
+        text = text.replace(/[\u200C-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, '');
+
+        // Remove replacement char from broken decoding paths.
+        text = text.replace(/\uFFFD/g, '');
+
+        // Normalize line breaks.
+        text = text.replace(/\r\n?/g, '\n');
+
+        if (collapseSpaces) {
+            text = text.replace(/[\u00A0\u202F\t]+/g, ' ');
+            if (!preserveLineBreaks) {
+                text = text.replace(/\n+/g, ' ');
+            }
+            text = text.replace(/ {2,}/g, ' ').trim();
+        }
+
+        if (options.wrapLongWords) {
+            // Adds zero-width space after punctuation typically found in emails and URLs to allow line wrapping.
+            text = text.replace(/([@._\-/])/g, '$1\u200B');
+        }
+
+        return text || fallback;
+    }
+
+    normalizePdfCurrencyGrouping(text, mode = 'auto') {
+        const compact = String(text || '').replace(/[\u00A0\u202F\s]+/g, ' ').trim();
+        if (!compact) return '0';
+
+        if (mode === 'ascii') {
+            return compact;
+        }
+
+        // Use NBSP for broad viewer compatibility.
+        const nbsp = '\u00A0';
+        const withNbsp = compact.replace(/ /g, nbsp);
+
+        if (mode === 'nbsp') {
+            return withNbsp;
+        }
+
+        // Auto mode: fallback to ASCII only if suspicious control chars remain.
+        if (/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\uFFFD]/.test(withNbsp)) {
+            return compact;
+        }
+        return withNbsp;
     }
 
     formatPdfDecimal(value, minimumFractionDigits = 0, maximumFractionDigits = 0) {
@@ -10308,11 +10401,15 @@ renderRadar() {
     }
 
     formatPdfCurrency(value) {
-        return new Intl.NumberFormat(getValoboisIntlLocale(), {
-            style: 'currency',
-            currency: 'EUR',
-            maximumFractionDigits: 0
-        }).format(parseFloat(value) || 0);
+        const number = parseFloat(value) || 0;
+        const grouped = new Intl.NumberFormat(getValoboisIntlLocale(), {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0,
+            useGrouping: true
+        }).format(number);
+        const groupedSafe = this.normalizePdfCurrencyGrouping(grouped, 'auto');
+        const currencySpace = groupedSafe.includes('\u00A0') ? '\u00A0' : ' ';
+        return groupedSafe + currencySpace + '€';
     }
 
     formatPdfPercent(value) {
@@ -10323,7 +10420,8 @@ renderRadar() {
         if (value == null || value === '') return '—';
         const number = parseFloat(value);
         if (!Number.isFinite(number)) return '—';
-        return (number > 0 ? '+' : '') + String(number).replace('.', ',');
+        const raw = (number > 0 ? '+' : '') + String(number).replace('.', ',');
+        return this.sanitizePdfText(raw, { preserveLineBreaks: false });
     }
 
     getPdfLotLabel(lot, index) {
@@ -10625,8 +10723,10 @@ renderRadar() {
                         ? 'Moyenne'
                         : 'Faible';
                 return {
-                    niveau: label,
-                    note: integrite.coeff != null ? ('Coeff. ' + String(integrite.coeff).replace('.', ',')) : '—'
+                    niveau: this.sanitizePdfText(label),
+                    note: integrite.coeff != null
+                        ? this.sanitizePdfText('Coeff. ' + String(integrite.coeff).replace('.', ','), { preserveLineBreaks: false })
+                        : '—'
                 };
             }
 
@@ -10636,7 +10736,10 @@ renderRadar() {
             }
             const level = value === 'forte' ? 'Forte' : value === 'moyenne' ? 'Moyenne' : 'Faible';
             const note = value === 'forte' ? '1' : value === 'moyenne' ? '2' : '3';
-            return { niveau: level, note };
+            return {
+                niveau: this.sanitizePdfText(level),
+                note: this.sanitizePdfText(note, { preserveLineBreaks: false })
+            };
         }
 
         const section = lot && lot[sectionKey];
@@ -10646,7 +10749,7 @@ renderRadar() {
         }
 
         return {
-            niveau: entry.niveau || '—',
+            niveau: this.sanitizePdfText(entry.niveau || '—'),
             note: this.formatPdfSignedScore(entry.valeur)
         };
     }
@@ -10654,6 +10757,7 @@ renderRadar() {
     /* ═══════ pdfmake — document definitions ═══════ */
 
     buildPdfOperationEvalContent() {
+        const f = this.getPdfFontScale();
         const opSummary = this.getPdfOperationSummary();
         const rows = opSummary.orientations.map((item) => [
             item.label,
@@ -10671,13 +10775,17 @@ renderRadar() {
         ];
 
         return [
-            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part', 'Lots'], rows, { fontSize: 8 }),
+            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part', 'Lots'], rows, {
+                fontSize: f.tableCompact,
+                widths: ['*', 'auto', 'auto', 'auto', 'auto']
+            }),
             { text: '', margin: [0, 4, 0, 0] },
-            this.pdfKeyValueGrid(summaryPairs, 2)
+            this.pdfKeyValueGrid(summaryPairs, 4)
         ];
     }
 
     buildPdfSynthesisDocDef() {
+        const f = this.getPdfFontScale();
         const meta = this.data.meta || {};
         const lots = this.data.lots || [];
 
@@ -10711,22 +10819,22 @@ renderRadar() {
             pageSize: 'A4',
             pageOrientation: 'portrait',
             pageMargins: [20, 24, 20, 30],
-            defaultStyle: { font: 'Roboto', fontSize: 9 },
+            defaultStyle: { font: 'Roboto', fontSize: f.body },
             styles: this.getPdfmakeStyles(),
             footer: (currentPage, pageCount) => ({
                 text: 'Page ' + currentPage + ' / ' + pageCount,
                 alignment: 'center',
-                fontSize: 8,
+                fontSize: f.footer,
                 color: '#464646',
                 margin: [0, 8, 0, 0]
             }),
             content: [
                 { text: 'Synthèse de l\u2019évaluation', style: 'title' },
-                this.pdfCard('Opération', [this.pdfKeyValueGrid(metaPairs, 5)]),
+                this.pdfCard('Fiche de l\'opération', [this.pdfKeyValueGrid(metaPairs, 5)]),
                 this.pdfCard('Synthèse des lots', [
                     this.pdfDataTable(lotHeaders,
                         lotRows.length ? lotRows : [lotHeaders.map(() => '—')],
-                        { fontSize: 7.5, widths: ['auto', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
+                        { fontSize: f.tableCompact, widths: ['auto', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
                     )
                 ]),
                 this.pdfCard('Évaluation de l\u2019opération', evalContent)
@@ -10734,13 +10842,310 @@ renderRadar() {
         };
     }
 
+    // ── Helper: Generate a single gauge SVG ──
+    generateGaugeSvg(percent, width = 48, height = 210, color = '#888888') {
+        // Ensure percent is between 0 and 100
+        percent = Math.min(100, Math.max(0, percent));
+        
+        // Calculate dimensions for the fill bar
+        const fillHeight = (percent / 100) * height;
+        const barWidth = Math.round(width * 0.6);  // 60% of width for the bar
+        const barX = (width - barWidth) / 2;  // Center horizontally
+        const radius = Math.min(barWidth / 2, 6);  // Rounded corners
+        
+        // Colors
+        const backgroundColor = '#E6E6E6';
+        const borderColor = '#999999';
+        const fillColor = color;
+        
+        // SVG group with rounded rect for background + rounded rect for fill
+        return `<g>
+      <rect x="${barX}" y="0" width="${barWidth}" height="${height}" fill="${backgroundColor}" rx="${radius}" ry="${radius}" stroke="${borderColor}" stroke-width="0.5"/>
+      <rect x="${barX}" y="${height - fillHeight}" width="${barWidth}" height="${fillHeight}" fill="${fillColor}" rx="${radius}" ry="${radius}"/>
+    </g>`;
+    }
+
+    // ── Helper: Generate a single horizontal gauge SVG ──
+    generateHorizontalGaugeSvg(percent, width = 210, height = 12, color = '#888888') {
+        percent = Math.min(100, Math.max(0, percent));
+        // We use full width for the bar itself, and center within `height` if needed
+        const fillWidth = (percent / 100) * width;
+        // In horizontal layout, thickness usually takes most of the height. 
+        // We'll occupy 80% of the given height bounding box.
+        const barHeight = Math.round(height * 0.8);
+        const barY = (height - barHeight) / 2;
+        const radius = Math.min(barHeight / 2, 4);
+
+        const backgroundColor = '#E6E6E6';
+        const borderColor = '#999999';
+        const fillColor = color;
+
+        return `<g>
+      <rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${backgroundColor}" rx="${radius}" ry="${radius}" stroke="${borderColor}" stroke-width="0.5"/>
+      <rect x="0" y="${barY}" width="${fillWidth}" height="${barHeight}" fill="${fillColor}" rx="${radius}" ry="${radius}"/>
+    </g>`;
+    }
+
+    escapeSvgText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    generateRadarSvg(data) {
+        if (!data || !Array.isArray(data.labels) || !Array.isArray(data.values) || !data.labels.length || data.labels.length !== data.values.length) {
+            return null;
+        }
+
+        const width = 400;
+        const height = 310;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 100;        // Radar bounds maximized
+        const labelRadius = 115;   // Rapproché du radar relatif
+        const pointRadius = 5;
+        const gridLevels = Array.isArray(data.thresholdLevels) && data.thresholdLevels.length
+            ? data.thresholdLevels.map((level) => Math.max(0, Math.min(100, level.value)))
+            : [25, 50, 75, 100];
+        const axisCount = data.labels.length;
+        const startAngle = -Math.PI / 2;
+        const angleStep = (Math.PI * 2) / axisCount;
+        const toPoint = (value, axisIndex, scaleRadius = radius) => {
+            const angle = startAngle + axisIndex * angleStep;
+            const scaledRadius = (Math.max(0, Math.min(100, value)) / 100) * scaleRadius;
+            return {
+                x: Math.cos(angle) * scaledRadius,
+                y: Math.sin(angle) * scaledRadius
+            };
+        };
+
+        const circles = gridLevels.map((level, index) => {
+            const ringRadius = (level / 100) * radius;
+            const threshold = data.thresholdLevels && data.thresholdLevels[index];
+            const stroke = threshold && threshold.color ? threshold.color : '#d9d4ca';
+            return `<circle cx="0" cy="0" r="${ringRadius.toFixed(2)}" fill="none" stroke="${stroke}" stroke-opacity="0.45" stroke-width="${level === 100 ? 1.5 : 1.0}"/>`;
+        }).join('');
+
+        const axes = data.labels.map((_, axisIndex) => {
+            const point = toPoint(100, axisIndex);
+            return `<line x1="0" y1="0" x2="${point.x.toFixed(2)}" y2="${point.y.toFixed(2)}" stroke="#000000" stroke-opacity="0.18" stroke-width="1.0"/>`;
+        }).join('');
+
+        const polygonPoints = data.values.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+        }).join(' ');
+
+        const dataPoints = data.values.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="#000000"/>`;
+        }).join('');
+
+        const labels = data.labels.map((label, axisIndex) => {
+            const point = toPoint(100, axisIndex, labelRadius);
+            const textAnchor = Math.abs(point.x) < 15 ? 'middle' : (point.x > 0 ? 'start' : 'end');
+            let textY = point.y;
+            if (point.y < -15) textY -= 8;
+            else if (point.y > 15) textY += 16;
+            else textY += 6;
+            return `<text x="${point.x.toFixed(2)}" y="${textY.toFixed(2)}" font-size="18" font-weight="bold" fill="#464646" text-anchor="${textAnchor}">${this.escapeSvgText(label)}</text>`;
+        }).join('');
+
+        const thresholdLabels = Array.isArray(data.thresholdLevels)
+            ? data.thresholdLevels.map((level) => {
+                const y = -((Math.max(0, Math.min(100, level.value)) / 100) * radius);
+                const yPos = (y - 4).toFixed(2);
+                const text = this.escapeSvgText(level.label);
+                // Le contour blanc évite que le texte soit masqué par la grille ou la couleur de fond
+                return `<text x="8" y="${yPos}" font-size="9.75" fill="#ffffff" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" text-anchor="start">${text}</text>
+                        <text x="8" y="${yPos}" font-size="9.75" fill="${level.color}" text-anchor="start">${text}</text>`;
+            }).join('')
+            : '';
+
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}<polygon points="${polygonPoints}" fill="#000000" fill-opacity="0.15" stroke="#000000" stroke-width="1.5"/>${dataPoints}${labels}${thresholdLabels}</g></svg>`;
+    }
+
     buildPdfActiveLotDocDef(lotIndex) {
+        const f = this.getPdfFontScale();
         const currentLot = this.data.lots && this.data.lots[lotIndex];
         if (!currentLot) return null;
+
+        // Page geometry (pdfmake uses points, A4 height ≈ 841.89 pt)
+        const MM_TO_PT = 72 / 25.4;
+        const pageMargins = [10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT];
+        const PAGE_HEIGHT_PT = 841.89;
+        const usableHeightPt = PAGE_HEIGHT_PT - pageMargins[1] - pageMargins[3];
+
+        // Layout presets to compact blocks only when necessary
+        const layoutPresets = {
+            base: {
+                cardPadding: [5, 4, 5, 4],
+                blockGap: 4,
+                kvRowHeight: 18,
+                tableRowHeight: 12,
+                tableCompactRowHeight: 11,
+                notationRowHeight: 11,
+                notationFont: f.notation,
+                sectionTitleFont: f.sectionTitle,
+                gaugeBarWidth: 48,
+                gaugeGapWidth: 8,
+                gaugeHeight: 110,
+                radarVisualSize: 210
+            },
+            compact: {
+                cardPadding: [4, 3, 4, 3],
+                blockGap: 3,
+                kvRowHeight: 16,
+                tableRowHeight: 11,
+                tableCompactRowHeight: 10,
+                notationRowHeight: 10,
+                notationFont: Math.max(5, f.notation - 0.4),
+                sectionTitleFont: Math.max(7, f.sectionTitle - 0.4),
+                gaugeBarWidth: 44,
+                gaugeGapWidth: 7,
+                gaugeHeight: 96,
+                radarVisualSize: 190
+            },
+            ultra: {
+                cardPadding: [3, 3, 3, 3],
+                blockGap: 2,
+                kvRowHeight: 15,
+                tableRowHeight: 10.5,
+                tableCompactRowHeight: 9.8,
+                notationRowHeight: 9.6,
+                notationFont: Math.max(5, f.notation - 0.8),
+                sectionTitleFont: Math.max(6.6, f.sectionTitle - 0.7),
+                gaugeBarWidth: 42,
+                gaugeGapWidth: 6,
+                gaugeHeight: 88,
+                radarVisualSize: 175
+            }
+        };
+
+        const lineHeight = (size, factor = 1.15) => size * factor;
+        const estimateTextLines = (text, charsPerLine = 70) => {
+            const t = (text || '').trim();
+            if (!t) return 0;
+            return Math.max(1, Math.ceil(t.length / charsPerLine));
+        };
+
+        const estimateHeights = (preset, moveVisuals) => {
+            const titleHeight = lineHeight(f.smallTitle, 1.05) + 2;
+
+            // Opération card
+            const metaRows = Math.ceil(5 / 2); // 5 pairs on 2 cols
+            const commentLines = estimateTextLines((this.data.meta && this.data.meta.commentaires) || '');
+            const commentHeight = commentLines
+                ? 4 /* label top */ + lineHeight(f.label, 1.05) + commentLines * lineHeight(f.label, 1.3) + 1
+                : 0;
+            const cardTitleH = lineHeight(f.cardTitle, 1.1) + 1;
+            const cardPadV = preset.cardPadding[1] + preset.cardPadding[3];
+            const opCardHeight = cardTitleH + cardPadV + metaRows * preset.kvRowHeight + commentHeight;
+
+            // Évaluation card (table + grid)
+            const evalTableRows = 1 /* header */ + 4; // 4 orientations
+            const evalTableHeight = evalTableRows * preset.tableCompactRowHeight;
+            const evalSummaryHeight = preset.kvRowHeight; // single row grid
+            const evalCardHeight = cardTitleH + cardPadV + evalTableHeight + 4 /* spacer */ + evalSummaryHeight;
+
+            // Inspection card (3 rows + header)
+            const inspectionRowsCount = 1 + 3;
+            const inspectionHeight = cardTitleH + cardPadV + inspectionRowsCount * preset.tableRowHeight + preset.blockGap;
+
+            // Lot card (8 pairs -> 4 rows)
+            const lotRows = Math.ceil(8 / 2);
+            const lotHeight = cardTitleH + cardPadV + lotRows * preset.kvRowHeight + preset.blockGap;
+
+            // Gauges
+            const gaugeLabelsHeight = lineHeight(f.gaugeValue, 1.2) + lineHeight(f.gaugeLabel, 1.05) * 2;
+            const gaugesHeight = cardTitleH + (preset.cardPadding[1] + preset.cardPadding[3]) + preset.gaugeHeight + gaugeLabelsHeight + preset.blockGap;
+
+            // Radar
+            const radarHeight = cardTitleH + (preset.cardPadding[1] + preset.cardPadding[3]) + preset.radarVisualSize + preset.blockGap;
+
+            // Notation grid: 10 sections => 5 rows in 2 cols
+            const sectionTitleHeight = lineHeight(preset.sectionTitleFont, 1.05) + 2;
+            const sectionTableHeight = (1 + 5) * preset.notationRowHeight + 4; // header + 5 rows + padding
+            const sectionHeight = sectionTitleHeight + sectionTableHeight;
+            const notationHeight = 5 * sectionHeight + 6; // 5 rows of sections + table padding overhead
+
+            const visualsHeight = gaugesHeight + radarHeight;
+            const opEvalHeight = opCardHeight + preset.blockGap + evalCardHeight + preset.blockGap;
+            const leftHeight = opEvalHeight + inspectionHeight + lotHeight + (moveVisuals ? 0 : visualsHeight);
+            const leftWithoutVisualsHeight = opEvalHeight + inspectionHeight + lotHeight;
+            const mainHeight = Math.max(leftHeight, notationHeight);
+
+            return {
+                titleHeight,
+                leftHeight,
+                leftWithoutVisualsHeight,
+                notationHeight,
+                visualsHeight,
+                mainHeight,
+                totalHeight: titleHeight + mainHeight
+            };
+        };
+
+        const pickPreset = () => {
+            let presetKey = 'base';
+            let moveVisuals = false;
+            let metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
+
+            const switchPreset = (key) => {
+                presetKey = key;
+                metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
+            };
+
+            // 1) Try compacting
+            if (metrics.totalHeight > usableHeightPt) {
+                switchPreset('compact');
+            }
+
+            // 2) Move visuals if height still high
+            if (metrics.totalHeight > usableHeightPt && metrics.visualsHeight > 0) {
+                moveVisuals = true;
+                metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
+            }
+
+            // 3) Ultra compact if needed
+            if (metrics.totalHeight > usableHeightPt) {
+                switchPreset('ultra');
+                if (metrics.totalHeight > usableHeightPt && metrics.visualsHeight > 0 && !moveVisuals) {
+                    moveVisuals = true;
+                    metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
+                } else if (metrics.totalHeight > usableHeightPt && moveVisuals) {
+                    metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
+                }
+            }
+
+            // 4) If top + main still exceeds, fallback to page breaking between blocks
+            let forcePageBreakBeforeMain = false;
+            let forceStackLayout = false;
+            if (metrics.totalHeight > usableHeightPt) {
+                forcePageBreakBeforeMain = true;
+                // Ensure main block alone fits; otherwise stack layout will handle breaks per block
+                if (metrics.mainHeight > usableHeightPt) {
+                    forceStackLayout = true;
+                }
+            }
+
+            return { presetKey, moveVisuals, metrics, forcePageBreakBeforeMain, forceStackLayout };
+        };
+
+        const { presetKey, moveVisuals, metrics, forcePageBreakBeforeMain, forceStackLayout } = pickPreset();
+        const preset = layoutPresets[presetKey];
 
         const meta = this.data.meta || {};
         const allotissement = currentLot.allotissement || {};
         const integrity = currentLot.inspection && currentLot.inspection.integrite;
+
+        const blockGapPt = preset.blockGap;
+        const cardPadding = preset.cardPadding;
+        const notationFontSize = preset.notationFont;
+        const sectionTitleFontSize = preset.sectionTitleFont;
 
         // ── Opération card ──
         const metaPairs = [
@@ -10754,7 +11159,7 @@ renderRadar() {
         if (meta.commentaires && meta.commentaires.trim()) {
             metaContent.push(
                 { text: 'COMMENTAIRES', style: 'kvLabel', margin: [0, 4, 0, 1] },
-                { text: meta.commentaires, fontSize: 7, lineHeight: 1.3 }
+                { text: meta.commentaires, fontSize: f.label, lineHeight: 1.3 }
             );
         }
 
@@ -10793,170 +11198,316 @@ renderRadar() {
                 return [rowDef.label, rv.niveau, rv.note];
             });
 
-        // ── Évaluation opération card ──
-        const evalContent = this.buildPdfOperationEvalContent();
+        // ── Évaluation opération card (version adaptée demi-largeur) ──
+        const opSummary = this.getPdfOperationSummary();
+        const evalRows = opSummary.orientations.map((item) => [
+            item.label,
+            this.formatPdfVolume(item.volume),
+            this.formatPdfCurrency(item.price),
+            this.formatPdfPercent(item.part)
+        ]);
+        const evalSummaryPairs = [
+            { label: 'Volume circulaire', value: this.formatPdfVolume(opSummary.volCirculaire) },
+            { label: 'Bilan monétaire', value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
+            { label: 'Circularité', value: this.formatPdfPercent(opSummary.circularite) },
+            { label: 'Lots circulaires', value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
+        ];
+        const evalContent = [
+            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part'], evalRows, {
+                fontSize: f.tableCompact,
+                widths: ['*', '*', '*', '*']
+            }),
+            { text: '', margin: [0, 4, 0, 0] },
+            this.pdfKeyValueGrid(evalSummaryPairs, 2)
+        ];
 
-        // ── Jauges (raster) ──
-        let jaugesImage = null;
+
+        // ── Labels & Jauges (colonnes individuelles) ──
+        let jaugesData = null;
         const seuilsSource = document.getElementById('seuils-section');
-        if (seuilsSource) {
-            const gaugeCanvases = seuilsSource.querySelectorAll('.seuils-gauge-canvas');
-            if (gaugeCanvases.length) {
-                const GAUGE_W = 48;
-                const GAUGE_H = 210;
-                const GAP = 8;
-                const totalW = gaugeCanvases.length * GAUGE_W + (gaugeCanvases.length - 1) * GAP;
-                const combined = document.createElement('canvas');
-                combined.width = totalW;
-                combined.height = GAUGE_H;
-                const ctx = combined.getContext('2d');
-                if (ctx) {
-                    gaugeCanvases.forEach((gc, i) => {
-                        ctx.drawImage(gc, i * (GAUGE_W + GAP), 0, GAUGE_W, GAUGE_H);
-                    });
-                    try {
-                        jaugesImage = combined.toDataURL('image/png');
-                    } catch (e) { /* CORS */ }
-                }
-            }
-        }
-
-        // ── Labels jauges ──
-        let jaugesLabels = null;
         if (seuilsSource) {
             const labels = seuilsSource.querySelectorAll('.seuils-label');
             const percents = seuilsSource.querySelectorAll('.seuils-percent');
             const scores = seuilsSource.querySelectorAll('.seuils-score-box');
             if (labels.length) {
-                const headerRow = [];
-                const percentRow = [];
-                const scoreRow = [];
+                jaugesData = [];
                 labels.forEach((lbl, i) => {
-                    headerRow.push({ text: (lbl.textContent || '').trim(), bold: true, fontSize: 7, alignment: 'center' });
-                    percentRow.push({ text: percents[i] ? (percents[i].textContent || '').trim() : '', fontSize: 8, bold: true, alignment: 'center' });
-                    scoreRow.push({ text: scores[i] ? (scores[i].textContent || '').trim() : '', fontSize: 7, alignment: 'center' });
+                    const labelStr = (lbl.textContent || '').trim();
+                    const percentStr = percents[i] ? (percents[i].textContent || '').trim() : '';
+                    const scoreStr = scores[i] ? (scores[i].textContent || '').trim() : '';
+                    const percentVal = percentStr === "…" ? 0 : parseInt(percentStr) || 0;
+                    
+                    let color = '#cccccc';
+                    if (percentVal > 0) {
+                        const threshold = this.getOrientationThresholdForPercent(percentVal);
+                        if (threshold && threshold.color) color = threshold.color;
+                    }
+
+                    jaugesData.push({
+                        labelStr,
+                        percentStr,
+                        scoreStr,
+                        percentVal,
+                        color
+                    });
                 });
-                jaugesLabels = { headerRow, percentRow, scoreRow, count: labels.length };
             }
         }
 
-        // ── Radar (raster) ──
-        let radarImage = null;
-        const radarCanvas = document.querySelector('#radarSection canvas');
-        if (radarCanvas) {
-            try { radarImage = radarCanvas.toDataURL('image/png'); } catch (e) { /* CORS */ }
-        }
-
-        // ── Left column ──
-        const leftContent = [
-            this.pdfCard('Opération', metaContent, { margin: [0, 0, 0, 4] }),
-            this.pdfCard('Fiche lot', [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, 4] }),
-            this.pdfCard('Inspection', [
-                this.pdfDataTable(['Critère', 'Niveau', 'Note'], inspectionRows, { fontSize: 7 })
-            ], { margin: [0, 0, 0, 4] }),
-            this.pdfCard('Évaluation de l\u2019opération', evalContent, { margin: [0, 0, 0, 4] })
+        // ── Radar (vecteur SVG) ──
+        const radarScores = this.getValueScoresForLot(currentLot);
+        const radarLabels = ['Économique', 'Écologique', 'Mécanique', 'Historique', 'Esthétique'];
+        const toRadarPercent = (score) => Math.min(100, Math.max(0, Math.round(((score || 0) / 30) * 100)));
+        const radarValues = [
+            toRadarPercent(radarScores.economique),
+            toRadarPercent(radarScores.ecologique),
+            toRadarPercent(radarScores.mecanique),
+            toRadarPercent(radarScores.historique),
+            toRadarPercent(radarScores.esthetique)
         ];
-
-        // ── Right column ──
-        const rightContent = [];
-        if (jaugesLabels) {
-            const gaugeLabelTable = {
-                table: {
-                    widths: Array(jaugesLabels.count).fill('*'),
-                    body: [jaugesLabels.percentRow]
-                },
-                layout: 'noBorders',
-                margin: [0, 0, 0, 2]
-            };
-            const gaugeElements = [gaugeLabelTable];
-            if (jaugesImage) {
-                gaugeElements.push({
-                    image: jaugesImage,
-                    width: 220,
-                    alignment: 'center',
-                    margin: [0, 2, 0, 2]
-                });
-            }
-            const gaugeLabelTable2 = {
-                table: {
-                    widths: Array(jaugesLabels.count).fill('*'),
-                    body: [jaugesLabels.headerRow, jaugesLabels.scoreRow]
-                },
-                layout: 'noBorders',
-                margin: [0, 0, 0, 0]
-            };
-            gaugeElements.push(gaugeLabelTable2);
-            rightContent.push(this.pdfCard('Jauges', gaugeElements, { margin: [0, 0, 0, 4] }));
-        }
-
-        if (radarImage) {
-            rightContent.push(this.pdfCard('Radar', [
-                { image: radarImage, width: 220, alignment: 'center' }
-            ], { margin: [0, 0, 0, 4] }));
-        }
-
-        // ── Bottom grid: 10 notation sections in 5-col layout ──
-        const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
-        const notationCards = notationSections.map((sectionDef) => {
-            const rows = sectionDef.rows.map((rowDef) => {
-                const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
-                return [rowDef.label, rv.niveau, rv.note];
-            });
-            return this.pdfCard(sectionDef.title, [
-                this.pdfDataTable(['Critère', 'Niveau', 'Note'], rows, { fontSize: 6.5, cellStyle: 'tableCellSmall' })
-            ], { margin: [0, 0, 0, 0], padding: [4, 4, 4, 4] });
+        const radarThresholdLevels = this.getOrientationThresholdConfig().map((threshold) => ({
+            value: threshold.radarValue,
+            label: threshold.radarLabel,
+            color: threshold.color
+        }));
+        const radarSvg = this.generateRadarSvg({
+            labels: radarLabels,
+            values: radarValues,
+            thresholdLevels: radarThresholdLevels
         });
 
-        // Build grid rows (5 columns × 2 rows)
+        const operationCard = this.pdfCard('Fiche de l\'opération', metaContent, { margin: [0, 0, 0, 0], padding: cardPadding, unbreakable: true });
+        const evalCard = this.pdfCard('Évaluation de l\'opération', evalContent, { margin: [0, 0, 0, 0], padding: cardPadding, unbreakable: true });
+        const inspectionCard = this.pdfCard('Inspection', [
+            this.pdfDataTable(['Critère', 'Niveau', 'Note'], inspectionRows, { fontSize: f.table })
+        ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
+        const lotCard = this.pdfCard('Fiche du lot', [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
+
+        const pageWidthPt = 595.28; // A4 width in points
+        const usableWidthPt = pageWidthPt - pageMargins[0] - pageMargins[2];
+        const columnGapPt = 8;
+        const halfWidth = Math.floor((usableWidthPt - columnGapPt) / 2);
+
+        // ── Contraindre les visuels à halfWidth ──
+        const visualPad = cardPadding[0] + cardPadding[2] + 2; // padding horizontal total + marge table
+        const maxVisualContentWidth = halfWidth - visualPad;
+
+        // Build Gauges Card with horizontal stacked layout
+        const buildGaugesStacked = (totalAvailableWidth) => {
+            const gaugeThickness = 12; // Thin horizontal bars
+            const labelWidth = 65;
+            const valueWidth = 45;
+            const gap = 5;
+            const barWidth = Math.max(50, totalAvailableWidth - labelWidth - valueWidth - (gap * 2));
+
+            const rows = jaugesData.map(g => {
+                const svgContent = this.generateHorizontalGaugeSvg(g.percentVal, barWidth, gaugeThickness, g.color);
+                const svgString = `<svg width="${barWidth}" height="${gaugeThickness}" viewBox="0 0 ${barWidth} ${gaugeThickness}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+                
+                return {
+                    columns: [
+                        { width: labelWidth, text: g.labelStr, bold: true, fontSize: f.gaugeLabel, alignment: 'right', margin: [0, 1.5, 0, 0] },
+                        { width: barWidth, svg: svgString, margin: [0, 1.5, 0, 0] },
+                        { width: valueWidth, text: `${g.percentStr} (${g.scoreStr})`, fontSize: f.gaugeLabel, bold: true, alignment: 'left', margin: [0, 1.5, 0, 0] }
+                    ],
+                    columnGap: gap,
+                    margin: [0, 0, 0, 6] // vertical gap between gauges
+                };
+            });
+
+            if (rows.length > 0) {
+                rows[rows.length - 1].margin = [0, 0, 0, 0];
+            }
+
+            return {
+                stack: rows
+            };
+        };
+
+        let gaugesCard = null;
+        let radarCard = null;
+        if (jaugesData && jaugesData.length > 0) {
+            const gaugesStack = buildGaugesStacked(maxVisualContentWidth);
+            gaugesCard = this.pdfCard(null, [gaugesStack], {
+                margin: [0, 0, 0, blockGapPt],
+                padding: [Math.max(3, cardPadding[0] - 1), Math.max(4, cardPadding[1] + 2), Math.max(3, cardPadding[2] - 1), Math.max(4, cardPadding[3] + 2)],
+                unbreakable: true
+            });
+        }
+
+        if (radarSvg) {
+            const scaledRadarSize = Math.floor(Math.min(preset.radarVisualSize, maxVisualContentWidth));
+            radarCard = this.pdfCard(null, [
+                { svg: radarSvg, width: scaledRadarSize, alignment: 'center' }
+            ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding.map(p => Math.ceil(p / 2)), unbreakable: true });
+        }
+
+        // Colonne gauche : Inspection -> Fiche lot (sans visuels)
+        const visualBlocks = [];
+        if (gaugesCard) visualBlocks.push(gaugesCard);
+        if (radarCard) visualBlocks.push(radarCard);
+
+        const mainLeftStack = [inspectionCard, lotCard];
+        if (mainLeftStack.length) {
+            mainLeftStack[mainLeftStack.length - 1].margin = [0, 0, 0, 0];
+        }
+
+        // Titre pleine largeur
+        const topCards = [
+            { text: this.getPdfLotLabel(currentLot, lotIndex), style: 'smallTitle' }
+        ];
+
+        // ── Bottom grid: 10 notation sections in 5-col layout ──
+        // Flatten to a single table per section (no pdfCard wrapper) to avoid 3-level nesting
+        const c = this.getPdfmakeColors();
+        const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
+        const notationCells = notationSections.map((sectionDef) => {
+            const headRow = [
+                    { text: this.sanitizePdfText('Critère'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText('Niveau'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText('Note'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg }
+            ];
+            const dataRows = sectionDef.rows.map((rowDef, rowIdx) => {
+                const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
+                const bg = rowIdx % 2 === 1 ? c.altRowBg : null;
+                return [
+                        { text: this.sanitizePdfText(rowDef.label), fontSize: notationFontSize, fillColor: bg },
+                        { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, fillColor: bg },
+                        { text: this.sanitizePdfText(rv.note), fontSize: notationFontSize, fillColor: bg }
+                ];
+            });
+            return {
+                stack: [
+                    { text: this.sanitizePdfText(sectionDef.title), bold: true, fontSize: sectionTitleFontSize, margin: [0, 0, 0, 2] },
+                    {
+                        table: { dontBreakRows: true, headerRows: 1, widths: ['auto', '*', 'auto'], body: [headRow, ...dataRows] },
+                        layout: {
+                            hLineWidth: () => 0.3,
+                            vLineWidth: () => 0,
+                            hLineColor: () => '#eee7db',
+                            paddingLeft: () => 3,
+                            paddingRight: () => 3,
+                            paddingTop: () => 2,
+                            paddingBottom: () => 2
+                        }
+                    }
+                ],
+                fillColor: c.cardBg,
+                unbreakable: true
+            };
+        });
+
+        // Build grid rows (2 columns × 5 rows)
         const gridRows = [];
-        for (let i = 0; i < notationCards.length; i += 5) {
+        for (let i = 0; i < notationCells.length; i += 2) {
             const row = [];
-            for (let j = 0; j < 5; j++) {
-                row.push(notationCards[i + j] || { text: '' });
+            for (let j = 0; j < 2; j++) {
+                row.push(notationCells[i + j] || { text: '' });
             }
             gridRows.push(row);
         }
 
-        const bottomGrid = {
+        const notationGrid = {
             table: {
-                widths: ['*', '*', '*', '*', '*'],
+                dontBreakRows: true,
+                widths: ['*', '*'],
                 body: gridRows
             },
             layout: {
-                hLineWidth: () => 0,
-                vLineWidth: () => 0,
-                paddingLeft: () => 2,
-                paddingRight: () => 2,
-                paddingTop: () => 2,
-                paddingBottom: () => 2
-            }
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => c.border,
+                vLineColor: () => c.border,
+                paddingLeft: () => 3,
+                paddingRight: () => 3,
+                paddingTop: () => 3,
+                paddingBottom: () => 3,
+                defaultBorder: false,
+                borderRadius: () => 4
+            },
+            unbreakable: true
         };
+
+        // Colonne gauche unifiée : Opération + Évaluation + Inspection + Lot + Visuels
+        const fullLeftStack = [
+            operationCard,
+            { text: '', margin: [0, blockGapPt, 0, 0] },
+            evalCard,
+            { text: '', margin: [0, blockGapPt, 0, 0] },
+            ...mainLeftStack
+        ];
+
+        const mainColumns = {
+            columns: [
+                {
+                    width: halfWidth,
+                    stack: fullLeftStack
+                },
+                {
+                    width: halfWidth,
+                    stack: [
+                        notationGrid,
+                        ...(visualBlocks.length ? [
+                            { text: '', margin: [0, blockGapPt, 0, 0] },
+                            ...visualBlocks
+                        ] : [])
+                    ]
+                }
+            ],
+            columnGap: columnGapPt,
+            unbreakable: true // Force l'ensemble à rester sur la même page
+        };
+
+        // Fallback: stacked layout when columns still too tall
+        const stackedBlocks = [];
+        const mainLeftStackHeight = metrics.leftHeight;
+        const notationHeight = metrics.notationHeight;
+        const visualsHeight = metrics.visualsHeight;
+
+        const needsBreakBeforeLeft = metrics.titleHeight + mainLeftStackHeight > usableHeightPt;
+        const remainingAfterLeft = usableHeightPt - mainLeftStackHeight;
+        const needsBreakBeforeNotation = (needsBreakBeforeLeft ? usableHeightPt : remainingAfterLeft) < notationHeight;
+        const remainingAfterNotation = usableHeightPt - notationHeight;
+        // On désactive le saut de page forcé pour les blocs visuels pour les garder groupés
+        const needsBreakBeforeVisuals = false; 
+
+        if (forceStackLayout) {
+            stackedBlocks.push({ stack: fullLeftStack, margin: [0, 0, 0, blockGapPt], pageBreak: needsBreakBeforeLeft ? 'before' : undefined });
+            stackedBlocks.push({ ...notationGrid, pageBreak: needsBreakBeforeNotation ? 'before' : undefined });
+            if (visualBlocks.length) {
+                stackedBlocks.push({
+                    columns: [
+                        { width: halfWidth, text: '' },
+                        { width: halfWidth, stack: visualBlocks }
+                    ],
+                    columnGap: columnGapPt,
+                    margin: [0, blockGapPt, 0, 0],
+                    unbreakable: true
+                });
+            }
+        }
+
+        const content = [...topCards];
+        if (forceStackLayout) {
+            content.push(...stackedBlocks);
+        } else {
+            content.push({ ...mainColumns, pageBreak: forcePageBreakBeforeMain ? 'before' : undefined });
+        }
 
         return {
             pageSize: 'A4',
             pageOrientation: 'portrait',
-            pageMargins: [14, 18, 14, 26],
-            defaultStyle: { font: 'Roboto', fontSize: 8 },
+            pageMargins,
+            defaultStyle: { font: 'Roboto', fontSize: f.body },
             styles: this.getPdfmakeStyles(),
             footer: (currentPage, pageCount) => ({
                 text: 'Page ' + currentPage + ' / ' + pageCount,
                 alignment: 'center',
-                fontSize: 8,
+                fontSize: f.footer,
                 color: '#464646',
                 margin: [0, 6, 0, 0]
             }),
-            content: [
-                { text: this.getPdfLotLabel(currentLot, lotIndex), style: 'smallTitle' },
-                {
-                    columns: [
-                        { width: '50%', stack: leftContent },
-                        { width: '50%', stack: rightContent }
-                    ],
-                    columnGap: 6
-                },
-                { text: '', margin: [0, 4, 0, 0] },
-                bottomGrid
-            ]
+            content
         };
     }
 
