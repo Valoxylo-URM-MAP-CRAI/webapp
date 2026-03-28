@@ -11555,38 +11555,156 @@ renderRadar() {
         );
 
         const fieldDefs = [
-            { label: 'Référence gisement', getValue: () => this.getReferenceGisement(meta) || '' },
-            { label: 'Opération', getValue: () => meta.operation || '' },
-            { label: 'Diagnostiqueur', getValue: () => meta.diagnostiqueurContact || '' },
-            { label: 'Localisation', getValue: () => meta.localisation || '' },
-            { label: 'Date', getValue: () => meta.date || '' },
-            { label: 'Commentaires', getValue: () => meta.commentaires || '' },
-            { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '' },
+            // --- MÉTA-DONNÉES GLOBALES ---
+            { label: 'Référence gisement', getValue: () => this.getReferenceGisement(meta) || '-' },
+            { label: 'Date du diagnostic', getValue: () => meta.date || '-' },
+            { label: 'Opération', getValue: () => meta.operation || '-' },
+            { label: 'Version de l\'étude', getValue: () => meta.versionEtude || '-' },
+            { label: 'Statut de l\'étude', getValue: () => meta.statutEtude || '-' },
+            { label: 'Révision', getValue: () => meta.revision !== undefined ? meta.revision : '-' },
+            
+            // --- DIAGNOSTIQUEUR ---
+            { label: 'Diagnostiqueur (Structure)', getValue: () => meta.diagnostiqueurNom || '-' },
+            { label: 'Diagnostiqueur (Contact)', getValue: () => meta.diagnostiqueurContact || '-' },
+            { label: 'Diagnostiqueur (Mail)', getValue: () => meta.diagnostiqueurMail || '-' },
+            { label: 'Diagnostiqueur (Tél)', getValue: () => meta.diagnostiqueurTelephone || '-' },
+            { label: 'Diagnostiqueur (Adresse)', getValue: () => meta.diagnostiqueurAdresse || '-' },
+            
+            // --- MAÎTRISE D'OUVRAGE ---
+            { label: 'Maîtrise d\'ouvrage (Structure)', getValue: () => meta.maitriseOuvrageNom || '-' },
+            { label: 'Maîtrise d\'ouvrage (Contact)', getValue: () => meta.maitriseOuvrageContact || '-' },
+            { label: 'Maîtrise d\'ouvrage (Mail)', getValue: () => meta.maitriseOuvrageMail || '-' },
+            { label: 'Maîtrise d\'ouvrage (Tél)', getValue: () => meta.maitriseOuvrageTelephone || '-' },
+            { label: 'Maîtrise d\'ouvrage (Adresse)', getValue: () => meta.maitriseOuvrageAdresse || '-' },
+
+            // --- MAÎTRISE D'ŒUVRE ---
+            { label: 'Maîtrise d\'œuvre (Structure)', getValue: () => meta.maitriseOeuvreNom || '-' },
+            { label: 'Maîtrise d\'œuvre (Contact)', getValue: () => meta.maitriseOeuvreContact || '-' },
+            { label: 'Maîtrise d\'œuvre (Mail)', getValue: () => meta.maitriseOeuvreMail || '-' },
+            { label: 'Maîtrise d\'œuvre (Tél)', getValue: () => meta.maitriseOeuvreTelephone || '-' },
+            { label: 'Maîtrise d\'œuvre (Adresse)', getValue: () => meta.maitriseOeuvreAdresse || '-' },
+
+            // --- DECONSTRUCTION / CURAGE ---
+            { label: 'Ent. curage/déconstruction (Struct.)', getValue: () => meta.entrepriseDeconstructionNom || '-' },
+            { label: 'Ent. curage/déconstruction (Contact)', getValue: () => meta.entrepriseDeconstructionContact || '-' },
+            { label: 'Ent. curage/déconstruction (Mail)', getValue: () => meta.entrepriseDeconstructionMail || '-' },
+            { label: 'Ent. curage/déconstruction (Tél)', getValue: () => meta.entrepriseDeconstructionTelephone || '-' },
+            { label: 'Ent. curage/déconstruction (Adresse)', getValue: () => meta.entrepriseDeconstructionAdresse || '-' },
+
+            // --- CONTEXTE TECHNIQUE ---
+            { label: 'Type de bâtiment', getValue: () => meta.typeBatiment || '-' },
+            { label: 'Période de construction', getValue: () => meta.periodeConstruction || '-' },
+            { label: 'Phase d\'intervention', getValue: () => meta.phaseIntervention || '-' },
+            { label: 'Localisation', getValue: () => meta.localisation || '-' },
+            { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
+            { label: 'Protection', getValue: () => meta.protectionType || '-' },
+            { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },
+            { label: 'Diagnostic Amiante', getValue: () => meta.diagnosticAmiante || '-' },
+            { label: 'Diagnostic Plomb', getValue: () => meta.diagnosticPlomb || '-' },
+            { label: 'Commentaires généraux', getValue: () => meta.commentaires || '-' },
+
+            // --- INFORMATIONS DU LOT ---
+            { label: 'Nom du lot', getValue: (lot) => (lot && lot.nom) || '-' },
+            { label: 'Localisation du lot', getValue: (lot) => (lot && lot.localisation) || '-' },
+            { label: 'Situation du lot', getValue: (lot) => (lot && lot.situation) || '-' },
+            { label: 'Destination', getValue: (lot) => ((lot && lot.allotissement) || {}).destination || '-' },
+            { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '-' },
             { label: 'Essence', getValue: (lot) => {
                 const allotissement = (lot && lot.allotissement) || {};
-                return allotissement.essenceNomCommun || allotissement.essence || '';
+                return allotissement.essenceNomCommun || allotissement.essence || '-';
             } },
+
+            // --- CARACTÉRISTIQUES DIMENSIONNELLES ---
             { label: 'Quantité', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).quantite;
-                return v != null ? v : '';
+                return (v != null && v !== '') ? v : '-';
             } },
             { label: 'Longueur (mm)', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).longueur;
-                return v != null ? v : '';
+                return (v != null && v !== '') ? v : '-';
             } },
             { label: 'Largeur (mm)', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).largeur;
-                return v != null ? v : '';
+                return (v != null && v !== '') ? v : '-';
             } },
-            { label: 'Hauteur (mm)', getValue: (lot) => {
+            { label: 'Hauteur / Epaisseur (mm)', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).hauteur;
-                return v != null ? v : '';
+                return (v != null && v !== '') ? v : '-';
             } },
-            { label: 'Volume lot (m3)', getValue: (lot) => parseFloat((((lot && lot.allotissement) || {}).volumeLot)) || 0 },
-            { label: 'Prix marché (/m3)', getValue: (lot) => parseFloat((((lot && lot.allotissement) || {}).prixMarche)) || 0 },
-            { label: 'Prix lot (€)', getValue: (lot) => Math.round(parseFloat((((lot && lot.allotissement) || {}).prixLot)) || 0) },
-            { label: 'Orientation', getValue: (lot) => this.getPdfOrientationSummary(lot).label },
-            { label: 'Orientation (%)', getValue: (lot) => this.formatPdfDecimal(this.getPdfOrientationSummary(lot).percentage, 1, 1) }
+            { label: 'Diamètre (mm)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).diametre;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            
+            // --- VOLUMÉTRIE & MASSES ---
+            { label: 'Surface par pièce (m2)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).surfacePiece;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Surface lot (m2)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).surfaceLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Volume par pièce (m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).volumePiece;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Volume lot (m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).volumeLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Linéaire lot (m)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).lineaireLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            
+            // --- MASSE & CARBONE ---
+            { label: 'Masse volumique est. (kg/m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).masseVolumique;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Humidité (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).humidite;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Fraction carbonée (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).fractionCarbonee;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Proportion de bois (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).bois;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Masse du lot (kg)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).masseLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Carbone biogénique (kgCO2eq)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).carboneBiogeniqueEstime;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+
+            // --- ASPECT ÉCONOMIQUE ---
+            { label: 'Unité de tarification', getValue: (lot) => ((lot && lot.allotissement) || {}).prixUnite || '-' },
+            { label: 'Prix marché', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixMarche;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Prix lot base (€)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixLot;
+                return (v != null && v !== '') ? Math.round(parseFloat(v)) : '-';
+            } },
+            { label: 'Prix lot aj. intégrité (€)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixLotAjusteIntegrite;
+                return (v != null && v !== '') ? Math.round(parseFloat(v)) : '-';
+            } },
+
+            // --- RÉSULTATS D'AIDE À LA DÉCISION ---
+            { label: 'Orientation', getValue: (lot) => this.getPdfOrientationSummary(lot).label || '-' },
+            { label: 'Orientation (%)', getValue: (lot) => {
+                const v = this.getPdfOrientationSummary(lot).percentage;
+                return (v != null && v !== '') ? this.formatPdfDecimal(v, 1, 1) : '-';
+            } }
         ];
 
         categories.forEach((category) => {
@@ -11600,11 +11718,14 @@ renderRadar() {
             section.rows.forEach((rowDef) => {
                 fieldDefs.push({
                     label: `${section.title} - ${rowDef.label} (Niveau)`,
-                    getValue: (lot) => this.getPdfNotationRowValue(lot, section.key, rowDef.key).niveau || ''
+                    getValue: (lot) => this.getPdfNotationRowValue(lot, section.key, rowDef.key).niveau || '-'
                 });
                 fieldDefs.push({
                     label: `${section.title} - ${rowDef.label} (Note)`,
-                    getValue: (lot) => this.getPdfNotationRowValue(lot, section.key, rowDef.key).note || ''
+                    getValue: (lot) => {
+                        const note = this.getPdfNotationRowValue(lot, section.key, rowDef.key).note;
+                        return (note != null && note !== '') ? note : '-';
+                    }
                 });
             });
         });
