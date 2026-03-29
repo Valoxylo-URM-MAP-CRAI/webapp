@@ -4195,32 +4195,64 @@ Une confiance « faible » implique d’engager une étude complémentaire [+1].
         amortissementAncien: `Amortissement.
 
 Noter le degré d’amortissement biologique des bois évalués.
-Noter le rapport entre l’âge estimé de l’arbre lors de son abattage et la durée d’usage du bois.
 
-Un amortissement « fort » vaut pour un rapport ≥ 1 [+3].
-Un amortissement « moyen » vaut pour un rapport entre 0,5 et 1 [+1].
-Un amortissement « faible » vaut pour un rapport ≤ 0,5 [-3].`,
+À noter : Noter le rapport entre l’âge estimé de l’arbre lors de son abattage et la durée qui sépare cette date ou période d’abattage de la récupération du bois, qu’on nommera durée d’usage par simplification.
+Nécessite d’estimer l’âge de l’arbre par comptage des cernes visibles et de prendre en compte le type de débit de la section. Une estimation peut aussi être réalisée via l’historique de l’ouvrage, afin de déterminer les dates de mise en service et de récupération de la pièce.
+
+Un amortissement biologique « fort » vaut pour un rapport supérieur ou égal à 1, signifiant que la durée d’usage excède le temps de croissance de l’arbre [+3].
+Un amortissement biologique « moyen » vaut pour un rapport strictement inférieur à 1 et strictement supérieur à 0,5 [+1].
+Un amortissement biologique « faible » vaut pour un rapport inférieur ou égal à 0,5 [-3].
+
+Voir : Eugénie Cateau; Laurent Larrieu; Daniel Vallauri; Jean-Marie Savoie; Julien Touroult; Hervé Brustel. Ancienneté et maturité : deux qualités complémentaires d’un écosystème forestier. Comptes Rendus. Biologies, Volume 338 (2015) no. 1, pp. 58-73. doi: 10.1016/j.crvi.2014.10.004
+
+À propos de la datation voir : Inrap (13 décembre 2020). La dendrochronologie : potentialités et nouveaux enjeux pour l’archéologie. Rencontres scientifiques et techniques de l'Inrap. En ligne : https://doi.org/10.58079/ujy9`,
         vieillissementAncien: `Vieillissement.
 
 Noter le degré de vieillissement des bois évalués.
 
-Un vieillissement « fort » vaut pour des bois très anciens avec fortes déformations, fortes expositions et intégrité dégradée [-3].
-Un vieillissement « moyen » vaut pour des bois de 51–149 ans environ, déformations moyennes, expositions moyennes [+1].
-Un vieillissement « faible » vaut pour des bois récents (< 50 ans) avec déformations faibles et exposition modérée [+3].`,
+Un vieillissement « fort » vaut pour des bois combinant plusieurs éléments suivants : une durée d’usage de plus de 150 ans, une déformation forte, une exposition biologique et mécanique forte à moyenne, une intégrité biologique moyenne à faible, une humidité forte ou faible [-3].
+Un vieillissement « moyen » vaut pour des bois combinant plusieurs éléments suivants : une durée d’usage entre 51 et 149 ans, une déformation moyenne, une exposition biologique et mécanique moyenne, une humidité forte ou faible [+1].
+Un vieillissement « faible » vaut pour des bois combinant plusieurs éléments suivants : une durée d’usage de moins de 50 ans, une déformation faible, une exposition biologique et mécanique faible, une humidité moyenne [+3].
+
+En complément de ces observations et en fonction des études complémentaires réalisées, une étude de l’état microscopique du bois permettra de confirmer l’état de dégradation à cette échelle.
+
+Zhang, J., Li, T., Lu, W., Wu, Q., Huang, J., Jia, C., Wang, K., Feng, Y., Chen, X., & Song, F. (2024). Influence of wood species and natural aging on the mechanics properties and microstructure of wood. Journal of Building Engineering, 91, 109469. https://doi.org/10.1016/j.jobe.2024.109469
+
+Moumakwa, N. L., & Hughes, M. (2025). Assessing changes in the mechanical properties of wood recovered from demolished buildings. Construction and Building Materials, 504, 144612. https://doi.org/10.1016/j.conbuildmat.2025.144612
+
+Kojima, E., Kato, H., Watanabe, Y., & Yamamoto, K. (2024). Mechanical Properties of Wooden Structural Members from a Historical Japanese Temple Under Renovation – and the Effects of Cross-Sectional Voids and Aging. International Journal of Architectural Heritage, 19(10), 2390-2397. https://doi.org/10.1080/15583058.2024.2432340
+
+Zou, Q., Wang, S., Hu, J., & Zou, F. (2025). Experimental Study on the Evolution and Mechanism of Mechanical Properties of Chinese Fir Under Long-Term Service. Buildings, 15(24), 4500. https://doi.org/10.3390/buildings15244500
+
+Machado, J. S., Pereira, F., & Quilhó, T. (2019). Assessment of old timber members: Importance of wood species identification and direct tensile test information. Construction and Building Materials, 207, 651-660. https://doi.org/10.1016/j.conbuildmat.2019.02.168
+
+Nocetti, M., Aminti, G., Vicario, M., & Brunetti, M. (2024). Mechanical properties of ancient wood structural elements assessed by visual and machine strength grading. Construction and Building Materials, 411, 134418. https://doi.org/10.1016/j.conbuildmat.2023.134418`,
         microhistoireAncien: `Micro-histoire.
 
 Noter le niveau d’information relatif à la micro-histoire des bois.
 
-Une micro-histoire « forte » vaut pour des bois associés à des histoires ou systèmes constructifs à forte valeur patrimoniale [+3].
-Une micro-histoire « moyenne » vaut pour une inscription plutôt locale ou partielle [+2].
-Une micro-histoire « faible » vaut pour des bois à origine inconnue ou très incertaine [+1].`,
+Une micro-histoire « forte » vaut pour la combinaison de plusieurs de ces éléments : inscription de l’ouvrage dans une histoire nationale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle nationale (ex : charpente d’église) [+3].
+Une micro-histoire « moyenne » vaut pour l’un de ces éléments : inscription de l’ouvrage dans une histoire nationale ou locale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle locale (ex : pan de bois) [+2].
+Une micro-histoire « faible » vaut pour des bois dont l’origine est inconnue, incertaine ou pour lesquels seul un faisceau d’indices limités ne permet pas de les inscrire dans une perspective historique [+1].
+
+Ermakoff, I. (2018). La microhistoire au prisme de l’exception. Vingtième Siècle. Revue d'histoire, 139(3), 193-211. https://doi.org/10.3917/ving.139.0193
+
+Christelle Nau, « Le patrimoine culturel immatériel comme outil d’étude et de valorisation d’un savoir-faire : la fabrication de terre cuite architecturale dans les Pyrénées-Orientales », Patrimoines du Sud [En ligne], 11 | 2020, mis en ligne le 10 mars 2020.
+
+Vanessa Py-Saragaglia, Sylvain Burri, Léonel Fouédjeu. Les forêts montagnardes du versant nord des Pyrénées. Sylvie Bépoix ; Hervé Richard. La forêt au Moyen Âge, Les Belles Lettres, pp. 276-299, 2019.
+
+Terlikowski, W. (2023). Problems and Technical Issues in the Diagnosis, Conservation, and Rehabilitation of Structures of Historical Wooden Buildings with a Focus on Wooden Historic Buildings in Poland. Sustainability, 15(1), 510. https://doi.org/10.3390/su15010510`,
         demontabiliteAncien: `Démontabilité.
 
 Noter la démontabilité et la remontabilité des bois évalués.
 
-Une démontabilité « forte » vaut pour des systèmes avec assemblages accessibles, démontables, réemployables et pièces manuportables [+3].
-Une démontabilité « moyenne » vaut pour des systèmes partiellement démontables, avec certains assemblages réemployables [+1].
-Une démontabilité « faible » vaut pour des systèmes avec assemblages inaccessibles, collés ou très difficiles à démonter sans dégâts [-3].`
+    Une démontabilité / remontabilité « forte » vaut pour des systèmes constructifs combinant plusieurs éléments suivants : assemblages visibles et accessibles sans dégrader l’intégrité des bois, assemblages gravitaires ou sans éléments tiers (ex : encastrement maçonné), assemblages boulonnés, assemblages jugés réemployables, pièces manuportables (1 pièce pour 2 personnes maximum), singularité tracéologique forte, assemblages cloués (pointes de diamètre inférieur à 3 mm et de longueur inférieure à 10 cm), une industrialité forte, assemblages taillés par des machines (hors électroportatif), une documentation forte, une exposition mécanique moyenne à faible [+3].
+    Une démontabilité / remontabilité « moyenne » vaut pour des systèmes constructifs combinant plusieurs éléments suivants : un vieillissement fort à moyen et des assemblages dits « bois-bois », des assemblages vissés (3 vis ou moins par assemblage), des assemblages cloués (pointes de diamètre supérieur à 3 mm et de longueur supérieure à 10 cm), des assemblages jugés non réemployables (jetables), une documentation forte à moyenne, une artisanalité forte, une exposition mécanique moyenne à faible [+1].
+    Une démontabilité / remontabilité « faible » vaut pour des systèmes constructifs combinant plusieurs éléments suivants : assemblages invisibles et inaccessibles sans dégrader l’intégrité des bois, assemblages jugés non réemployables (jetables), assemblages collés (ex : parquet), des assemblages vissés (plus de 3 vis par assemblage), un vieillissement fort à moyen, des assemblages taillés à la main, une documentation moyenne à faible, une exposition mécanique forte à moyenne [-3].
+
+    À noter : Cette notation est effectuée indépendamment du degré d’intégrité générale de la structure bois pouvant contenir les bois évalués. De fait, une charpente trop abîmée pour être démontée, et non démolie, est jugée comme « inaccessible ». Il faut distinguer un démontage amenant à la mise à nu des bois d’un démontage qui conserve des assemblages rapportés sur les bois.
+
+    Ottenhaus, L.-M., Yan, Z., Brandner, R., Leardini, P., Fink, G., & Jockwer, R. (2023). Design for adaptability, disassembly and reuse – A review of reversible timber connection systems. Construction and Building Materials, 400, 132823. https://doi.org/10.1016/j.conbuildmat.2023.132823`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -4266,7 +4298,7 @@ openTracesDetailModal(fieldKey) {
         etiquetageTraces: 'Étiquetage',
         alterationTraces: 'Altération',
         documentationTraces: 'Documentation',
-        singularitesTraces: 'Singularités'
+        singularitesTraces: 'Singularités tracéologiques'
     };
 
     const contents = {
@@ -4281,9 +4313,14 @@ Une confiance « faible » implique d’engager une étude complémentaire [+1].
 
 Noter la qualité de l’étiquetage des pièces de bois évaluées.
 
-Un étiquetage « fort » vaut pour un marquage descriptif ou un marquage CE [+3].
-Un étiquetage « moyen » vaut pour toute forme de labellisation connue [+2].
-Un étiquetage « faible » vaut pour une absence de traçabilité [+1].`,
+Un étiquetage « fort » vaut pour la présence de l’un des éléments suivants : marquage descriptif du bois après sa déconstruction (essence, classes diverses, bâtiment d’origine, propriétaire antérieur…) ou un marquage CE [+3].
+Un étiquetage « moyen » vaut pour des pièces de bois disposant de toute forme de labellisation connue [+2].
+Un étiquetage « faible » vaut pour une absence de traçabilité [+1].
+
+À noter : Les bois dits de « structure », sciés, doivent être marqués CE selon la norme NF EN 14081-1 pour pouvoir être mis sur le marché en Europe depuis le 1er janvier 2012.
+
+Voir : EN 13556 (essence).
+Voir : NF EN 14250 (mise en forme).`,
         alterationTraces: `Altération.
 
 Noter les altérations imputables à la récupération des éléments.
@@ -4293,18 +4330,20 @@ Une altération « moyenne » vaut pour des bois avec coins et arêtes enfoncés
 Une altération « faible » vaut pour des bois ne présentant pas ces signes [+3].`,
         documentationTraces: `Documentation.
 
-Noter la disponibilité d’une documentation permettant d’évaluer des critères physiques/chimiques des bois et les usages antérieurs de l’ouvrage.
+Noter la disponibilité d’une documentation permettant d’évaluer des critères physiques ou chimiques des bois et les usages antérieurs de l’ouvrage les contenant.
 
-Une documentation « forte » vaut pour des éléments mécaniques, historiques ou écologiques détaillés [+3].
-Une documentation « moyenne » vaut pour une origine connue mais des éléments d’usage partiels [+1].
-Une documentation « faible » vaut pour une origine inconnue ou incertaine [-3].`,
-        singularitesTraces: `Singularité tracéologique.
+Une documentation « forte » vaut pour des éléments d’ordre mécanique (notes de calculs, classements de bois), d’ordre historique (plans, occupation des espaces) ou d’ordre écologique (essence de bois, durabilité naturelle ou conféré, activités autour des bois) [+3].
+Une documentation « moyenne » vaut pour des bois dont l’origine est connue (lieu d’extraction), mais dont les éléments relatifs à leur usage sont partiels ou indirects [+1].
+Une documentation « faible » vaut pour de pièces bois dont l’origine est inconnue ou incertaine [-3].`,
+        singularitesTraces: `Une singularité tracéologique « forte » vaut pour des bois disposant d'éléments visibles donnant accès à leur mode production (ex : marque de hache, scie…) et pouvant contribuer à la remontabilité d'un système constructif propre (ex : marques de charpente), voire de sculptures (ex : linteau, bois d'angle, chevron, frise…) [+3].
+Une singularité tracéologique « moyenne » vaut pour des bois pour lesquels les éléments visibles relèvent de l'anecdotique mais ne permettent pas de constituer une épaisseur historique significative [+2].
+Une singularité tracéologique « faible » vaut pour des bois ne disposant pas d'éléments visible œuvrant à leur singularité [+1].
 
-Noter les singularités des bois évalués au regard des diverses traces participant à leur micro-histoire.
+Manuel Porcheron, « Tracéologie du bois d'époque médiévale », Revue archéologique du Centre de la France [En ligne], Tome 58 | 2019, mis en ligne le 16 décembre 2019.
 
-Une singularité « forte » vaut pour des bois avec marques de production ou de charpente, sculptures, etc. [+3].
-Une singularité « moyenne » vaut pour des éléments visibles anecdotiques [+2].
-Une singularité « faible » vaut pour des bois sans éléments visibles de singularité [+1].`
+Greck Sandra, Guibal Frédéric. Le bois, matériau de construction : étude xylologique, tracéologique et dendromorphologique du chaland Arles-Rhône 3. In: Archaeonautica, 18, 2014. Arles-Rhône 3. Un chaland gallo-romain du Ier siècle après Jésus-Christ. pp. 171-202.
+
+Calame, F. (1983). Les marques de charpente. Ethnologie française, 13(1), 7–24. https://www.jstor.org/stable/40988748`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -4361,34 +4400,28 @@ Noter le niveau de confiance de la tracéologie effectuée sur les bois évalué
 Une confiance « forte » vaut pour une certitude [+3].
 Une confiance « moyenne » vaut pour un doute [+2].
 Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
-        transportProv: `Transport.
+        transportProv: `Un transport « fort » vaut pour des bois transportés sur une distance intercontinentale (hors Europe) [-3].
+    Un transport « moyen » vaut pour des bois transportés dans un rayon continentale (pays transfrontaliers, Europe) [+1].
+    Un transport « faible » vaut pour des bois qui peuvent être réemployés, réutilisés ou recyclés sur site (in situ) [+3].
 
-Noter l’impact du transport parcouru ou à parcourir des éléments bois évalués.
+    Voir : Ghyoot M., Devlieger L., Billiet L., Warnier A., Déconstruction et réemploi, Comment faire circuler les éléments de construction ? Presses polytechniques universitaires romandes (PPUR), 2018, pages 72-73.`,
+        reputationProv: `Une réputation « forte » vaut pour des bois en provenance de forêts spécifique reconnue pour les qualités de leurs bois (ex : Tronçais, Bercé, Lyons…) [+3].
+Une réputation « moyenne » vaut pour des bois en provenance de massifs forestiers reconnus pour la qualités de leurs bois (ex : Sélection Vosges, Jura supérieur…) [+2].
+Une réputation « faible » vaut pour des bois dont l’origine est peu valorisée [+1].
 
-Un transport « fort » vaut pour des bois transportés sur une distance intercontinentale [-3].
-Un transport « moyen » vaut pour des bois transportés dans un rayon continental [+1].
-Une distance « faible » vaut pour des bois réemployés, réutilisés ou recyclés sur site [+3].`,
-        reputationProv: `Réputation.
+À noter : Une réputation inconnue ou incertaine n’est pas notée.
 
-Noter la réputation des bois au regard de l’origine géographique des arbres et des qualités qui lui sont attribuées.
+Lenglet, J., & Peyrache-Gadeau, V. (2020). Valuation de la ressource territoriale et formes de circularité : la labellisation dans la filière forêt-bois française (Alpes, Jura, Vosges). Revue forestière française, 72(4), 339–360. https://doi.org/10.20870/revforfr.2020.5333
 
-Une réputation « forte » vaut pour des bois issus de forêts spécifiques reconnues (Tronçais, Bercé, Lyons, etc.) [+3].
-Une réputation « moyenne » vaut pour des bois de massifs reconnus (Vosges, Jura supérieur, etc.) [+2].
-Une réputation « faible » vaut pour des bois dont l’origine est peu valorisée [+1].`,
-        macroProv: `Macro-histoire.
+King, L., & Vallauri, D. (2023). Marques régionales pour le bois : Quelles plus-values environnementales ? WWF-France. https://www.wwf.fr/sites/default/files/doc-2023-12/Fiche_marques_regionales.pdf`,
+        macroProv: `Une macro-histoire « forte » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique fort, une réputation forte, une micro-histoire forte, une rareté commerciale forte [+3].
+    Une macro-histoire « moyenne » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique moyen, une réputation moyenne, une micro-histoire moyenne, une rareté commerciale moyenne [+2].
+    Une macro-histoire « faible » vaut pour des bois dont l’origine est inconnue ou incertaine [+1].`,
+        territorialiteProv: `Noter la territorialité des bois évalués au regard d’éléments caractéristiques du territoire dans lequel le bois a été extrait et transformé.
 
-Noter le niveau d’inscription des bois dans une macro-histoire.
-
-Une macro-histoire « forte » vaut pour des bois combinant amortissement biologique fort, réputation forte, micro-histoire forte, rareté commerciale forte [+3].
-Une macro-histoire « moyenne » vaut pour des bois combinant les niveaux moyens de ces critères [+2].
-Une macro-histoire « faible » vaut pour des bois dont l’origine est inconnue ou incertaine [+1].`,
-        territorialiteProv: `Territorialité.
-
-Noter la territorialité des bois au regard des éléments caractéristiques du territoire d’extraction et de transformation.
-
-Une territorialité « forte » vaut pour des bois combinant essence/singularités, système constructif et traces spécifiques à un territoire donné [+3].
-Une territorialité « moyenne » vaut pour des bois présentant un seul de ces éléments [+2].
-Une territorialité « faible » vaut pour des bois sans rattachement territorial caractéristique [+1].`
+    Une territorialité « forte » vaut pour des bois combinant les éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+3].
+    Une territorialité « moyenne » vaut pour des bois disposant de l’un de ses éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+2].
+    Une territorialité « faible » vaut pour des bois ne disposant d’aucun de ces éléments caractéristiques d’un rattachement à un territoire donné [+1].`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
