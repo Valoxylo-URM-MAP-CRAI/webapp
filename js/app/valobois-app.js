@@ -4075,7 +4075,7 @@ openEssenceDetailModal(fieldKey) {
         rareteEcoEssence: 'Rareté',
         masseVolEssence: 'Masse volumique',
         rareteHistEssence: 'Rareté commerciale',
-        singulariteEssence: 'Singularité'
+        singulariteEssence: 'Singularité essence'
     };
 
     const contents = {
@@ -4088,32 +4088,54 @@ Une confiance « moyenne » vaut pour un doute [+2].
 Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
         rareteEcoEssence: `Rareté.
 
-Noter le niveau de rareté de l’essence. Cette notation est fonction de l’aire géographique continentale de la localisation de cette évaluation.
+Noter le niveau de rareté de l'essence.
 
-Une rareté « forte » est attribuée à une essence qui ne pousse pas sur l’aire géographique, rare et le plus souvent importée [+3].
-Une rareté « moyenne » est attribuée à une essence peu commune sur l’aire géographique [+2].
-Un niveau « faible » est attribué à une essence commune sur l’aire géographique [+1].`,
+À noter : Cette notation est fonction de l'aire géographique continentale de la localisation de cette évaluation. En Europe, on peut se rapporter aux exemples des catégories cités ci-après.
+
+Une rareté « forte » est attribuée à une essence qui ne pousse pas sur l'aire géographique, rare et le plus souvent importée [+3].
+Une rareté « moyenne » est attribuée à une essence peu commune sur l'aire géographique [+2].
+Une rareté « faible » est attribuée à une essence commune sur l'aire géographique [+1].
+
+Peuvent être considérées comme « rares » les essences de bois suivantes : Teck, iroko, padouk, wengé, merbau, azobé, ipé.
+
+Peuvent être considérées comme « peu communes » les essences de bois suivantes : Alisier, cormier, noyer, orme, tilleul, aulne, charme, robinier, érable, platane, merisier.
+
+Peuvent être considérées comme « communes » les essences de bois suivantes : Épicéa, pin maritime, pin sylvestre, sapin, douglas, chêne, hêtre, peuplier, bouleau, mélèze, frêne, châtaigner.
+
+Voir Benoit, Y. (2018). Guide des essences de bois : 100 essences, comment les reconnaître, les choisir et les employer (4e éd.). Eyrolles.
+Et/ou se rapporter à la norme EN 13556.`,
         masseVolEssence: `Masse volumique.
 
 Noter le niveau de la masse volumique « ρ » du bois.
 
-Une masse volumique « forte » vaut pour des bois très lourds à lourds dont ρ > 750 kg/m³ [+3].
-Une masse volumique « moyenne » vaut pour des bois mi-lourds à légers dont ρ est entre 450 et 750 kg/m³ [+2].
-Une masse volumique « faible » vaut pour des bois très légers dont ρ < 450 kg/m³ [+1].`,
+Une masse volumique « forte » vaut pour des bois dits très lourds à lourds dont la ρ est supérieure à 750 kg/m3 [+3]. 
+Une masse volumique « moyenne » vaut pour des bois dits mi-lourds à légers dont la ρ se situe entre 450 et 750 kg/m3 [+2].
+Une masse volumique « faible » vaut pour des bois dits très légers dont la ρ est inférieure à 450 kg/m3 [+1]. 
+
+Attention cette valeur doit être mesurée ou estimée au regard de l'humidité relative du bois qui est dans les normes de l'ordre de 12% +ou- 3% (pour la précision voir EN 14081-1+A1.)
+
+Voir la norme NF B51-002.
+Voir Yang, H., Wang, S., Son, R., Lee, H., Benson, V., Zhang, W., Zhang, Y., Zhang, Y., Kattge, J., Boenisch, G., Schepaschenko, D., Karaszewski, Z., Stereńczak, K., Moreno-Martínez, Á., Nabais, C., Birnbaum, P., Vieilledent, G., Weber, U., & Carvalhais, N. (2024). Global patterns of tree wood density. Global change biology, 30(3), e17224. https://doi.org/10.1111/gcb.17224
+
+Cuny, H., Bontemps, J.-D., Besic, N., Colin, A., Hertzog, L., Le Squin, A., Marchand, W., Vega, C., and Leban, J.-M.: Wood density variation in European forest species: drivers and implications for multiscale biomass and carbon assessment in France, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2025-4152, 2025.`,
         rareteHistEssence: `Rareté commerciale.
 
 Noter le niveau de rareté commerciale de l’essence au regard du marché et de l’évolution de son exploitation.
 
+À noter : S'en référer à l'histoire de l'exploitation de l'essence identifiée.
+
 Une rareté commerciale « forte » est attribuée à une essence rare qui n’est plus ou pas disponible sur le marché [+3].
 Une rareté commerciale « moyenne » est attribuée à une essence peu commune sur le marché [+2].
 Un niveau commercial « faible » est attribué à une essence commune sur le marché [+1].`,
-        singulariteEssence: `Singularité essence.
+        singulariteEssence: `Singularité de l'essence
 
 Noter le niveau de singularité de l’essence au regard de ses particularités esthétiques : grain ou veinage, fil, couleur, odeur, forme et dessin.
 
 Une singularité « forte » est donnée aux essences à attributs esthétiques reconnus et recherchés (ex : noyer, olivier) [+3].
 Une singularité « moyenne » est donnée aux essences aux attributs esthétiques reconnaissables à l’œil nu (ex : pins) [+2].
-Une singularité « faible » est donnée aux essences aux attributs esthétiques peu spécifiques (ex : bois blancs) [+1].`
+Une singularité « faible » est donnée aux essences aux attributs esthétiques peu spécifiques (ex : bois blancs) [+1].
+
+Voir EN 14081-1+A1 « B2. Code de marquage pour les essence combinées.`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
