@@ -1943,7 +1943,6 @@
                         <!-- Naturalité (Esthétique) -->
                         <div class="denat-row" data-denat-field="naturaliteDenat">
                             <div class="denat-value-label-box" data-i18n="editor.axis.aesthetic">Esthétique</div>
-                            <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="denat-label-box" data-i18n="editor.denat.naturalite">
                                 Naturalité
                             </div>
@@ -1953,7 +1952,17 @@
                             <div class="denat-intensity-box" data-intensity="naturaliteDenat">
                                 ...
                             </div>
-                            <button class="denat-info-small-btn" type="button" data-info="naturaliteDenat" data-i18n="editor.common.info">info</button>
+                            <div class="denat-naturalite-btn-stack">
+                                <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--denat-naturalite" type="button" data-alert-naturalite-state="none" data-denat-naturalite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="denat-info-small-btn" type="button" data-info="naturaliteDenat" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="naturaliteDenat">
@@ -2019,7 +2028,6 @@
                         <!-- Régularité (Économique) -->
                         <div class="debit-row" data-debit-field="regulariteDebit">
                             <div class="debit-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="debit-label-box" data-i18n="editor.debit.regularite">
                                 Régularité
                             </div>
@@ -2029,7 +2037,17 @@
                             <div class="debit-intensity-box" data-intensity="regulariteDebit">
                                 ...
                             </div>
-                            <button class="debit-info-small-btn" type="button" data-info="regulariteDebit" data-i18n="editor.common.info">info</button>
+                            <div class="debit-regularite-btn-stack">
+                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--debit-regularite" type="button" data-alert-regularite-state="none" data-debit-regularite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="debit-info-small-btn" type="button" data-info="regulariteDebit" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="regulariteDebit">
@@ -2044,7 +2062,6 @@
                         <!-- Volumétrie (Écologique) -->
                         <div class="debit-row" data-debit-field="volumetrieDebit">
                             <div class="debit-value-label-box" data-i18n="editor.axis.ecological">Écologique</div>
-                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="debit-label-box" data-i18n="editor.debit.volumetrie">
                                 Volumétrie
                             </div>
@@ -2054,7 +2071,17 @@
                             <div class="debit-intensity-box" data-intensity="volumetrieDebit">
                                 ...
                             </div>
-                            <button class="debit-info-small-btn" type="button" data-info="volumetrieDebit" data-i18n="editor.common.info">info</button>
+                            <div class="debit-volumetrie-btn-stack">
+                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--debit-volumetrie" type="button" data-alert-volumetrie-state="none" data-debit-volumetrie-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="debit-info-small-btn" type="button" data-info="volumetrieDebit" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="volumetrieDebit">
@@ -2069,7 +2096,6 @@
                         <!-- Stabilité (Mécanique) -->
                         <div class="debit-row" data-debit-field="stabiliteDebit">
                             <div class="debit-value-label-box" data-i18n="editor.axis.mechanical">Mécanique</div>
-                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="debit-label-box" data-i18n="editor.debit.stabilite">
                                 Stabilité
                             </div>
@@ -2079,7 +2105,17 @@
                             <div class="debit-intensity-box" data-intensity="stabiliteDebit">
                                 ...
                             </div>
-                            <button class="debit-info-small-btn" type="button" data-info="stabiliteDebit" data-i18n="editor.common.info">info</button>
+                            <div class="debit-stabilite-btn-stack">
+                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--debit-stabilite" type="button" data-alert-stabilite-state="none" data-debit-stabilite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="debit-info-small-btn" type="button" data-info="stabiliteDebit" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="stabiliteDebit">
@@ -2094,7 +2130,6 @@
                         <!-- Artisanalité (Historique) -->
                         <div class="debit-row" data-debit-field="artisanaliteDebit">
                             <div class="debit-value-label-box" data-i18n="editor.axis.historical">Historique</div>
-                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="debit-label-box" data-i18n="editor.debit.artisanalite">
                                 Artisanalité
                             </div>
@@ -2104,7 +2139,17 @@
                             <div class="debit-intensity-box" data-intensity="artisanaliteDebit">
                                 ...
                             </div>
-                            <button class="debit-info-small-btn" type="button" data-info="artisanaliteDebit" data-i18n="editor.common.info">info</button>
+                            <div class="debit-artisanalite-btn-stack">
+                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--debit-artisanalite" type="button" data-alert-artisanalite-state="none" data-debit-artisanalite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="debit-info-small-btn" type="button" data-info="artisanaliteDebit" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="artisanaliteDebit">
@@ -2220,7 +2265,6 @@
                         <!-- Massivité (Écologique) -->
                         <div class="geo-row" data-geo-field="massiviteGeo">
                             <div class="geo-value-label-box" data-i18n="editor.axis.ecological">Écologique</div>
-                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="geo-label-box" data-i18n="editor.geo.massivite">
                                 Massivité
                             </div>
@@ -2230,7 +2274,17 @@
                             <div class="geo-intensity-box" data-intensity="massiviteGeo">
                                 ...
                             </div>
-                            <button class="geo-info-small-btn" type="button" data-info="massiviteGeo" data-i18n="editor.common.info">info</button>
+                            <div class="geo-massivite-btn-stack">
+                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--geo-massivite" type="button" data-alert-massivite-state="none" data-geo-massivite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="geo-info-small-btn" type="button" data-info="massiviteGeo" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="massiviteGeo">
@@ -2270,7 +2324,6 @@
                         <!-- Industrialité (Historique) -->
                         <div class="geo-row" data-geo-field="industrialiteGeo">
                             <div class="geo-value-label-box" data-i18n="editor.axis.historical">Historique</div>
-                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="geo-label-box" data-i18n="editor.geo.industrialite">
                                 Industrialité
                             </div>
@@ -2280,7 +2333,17 @@
                             <div class="geo-intensity-box" data-intensity="industrialiteGeo">
                                 ...
                             </div>
-                            <button class="geo-info-small-btn" type="button" data-info="industrialiteGeo" data-i18n="editor.common.info">info</button>
+                            <div class="geo-industrialite-btn-stack">
+                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--geo-industrialite" type="button" data-alert-industrialite-state="none" data-geo-industrialite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="geo-info-small-btn" type="button" data-info="industrialiteGeo" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="industrialiteGeo">

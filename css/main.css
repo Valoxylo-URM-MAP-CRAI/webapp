@@ -1486,6 +1486,10 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.lot-inline-grid--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .lot-inline-grid--lot-essence {
     display: grid;
     gap: 8px;
@@ -1864,6 +1868,149 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-alert-btn--ancien-amortissement[data-alert-amortissement-state="none"] {
     opacity: 0.3;
     pointer-events: none;
+}
+
+.lot-alert-btn--geo-massivite[data-alert-massivite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--geo-massivite[data-alert-massivite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--geo-massivite[data-alert-massivite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--geo-massivite[data-alert-massivite-state="none"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--debit-volumetrie[data-alert-volumetrie-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--debit-volumetrie[data-alert-volumetrie-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--debit-volumetrie[data-alert-volumetrie-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--debit-volumetrie[data-alert-volumetrie-state="none"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--debit-regularite[data-alert-regularite-state="used"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--debit-regularite[data-alert-regularite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--debit-artisanalite[data-alert-artisanalite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--debit-stabilite[data-alert-stabilite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--debit-stabilite[data-alert-stabilite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--debit-stabilite[data-alert-stabilite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--debit-stabilite[data-alert-stabilite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--debit-artisanalite[data-alert-artisanalite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--debit-artisanalite[data-alert-artisanalite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--debit-artisanalite[data-alert-artisanalite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--denat-naturalite[data-alert-naturalite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--denat-naturalite[data-alert-naturalite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--denat-naturalite[data-alert-naturalite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--geo-industrialite[data-alert-industrialite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--geo-industrialite[data-alert-industrialite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--geo-industrialite[data-alert-industrialite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--geo-industrialite[data-alert-industrialite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
 }
 
 .lot-price-market-row {
@@ -4333,6 +4480,153 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-shrink: 0;
 }
 
+/* Wrapper boutons massivité : empile reset + alerte + info */
+.geo-massivite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.geo-massivite-btn-stack .geo-reset-btn,
+.geo-massivite-btn-stack .lot-alert-btn,
+.geo-massivite-btn-stack .geo-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons volumétrie : empile reset + alerte + info */
+.debit-volumetrie-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.debit-volumetrie-btn-stack .debit-reset-btn,
+.debit-volumetrie-btn-stack .lot-alert-btn,
+.debit-volumetrie-btn-stack .debit-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons regularite : empile reset + alerte + info */
+.debit-regularite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.debit-regularite-btn-stack .debit-reset-btn,
+.debit-regularite-btn-stack .lot-alert-btn,
+.debit-regularite-btn-stack .debit-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons stabilite : empile reset + alerte + info */
+.debit-stabilite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.debit-stabilite-btn-stack .debit-reset-btn,
+.debit-stabilite-btn-stack .lot-alert-btn,
+.debit-stabilite-btn-stack .debit-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons artisanalite : empile reset + alerte + info */
+.debit-artisanalite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.debit-artisanalite-btn-stack .debit-reset-btn,
+.debit-artisanalite-btn-stack .lot-alert-btn,
+.debit-artisanalite-btn-stack .debit-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons industrialite : empile reset + alerte + info */
+.geo-industrialite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.geo-industrialite-btn-stack .geo-reset-btn,
+.geo-industrialite-btn-stack .lot-alert-btn,
+.geo-industrialite-btn-stack .geo-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons naturalite : empile reset + alerte + info */
+.denat-naturalite-btn-stack {
+    grid-column: 6;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.denat-naturalite-btn-stack .denat-reset-btn,
+.denat-naturalite-btn-stack .lot-alert-btn,
+.denat-naturalite-btn-stack .denat-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
 /* Traces */
 
 .traces-card {
@@ -6743,8 +7037,15 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding: var(--space-6);
   }
 
-    /* Wrapper boutons amortissement en mobile : utilise la zone "info" */
-  .ancien-amort-btn-stack {
+        /* Wrappers boutons alerte en mobile : utilise la zone "info" */
+    .ancien-amort-btn-stack,
+    .geo-massivite-btn-stack,
+    .geo-industrialite-btn-stack,
+    .debit-volumetrie-btn-stack,
+    .debit-regularite-btn-stack,
+    .debit-stabilite-btn-stack,
+    .debit-artisanalite-btn-stack,
+    .denat-naturalite-btn-stack {
         grid-area: info;
     gap: 2px;
   }
@@ -7932,6 +8233,55 @@ body.day-mode .evalop-column-title {
 
 /* Wrapper boutons amortissement en vue grille de cartes */
 .cards-grid .ancien-amort-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons massivité en vue grille de cartes */
+.cards-grid .geo-massivite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons industrialité en vue grille de cartes */
+.cards-grid .geo-industrialite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons volumétrie en vue grille de cartes */
+.cards-grid .debit-volumetrie-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons regularite en vue grille de cartes */
+.cards-grid .debit-regularite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons stabilite en vue grille de cartes */
+.cards-grid .debit-stabilite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons artisanalite en vue grille de cartes */
+.cards-grid .debit-artisanalite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons naturalite en vue grille de cartes */
+.cards-grid .denat-naturalite-btn-stack {
     grid-column: 3;
     grid-row: 1 / -1;
     gap: 2px;

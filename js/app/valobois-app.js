@@ -11,6 +11,7 @@ class ValoboisApp {
         this.radarChart = null;
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
+        this.ensureTypeProduitDatalist();
         this.bindEvents();
         this.render();
         if (typeof attachValoboisFirestoreSync === 'function') {
@@ -66,6 +67,35 @@ class ValoboisApp {
                 scientificOption.value = essence.nomScientifique;
                 datalistScientific.appendChild(scientificOption);
             }
+        });
+    }
+
+    ensureTypeProduitDatalist() {
+        let datalist = document.getElementById('liste-types-produit');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'liste-types-produit';
+            document.body.appendChild(datalist);
+        }
+        if (datalist.children.length > 0) return;
+
+        [
+            'Bois Non Taillé (BNT)',
+            'Bois Équarri Non Scié (BENS)',
+            'Bois Avivé (BA)',
+            'Bois Brut Sec (BBS)',
+            'Bois Raboté Séché (BRS)',
+            'Bois Lamellé-Collé (BLC)',
+            'Bois Lamellé-Croisé (CLT)',
+            'Bois Contre-Collé (CC)',
+            'Bois Ossature (BO)',
+            'Bois Fermette (BF)',
+            'Bois Massif Abouté (BMA)',
+            'Bois Massif Reconstitué (BMR)'
+        ].forEach((label) => {
+            const option = document.createElement('option');
+            option.value = label;
+            datalist.appendChild(option);
         });
     }
 
@@ -247,6 +277,7 @@ class ValoboisApp {
                 localisation: '',
                 situation: '',
                 typePiece: '',
+                typeProduit: '',
                 essenceNomCommun: '',
                 essenceNomScientifique: '',
                 essence: '',
@@ -283,6 +314,7 @@ class ValoboisApp {
         }
 
         if (lot.defaultPiece.typePiece == null) lot.defaultPiece.typePiece = '';
+        if (lot.defaultPiece.typeProduit == null) lot.defaultPiece.typeProduit = '';
         if (lot.defaultPiece.essenceNomCommun == null) lot.defaultPiece.essenceNomCommun = '';
         if (lot.defaultPiece.essenceNomScientifique == null) lot.defaultPiece.essenceNomScientifique = '';
         if (lot.defaultPiece.essence == null) lot.defaultPiece.essence = '';
@@ -310,6 +342,7 @@ class ValoboisApp {
         piece.localisation = dp.localisation || '';
         piece.situation = dp.situation || '';
         piece.typePiece = dp.typePiece || a.typePiece || '';
+        piece.typeProduit = dp.typeProduit || a.typeProduit || '';
         piece.essenceNomCommun = dp.essenceNomCommun || a.essenceNomCommun || '';
         piece.essenceNomScientifique = dp.essenceNomScientifique || a.essenceNomScientifique || '';
         piece.essence = [piece.essenceNomCommun, piece.essenceNomScientifique].filter(Boolean).join(' - ');
@@ -474,6 +507,7 @@ class ValoboisApp {
         if (allotissement.humidite == null) allotissement.humidite = 12;
         if (allotissement.fractionCarbonee == null) allotissement.fractionCarbonee = 50;
         if (allotissement.bois == null) allotissement.bois = 100;
+        if (allotissement.typeProduit == null) allotissement.typeProduit = '';
         if (allotissement.diametre == null) allotissement.diametre = '';
         if (allotissement.carboneBiogeniqueEstime == null) allotissement.carboneBiogeniqueEstime = '';
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
@@ -481,6 +515,7 @@ class ValoboisApp {
             if (!piece || typeof piece !== 'object') return;
             if (piece.localisation == null) piece.localisation = '';
             if (piece.situation == null) piece.situation = '';
+            if (piece.typeProduit == null) piece.typeProduit = '';
             this.ensurePieceMasseVolumiqueInitialized(piece);
         });
         this.ensureDefaultPieceData(lot);
@@ -495,6 +530,7 @@ class ValoboisApp {
             allotissement: {
                 quantite: '1',
                 typePiece: '',
+                typeProduit: '',
                 essenceNomCommun: '',
                 essenceNomScientifique: '',
                 essence: '',
@@ -502,6 +538,10 @@ class ValoboisApp {
                 largeur: '',
                 hauteur: '',
                 diametre: '',
+                longueurVariabilite: '',
+                largeurVariabilite: '',
+                epaisseurVariabilite: '',
+                diametreVariabilite: '',
                 prixUnite: 'm3',
                 prixMarche: '',
                 surfacePiece: 0,
@@ -559,6 +599,7 @@ class ValoboisApp {
                 localisation: '',
                 situation: '',
                 typePiece: '',
+                typeProduit: '',
                 essenceNomCommun: '',
                 essenceNomScientifique: '',
                 essence: '',
@@ -584,6 +625,7 @@ class ValoboisApp {
             localisation: '',
             situation: '',
             typePiece: '',
+            typeProduit: '',
             essenceNomCommun: '',
             essenceNomScientifique: '',
             essence: '',
@@ -1038,6 +1080,515 @@ class ValoboisApp {
         }
     }
 
+    /**
+     * Mappe la valeur d'Epaisseur aux etats d'alerte de Massivite.
+     * @param {string|number} epaisseurValue - Valeur en mm
+     * @returns {string} Etat: 'strong' (> 75), 'medium' (> 28 et <= 75), 'low' (<= 28), ou 'none' (indisponible)
+     */
+    getMassiviteAlertState(epaisseurValue) {
+        const num = parseFloat(String(epaisseurValue || '').replace(/,/, '.'));
+
+        if (!isFinite(num) || epaisseurValue === null || epaisseurValue === '') {
+            return 'none';
+        }
+
+        if (num > 75) {
+            return 'strong';
+        } else if (num > 28) {
+            return 'medium';
+        }
+        return 'low';
+    }
+
+    openGeoMassiviteAlertModal(alertState) {
+        const backdrop = document.getElementById('geoDetailModalBackdrop');
+        const titleEl = document.getElementById('geoDetailModalTitle');
+        const contentEl = document.getElementById('geoDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après les données renseignées la massivité devrait être Forte. Vérifier les règles suivantes : Une massivité « forte » vaut pour les pièces de bois massif et de Bois Massif Abouté (BMA) d\'une épaisseur (e ou b) strictement supérieure à 75 mm, pour les pièces en bois lamellé-collé (BLC) d\'une épaisseur de lamelles strictement supérieure à 35 mm et d\'une épaisseur de chant strictement supérieure à 150 mm, ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm d\'une épaisseur de chant strictement supérieure à 210 mm.',
+            medium: 'D\'après les données renseignées la massivité devrait être Moyenne. Vérifier les règles suivantes : Une massivité « moyenne » vaut pour les pièces : de bois massif et de BMA d\'une épaisseur strictement supérieure à 28 mm et inférieure ou égale à 75 mm, pour les pièces de BLC avec épaisseur de lamelles strictement supérieure à 35 mm d\'une épaisseur de chant inférieure ou égale à 150 mm, ou pour les pièces de BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant strictement supérieure à 28 mm et inférieure ou égale à 210 mm.',
+            low: 'D\'après les données renseignées la massivité devrait être Faible. Vérifier les règles suivantes : Une massivité « faible » vaut pour les pièces de bois massif et BMA d\'une épaisseur inférieure ou égale à 28 mm ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant inférieure ou égale à 28 mm.',
+            none: 'Vérifier l\'Épaisseur renseignée dans le Détail du lot.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Massivité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    /**
+     * Détermine l'état d'alerte d'Industrialité selon le Type de produit.
+     * @param {string} typeProduitValue - Type de produit du lot
+     * @returns {string} 'strong', 'medium', 'low' ou 'none'
+     */
+    getIndustrialiteAlertState(typeProduitValue) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const typeProduit = normalize(typeProduitValue);
+        if (!typeProduit) return 'none';
+
+        if (
+            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
+            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
+            typeProduit === normalize('Bois Contre-Collé (CC)') ||
+            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
+            typeProduit === normalize('Bois Ossature (BO)') ||
+            typeProduit === normalize('Bois Fermette (BF)') ||
+            typeProduit === normalize('Bois Massif Reconstitué (BMR)')
+        ) {
+            return 'strong';
+        }
+
+        if (
+            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
+            typeProduit === normalize('Bois Brut Sec (BBS)') ||
+            typeProduit === normalize('Bois Avivé (BA)')
+        ) {
+            return 'medium';
+        }
+
+        if (
+            typeProduit === normalize('Bois Non Taillé (BNT)') ||
+            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
+        ) {
+            return 'low';
+        }
+
+        return 'none';
+    }
+
+    openGeoIndustrialiteAlertModal(alertState) {
+        const backdrop = document.getElementById('geoDetailModalBackdrop');
+        const titleEl = document.getElementById('geoDetailModalTitle');
+        const contentEl = document.getElementById('geoDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après le type de produit renseigné l\'industrialité devrait être Forte.',
+            medium: 'D\'après le type de produit renseigné l\'industrialité devrait être Moyenne.',
+            low: 'D\'après le type de produit renseigné l\'industrialité devrait être Faible.',
+            none: 'Vérifier le Type de produit renseigné dans le Détail du lot.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Industrialité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    /**
+     * Mappe la volumetrie unitaire aux etats d'alerte de Volumetrie.
+     * @param {string|number} volumetrieValue - Valeur en m3
+     * @returns {string} Etat: 'strong' (> 0.1), 'medium' (>= 0.05 et <= 0.1), 'low' (< 0.05), ou 'none' (indisponible)
+     */
+    getVolumetrieAlertState(volumetrieValue) {
+        const num = parseFloat(String(volumetrieValue || '').replace(/,/, '.'));
+
+        if (!isFinite(num) || volumetrieValue === null || volumetrieValue === '' || num <= 0) {
+            return 'none';
+        }
+
+        if (num > 0.1) {
+            return 'strong';
+        } else if (num >= 0.05) {
+            return 'medium';
+        }
+        return 'low';
+    }
+
+    openDebitVolumetrieAlertModal(alertState) {
+        const backdrop = document.getElementById('debitDetailModalBackdrop');
+        const titleEl = document.getElementById('debitDetailModalTitle');
+        const contentEl = document.getElementById('debitDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après les dimensions renseignées la volumétrie devrait être Forte.',
+            medium: 'D\'après les dimensions renseignées la volumétrie devrait être Moyenne.',
+            low: 'D\'après les dimensions renseignées la volumétrie devrait être Faible.',
+            none: 'Vérifier les dimensions renseignées dans le Détail du lot.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Volumétrie';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    /**
+     * Détermine l'état d'alerte de Régularité selon l'usage du champ Diamètre.
+     * @param {string|number} diametreValue - Valeur du champ diamètre du lot
+     * @returns {string} 'used' si renseigné, sinon 'none'
+     */
+    getRegulariteAlertState(diametreValue) {
+        const hasValue = diametreValue != null && String(diametreValue).trim() !== '';
+        return hasValue ? 'used' : 'none';
+    }
+
+    parsePositiveAlertDimensionValue(value) {
+        const normalized = String(value == null ? '' : value)
+            .replace(/,/g, '.')
+            .trim();
+        const num = parseFloat(normalized);
+        return Number.isFinite(num) && num > 0 ? num : null;
+    }
+
+    getEffectiveStabiliteAlertDimensions(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot || !targetLot.allotissement) {
+            return { longueur: null, largeur: null, hauteur: null, diametre: null };
+        }
+
+        const allotissement = targetLot.allotissement;
+        const longueur = this.parsePositiveAlertDimensionValue(
+            allotissement._avgLongueur != null && allotissement._avgLongueur !== ''
+                ? allotissement._avgLongueur
+                : allotissement.longueur
+        );
+        const largeur = this.parsePositiveAlertDimensionValue(
+            allotissement._avgLargeur != null && allotissement._avgLargeur !== ''
+                ? allotissement._avgLargeur
+                : allotissement.largeur
+        );
+        const hauteur = this.parsePositiveAlertDimensionValue(
+            allotissement._avgHauteur != null && allotissement._avgHauteur !== ''
+                ? allotissement._avgHauteur
+                : allotissement.hauteur
+        );
+        const diametre = this.parsePositiveAlertDimensionValue(allotissement.diametre);
+
+        return { longueur, largeur, hauteur, diametre };
+    }
+
+    getStabiliteAlertState(longueurValue, largeurValue, hauteurValue, diametreValue) {
+        let longueur = this.parsePositiveAlertDimensionValue(longueurValue);
+        let largeur = this.parsePositiveAlertDimensionValue(largeurValue);
+        let hauteur = this.parsePositiveAlertDimensionValue(hauteurValue);
+        const diametre = this.parsePositiveAlertDimensionValue(diametreValue);
+
+        if (diametre) {
+            hauteur = diametre;
+            largeur = diametre;
+        }
+
+        if (!longueur || !hauteur || !largeur) {
+            return 'none';
+        }
+
+        if (hauteur < largeur) {
+            const temp = hauteur;
+            hauteur = largeur;
+            largeur = temp;
+        }
+
+        const ratioLh = longueur / hauteur;
+        const ratioBh = largeur / hauteur;
+
+        if (!Number.isFinite(ratioLh) || !Number.isFinite(ratioBh) || ratioLh <= 0 || ratioBh <= 0) {
+            return 'none';
+        }
+
+        if (ratioLh <= 18 && ratioBh >= 0.4) {
+            return 'strong';
+        }
+
+        if (
+            (ratioLh <= 18 && ratioBh >= 0.25 && ratioBh < 0.4) ||
+            (ratioLh > 18 && ratioLh <= 28 && ratioBh >= 0.25)
+        ) {
+            return 'medium';
+        }
+
+        if (ratioLh > 28 || ratioBh < 0.25) {
+            return 'low';
+        }
+
+        return 'none';
+    }
+
+    openDebitStabiliteAlertModal(alertState) {
+        const backdrop = document.getElementById('debitDetailModalBackdrop');
+        const titleEl = document.getElementById('debitDetailModalTitle');
+        const contentEl = document.getElementById('debitDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après les dimensions renseignées, la stabilité devrait être Forte.',
+            medium: 'D\'après les dimensions renseignées, la stabilité devrait être Moyenne.',
+            low: 'D\'après les dimensions renseignées, la stabilité devrait être Faible.',
+            none: 'Vérifier les dimensions renseignées dans le Détail du lot.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Stabilité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openDebitRegulariteAlertModal(alertState) {
+        const backdrop = document.getElementById('debitDetailModalBackdrop');
+        const titleEl = document.getElementById('debitDetailModalTitle');
+        const contentEl = document.getElementById('debitDetailModalContent');
+
+        const messagesByState = {
+            used: 'D\'après les dimensions renseignées la régularité est faible compte tenu de la présence de bois ronds.',
+            none: 'Rien à signaler'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Régularité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    /**
+     * Détermine l'état d'alerte de Naturalité selon Type de produit et Diamètre.
+     * @param {string} typeProduitValue - Type de produit du lot
+     * @param {string|number} diametreValue - Diamètre du lot
+     * @returns {string} 'strong', 'medium' ou 'none'
+     */
+    getNaturaliteAlertState(typeProduitValue, diametreValue) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const typeProduit = normalize(typeProduitValue);
+        const hasDiametre = diametreValue != null && String(diametreValue).trim() !== '';
+
+        if (!typeProduit) return 'none';
+
+        if (
+          hasDiametre &&
+          (
+            typeProduit === normalize('Bois Brut Sec (BBS)') ||
+            typeProduit === normalize('Bois Non Taillé (BNT)') ||
+            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
+          )
+        ) {
+          return 'strong';
+        }
+
+        if (
+            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
+            typeProduit === normalize('Bois Contre-Collé (CC)') ||
+            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
+            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
+            typeProduit === normalize('Bois Ossature (BO)') ||
+            typeProduit === normalize('Bois Fermette (BF)') ||
+            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
+            typeProduit === normalize('Bois Massif Reconstitué (BMR)')
+        ) {
+            return 'medium';
+        }
+
+        return 'none';
+    }
+
+    openDenatNaturaliteAlertModal(alertState) {
+        const backdrop = document.getElementById('denatDetailModalBackdrop');
+        const titleEl = document.getElementById('denatDetailModalTitle');
+        const contentEl = document.getElementById('denatDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après les champs renseignés la naturalité pourrait être Forte, sauf si le bois évalué n\'est pas libre de finition.',
+            medium: 'D\'après les champs renseignés la naturalité devrait être Moyenne à Faible',
+            none: 'Vérifier le type de produit renseigné.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Naturalité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    getEffectiveTypeProduitAlertValue(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return '';
+
+        const lotTypeProduit = targetLot && targetLot.allotissement
+            ? String(targetLot.allotissement.typeProduit || '').trim()
+            : '';
+        const aggregatedTypeProduit = this.getLotAggregatedTextValue(targetLot, 'typeProduit');
+
+        if (lotTypeProduit && lotTypeProduit !== 'Multiples') {
+            return lotTypeProduit;
+        }
+
+        if (aggregatedTypeProduit && aggregatedTypeProduit !== 'Multiples') {
+            return aggregatedTypeProduit;
+        }
+
+        return '';
+    }
+
+    refreshNaturaliteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.denat-row[data-denat-field="naturaliteDenat"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-denat-naturalite-alert-btn]');
+        if (!alertBtn) return;
+
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+
+        const lotDiametre = targetLot && targetLot.allotissement
+            ? String(targetLot.allotissement.diametre || '').trim()
+            : '';
+        let hasDetailDiametre = false;
+        const defaultPiece = this.ensureDefaultPieceData(targetLot);
+        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+        if (defaultQty > 0 && String((defaultPiece && defaultPiece.diametre) || '').trim() !== '') {
+            hasDetailDiametre = true;
+        }
+        if (!hasDetailDiametre && Array.isArray(targetLot.pieces)) {
+            hasDetailDiametre = targetLot.pieces.some((piece) => piece && String(piece.diametre || '').trim() !== '');
+        }
+        const diametreValue = lotDiametre || (hasDetailDiametre ? '1' : '');
+
+        const state = this.getNaturaliteAlertState(typeProduitValue, diametreValue);
+        alertBtn.dataset.alertNaturaliteState = state;
+    }
+
+    refreshStabiliteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.debit-row[data-debit-field="stabiliteDebit"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-debit-stabilite-alert-btn]');
+        if (!alertBtn) return;
+
+        const dimensions = this.getEffectiveStabiliteAlertDimensions(targetLot);
+        const state = this.getStabiliteAlertState(
+            dimensions.longueur,
+            dimensions.largeur,
+            dimensions.hauteur,
+            dimensions.diametre
+        );
+        alertBtn.dataset.alertStabiliteState = state;
+    }
+
+    getArtisanaliteAlertState(typeProduitValue) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const typeProduit = normalize(typeProduitValue);
+        if (!typeProduit) return 'none';
+
+        if (
+            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
+            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
+            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
+            typeProduit === normalize('Bois Massif Reconstitué (BMR)') ||
+            typeProduit === normalize('Bois Contre-Collé') ||
+            typeProduit === normalize('Bois Contre-Collé (CC)') ||
+            typeProduit === normalize('Bois Fermette (BF)')
+        ) {
+            return 'strong';
+        }
+
+        if (
+            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
+            typeProduit === normalize('Bois Ossature (BO)')
+        ) {
+            return 'medium';
+        }
+
+        if (
+            typeProduit === normalize('Bois Brut Sec (BBS)') ||
+            typeProduit === normalize('Bois Non Taillé (BNT)') ||
+            typeProduit === normalize('Bois Avivé (BA)') ||
+            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
+        ) {
+            return 'low';
+        }
+
+        return 'none';
+    }
+
+    openDebitArtisanaliteAlertModal(alertState) {
+        const backdrop = document.getElementById('debitDetailModalBackdrop');
+        const titleEl = document.getElementById('debitDetailModalTitle');
+        const contentEl = document.getElementById('debitDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après le type de produit renseigné l\'artisanalité devrait être Forte.',
+            medium: 'D\'après le type de produit renseigné l\'artisanalité devrait être Moyenne.',
+            low: 'D\'après le type de produit renseigné l\'artisanalité devrait être Faible.',
+            none: 'Vérifier le Type de produit renseigné dans le Détail du lot.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Artisanalité';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    refreshArtisanaliteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.debit-row[data-debit-field="artisanaliteDebit"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-debit-artisanalite-alert-btn]');
+        if (!alertBtn) return;
+
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+        const state = this.getArtisanaliteAlertState(typeProduitValue);
+        alertBtn.dataset.alertArtisanaliteState = state;
+    }
+
+    refreshIndustrialiteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.geo-row[data-geo-field="industrialiteGeo"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-geo-industrialite-alert-btn]');
+        if (!alertBtn) return;
+
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+        const state = this.getIndustrialiteAlertState(typeProduitValue);
+        alertBtn.dataset.alertIndustrialiteState = state;
+    }
+
     formatMasseDisplay(valueKgRaw) {
         const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
         if (valueKg >= 1000) {
@@ -1361,14 +1912,20 @@ class ValoboisApp {
         }
 
         const typePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
+        const typeProduitDisplay = this.getLotAggregatedTextValue(lot, 'typeProduit');
         const essenceCommonDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
         const essenceScientificDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
         const isTypePieceMultiple = typePieceDisplay === 'Multiples';
+        const isTypeProduitMultiple = typeProduitDisplay === 'Multiples';
         const isEssenceMultiple = essenceCommonDisplay === 'Multiples' || essenceScientificDisplay === 'Multiples';
 
         const lotTypePieceInput = el('input[data-lot-input="typePiece"]');
         if (lotTypePieceInput) {
             lotTypePieceInput.value = typePieceDisplay;
+        }
+        const lotTypeProduitInput = el('input[data-lot-input="typeProduit"]');
+        if (lotTypeProduitInput) {
+            lotTypeProduitInput.value = typeProduitDisplay;
         }
         const lotEssenceCommonInput = el('input[data-lot-input="essenceNomCommun"]');
         if (lotEssenceCommonInput) {
@@ -1380,11 +1937,17 @@ class ValoboisApp {
         }
 
         const typeButton = el('[data-lot-details-btn="typePiece"]');
+        const typeProduitButton = el('[data-lot-details-btn="typeProduit"]');
         const essenceButton = el('[data-lot-details-btn="essence"]');
         if (typeButton) {
             typeButton.hidden = !isTypePieceMultiple;
             const typeWrapper = typeButton.closest('.lot-type-with-detail');
             if (typeWrapper) typeWrapper.classList.toggle('has-detail-btn', isTypePieceMultiple);
+        }
+        if (typeProduitButton) {
+            typeProduitButton.hidden = !isTypeProduitMultiple;
+            const typeProduitWrapper = typeProduitButton.closest('.lot-type-with-detail');
+            if (typeProduitWrapper) typeProduitWrapper.classList.toggle('has-detail-btn', isTypeProduitMultiple);
         }
         if (essenceButton) {
             essenceButton.hidden = !isEssenceMultiple;
@@ -1419,6 +1982,10 @@ class ValoboisApp {
             'largeur',
             'hauteur',
             'diametre',
+            'longueurVariabilite',
+            'largeurVariabilite',
+            'epaisseurVariabilite',
+            'diametreVariabilite',
             'prixMarche',
             'masseVolumique',
             'humidite',
@@ -3951,9 +4518,9 @@ Une confiance « moyenne » vaut pour un doute [+2].
 
 Noter le degré de naturalité des bois évalués.
 
-Une naturalité « forte » vaut pour des bois bruts et ronds [+3].
-Une naturalité « moyenne » vaut pour des bois bruts, libre de finition [+2].
-Une naturalité « faible » vaut pour des bois peints, traités, dont l’apparence n’est pas celle du bois au terme de sa première transformation en dehors des modifications d’aspect liées au vieillissement naturel (poussière, assombrissement, grisaillement, etc.) [+1].`
+Une naturalité « forte » vaut pour des bois bruts et ronds. Libres de finition chimique  et disposant d’une durabilité conférée faible [+3].
+Une naturalité « moyenne » vaut pour des bois bruts et d'ingénierie, rabotés, brossés, etc. Libres de finition chimique  et disposant d’une durabilité conférée faible [+2].
+Une naturalité « faible » vaut pour des bois peints, vernis, traités, disposant d’une durabilité conférée forte à moyenne, dont l’apparence n’est pas celle du bois au terme de sa première transformation en dehors des modifications d’aspect liées au vieillissement naturel (poussière, assombrissement, grisaillement, etc.) [+1].`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -4015,17 +4582,22 @@ Une régularité « faible » vaut pour des pièces qui comportent plusieurs fla
 Noter l’importance de la volumétrie des bois évalués.
 
 Une volumétrie « forte » vaut pour des pièces de bois d’un volume strictement supérieur à 0,1 m³ [+3].
-Une volumétrie « moyenne » vaut pour des pièces d’un volume inférieur ou égal à 0,1 m³ et strictement supérieur à 0,05 m³ [+2].
+Une volumétrie « moyenne » vaut pour des pièces d’un volume inférieur ou égal à 0,1 m³ et supérieur ou égal à 0,05 m³ [+2].
 Une volumétrie « faible » vaut pour des pièces d’un volume strictement inférieur à 0,05 m³ [+1].`,
         stabiliteDebit: `Stabilité.
 
-Noter le rapport entre élancement et stabilité des bois évalués.
+    Noter le rapport entre élancement et stabilité de la pièce de bois évaluée, en combinant le rapport d'élancement L/h (résistance au flambement axial) et le rapport de section b/h (résistance au déversement latéral).
 
-Une stabilité « forte » vaut pour des pièces de bois dont le rapport L/h est inférieur ou égal à 18, et le rapport b/h supérieur ou égal à 0,4 [+3].
-Une stabilité « moyenne » vaut pour des pièces de bois dont le rapport L/h est inférieur ou égal à 28 et strictement supérieur à 18, et le rapport b/h supérieur ou égal à 0,25 et strictement inférieur à 0,4 [+2].
-Une stabilité « faible » vaut pour des pièces de bois dont le rapport L/h est strictement supérieur à 18 et le rapport b/h strictement inférieur à 0,25 [+1].
+    Une stabilité « forte » vaut pour des pièces dont le rapport L/h est inférieur ou égal à 18 et le rapport b/h supérieur ou égal à 0,4 [+3].
+    Une stabilité « moyenne » vaut pour des pièces ne relevant pas de la catégorie « forte », soit : (L/h ≤ 18 et 0,25 ≤ b/h < 0,4) ou (18 < L/h ≤ 28 et b/h ≥ 0,25) [+2].
+    Une stabilité « faible » vaut pour des pièces dont le rapport L/h est strictement supérieur à 28 ou le rapport b/h strictement inférieur à 0,25 [+1].
+    En cas de rapport h/b très élevé (h/b > 4, équivalent à b/h < 0,25), la pièce est directement classée « faible » indépendamment de L/h, conformément aux seuils de déversement latéral de l'Eurocode 5 (CEN, 2004, § 6.3.3).
 
-Nécessite de calculer L/h et de contrôler « h/b », si très élevé, dégrader d’un niveau.`,
+    Références et ressources.
+
+    CEN — European Committee for Standardization. (2004). EN 1995-1-1 : Eurocode 5 — Design of timber structures — Part 1-1 : General — Common rules and rules for buildings. CEN.
+    
+    Hassan, O. A. B. (2019). On the structural stability of timber members to Eurocode. Mechanics Based Design of Structures and Machines, 47(5), 647–657. https://doi.org/10.1080/15397734.2019.1633344`,
         artisanaliteDebit: `Artisanalité.
 
 Noter le degré d’artisanat des bois évalués.
@@ -4114,9 +4686,9 @@ Une déformation « faible » vaut pour des pièces respectant les critères usu
 
 Noter le degré d’industrialité des bois évalués.
 
-Une industrialité « forte » vaut pour des bois BMA/BMR et BLC [+3].
-Une industrialité « moyenne » vaut pour des bois BBS, BRS et bois d’ossature ou de fermette [+2].
-Une industrialité « faible » vaut pour les bois brut frais de sciage ou débités à la main [+1].`,
+Une industrialité « forte » vaut pour des bois sciés dits d'ingénierie : Bois Massif Abouté (BMA) ou Reconstitué (BMR), Bois Lamellé-Collé (BLC) ou Lamellé-croisé (CLT) et Contre-Collé (CC) [+3].
+Une industrialité « moyenne » vaut pour des Bois Brut Sec (BBS), Bois Brut Séché (BRS), les Bois d’Ossature (BO) et de Fermette (BF) [+2].
+Une industrialité « faible » vaut pour les bois Brut Non Taillé (BNT), Bois Équarri Non Scié (BENS) ou Bois Avivé (BA) [+1].`,
         inclusiviteGeo: `Inclusivité.
 
 Noter le degré d’inclusivité des bois évalués.
@@ -5006,6 +5578,9 @@ closeEvalOpModal() {
                             <input type="text" class="lot-input" value="${viewValue(pEffTypePiece)}" placeholder="Type de pièce" data-default-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
                         </div>
                     </div>
+                    <div class="lot-field-block">
+                        <input type="text" class="lot-input" value="${viewValue(defaultPiece.typeProduit || '')}" placeholder="Type de produit" data-default-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
+                    </div>
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
@@ -5181,6 +5756,7 @@ closeEvalOpModal() {
         const formatOneDecimal = (value) => formatGrouped(value, 1);
 
         const pEffTypePiece = piece.typePiece || lot.allotissement.typePiece || '';
+        const pEffTypeProduit = piece.typeProduit || lot.allotissement.typeProduit || '';
         const pEffEssenceCommun = piece.essenceNomCommun || lot.allotissement.essenceNomCommun || '';
         const pEffEssenceScientifique = piece.essenceNomScientifique || lot.allotissement.essenceNomScientifique || '';
         const pPriceUnit = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
@@ -5238,6 +5814,9 @@ closeEvalOpModal() {
                         <div class="lot-essence-picker">
                             <input type="text" class="lot-input" value="${pEffTypePiece}" placeholder="Type de pièce" data-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
                         </div>
+                    </div>
+                    <div class="lot-field-block">
+                        <input type="text" class="lot-input" value="${pEffTypeProduit}" placeholder="Type de produit" data-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
                     </div>
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${pEffEssenceCommun}" placeholder="Essence (nom commun)" data-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
@@ -5447,9 +6026,11 @@ closeEvalOpModal() {
         const lotOrientationClass = lot.orientationCode ? `lot-orientation--${lot.orientationCode}` : 'lot-orientation--none';
         const lotDisplayName = (!lot.nom || lot.nom === 'Nouveau Lot') ? `Lot ${index + 1}` : lot.nom;
         const lotTypePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
+        const lotTypeProduitDisplay = this.getLotAggregatedTextValue(lot, 'typeProduit');
         const lotEssenceCommonDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
         const lotEssenceScientificDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
         const showTypePieceDetailsBtn = lotTypePieceDisplay === 'Multiples';
+        const showTypeProduitDetailsBtn = lotTypeProduitDisplay === 'Multiples';
         const showEssenceDetailsBtn = lotEssenceCommonDisplay === 'Multiples' || lotEssenceScientificDisplay === 'Multiples';
         const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
@@ -5540,7 +6121,7 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <div class="lot-group">
-                        <p class="lot-group-title">Groupe : type de pièce, quantité, essence</p>
+                        <p class="lot-group-title">Groupe : type de pièce, type de produit, quantité, essence</p>
                         <div class="lot-type-qty-grid">
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Quantité</label>
@@ -5565,6 +6146,21 @@ closeEvalOpModal() {
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="typePiece"${showTypePieceDetailsBtn ? '' : ' hidden'}>Détail des pièces</button>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Type de produit</label>
+                                <div class="lot-type-with-detail${showTypeProduitDetailsBtn ? ' has-detail-btn' : ''}">
+                                    <div class="lot-essence-picker">
+                                        <input
+                                            type="text"
+                                            class="lot-input"
+                                            value="${lotTypeProduitDisplay}"
+                                            data-lot-input="typeProduit"
+                                            list="liste-types-produit"
+                                            autocomplete="off">
+                                    </div>
+                                    <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="typeProduit"${showTypeProduitDetailsBtn ? '' : ' hidden'}>Détail des produits</button>
                                 </div>
                             </div>
                         </div>
@@ -5642,6 +6238,26 @@ closeEvalOpModal() {
                                         <span class="lot-input-unit">m</span>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="lot-group">
+                        <div class="lot-inline-grid lot-inline-grid--4">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Long.</label>
+                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.longueurVariabilite)}" data-lot-input="longueurVariabilite">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Larg.</label>
+                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.largeurVariabilite)}" data-lot-input="largeurVariabilite">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Épai.</label>
+                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.epaisseurVariabilite)}" data-lot-input="epaisseurVariabilite">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Diam.</label>
+                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.diametreVariabilite)}" data-lot-input="diametreVariabilite">
                             </div>
                         </div>
                     </div>
@@ -5905,6 +6521,10 @@ closeEvalOpModal() {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshNaturaliteAlertButton(lot);
+            this.refreshStabiliteAlertButton(lot);
+            this.refreshArtisanaliteAlertButton(lot);
+            this.refreshIndustrialiteAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -6052,6 +6672,10 @@ closeEvalOpModal() {
 
         const editableLotInputs = new Set([
             'prixMarche',
+            'longueurVariabilite',
+            'largeurVariabilite',
+            'epaisseurVariabilite',
+            'diametreVariabilite',
             'destination',
             'destinationAdresse',
             'destinationContact',
@@ -6120,6 +6744,10 @@ closeEvalOpModal() {
                 const field = button.dataset.lotDetailsBtn;
                 if (field === 'typePiece') {
                     this.openLotDetailValuesModal(lot, 'typePiece', 'Détail des pièces');
+                    return;
+                }
+                if (field === 'typeProduit') {
+                    this.openLotDetailValuesModal(lot, 'typeProduit', 'Détail des produits');
                     return;
                 }
                 if (field === 'essence') {
@@ -6481,6 +7109,10 @@ closeEvalOpModal() {
             }
             const qAmortDefault = pieceRail.querySelector('[data-default-piece-display="amortissementBiologique"]');
             if (qAmortDefault) qAmortDefault.value = isDisabled ? '' : this.computeAmortissementBiologique(dp.ageArbre, dp.dateMiseEnService);
+            this.refreshNaturaliteAlertButton(lot);
+            this.refreshStabiliteAlertButton(lot);
+            this.refreshArtisanaliteAlertButton(lot);
+            this.refreshIndustrialiteAlertButton(lot);
 
         };
 
@@ -6681,6 +7313,10 @@ closeEvalOpModal() {
                 if (qAmortPiece) qAmortPiece.value = this.computeAmortissementBiologique(piece.ageArbre, piece.dateMiseEnService);
                 // Met à jour les totaux du lot dans la carte allotissement active
                 this.updateActiveLotCardDisplays(lot);
+                this.refreshNaturaliteAlertButton(lot);
+                this.refreshStabiliteAlertButton(lot);
+                this.refreshArtisanaliteAlertButton(lot);
+                this.refreshIndustrialiteAlertButton(lot);
             };
 
             // Boutons unité de prix pièce
@@ -7671,6 +8307,7 @@ updateDenatRow(row, key, lot) {
     const intensityBox = row.querySelector(`.denat-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.denat-reset-btn');
     const infoBtn = row.querySelector('.denat-info-small-btn');
+    const naturaliteAlertBtn = key === 'naturaliteDenat' ? row.querySelector('[data-denat-naturalite-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-denat-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -7732,6 +8369,8 @@ updateDenatRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
 
+            updateNaturaliteAlertBtn();
+
         };
     }
 
@@ -7773,11 +8412,25 @@ updateDenatRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
 
+            updateNaturaliteAlertBtn();
+
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openDenatDetailModal(key);
+    }
+
+    const updateNaturaliteAlertBtn = () => this.refreshNaturaliteAlertButton(lot);
+
+    if (naturaliteAlertBtn) {
+        updateNaturaliteAlertBtn();
+        naturaliteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            updateNaturaliteAlertBtn();
+            const alertState = naturaliteAlertBtn.dataset.alertNaturaliteState || 'none';
+            this.openDenatNaturaliteAlertModal(alertState);
+        };
     }
 
     if (!current) {
@@ -7848,6 +8501,10 @@ updateDebitRow(row, key, lot) {
     const intensityBox = row.querySelector(`.debit-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.debit-reset-btn');
     const infoBtn = row.querySelector('.debit-info-small-btn');
+    const volumetrieAlertBtn = key === 'volumetrieDebit' ? row.querySelector('[data-debit-volumetrie-alert-btn]') : null;
+    const regulariteAlertBtn = key === 'regulariteDebit' ? row.querySelector('[data-debit-regularite-alert-btn]') : null;
+    const stabiliteAlertBtn = key === 'stabiliteDebit' ? row.querySelector('[data-debit-stabilite-alert-btn]') : null;
+    const artisanaliteAlertBtn = key === 'artisanaliteDebit' ? row.querySelector('[data-debit-artisanalite-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
 
@@ -7894,6 +8551,7 @@ updateDebitRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            updateDebitAlertBtns();
 
         };
     }
@@ -7931,12 +8589,75 @@ updateDebitRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            updateDebitAlertBtns();
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openDebitDetailModal(key);
+    }
+
+    const updateDebitAlertBtns = () => {
+        if (volumetrieAlertBtn) {
+            const volumetrieValue = lot && lot.allotissement && lot.allotissement.volumePiece != null
+                ? String(lot.allotissement.volumePiece)
+                : '';
+            const volumetrieState = this.getVolumetrieAlertState(volumetrieValue);
+            volumetrieAlertBtn.dataset.alertVolumetrieState = volumetrieState;
+        }
+
+        if (regulariteAlertBtn) {
+            const diametreValue = lot && lot.allotissement && lot.allotissement.diametre != null
+                ? String(lot.allotissement.diametre)
+                : '';
+            const regulariteState = this.getRegulariteAlertState(diametreValue);
+            regulariteAlertBtn.dataset.alertRegulariteState = regulariteState;
+        }
+
+        if (stabiliteAlertBtn) {
+            this.refreshStabiliteAlertButton(lot);
+        }
+
+        if (artisanaliteAlertBtn) {
+            this.refreshArtisanaliteAlertButton(lot);
+        }
+    };
+
+    updateDebitAlertBtns();
+
+    if (volumetrieAlertBtn) {
+        volumetrieAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            const alertState = volumetrieAlertBtn.dataset.alertVolumetrieState || 'none';
+            this.openDebitVolumetrieAlertModal(alertState);
+        };
+    }
+
+    if (regulariteAlertBtn) {
+        regulariteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            const alertState = regulariteAlertBtn.dataset.alertRegulariteState || 'none';
+            this.openDebitRegulariteAlertModal(alertState);
+        };
+    }
+
+    if (stabiliteAlertBtn) {
+        stabiliteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshStabiliteAlertButton(lot);
+            const alertState = stabiliteAlertBtn.dataset.alertStabiliteState || 'none';
+            this.openDebitStabiliteAlertModal(alertState);
+        };
+    }
+
+    if (artisanaliteAlertBtn) {
+        artisanaliteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshArtisanaliteAlertButton(lot);
+            const alertState = artisanaliteAlertBtn.dataset.alertArtisanaliteState || 'none';
+            this.openDebitArtisanaliteAlertModal(alertState);
+        };
     }
 
     if (!current) {
@@ -8129,6 +8850,8 @@ updateGeoRow(row, key, lot) {
     const intensityBox = row.querySelector(`.geo-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.geo-reset-btn');
     const infoBtn = row.querySelector('.geo-info-small-btn');
+    const massiviteAlertBtn = key === 'massiviteGeo' ? row.querySelector('[data-geo-massivite-alert-btn]') : null;
+    const industrialiteAlertBtn = key === 'industrialiteGeo' ? row.querySelector('[data-geo-industrialite-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
 
@@ -8177,6 +8900,7 @@ updateGeoRow(row, key, lot) {
             }
             this.renderSeuils();
             this.renderEvalOp();
+            updateGeoAlertBtns();
         };
     }
 
@@ -8211,12 +8935,46 @@ updateGeoRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            updateGeoAlertBtns();
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openGeoDetailModal(key);
+    }
+
+    const updateGeoAlertBtns = () => {
+        if (massiviteAlertBtn) {
+            const epaisseurValue = lot && lot.allotissement && lot.allotissement._avgHauteur != null
+                ? String(lot.allotissement._avgHauteur)
+                : (lot && lot.allotissement && lot.allotissement.hauteur != null ? String(lot.allotissement.hauteur) : '');
+            const state = this.getMassiviteAlertState(epaisseurValue);
+            massiviteAlertBtn.dataset.alertMassiviteState = state;
+        }
+
+        if (industrialiteAlertBtn) {
+            this.refreshIndustrialiteAlertButton(lot);
+        }
+    };
+
+    updateGeoAlertBtns();
+
+    if (massiviteAlertBtn) {
+        massiviteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            const alertState = massiviteAlertBtn.dataset.alertMassiviteState || 'none';
+            this.openGeoMassiviteAlertModal(alertState);
+        };
+    }
+
+    if (industrialiteAlertBtn) {
+        industrialiteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshIndustrialiteAlertButton(lot);
+            const alertState = industrialiteAlertBtn.dataset.alertIndustrialiteState || 'none';
+            this.openGeoIndustrialiteAlertModal(alertState);
+        };
     }
 
     if (!current) {
@@ -8455,7 +9213,7 @@ updateAncienRow(row, key, lot) {
     const intensityMaps = {
         confianceAncien: { Forte: 3, Moyenne: 2, Faible: 1 },
         amortissementAncien: { Fort: 3, Moyen: 1, Faible: -3 },
-        vieillissementAncien: { Forte: -3, Moyenne: 1, Faible: 3 },
+        vieillissementAncien: { Fort: -3, Moyen: 1, Faible: 3 },
         microhistoireAncien: { Forte: 3, Moyenne: 2, Faible: 1 },
         demontabiliteAncien: { Forte: 3, Moyenne: 2, Faible: -3 }
     };
