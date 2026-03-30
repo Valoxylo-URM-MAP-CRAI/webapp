@@ -2573,7 +2573,16 @@
                         <!-- Amortissement (Écologique) -->
                         <div class="ancien-row" data-ancien-field="amortissementAncien">
                             <div class="ancien-value-label-box" data-i18n="editor.axis.ecological">Écologique</div>
-                            <div class="ancien-amortissement-actions">
+                            <div class="ancien-label-box" data-i18n="editor.ancien.amortissement">
+                                Amortissement
+                            </div>
+                            <div class="ancien-level-box" data-display="amortissementAncien">
+                                …
+                            </div>
+                            <div class="ancien-intensity-box" data-intensity="amortissementAncien">
+                                ...
+                            </div>
+                            <div class="ancien-amort-btn-stack">
                                 <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                                 <button class="lot-alert-btn lot-alert-btn--ancien-amortissement" type="button" data-alert-amortissement-state="none" data-ancien-amortissement-alert-btn>
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2583,15 +2592,6 @@
                                     </svg>
                                 </button>
                                 <button class="ancien-info-small-btn" type="button" data-info="amortissementAncien" data-i18n="editor.common.info">info</button>
-                            </div>
-                            <div class="ancien-label-box" data-i18n="editor.ancien.amortissement">
-                                Amortissement
-                            </div>
-                            <div class="ancien-level-box" data-display="amortissementAncien">
-                                …
-                            </div>
-                            <div class="ancien-intensity-box" data-intensity="amortissementAncien">
-                                ...
                             </div>
                             <div class="ancien-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="ancien-slider"
