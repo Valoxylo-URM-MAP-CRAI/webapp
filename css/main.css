@@ -1391,7 +1391,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-inline-grid--2 {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1fr;
 }
 
 .lot-location-group-nav {
@@ -1483,7 +1483,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-inline-grid--3 {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .lot-inline-grid--lot-essence {
@@ -1839,6 +1839,29 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-alert-btn--contexte-technique[data-alert-contexte-technique="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--ancien-amortissement[data-alert-amortissement-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--ancien-amortissement[data-alert-amortissement-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--ancien-amortissement[data-alert-amortissement-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--ancien-amortissement[data-alert-amortissement-state="none"] {
     opacity: 0.3;
     pointer-events: none;
 }
@@ -4255,6 +4278,40 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-size: var(--font-size-xs);
     cursor: pointer;
     white-space: nowrap;
+}
+
+/* Colonne boutons Reset/Alerte/Info : même colonne, empilés, centrage vertical unifié */
+.ancien-row {
+    grid-auto-rows: auto;
+}
+
+.ancien-row .ancien-slider-wrapper {
+    grid-row: 1 / 4;
+    align-self: stretch;
+}
+
+.ancien-row .ancien-reset-btn {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: center;
+    align-self: center;
+}
+
+.ancien-amortissement-actions {
+    grid-column: 3;
+    grid-row: 1 / 4;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+    align-items: center;
+    align-self: stretch;
+}
+
+.ancien-row .ancien-info-small-btn {
+    grid-column: 3;
+    grid-row: 3;
+    justify-self: center;
+    align-self: center;
 }
 
 .ancien-slider-wrapper {
@@ -6773,6 +6830,63 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding: var(--space-6);
   }
 
+  /* Grille responsive pour .ancien-row avec bouton alerte Amortissement empilé verticalement */
+  .ancien-row {
+    grid-template-columns:
+      minmax(120px, 2fr)   /* col 1 : slider */
+            minmax(52px, 52px)   /* col 2 : valeur / reset / alerte / info (empilés) */
+            minmax(0, 2fr)       /* col 3 : critère / niveau / note */
+    ;
+    grid-auto-rows: auto;
+    row-gap: var(--slider-col-gap);
+  }
+
+  /* Positionnement des éléments de ancien-row */
+  .ancien-row .ancien-value-label-box {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ancien-row .ancien-reset-btn {
+    grid-column: 2;
+    grid-row: 2;
+    justify-self: center;
+    align-self: center;
+  }
+
+  .ancien-row .ancien-amortissement-actions {
+    grid-column: 2;
+    grid-row: 2 / 5;
+    align-self: stretch;
+  }
+
+  .ancien-row .ancien-info-small-btn {
+    grid-column: 2;
+    grid-row: 4;
+    justify-self: center;
+    align-self: center;
+  }
+
+  .ancien-row .ancien-label-box {
+    grid-column: 3;
+    grid-row: 1;
+  }
+
+  .ancien-row .ancien-level-box {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .ancien-row .ancien-intensity-box {
+    grid-column: 3;
+    grid-row: 3;
+  }
+
+  .ancien-row .ancien-slider-wrapper {
+    grid-column: 1;
+    grid-row: 1 / 5;
+  }
+
     .inspection-row {
         grid-template-areas:
                         "slider reset label info"
@@ -6805,8 +6919,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .provenance-reset-btn,
     .debit-reset-btn,
     .geo-reset-btn,
-    .essence-reset-btn,
-    .ancien-reset-btn {
+    .essence-reset-btn {
     grid-area: reset;
     padding: 2px 4px;
         font-size: 8px;

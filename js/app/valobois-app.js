@@ -259,7 +259,9 @@ class ValoboisApp {
                 masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
                 humidite: '',
                 fractionCarbonee: '',
-                bois: ''
+                bois: '',
+                ageArbre: '',
+                dateMiseEnService: ''
             };
         }
         if (!lot.defaultPiece || typeof lot.defaultPiece !== 'object') {
@@ -295,6 +297,8 @@ class ValoboisApp {
         if (lot.defaultPiece.humidite == null) lot.defaultPiece.humidite = '';
         if (lot.defaultPiece.fractionCarbonee == null) lot.defaultPiece.fractionCarbonee = '';
         if (lot.defaultPiece.bois == null) lot.defaultPiece.bois = '';
+        if (lot.defaultPiece.ageArbre == null) lot.defaultPiece.ageArbre = '';
+        if (lot.defaultPiece.dateMiseEnService == null) lot.defaultPiece.dateMiseEnService = '';
 
         return lot.defaultPiece;
     }
@@ -597,6 +601,8 @@ class ValoboisApp {
             humidite: '',
             fractionCarbonee: '',
             bois: '',
+            ageArbre: '',
+            dateMiseEnService: '',
             massePiece: 0,
             carboneBiogeniqueEstime: ''
         };
@@ -973,6 +979,65 @@ class ValoboisApp {
         };
     }
 
+    computeAmortissementBiologique(ageArbre, dateMiseEnService) {
+        const age = parseFloat(ageArbre);
+        if (!isFinite(age) || age <= 0) return '—';
+        const extractYear = (str) => {
+            if (!str) return null;
+            const m = String(str).match(/\b(\d{4})\b/);
+            return m ? parseInt(m[1], 10) : null;
+        };
+        const evalYear = extractYear(this.data.meta && this.data.meta.date);
+        const serviceYear = extractYear(dateMiseEnService);
+        if (evalYear == null || serviceYear == null) return '—';
+        const diff = evalYear - serviceYear;
+        if (diff <= 0) return '—';
+        const result = diff / age;
+        return result.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    }
+
+    /**
+     * Mappe la valeur d'Amortissement biologique aux états d'alerte.
+     * @param {string|number} amortissementValue - Valeur retournée par computeAmortissementBiologique()
+     * @returns {string} État: 'strong' (>= 1), 'medium' (> 0.5 && < 1), 'low' (<= 0.5), ou 'none' (indisponible)
+     */
+    getAmortissementAlertState(amortissementValue) {
+        const num = parseFloat(String(amortissementValue || '').replace(/,/, '.'));
+        
+        if (!isFinite(num) || amortissementValue === '—' || amortissementValue === null || amortissementValue === '') {
+            return 'none';
+        }
+        
+        if (num >= 1) {
+            return 'strong';
+        } else if (num > 0.5) {
+            return 'medium';
+        } else {
+            return 'low';
+        }
+    }
+
+    openAncienAmortissementAlertModal(alertState) {
+        const backdrop = document.getElementById('ancienDetailModalBackdrop');
+        const titleEl = document.getElementById('ancienDetailModalTitle');
+        const contentEl = document.getElementById('ancienDetailModalContent');
+
+        const messagesByState = {
+            strong: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Fort.',
+            medium: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Moyen.',
+            low: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Faible.',
+            none: 'Renseigner ou compléter les données relatives à l\'âge de l\'arbre et à la date de mise en service de la ou des pièces de bois du lot. Vérifier qu\'une date soit correctement renseignée pour cette opération.'
+        };
+
+        if (titleEl) titleEl.textContent = 'Alerte Amortissement';
+        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
     formatMasseDisplay(valueKgRaw) {
         const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
         if (valueKg >= 1000) {
@@ -1264,6 +1329,14 @@ class ValoboisApp {
         setVal('[data-display="carboneBiogeniqueEstime"]', pco2D.value);
         const pco2UnitEl = el('[data-display="carboneBiogeniqueEstimeUnit"]');
         if (pco2UnitEl) pco2UnitEl.textContent = pco2D.unit;
+
+        // Mise à jour du groupe "Amortissement biologique" du lot
+        const avgAgeEl2 = el('[data-display="avgAgeArbre"]');
+        if (avgAgeEl2) avgAgeEl2.value = lot.allotissement._avgAgeArbre != null ? lot.allotissement._avgAgeArbre.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 1 }) : '';
+        const avgYearEl2 = el('[data-display="avgServiceYear"]');
+        if (avgYearEl2) avgYearEl2.value = lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '';
+        const avgAmortEl2 = el('[data-display="avgAmortissementBiologique"]');
+        if (avgAmortEl2) avgAmortEl2.value = this.computeAmortissementBiologique(lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '', lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '');
 
         // Mise à jour badge pièces et bouton alerte
         const nbPieces = (lot.pieces || []).length;
@@ -1564,10 +1637,33 @@ class ValoboisApp {
                 lot.allotissement._avgLargeur = l;
                 lot.allotissement._avgHauteur = h;
             }
+
+            // Moyenne âge arbre et année de mise en service pour le groupe "Amortissement biologique" du lot
+            const extractYear = (str) => {
+                if (!str) return null;
+                const m = String(str).match(/\b(\d{4})\b/);
+                return m ? parseInt(m[1], 10) : null;
+            };
+            let sumAgeArbre = 0, countAgeArbre = 0;
+            let sumServiceYear = 0, countServiceYear = 0;
+            lot.pieces.forEach(p => {
+                const age = parseFloat(p.ageArbre);
+                if (isFinite(age) && age > 0) { sumAgeArbre += age; countAgeArbre++; }
+                const yr = extractYear(p.dateMiseEnService);
+                if (yr != null) { sumServiceYear += yr; countServiceYear++; }
+            });
+            const dAge = parseFloat(defaultPiece.ageArbre);
+            if (isFinite(dAge) && dAge > 0) { sumAgeArbre += numDefault * dAge; countAgeArbre += numDefault; }
+            const dYr = extractYear(defaultPiece.dateMiseEnService);
+            if (dYr != null) { sumServiceYear += numDefault * dYr; countServiceYear += numDefault; }
+            lot.allotissement._avgAgeArbre = countAgeArbre > 0 ? sumAgeArbre / countAgeArbre : null;
+            lot.allotissement._avgServiceYear = countServiceYear > 0 ? Math.round(sumServiceYear / countServiceYear) : null;
         } else {
             lot.allotissement._avgLongueur = L;
             lot.allotissement._avgLargeur = l;
             lot.allotissement._avgHauteur = h;
+            lot.allotissement._avgAgeArbre = null;
+            lot.allotissement._avgServiceYear = null;
         }
     }
 
@@ -5053,6 +5149,26 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
+                <div class="lot-group">
+                    <p class="lot-group-title">Ancienneté du bois</p>
+                    <div class="lot-inline-grid lot-inline-grid--3">
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Âge de<br>l'arbre</label>
+                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(defaultPiece.ageArbre || '')}" data-default-piece-input="ageArbre">
+                                <span class="lot-input-unit">ans</span>
+                            </div>
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Date de mise<br>en service</label>
+                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.dateMiseEnService || '')}" data-default-piece-input="dateMiseEnService">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Amortissement<br>biologique</label>
+                            <input type="text" class="lot-input" value="${viewValue(this.computeAmortissementBiologique(defaultPiece.ageArbre, defaultPiece.dateMiseEnService))}" readonly data-default-piece-display="amortissementBiologique">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>`;
     }
@@ -5263,6 +5379,26 @@ closeEvalOpModal() {
                                 <input type="text" class="lot-input" value="${pco2Display.value}" readonly data-piece-display="carboneBiogeniqueEstime">
                                 <span class="lot-input-unit" data-piece-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="lot-group">
+                    <p class="lot-group-title">Ancienneté du bois</p>
+                    <div class="lot-inline-grid lot-inline-grid--3">
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Âge de<br>l'arbre</label>
+                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${piece.ageArbre || ''}" data-piece-input="ageArbre">
+                                <span class="lot-input-unit">ans</span>
+                            </div>
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Date de mise<br>en service</label>
+                            <input type="text" class="lot-input" value="${piece.dateMiseEnService || ''}" data-piece-input="dateMiseEnService">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Amortissement<br>biologique</label>
+                            <input type="text" class="lot-input" value="${this.computeAmortissementBiologique(piece.ageArbre, piece.dateMiseEnService)}" readonly data-piece-display="amortissementBiologique">
                         </div>
                     </div>
                 </div>
@@ -5600,6 +5736,26 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
+                    <div class="lot-group">
+                        <p class="lot-group-title">Amortissement biologique</p>
+                        <div class="lot-inline-grid lot-inline-grid--3">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Âge moyen<br>des<br>arbres</label>
+                                <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                    <input type="text" class="lot-input" value="${lot.allotissement._avgAgeArbre != null ? lot.allotissement._avgAgeArbre.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 1 }) : ''}" readonly data-display="avgAgeArbre">
+                                    <span class="lot-input-unit">ans</span>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Date moyenne<br>de mise<br>en service</label>
+                                <input type="text" class="lot-input" value="${lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : ''}" readonly data-display="avgServiceYear">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Amortissement<br>biologique<br>moyen</label>
+                                <input type="text" class="lot-input" value="${this.computeAmortissementBiologique(lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '', lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '')}" readonly data-display="avgAmortissementBiologique">
+                            </div>
+                        </div>
+                    </div>
                     <details class="lot-group lot-group--collapsible accueil-collapsible">
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span>Destination du lot</span>
@@ -5677,6 +5833,14 @@ closeEvalOpModal() {
             card.querySelector('[data-display="carboneBiogeniqueEstime"]').value = pco2Display.value;
             const pco2UnitEl = card.querySelector('[data-display="carboneBiogeniqueEstimeUnit"]');
             if (pco2UnitEl) pco2UnitEl.textContent = pco2Display.unit;
+
+            // Mise à jour du groupe "Amortissement biologique" du lot
+            const avgAgeEl = card.querySelector('[data-display="avgAgeArbre"]');
+            if (avgAgeEl) avgAgeEl.value = lot.allotissement._avgAgeArbre != null ? lot.allotissement._avgAgeArbre.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 1 }) : '';
+            const avgYearEl = card.querySelector('[data-display="avgServiceYear"]');
+            if (avgYearEl) avgYearEl.value = lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '';
+            const avgAmortEl = card.querySelector('[data-display="avgAmortissementBiologique"]');
+            if (avgAmortEl) avgAmortEl.value = this.computeAmortissementBiologique(lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '', lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '');
 
             // Mise à jour badge pièces et bouton alerte
             const nbPieces = (lot.pieces || []).length;
@@ -6315,6 +6479,8 @@ closeEvalOpModal() {
                     _ownMasseVolumique: dp.masseVolumique
                 });
             }
+            const qAmortDefault = pieceRail.querySelector('[data-default-piece-display="amortissementBiologique"]');
+            if (qAmortDefault) qAmortDefault.value = isDisabled ? '' : this.computeAmortissementBiologique(dp.ageArbre, dp.dateMiseEnService);
 
         };
 
@@ -6511,6 +6677,8 @@ closeEvalOpModal() {
                         _ownMasseVolumique: piece.masseVolumique
                     });
                 }
+                const qAmortPiece = pieceCard.querySelector('[data-piece-display="amortissementBiologique"]');
+                if (qAmortPiece) qAmortPiece.value = this.computeAmortissementBiologique(piece.ageArbre, piece.dateMiseEnService);
                 // Met à jour les totaux du lot dans la carte allotissement active
                 this.updateActiveLotCardDisplays(lot);
             };
@@ -8279,6 +8447,7 @@ updateAncienRow(row, key, lot) {
     const intensityBox = row.querySelector(`.ancien-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.ancien-reset-btn');
     const infoBtn = row.querySelector('.ancien-info-small-btn');
+    const alertBtn = key === 'amortissementAncien' ? row.querySelector('[data-ancien-amortissement-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
     const levelToLabelFM = { 1: 'Fort', 2: 'Moyen', 3: 'Faible' };
@@ -8330,6 +8499,7 @@ updateAncienRow(row, key, lot) {
             }
             this.renderSeuils();
             this.renderEvalOp();
+            updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
         };
     }
 
@@ -8364,12 +8534,35 @@ updateAncienRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
-
+            updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openAncienDetailModal(key);
+    }
+
+    // Gestion du bouton alerte Amortissement biologique (seulement pour amortissementAncien)
+    const updateAmortAlertBtn = () => {
+        if (!alertBtn) return;
+        const amortValue = this.computeAmortissementBiologique(
+            lot.allotissement && lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '',
+            lot.allotissement && lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : ''
+        );
+        const state = this.getAmortissementAlertState(amortValue);
+        alertBtn.dataset.alertAmortissementState = state;
+    };
+
+    if (alertBtn) {
+        // Appel initial pour mettre à jour l'état du bouton
+        updateAmortAlertBtn();
+        
+        // Gestionnaire de clic pour ouvrir la modale d'alerte personnalisee
+        alertBtn.onclick = (e) => {
+            e.stopPropagation();
+            const alertState = alertBtn.dataset.alertAmortissementState || 'none';
+            this.openAncienAmortissementAlertModal(alertState);
+        };
     }
 
     if (!current) {
