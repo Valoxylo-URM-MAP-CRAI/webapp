@@ -1122,10 +1122,10 @@ class ValoboisApp {
 
     _formatEIq(val) {
         if (val == null) return '—';
-        return val.toLocaleString(getValoboisIntlLocale(), {
+        return (val * 100).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: 1,
             maximumFractionDigits: 1,
-        });
+        }) + '\u00a0%';
     }
 
     computeAmortissementBiologique(ageArbre, dateMiseEnService) {
@@ -2024,6 +2024,18 @@ class ValoboisApp {
         setVal('[data-display="eiqLargeur"]',   this._formatEIq(lot.allotissement.eiqLargeur));
         setVal('[data-display="eiqEpaisseur"]', this._formatEIq(lot.allotissement.eiqEpaisseur));
         setVal('[data-display="eiqDiametre"]',  this._formatEIq(lot.allotissement.eiqDiametre));
+
+        // Colorisation des champs CV / EIq selon les seuils
+        ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach(dim => {
+            const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const cvState  = this.getVariabiliteState(lot.allotissement[cvKey],  dim);
+            const eiqState = this.getVariabiliteState(lot.allotissement[eiqKey], dim);
+            const cvEl = el(`[data-display="${cvKey}"]`);
+            if (cvEl) cvEl.dataset.variabiliteState = cvState;
+            const eiqEl = el(`[data-display="${eiqKey}"]`);
+            if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
+        });
 
         // Mise à jour du groupe "Amortissement biologique" du lot
         const avgAgeEl2 = el('[data-display="avgAgeArbre"]');
@@ -6902,10 +6914,10 @@ closeEvalOpModal() {
                                    lot.allotissement[cvKey],  dim);
                 const eiqState = this.getVariabiliteState(
                                    lot.allotissement[eiqKey], dim);
-                const cvEl  = card.querySelector(`[data-display="${cvKey}"]`);
-                const eiqEl = card.querySelector(`[data-display="${eiqKey}"]`);
-                if (cvEl)  cvEl.dataset.variabiliteState  = cvState;
-                if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
+                document.querySelectorAll(`[data-display="${cvKey}"]`)
+                    .forEach(el => { el.dataset.variabiliteState = cvState; });
+                document.querySelectorAll(`[data-display="${eiqKey}"]`)
+                    .forEach(el => { el.dataset.variabiliteState = eiqState; });
             });
 
             // Ne pas remplacer la carte "Pièce par défaut" ici pour conserver
@@ -7438,6 +7450,18 @@ closeEvalOpModal() {
             const dim  = seuilInput.dataset.seuilDim;
             const tier = seuilInput.dataset.seuilTier;
             this.updateSeuilVariabilite(dim, tier, seuilInput.value);
+        });
+
+        // Colorisation initiale des champs CV / EIq
+        ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach(dim => {
+            const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const cvState  = this.getVariabiliteState(lot.allotissement[cvKey],  dim);
+            const eiqState = this.getVariabiliteState(lot.allotissement[eiqKey], dim);
+            const cvEl = card.querySelector(`[data-display="${cvKey}"]`);
+            if (cvEl) cvEl.dataset.variabiliteState = cvState;
+            const eiqEl = card.querySelector(`[data-display="${eiqKey}"]`);
+            if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
         });
 
         rail.appendChild(card);
