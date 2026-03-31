@@ -2013,6 +2013,97 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: auto;
 }
 
+.lot-prix-group-header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 6px;
+    grid-column: 1 / -1;
+    margin-bottom: -2px;
+}
+
+.lot-prix-group-header .lot-prix-alert-btn {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 26px;
+}
+
+.lot-prix-group-header .lot-prix-alert-btn svg {
+    width: 18px;
+    height: 18px;
+}
+
+.lot-prix-info-btn {
+    min-width: 42px;
+    background-color: var(--bleu-crai);
+    border-color: var(--bleu-crai);
+    color: var(--color-white);
+    font-weight: var(--font-weight-medium);
+    text-transform: lowercase;
+}
+
+.lot-prix-info-btn,
+.lot-prix-toggle-btn {
+    width: auto;
+    min-width: 28px;
+    height: 26px;
+    padding: 0 var(--space-8);
+    font-size: var(--font-size-xs);
+}
+
+.lot-prix-info-btn {
+    min-width: 42px;
+}
+
+.lot-prix-toggle-btn[aria-pressed="true"] {
+    background-color: var(--bleu-crai);
+    border-color: var(--bleu-crai);
+    color: var(--color-white);
+}
+
+/* Grisage du bloc Prix du marché du lot en mode OFF (prixLotDirect = false) */
+[data-lot-prix-market-block][data-muted="true"] .lot-field-label {
+    color: var(--color-gray-300);
+}
+
+[data-lot-prix-market-block][data-muted="true"] .lot-input {
+    background-color: #F4F4F4;
+    color: var(--color-gray-300);
+}
+
+[data-lot-prix-market-block][data-muted="true"] .lot-input-unit {
+    color: var(--color-gray-300);
+}
+
+[data-lot-prix-market-block][data-muted="true"] .lot-price-unit-btn {
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+/* Grisage du groupe Prix dans les formulaires Pièce / Pièce par défaut en mode ON */
+[data-prix-group-disabled="true"] {
+    position: relative;
+    pointer-events: none;
+}
+
+[data-prix-group-disabled="true"] .lot-field-label,
+[data-prix-group-disabled="true"] .lot-field-label--subsection {
+    color: var(--color-gray-300);
+}
+
+[data-prix-group-disabled="true"] .lot-input {
+    background-color: #F4F4F4;
+    color: var(--color-gray-300);
+}
+
+[data-prix-group-disabled="true"] .lot-input-unit {
+    color: var(--color-gray-300);
+}
+
+[data-prix-group-disabled="true"] .lot-price-unit-btn {
+    opacity: 0.4;
+}
+
 .lot-price-market-row {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
@@ -2022,7 +2113,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-price-summary-row {
     display: grid;
-    grid-template-columns: minmax(0, 1.5fr) minmax(0, 1.5fr) minmax(0, 2fr);
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
 }
 
@@ -2128,13 +2219,12 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-price-summary-row .lot-input-with-unit--compact .lot-input {
-    padding-right: 32px;
+    padding-right: 16px;
 }
 
 .lot-price-summary-row .lot-input-with-unit--compact .lot-input-unit {
     right: 2px;
-    min-width: 20px;
-    padding: 0 4px;
+    padding: 0 1px;
     box-sizing: border-box;
     text-align: center;
 }
@@ -2186,17 +2276,22 @@ body.day-mode .lot-group--collapsible summary:hover {
     }
 
     .lot-price-summary-row .lot-input-with-unit--compact .lot-input {
-        padding-right: 30px;
+        padding-right: 16px;
     }
 
     .lot-price-summary-row .lot-input-with-unit--compact .lot-input-unit {
         right: 1px;
-        min-width: 18px;
-        padding: 0 3px;
+        padding: 0 1px;
     }
 }
 
 .lot-price-unit-btn[aria-pressed="true"] {
+    background-color: var(--bleu-crai);
+    border-color: var(--bleu-crai);
+    color: var(--color-white);
+}
+
+.lot-prix-group-header .lot-prix-info-btn {
     background-color: var(--bleu-crai);
     border-color: var(--bleu-crai);
     color: var(--color-white);

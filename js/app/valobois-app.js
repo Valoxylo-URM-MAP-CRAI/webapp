@@ -515,6 +515,7 @@ class ValoboisApp {
         if (allotissement.epaisseur == null) { allotissement.epaisseur = allotissement.hauteur != null ? allotissement.hauteur : ''; }
         delete allotissement.hauteur;
         if (allotissement.carboneBiogeniqueEstime == null) allotissement.carboneBiogeniqueEstime = '';
+        if (allotissement.prixLotDirect == null) allotissement.prixLotDirect = false;
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
         lot.pieces.forEach((piece) => {
             if (!piece || typeof piece !== 'object') return;
@@ -920,6 +921,14 @@ class ValoboisApp {
                 hasValue(bois)
             );
         });
+    }
+
+    lotHasMissingPrixMarche(lot) {
+        const isMissing = (v) => !v || String(v).trim() === '';
+        const defaultPiece = lot.defaultPiece || {};
+        const defaultQty = parseFloat(defaultPiece.quantite) || 0;
+        if (defaultQty > 0 && isMissing(defaultPiece.prixMarche)) return true;
+        return (lot.pieces || []).some((piece) => isMissing(piece.prixMarche));
     }
 
     hasIncompleteNotationCriteria(lot) {
@@ -2182,8 +2191,19 @@ class ValoboisApp {
             lot.allotissement.volumeLot = sumVolume;
             lot.allotissement.surfaceLot = sumSurface;
             lot.allotissement.lineaireLot = sumLineaire;
-            lot.allotissement.prixLot = sumPrix;
-            lot.allotissement.prixLotAjusteIntegrite = sumPrixAjuste;
+            // En mode prixLotDirect, le prix du lot reste celui calculé depuis le formulaire du lot (pricingBase × prixMarche)
+            if (!lot.allotissement.prixLotDirect) {
+                lot.allotissement.prixLot = sumPrix;
+                lot.allotissement.prixLotAjusteIntegrite = sumPrixAjuste;
+            } else {
+                // Recalculer le prix lot direct sur la base des volumes/surfaces/linéaires agrégés
+                const directPricingBase =
+                    priceUnit === 'ml' ? sumLineaire :
+                    priceUnit === 'm2' ? sumSurface :
+                    sumVolume;
+                lot.allotissement.prixLot = directPricingBase * pm;
+                lot.allotissement.prixLotAjusteIntegrite = lot.allotissement.prixLot * integrityFactor;
+            }
             lot.allotissement.masseLot = sumMasse;
             lot.allotissement.carboneBiogeniqueEstime = String(Math.max(0, Math.round(sumCO2)));
 
@@ -2360,6 +2380,42 @@ class ValoboisApp {
         if (typeof action === 'function') {
             action(shouldDeductDefault);
         }
+    }
+
+    // ─── Modales prix lot direct ───
+
+    openPrixLotDirectConfirmModal(onConfirm) {
+        this._pendingPrixLotDirectConfirm = onConfirm;
+        const backdrop = document.getElementById('prixLotDirectConfirmBackdrop');
+        if (backdrop) { backdrop.classList.remove('hidden'); backdrop.setAttribute('aria-hidden', 'false'); }
+    }
+
+    closePrixLotDirectConfirmModal() {
+        const backdrop = document.getElementById('prixLotDirectConfirmBackdrop');
+        if (backdrop) { backdrop.classList.add('hidden'); backdrop.setAttribute('aria-hidden', 'true'); }
+        this._pendingPrixLotDirectConfirm = null;
+    }
+
+    openPrixLotDirectActivateModal(onConfirm) {
+        this._pendingPrixLotDirectActivate = onConfirm;
+        const backdrop = document.getElementById('prixLotDirectActivateBackdrop');
+        if (backdrop) { backdrop.classList.remove('hidden'); backdrop.setAttribute('aria-hidden', 'false'); }
+    }
+
+    closePrixLotDirectActivateModal() {
+        const backdrop = document.getElementById('prixLotDirectActivateBackdrop');
+        if (backdrop) { backdrop.classList.add('hidden'); backdrop.setAttribute('aria-hidden', 'true'); }
+        this._pendingPrixLotDirectActivate = null;
+    }
+
+    openPrixPieceMissingModal() {
+        const backdrop = document.getElementById('prixPieceMissingBackdrop');
+        if (backdrop) { backdrop.classList.remove('hidden'); backdrop.setAttribute('aria-hidden', 'false'); }
+    }
+
+    closePrixPieceMissingModal() {
+        const backdrop = document.getElementById('prixPieceMissingBackdrop');
+        if (backdrop) { backdrop.classList.add('hidden'); backdrop.setAttribute('aria-hidden', 'true'); }
     }
 
     getNotationResetLabel(row) {
@@ -3156,6 +3212,19 @@ deleteLot(index) {
             });
         }
 
+        // Modale info logique prix
+        const prixLogicBackdrop = document.getElementById('prixLogicModalBackdrop');
+        const prixLogicClose = document.getElementById('btnClosePrixLogicModal');
+        const prixLogicCloseFooter = document.getElementById('btnClosePrixLogicModalFooter');
+
+        if (prixLogicBackdrop && prixLogicClose && prixLogicCloseFooter) {
+            prixLogicClose.addEventListener('click', () => this.closePrixLogicModal());
+            prixLogicCloseFooter.addEventListener('click', () => this.closePrixLogicModal());
+            prixLogicBackdrop.addEventListener('click', (e) => {
+                if (e.target === prixLogicBackdrop) this.closePrixLogicModal();
+            });
+        }
+
         // Modale import documents (placeholder)
         const importButtons = document.querySelectorAll('[data-import-target]');
         const documentsImportBackdrop = document.getElementById('documentsImportModalBackdrop');
@@ -3589,6 +3658,46 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             btnConfirmReset.addEventListener('click', () => this.confirmResetAction());
         }
 
+        // ─── Init modales prix lot direct ───
+        {
+            const bd1 = document.getElementById('prixLotDirectConfirmBackdrop');
+            const btnClose1 = document.getElementById('btnClosePrixLotDirectConfirm');
+            const btnCancel1 = document.getElementById('btnCancelPrixLotDirect');
+            const btnConfirm1 = document.getElementById('btnConfirmPrixLotDirect');
+            if (bd1) {
+                if (btnClose1) btnClose1.addEventListener('click', () => this.closePrixLotDirectConfirmModal());
+                if (btnCancel1) btnCancel1.addEventListener('click', () => this.closePrixLotDirectConfirmModal());
+                bd1.addEventListener('click', (e) => { if (e.target === bd1) this.closePrixLotDirectConfirmModal(); });
+                if (btnConfirm1) btnConfirm1.addEventListener('click', () => {
+                    const cb = this._pendingPrixLotDirectConfirm;
+                    this.closePrixLotDirectConfirmModal();
+                    if (typeof cb === 'function') cb();
+                });
+            }
+            const bd2 = document.getElementById('prixLotDirectActivateBackdrop');
+            const btnClose2 = document.getElementById('btnClosePrixLotDirectActivate');
+            const btnCancel2 = document.getElementById('btnCancelPrixLotDirectActivate');
+            const btnConfirm2 = document.getElementById('btnConfirmPrixLotDirectActivate');
+            if (bd2) {
+                if (btnClose2) btnClose2.addEventListener('click', () => this.closePrixLotDirectActivateModal());
+                if (btnCancel2) btnCancel2.addEventListener('click', () => this.closePrixLotDirectActivateModal());
+                bd2.addEventListener('click', (e) => { if (e.target === bd2) this.closePrixLotDirectActivateModal(); });
+                if (btnConfirm2) btnConfirm2.addEventListener('click', () => {
+                    const cb = this._pendingPrixLotDirectActivate;
+                    this.closePrixLotDirectActivateModal();
+                    if (typeof cb === 'function') cb();
+                });
+            }
+            const bd3 = document.getElementById('prixPieceMissingBackdrop');
+            const btnClose3 = document.getElementById('btnClosePrixPieceMissing');
+            const btnClose3Footer = document.getElementById('btnClosePrixPieceMissingFooter');
+            if (bd3) {
+                if (btnClose3) btnClose3.addEventListener('click', () => this.closePrixPieceMissingModal());
+                if (btnClose3Footer) btnClose3Footer.addEventListener('click', () => this.closePrixPieceMissingModal());
+                bd3.addEventListener('click', (e) => { if (e.target === bd3) this.closePrixPieceMissingModal(); });
+            }
+        }
+
         const exportPdfBackdrop = document.getElementById('exportPdfBackdrop');
         const btnCloseExportPdf = document.getElementById('btnCloseExportPdf');
         const btnCancelExportPdf = document.getElementById('btnCancelExportPdf');
@@ -3735,6 +3844,22 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
     closeDetailLotModal() {
         const b = document.getElementById('detailLotModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openPrixLogicModal() {
+        const b = document.getElementById('prixLogicModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closePrixLogicModal() {
+        const b = document.getElementById('prixLogicModalBackdrop');
         if (b) {
             b.classList.add('hidden');
             b.setAttribute('aria-hidden', 'true');
@@ -5641,19 +5766,19 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
-                <div class="lot-group">
+                <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
                         <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
                         <div class="lot-price-market-row">
                             <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-input="prixMarche">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
                                 <span class="lot-input-unit" data-default-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
                             </div>
                             <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix">
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}">au ml</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}">au m2</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}">au m3</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                             </div>
                         </div>
                     </div>
@@ -5878,19 +6003,19 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
-                <div class="lot-group">
+                <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
                         <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
                         <div class="lot-price-market-row">
                             <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
                                 <span class="lot-input-unit" data-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
                             </div>
                             <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix">
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}">au ml</button>
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}">au m2</button>
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}">au m3</button>
+                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                             </div>
                         </div>
                     </div>
@@ -6271,17 +6396,24 @@ closeEvalOpModal() {
                     </div>
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : prix</p>
-                        <div class="lot-field-block">
+                        <div class="lot-prix-group-header">
+                            <button type="button" class="lot-alert-btn lot-prix-alert-btn" data-alert-active="${(!lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot)) ? 'true' : 'false'}" data-lot-prix-alert-btn aria-label="Alerte prix du marché manquant">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
+                            <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix">info</button>
+                            <button type="button" class="lot-price-unit-btn lot-prix-toggle-btn" data-lot-prix-toggle-btn aria-pressed="${lot.allotissement.prixLotDirect ? 'true' : 'false'}" aria-label="Activer/désactiver le prix">${lot.allotissement.prixLotDirect ? 'ON' : 'OFF'}</button>
+                        </div>
+                        <div class="lot-field-block" data-lot-prix-market-block${!lot.allotissement.prixLotDirect ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                            <div class="lot-price-market-row">
+                            <div class="lot-price-market-row" data-lot-prix-market-row>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
                                     <span class="lot-input-unit" data-display="prixMarcheUnit">€/${priceUnit}</span>
                                 </div>
                                 <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix du marché">
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}">au ml</button>
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}">au m2</button>
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}">au m3</button>
+                                    <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                                 </div>
                             </div>
                         </div>
@@ -6487,6 +6619,11 @@ closeEvalOpModal() {
             if (destinationAlertBtnUpd) {
                 destinationAlertBtnUpd.dataset.alertDestination = this.hasIncompleteDestinationFields(lot) ? 'true' : 'false';
             }
+            const prixAlertBtnUpd = card.querySelector('[data-lot-prix-alert-btn]');
+            if (prixAlertBtnUpd) {
+                const hasMissingPrixMarche = !lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot);
+                prixAlertBtnUpd.dataset.alertActive = hasMissingPrixMarche ? 'true' : 'false';
+            }
 
             const qtyInput = card.querySelector('input[data-lot-input="quantite"]');
             if (qtyInput) {
@@ -6536,6 +6673,51 @@ closeEvalOpModal() {
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
+        // ─── Fonction d'application de l'état visuel prixLotDirect ───
+        const applyPrixLotDirectUI = () => {
+            const isDirect = !!lot.allotissement.prixLotDirect;
+            const toggleBtn = card.querySelector('[data-lot-prix-toggle-btn]');
+            if (toggleBtn) {
+                toggleBtn.setAttribute('aria-pressed', isDirect ? 'true' : 'false');
+                toggleBtn.textContent = isDirect ? 'ON' : 'OFF';
+            }
+            const marketBlock = card.querySelector('[data-lot-prix-market-block]');
+            if (marketBlock) marketBlock.dataset.muted = isDirect ? 'false' : 'true';
+            const prixInput = card.querySelector('input[data-lot-input="prixMarche"]');
+            if (prixInput) prixInput.readOnly = !isDirect;
+            card.querySelectorAll('button[data-price-unit]').forEach(btn => {
+                btn.disabled = !isDirect;
+            });
+            const prixAlertBtn = card.querySelector('[data-lot-prix-alert-btn]');
+            if (prixAlertBtn) {
+                const hasMissingPrixMarche = !isDirect && this.lotHasMissingPrixMarche(lot);
+                prixAlertBtn.dataset.alertActive = hasMissingPrixMarche ? 'true' : 'false';
+            }
+        };
+
+        // ─── Toggle bouton On/Off prix lot direct ───
+        const togglePrixBtn = card.querySelector('[data-lot-prix-toggle-btn]');
+        if (togglePrixBtn) {
+            togglePrixBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (lot.allotissement.prixLotDirect) {
+                    // ON → OFF : bascule directe
+                    lot.allotissement.prixLotDirect = false;
+                    applyPrixLotDirectUI();
+                    updateCalculs();
+                    this.renderDetailLot();
+                } else {
+                    // OFF → ON : modale de confirmation
+                    this.openPrixLotDirectConfirmModal(() => {
+                        lot.allotissement.prixLotDirect = true;
+                        applyPrixLotDirectUI();
+                        updateCalculs();
+                        this.renderDetailLot();
+                    });
+                }
+            });
+        }
+
         const syncPriceUnitButtons = () => {
             const selectedUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
             card.querySelectorAll('button[data-price-unit]').forEach((button) => {
@@ -6548,6 +6730,16 @@ closeEvalOpModal() {
         card.querySelectorAll('button[data-price-unit]').forEach((button) => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
+                if (!lot.allotissement.prixLotDirect) {
+                    // Mode OFF : ouvrir modale d'activation
+                    this.openPrixLotDirectActivateModal(() => {
+                        lot.allotissement.prixLotDirect = true;
+                        applyPrixLotDirectUI();
+                        updateCalculs();
+                        this.renderDetailLot();
+                    });
+                    return;
+                }
                 const nextUnit = (button.dataset.priceUnit || '').toLowerCase();
                 if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
                 lot.allotissement.prixUnite = nextUnit;
@@ -6746,6 +6938,23 @@ closeEvalOpModal() {
             });
         }
 
+        const prixAlertBtn = card.querySelector('[data-lot-prix-alert-btn]');
+        if (prixAlertBtn) {
+            prixAlertBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (prixAlertBtn.dataset.alertActive !== 'true') return;
+                this.openPrixPieceMissingModal();
+            });
+        }
+
+        const prixInfoBtn = card.querySelector('[data-lot-prix-info-btn]');
+        if (prixInfoBtn) {
+            prixInfoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openPrixLogicModal();
+            });
+        }
+
         card.querySelectorAll('button[data-lot-details-btn]').forEach((button) => {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -6901,6 +7110,19 @@ closeEvalOpModal() {
             input.addEventListener('click', (e) => e.stopPropagation());
             input.addEventListener('focus', (e) => {
                 const field = e.target.dataset.lotInput;
+
+                // Guard prix lot direct : en mode OFF, empêcher la saisie du prix du marché
+                if (field === 'prixMarche' && !lot.allotissement.prixLotDirect) {
+                    e.target.blur();
+                    this.openPrixLotDirectActivateModal(() => {
+                        lot.allotissement.prixLotDirect = true;
+                        applyPrixLotDirectUI();
+                        updateCalculs();
+                        this.renderDetailLot();
+                    });
+                    return;
+                }
+
                 if (!field || !this.isAllotissementNumericField(field)) return;
                 e.target.value = this.normalizeAllotissementNumericInput(e.target.value);
 
@@ -11811,13 +12033,14 @@ renderRadar() {
             { label: 'Date', value: meta.date || '—' }
         ];
 
-        const lotHeaders = ['Lot', 'Type', 'Essence', 'Volume', 'Prix', 'Orientation', 'Taux', 'Éco', 'Écolo', 'Méca', 'Hist', 'Esth'];
+        const lotHeaders = ['Lot', 'Type', 'Produit', 'Essence', 'Volume', 'Prix', 'Orientation', 'Taux', 'Éco', 'Écolo', 'Méca', 'Hist', 'Esth'];
         const lotRows = lots.map((lot, index) => {
             const allotissement = lot.allotissement || {};
             const orientation = this.getPdfOrientationSummary(lot);
             return [
                 this.getPdfLotLabel(lot, index),
                 this.getPdfLotCompositionValue(lot, 'typePiece'),
+                this.getPdfLotCompositionValue(lot, 'typeProduit'),
                 this.getPdfLotCompositionValue(lot, 'essenceNomCommun'),
                 this.formatPdfVolume(allotissement.volumeLot),
                 this.formatPdfCurrency(allotissement.prixLot),
@@ -11848,7 +12071,7 @@ renderRadar() {
                 this.pdfCard('Synthèse des lots', [
                     this.pdfDataTable(lotHeaders,
                         lotRows.length ? lotRows : [lotHeaders.map(() => '—')],
-                        { fontSize: f.tableCompact, widths: ['auto', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
+                        { fontSize: f.tableCompact, widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
                     )
                 ]),
                 this.pdfCard('Évaluation de l\u2019opération', evalContent)
@@ -12195,6 +12418,7 @@ renderRadar() {
 
         const lotPairs = [
             { label: 'Type de pièces', value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
+            { label: 'Type de produit', value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
             { label: 'Essence', value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
             { label: 'Quantité', value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
             { label: 'Dimensions moyennes (mm) (L × l × e)', value: dimensionsValue },
@@ -12623,6 +12847,7 @@ renderRadar() {
             { label: 'Situation du lot', getValue: (lot) => (lot && lot.situation) || '-' },
             { label: 'Destination', getValue: (lot) => ((lot && lot.allotissement) || {}).destination || '-' },
             { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '-' },
+            { label: 'Type de produit', getValue: (lot) => ((lot && lot.allotissement) || {}).typeProduit || '-' },
             { label: 'Essence', getValue: (lot) => {
                 const allotissement = (lot && lot.allotissement) || {};
                 return allotissement.essenceNomCommun || allotissement.essence || '-';

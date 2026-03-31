@@ -1030,6 +1030,56 @@
                 </div>
             </div>
 
+            <!-- Modale confirmation prix lot direct (OFF → ON) -->
+            <div class="modal-backdrop hidden" id="prixLotDirectConfirmBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="prixLotDirectConfirmTitle">
+                    <header class="modal-header">
+                        <h2 id="prixLotDirectConfirmTitle" class="text-center">Prix du lot</h2>
+                        <button class="modal-close" type="button" id="btnClosePrixLotDirectConfirm">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Voulez-vous attribuer un prix unique à ce lot&nbsp;?<br>Les prix renseignés dans les formulaires de pièces seront ignorés.</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-secondary" type="button" id="btnCancelPrixLotDirect">Annuler</button>
+                        <button class="btn btn-primary" type="button" id="btnConfirmPrixLotDirect">Valider</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale activation prix lot direct (clic sur champ prix en mode OFF) -->
+            <div class="modal-backdrop hidden" id="prixLotDirectActivateBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="prixLotDirectActivateTitle">
+                    <header class="modal-header">
+                        <h2 id="prixLotDirectActivateTitle" class="text-center">Prix du lot</h2>
+                        <button class="modal-close" type="button" id="btnClosePrixLotDirectActivate">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p style="text-align:center;">Le prix de ce lot est actuellement calculé à partir des pièces.<br>Passer en mode prix lot direct&nbsp;?</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-secondary" type="button" id="btnCancelPrixLotDirectActivate">Annuler</button>
+                        <button class="btn btn-primary" type="button" id="btnConfirmPrixLotDirectActivate">Passer en mode lot</button>
+                    </footer>
+                </div>
+            </div>
+
+                <!-- Modale alerte prix de marché manquant sur les pièces -->
+                <div class="modal-backdrop hidden" id="prixPieceMissingBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="prixPieceMissingTitle">
+                        <header class="modal-header">
+                            <h2 id="prixPieceMissingTitle" class="text-center">Prix du lot</h2>
+                            <button class="modal-close" type="button" id="btnClosePrixPieceMissing">&times;</button>
+                        </header>
+                        <div class="modal-body">
+                            <p style="text-align:center;">Vérifier si un prix de marché est attribué à chaque pièce dans le Détail du lot.</p>
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-primary btn-full" type="button" id="btnClosePrixPieceMissingFooter">Fermer</button>
+                        </footer>
+                    </div>
+                </div>
+
             <!-- Modale import documents (placeholder) -->
             <div class="modal-backdrop hidden" id="documentsImportModalBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="documentsImportModalTitle">
@@ -1140,6 +1190,46 @@
                     </div>
                     <footer class="modal-footer">
                         <button class="btn btn-primary btn-full" type="button" id="btnCloseDetailLotModalFooter">
+                            J’ai compris
+                        </button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale info logique prix du lot -->
+            <div class="modal-backdrop hidden" id="prixLogicModalBackdrop" aria-hidden="true">
+                <div class="modal modal--info-sheet" role="dialog" aria-modal="true"
+                    aria-labelledby="prixLogicModalTitle">
+                    <header class="modal-header">
+                        <h2 id="prixLogicModalTitle">À propos du prix du lot</h2>
+                        <button class="modal-close" type="button" id="btnClosePrixLogicModal">×</button>
+                    </header>
+                    <div class="modal-body">
+                        <div class="info-sheet">
+                            <div class="info-sheet-intro">
+                                À propos de la logique d’attribution du prix aux pièces de bois, deux choix sont possibles.
+                            </div>
+
+                            <div class="info-sheet-grid">
+                                <section class="info-sheet-section">
+                                    <h3>Prix unique attribué au lot</h3>
+                                    <p>Vous pouvez attribuer dans ce formulaire un prix unique pour l’ensemble des pièces du lot, puis sélectionner l’unité qui lui est relative.</p>
+                                </section>
+
+                                <section class="info-sheet-section">
+                                    <h3>Prix attribué dans le Détail du lot</h3>
+                                    <p>Vous pouvez attribuer un prix dans les formulaires de Détail du lot, pièce par pièce, ou par groupe de pièces via le formulaire « Pièce par défaut ».</p>
+                                    <p>Dans ce cas, le prix du lot affiché correspond à l’addition de tous les prix unitaires attribués, indépendamment du choix de l’unité.</p>
+                                </section>
+                            </div>
+
+                            <div class="info-sheet-note">
+                                <strong>À retenir :</strong> le bouton ON/OFF du groupe Prix permet de basculer entre un prix unique au lot et une somme des prix renseignés dans le Détail du lot.
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary btn-full" type="button" id="btnClosePrixLogicModalFooter">
                             J’ai compris
                         </button>
                     </footer>
