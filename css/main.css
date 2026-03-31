@@ -1723,6 +1723,11 @@ body.day-mode .lot-group--collapsible summary:hover {
     background-color: rgba(170, 150, 110, 0.18);
 }
 
+.lot-inline-grid--4 .lot-input[readonly] {
+    padding-left: var(--space-4);
+    padding-right: var(--space-4);
+}
+
 .lot-input--qty {
         text-align: left;
 }

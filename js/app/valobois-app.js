@@ -1,3 +1,22 @@
+// ── Utilitaires : Coefficient de Variation dimensionnel ───────
+const _vbMoyenne = vals =>
+  vals.reduce((acc, v) => acc + v, 0) / vals.length;
+
+const _vbEcartType = vals => {
+  const m = _vbMoyenne(vals);
+  return Math.sqrt(
+    vals.reduce((acc, v) => acc + Math.pow(v - m, 2), 0) / vals.length
+  );
+};
+
+const _vbCV = vals => {
+  const vv = vals.filter(v => Number.isFinite(v) && v > 0);
+  if (vv.length < 2) return null;
+  const m = _vbMoyenne(vv);
+  if (m === 0) return null;
+  return _vbEcartType(vv) / m;
+};
+
 class ValoboisApp {
     constructor() {
         this.storageKey = 'valobois_v1';
@@ -547,10 +566,10 @@ class ValoboisApp {
                 largeur: '',
                 epaisseur: '',
                 diametre: '',
-                longueurVariabilite: '',
-                largeurVariabilite: '',
-                epaisseurVariabilite: '',
-                diametreVariabilite: '',
+                cvLongueur: null,
+                cvLargeur: null,
+                cvEpaisseur: null,
+                cvDiametre: null,
                 prixUnite: 'm3',
                 prixMarche: '',
                 surfacePiece: 0,
@@ -1036,6 +1055,14 @@ class ValoboisApp {
             value: Math.round(valueKg).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }),
             unit: 'kg CO₂ (NF EN 16449)'
         };
+    }
+
+    _formatCV(val) {
+        if (val == null) return '—';
+        return (val * 100).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        }) + '\u00a0%';
     }
 
     computeAmortissementBiologique(ageArbre, dateMiseEnService) {
@@ -1898,6 +1925,12 @@ class ValoboisApp {
         const pco2UnitEl = el('[data-display="carboneBiogeniqueEstimeUnit"]');
         if (pco2UnitEl) pco2UnitEl.textContent = pco2D.unit;
 
+        // Mise à jour des Coefficients de Variation
+        setVal('[data-display="cvLongueur"]',  this._formatCV(lot.allotissement.cvLongueur));
+        setVal('[data-display="cvLargeur"]',   this._formatCV(lot.allotissement.cvLargeur));
+        setVal('[data-display="cvEpaisseur"]', this._formatCV(lot.allotissement.cvEpaisseur));
+        setVal('[data-display="cvDiametre"]',  this._formatCV(lot.allotissement.cvDiametre));
+
         // Mise à jour du groupe "Amortissement biologique" du lot
         const avgAgeEl2 = el('[data-display="avgAgeArbre"]');
         if (avgAgeEl2) avgAgeEl2.value = lot.allotissement._avgAgeArbre != null ? lot.allotissement._avgAgeArbre.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 1 }) : '';
@@ -1999,10 +2032,6 @@ class ValoboisApp {
             'largeur',
             'epaisseur',
             'diametre',
-            'longueurVariabilite',
-            'largeurVariabilite',
-            'epaisseurVariabilite',
-            'diametreVariabilite',
             'prixMarche',
             'masseVolumique',
             'humidite',
@@ -2233,6 +2262,35 @@ class ValoboisApp {
                 lot.allotissement._avgEpaisseur = e;
             }
 
+            // ── Coefficients de Variation par dimension ───────────────────
+            const _cvL  = [];
+            const _cvLg = [];
+            const _cvE  = [];
+            const _cvD  = [];
+
+            lot.pieces.forEach(p => {
+                const vL = parseFloat(p.longueur);
+                const vLg = parseFloat(p.largeur);
+                const vE = parseFloat(p.epaisseur);
+                const vD = parseFloat(p.diametre);
+                if (Number.isFinite(vL)  && vL  > 0) _cvL.push(vL);
+                if (Number.isFinite(vLg) && vLg > 0) _cvLg.push(vLg);
+                if (Number.isFinite(vE)  && vE  > 0) _cvE.push(vE);
+                if (Number.isFinite(vD)  && vD  > 0) _cvD.push(vD);
+            });
+
+            for (let _i = 0; _i < numDefault; _i++) {
+                if (Number.isFinite(dL) && dL > 0)  _cvL.push(dL);
+                if (Number.isFinite(dl) && dl > 0)  _cvLg.push(dl);
+                if (Number.isFinite(de) && de > 0)  _cvE.push(de);
+                if (Number.isFinite(dd) && dd > 0)  _cvD.push(dd);
+            }
+
+            lot.allotissement.cvLongueur  = _vbCV(_cvL);
+            lot.allotissement.cvLargeur   = _vbCV(_cvLg);
+            lot.allotissement.cvEpaisseur = _vbCV(_cvE);
+            lot.allotissement.cvDiametre  = _vbCV(_cvD);
+
             // Moyenne âge arbre et année de mise en service pour le groupe "Amortissement biologique" du lot
             const extractYear = (str) => {
                 if (!str) return null;
@@ -2259,6 +2317,10 @@ class ValoboisApp {
             lot.allotissement._avgEpaisseur = e;
             lot.allotissement._avgAgeArbre = null;
             lot.allotissement._avgServiceYear = null;
+            lot.allotissement.cvLongueur = null;
+            lot.allotissement.cvLargeur = null;
+            lot.allotissement.cvEpaisseur = null;
+            lot.allotissement.cvDiametre = null;
         }
     }
 
@@ -6377,20 +6439,20 @@ closeEvalOpModal() {
                     <div class="lot-group">
                         <div class="lot-inline-grid lot-inline-grid--4">
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Long.</label>
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.longueurVariabilite)}" data-lot-input="longueurVariabilite">
+                                <label class="lot-field-label">CVlong.</label>
+                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLongueur)}" readonly data-display="cvLongueur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Larg.</label>
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.largeurVariabilite)}" data-lot-input="largeurVariabilite">
+                                <label class="lot-field-label">CVlarg.</label>
+                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLargeur)}" readonly data-display="cvLargeur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Épai.</label>
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.epaisseurVariabilite)}" data-lot-input="epaisseurVariabilite">
+                                <label class="lot-field-label">CV\u00e9pai.</label>
+                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvEpaisseur)}" readonly data-display="cvEpaisseur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Diam.</label>
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.diametreVariabilite)}" data-lot-input="diametreVariabilite">
+                                <label class="lot-field-label">CVdiam.</label>
+                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvDiametre)}" readonly data-display="cvDiametre">
                             </div>
                         </div>
                     </div>
@@ -6647,6 +6709,17 @@ closeEvalOpModal() {
                 }
             }
 
+            // Mise à jour des Coefficients de Variation
+            const _fmtCV = v => this._formatCV(v);
+            const cvLongueurEl = card.querySelector('[data-display="cvLongueur"]');
+            const cvLargeurEl = card.querySelector('[data-display="cvLargeur"]');
+            const cvEpaisseurEl = card.querySelector('[data-display="cvEpaisseur"]');
+            const cvDiametreEl = card.querySelector('[data-display="cvDiametre"]');
+            if (cvLongueurEl)  cvLongueurEl.value  = _fmtCV(lot.allotissement.cvLongueur);
+            if (cvLargeurEl)   cvLargeurEl.value   = _fmtCV(lot.allotissement.cvLargeur);
+            if (cvEpaisseurEl) cvEpaisseurEl.value = _fmtCV(lot.allotissement.cvEpaisseur);
+            if (cvDiametreEl)  cvDiametreEl.value  = _fmtCV(lot.allotissement.cvDiametre);
+
             // Ne pas remplacer la carte "Pièce par défaut" ici pour conserver
             // la sélection active unique et les handlers déjà liés.
 
@@ -6872,10 +6945,6 @@ closeEvalOpModal() {
 
         const editableLotInputs = new Set([
             'prixMarche',
-            'longueurVariabilite',
-            'largeurVariabilite',
-            'epaisseurVariabilite',
-            'diametreVariabilite',
             'destination',
             'destinationAdresse',
             'destinationContact',
