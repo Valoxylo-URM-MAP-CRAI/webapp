@@ -1490,6 +1490,21 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+/* Variabilité adaptative : trio (rectangulaire) ou duo (cylindrique) */
+.lot-inline-grid[data-variabilite-mode="rectangular"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.lot-inline-grid[data-variabilite-mode="rectangular"] > [data-variabilite-dim="diametre"] {
+    display: none;
+}
+.lot-inline-grid[data-variabilite-mode="cylindrical"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.lot-inline-grid[data-variabilite-mode="cylindrical"] > [data-variabilite-dim="largeur"],
+.lot-inline-grid[data-variabilite-mode="cylindrical"] > [data-variabilite-dim="epaisseur"] {
+    display: none;
+}
+
 .lot-inline-grid--lot-essence {
     display: grid;
     gap: 8px;
@@ -1645,6 +1660,13 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-template-columns: auto repeat(3, minmax(0, 1fr));
     gap: 6px;
     align-items: center;
+}
+
+.lot-seuils-section-title {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+    margin: 10px 0 4px;
 }
 
 .lot-seuils-header-cell {

@@ -39,6 +39,16 @@ const _vbEIq = vals => {
   return q2 === 0 ? null : (q3 - q1) / q2;
 };
 
+// Retourne l'écart inter-quartile absolu (Q3 − Q1) en unité d'origine (mm).
+const _vbEIqAbs = (vals) => {
+  const vv = vals.filter(v => Number.isFinite(v) && v > 0);
+  if (vv.length < 2) return null;
+  const sorted = [...vv].sort((a, b) => a - b);
+  const q1 = _vbPercentile(sorted, 25);
+  const q3 = _vbPercentile(sorted, 75);
+  return q3 - q1;
+};
+
 // Retourne les bornes basse et haute selon la règle de Tukey (k = 1.5).
 const _vbTukeyFences = (vals, k = 1.5) => {
   const vv = vals.filter(v => Number.isFinite(v) && v > 0);
@@ -607,10 +617,19 @@ class ValoboisApp {
                 cvLargeur: null,
                 cvEpaisseur: null,
                 cvDiametre: null,
+                ecartTypeLongueur: null,
+                ecartTypeLargeur: null,
+                ecartTypeEpaisseur: null,
+                ecartTypeDiametre: null,
                 eiqLongueur: null,
                 eiqLargeur: null,
                 eiqEpaisseur: null,
                 eiqDiametre: null,
+                eiqAbsLongueur: null,
+                eiqAbsLargeur: null,
+                eiqAbsEpaisseur: null,
+                eiqAbsDiametre: null,
+                tauxSimilarite: null,
                 tukeyLongueur: null,
                 tukeyLargeur: null,
                 tukeyEpaisseur: null,
@@ -755,6 +774,16 @@ class ValoboisApp {
                              ...existingUi?.seuilsVariabilite?.epaisseur },
                 diametre:  { t1: 8,  t2: 20, t3: 35,
                              ...existingUi?.seuilsVariabilite?.diametre }
+            },
+            seuilsVariabiliteEiqAbs: {
+                longueur:  { t1: 50,  t2: 150, t3: 300,
+                             ...existingUi?.seuilsVariabiliteEiqAbs?.longueur },
+                largeur:   { t1: 10,  t2: 30,  t3: 60,
+                             ...existingUi?.seuilsVariabiliteEiqAbs?.largeur },
+                epaisseur: { t1: 5,   t2: 15,  t3: 30,
+                             ...existingUi?.seuilsVariabiliteEiqAbs?.epaisseur },
+                diametre:  { t1: 30,  t2: 80,  t3: 150,
+                             ...existingUi?.seuilsVariabiliteEiqAbs?.diametre }
             }
         };
     }
@@ -1125,6 +1154,27 @@ class ValoboisApp {
         return (val * 100).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: 1,
             maximumFractionDigits: 1,
+        }) + '\u00a0%';
+    }
+
+    _formatEcartType(val) {
+        if (val == null) return '—';
+        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
+            maximumFractionDigits: 0,
+        }) + '\u00a0mm';
+    }
+
+    _formatEIqAbs(val) {
+        if (val == null) return '—';
+        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
+            maximumFractionDigits: 0,
+        }) + '\u00a0mm';
+    }
+
+    formatTauxSimilarite(val) {
+        if (val === null || val === undefined) return '';
+        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
+            maximumFractionDigits: 0,
         }) + '\u00a0%';
     }
 
@@ -1968,6 +2018,25 @@ class ValoboisApp {
         return 'tres-heterogene';
     }
 
+    getVariabiliteEiqAbsState(eiqAbsVal, dim) {
+        if (eiqAbsVal === null || eiqAbsVal === undefined) return 'neutre';
+        const seuils = (
+            this.data?.ui?.seuilsVariabiliteEiqAbs?.[dim]
+        ) ?? { t1: 50, t2: 150, t3: 300 };
+        if (eiqAbsVal <= seuils.t1) return 'homogene';
+        if (eiqAbsVal <= seuils.t2) return 'acceptable';
+        if (eiqAbsVal <= seuils.t3) return 'heterogene';
+        return 'tres-heterogene';
+    }
+
+    getTauxSimilariteState(val) {
+        if (val === null || val === undefined) return 'neutre';
+        if (val >= 75) return 'homogene';
+        if (val >= 50) return 'acceptable';
+        if (val >= 25) return 'heterogene';
+        return 'tres-heterogene';
+    }
+
     updateSeuilVariabilite(dim, tier, rawValue) {
         const parsed = parseInt(rawValue, 10);
         if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
@@ -1976,6 +2045,19 @@ class ValoboisApp {
         if (!this.data.ui.seuilsVariabilite[dim])
             this.data.ui.seuilsVariabilite[dim] = { t1: 8, t2: 20, t3: 40 };
         this.data.ui.seuilsVariabilite[dim][tier] = parsed;
+        this.saveData();
+        const currentLot = this.getCurrentLot();
+        if (currentLot) this.updateActiveLotCardDisplays(currentLot);
+    }
+
+    updateSeuilVariabiliteEiqAbs(dim, tier, rawValue) {
+        const parsed = parseFloat(rawValue);
+        if (!Number.isFinite(parsed) || parsed < 0) return;
+        if (!this.data.ui.seuilsVariabiliteEiqAbs)
+            this.data.ui.seuilsVariabiliteEiqAbs = {};
+        if (!this.data.ui.seuilsVariabiliteEiqAbs[dim])
+            this.data.ui.seuilsVariabiliteEiqAbs[dim] = { t1: 50, t2: 150, t3: 300 };
+        this.data.ui.seuilsVariabiliteEiqAbs[dim][tier] = parsed;
         this.saveData();
         const currentLot = this.getCurrentLot();
         if (currentLot) this.updateActiveLotCardDisplays(currentLot);
@@ -2013,29 +2095,42 @@ class ValoboisApp {
         const pco2UnitEl = el('[data-display="carboneBiogeniqueEstimeUnit"]');
         if (pco2UnitEl) pco2UnitEl.textContent = pco2D.unit;
 
-        // Mise à jour des Coefficients de Variation
-        setVal('[data-display="cvLongueur"]',  this._formatCV(lot.allotissement.cvLongueur));
-        setVal('[data-display="cvLargeur"]',   this._formatCV(lot.allotissement.cvLargeur));
-        setVal('[data-display="cvEpaisseur"]', this._formatCV(lot.allotissement.cvEpaisseur));
-        setVal('[data-display="cvDiametre"]',  this._formatCV(lot.allotissement.cvDiametre));
+        // Mise à jour du mode de variabilité (trio / duo)
+        const _varMode = ((lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (lot.allotissement._avgDiametre || 0) > 0) ? 'cylindrical' : 'rectangular';
+        card.querySelectorAll('[data-variabilite-grid]').forEach(g => { g.dataset.variabiliteMode = _varMode; });
 
-        // Mise à jour des Écarts Inter-Quartiles
-        setVal('[data-display="eiqLongueur"]',  this._formatEIq(lot.allotissement.eiqLongueur));
-        setVal('[data-display="eiqLargeur"]',   this._formatEIq(lot.allotissement.eiqLargeur));
-        setVal('[data-display="eiqEpaisseur"]', this._formatEIq(lot.allotissement.eiqEpaisseur));
-        setVal('[data-display="eiqDiametre"]',  this._formatEIq(lot.allotissement.eiqDiametre));
+        // Mise à jour des écarts-types (σ)
+        setVal('[data-display="ecartTypeLongueur"]',  this._formatEcartType(lot.allotissement.ecartTypeLongueur));
+        setVal('[data-display="ecartTypeLargeur"]',   this._formatEcartType(lot.allotissement.ecartTypeLargeur));
+        setVal('[data-display="ecartTypeEpaisseur"]', this._formatEcartType(lot.allotissement.ecartTypeEpaisseur));
+        setVal('[data-display="ecartTypeDiametre"]',  this._formatEcartType(lot.allotissement.ecartTypeDiametre));
 
-        // Colorisation des champs CV / EIq selon les seuils
+        // Mise à jour des Écarts Inter-Quartiles absolus (mm)
+        setVal('[data-display="eiqAbsLongueur"]',  this._formatEIqAbs(lot.allotissement.eiqAbsLongueur));
+        setVal('[data-display="eiqAbsLargeur"]',   this._formatEIqAbs(lot.allotissement.eiqAbsLargeur));
+        setVal('[data-display="eiqAbsEpaisseur"]', this._formatEIqAbs(lot.allotissement.eiqAbsEpaisseur));
+        setVal('[data-display="eiqAbsDiametre"]',  this._formatEIqAbs(lot.allotissement.eiqAbsDiametre));
+
+        // Colorisation des champs σ / EIq abs selon les seuils
         ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach(dim => {
             const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
-            const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const ecartTypeKey = 'ecartType' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const eiqAbsKey = 'eiqAbs' + dim.charAt(0).toUpperCase() + dim.slice(1);
             const cvState  = this.getVariabiliteState(lot.allotissement[cvKey],  dim);
-            const eiqState = this.getVariabiliteState(lot.allotissement[eiqKey], dim);
-            const cvEl = el(`[data-display="${cvKey}"]`);
-            if (cvEl) cvEl.dataset.variabiliteState = cvState;
-            const eiqEl = el(`[data-display="${eiqKey}"]`);
-            if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
+            const eiqAbsState = this.getVariabiliteEiqAbsState(lot.allotissement[eiqAbsKey], dim);
+            const etEl = el(`[data-display="${ecartTypeKey}"]`);
+            if (etEl) etEl.dataset.variabiliteState = cvState;
+            const eiqAbsEl = el(`[data-display="${eiqAbsKey}"]`);
+            if (eiqAbsEl) eiqAbsEl.dataset.variabiliteState = eiqAbsState;
         });
+
+        // Taux de similarité
+        const tauxEl = el('[data-display="tauxSimilarite"]');
+        if (tauxEl) {
+            tauxEl.value = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
+            tauxEl.dataset.variabiliteState =
+                this.getTauxSimilariteState(lot.allotissement.tauxSimilarite);
+        }
 
         // Mise à jour du groupe "Amortissement biologique" du lot
         const avgAgeEl2 = el('[data-display="avgAgeArbre"]');
@@ -2349,23 +2444,27 @@ class ValoboisApp {
             }
 
             // Moyenne pondérée des dimensions pour affichage dans le formulaire du lot
-            let sumLongueur = 0, sumLargeur = 0, sumEpaisseur = 0;
+            let sumLongueur = 0, sumLargeur = 0, sumEpaisseur = 0, sumDiametre = 0;
             lot.pieces.forEach(p => {
                 sumLongueur += parseFloat(p.longueur) || 0;
                 sumLargeur += parseFloat(p.largeur) || 0;
                 sumEpaisseur += parseFloat(p.epaisseur) || 0;
+                sumDiametre += parseFloat(p.diametre) || 0;
             });
             sumLongueur += numDefault * dL;
             sumLargeur += numDefault * dl;
             sumEpaisseur += numDefault * de;
+            sumDiametre += numDefault * dd;
             if (q > 0) {
                 lot.allotissement._avgLongueur = sumLongueur / q;
                 lot.allotissement._avgLargeur = sumLargeur / q;
                 lot.allotissement._avgEpaisseur = sumEpaisseur / q;
+                lot.allotissement._avgDiametre = sumDiametre / q;
             } else {
                 lot.allotissement._avgLongueur = L;
                 lot.allotissement._avgLargeur = l;
                 lot.allotissement._avgEpaisseur = e;
+                lot.allotissement._avgDiametre = d;
             }
 
             // ── Coefficients de Variation par dimension ───────────────────
@@ -2397,10 +2496,57 @@ class ValoboisApp {
             lot.allotissement.cvEpaisseur = _vbCV(_cvE);
             lot.allotissement.cvDiametre  = _vbCV(_cvD);
 
+            lot.allotissement.ecartTypeLongueur  = _cvL.length >= 2 ? _vbEcartType(_cvL) : null;
+            lot.allotissement.ecartTypeLargeur   = _cvLg.length >= 2 ? _vbEcartType(_cvLg) : null;
+            lot.allotissement.ecartTypeEpaisseur = _cvE.length >= 2 ? _vbEcartType(_cvE) : null;
+            lot.allotissement.ecartTypeDiametre  = _cvD.length >= 2 ? _vbEcartType(_cvD) : null;
+
             lot.allotissement.eiqLongueur  = _vbEIq(_cvL);
             lot.allotissement.eiqLargeur   = _vbEIq(_cvLg);
             lot.allotissement.eiqEpaisseur = _vbEIq(_cvE);
             lot.allotissement.eiqDiametre  = _vbEIq(_cvD);
+
+            lot.allotissement.eiqAbsLongueur  = _vbEIqAbs(_cvL);
+            lot.allotissement.eiqAbsLargeur   = _vbEIqAbs(_cvLg);
+            lot.allotissement.eiqAbsEpaisseur = _vbEIqAbs(_cvE);
+            lot.allotissement.eiqAbsDiametre  = _vbEIqAbs(_cvD);
+
+            // Taux de similarité — moyenne pondérée sur dimensions disponibles
+            // Poids : longueur = 1 (recoupable), section = 3 (critique)
+            // Base : EIqAbs vs seuil t3 de chaque dimension
+            {
+                const seuilsEiq = this.data?.ui?.seuilsVariabiliteEiqAbs ?? {};
+                const t3L  = seuilsEiq?.longueur?.t3  ?? 300;
+                const t3La = seuilsEiq?.largeur?.t3   ?? 60;
+                const t3E  = seuilsEiq?.epaisseur?.t3 ?? 30;
+                const t3D  = seuilsEiq?.diametre?.t3  ?? 150;
+
+                const score = (val, t3) =>
+                    (val !== null && val !== undefined && t3 > 0)
+                        ? Math.max(0, 1 - val / t3)
+                        : null;
+
+                const sL  = score(lot.allotissement.eiqAbsLongueur,  t3L);
+                const sLa = score(lot.allotissement.eiqAbsLargeur,   t3La);
+                const sE  = score(lot.allotissement.eiqAbsEpaisseur, t3E);
+                const sD  = score(lot.allotissement.eiqAbsDiametre,  t3D);
+
+                // Si diamètre disponible : utiliser longueur (w=1) + diamètre (w=3)
+                // Sinon : utiliser longueur (w=1) + largeur (w=3) + épaisseur (w=3)
+                let sumW = 0, sumS = 0;
+                const add = (s, w) => { if (s !== null) { sumS += s * w; sumW += w; } };
+
+                if (sD !== null) {
+                    add(sL, 1);
+                    add(sD, 3);
+                } else {
+                    add(sL, 1);
+                    add(sLa, 3);
+                    add(sE, 3);
+                }
+
+                lot.allotissement.tauxSimilarite = sumW > 0 ? (sumS / sumW) * 100 : null;
+            }
 
             // Outliers optionnels — utiles pour alerte pièce aberrante
             lot.allotissement.tukeyLongueur  = _vbTukeyFences(_cvL);
@@ -2432,16 +2578,26 @@ class ValoboisApp {
             lot.allotissement._avgLongueur = L;
             lot.allotissement._avgLargeur = l;
             lot.allotissement._avgEpaisseur = e;
+            lot.allotissement._avgDiametre = d;
             lot.allotissement._avgAgeArbre = null;
             lot.allotissement._avgServiceYear = null;
             lot.allotissement.cvLongueur = null;
             lot.allotissement.cvLargeur = null;
             lot.allotissement.cvEpaisseur = null;
             lot.allotissement.cvDiametre = null;
+            lot.allotissement.ecartTypeLongueur = null;
+            lot.allotissement.ecartTypeLargeur = null;
+            lot.allotissement.ecartTypeEpaisseur = null;
+            lot.allotissement.ecartTypeDiametre = null;
             lot.allotissement.eiqLongueur = null;
             lot.allotissement.eiqLargeur = null;
             lot.allotissement.eiqEpaisseur = null;
             lot.allotissement.eiqDiametre = null;
+            lot.allotissement.eiqAbsLongueur = null;
+            lot.allotissement.eiqAbsLargeur = null;
+            lot.allotissement.eiqAbsEpaisseur = null;
+            lot.allotissement.eiqAbsDiametre = null;
+            lot.allotissement.tauxSimilarite = null;
             lot.allotissement.tukeyLongueur = null;
             lot.allotissement.tukeyLargeur = null;
             lot.allotissement.tukeyEpaisseur = null;
@@ -6367,10 +6523,11 @@ closeEvalOpModal() {
                         ? `Faible (${integriteData.coeff ?? '...'})`
                         : '...';
 
-        const hasDiametre = lot.allotissement.diametre !== '' && lot.allotissement.diametre != null;
-        const hasLargeurEpaisseur = (lot.allotissement.largeur !== '' && lot.allotissement.largeur != null) || (lot.allotissement.epaisseur !== '' && lot.allotissement.epaisseur != null);
-        const _lDim = parseFloat(lot.allotissement.largeur) || 0;
-        const _hDim = parseFloat(lot.allotissement.epaisseur) || 0;
+        const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
+        const hasDiametre = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (hasDetailDimensions && (lot.allotissement._avgDiametre || 0) > 0);
+        const hasLargeurEpaisseur = (lot.allotissement.largeur !== '' && lot.allotissement.largeur != null) || (lot.allotissement.epaisseur !== '' && lot.allotissement.epaisseur != null) || (hasDetailDimensions && ((lot.allotissement._avgLargeur || 0) > 0 || (lot.allotissement._avgEpaisseur || 0) > 0));
+        const _lDim = parseFloat(hasDetailDimensions ? lot.allotissement._avgLargeur : lot.allotissement.largeur) || 0;
+        const _hDim = parseFloat(hasDetailDimensions ? lot.allotissement._avgEpaisseur : lot.allotissement.epaisseur) || 0;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
         const locationSituationGroups = this.getLotLocationSituationGroups(lot);
@@ -6389,10 +6546,10 @@ closeEvalOpModal() {
         const situationTitle = situationDistinctCount > 1 ? `Situations (${situationDistinctCount})` : 'Situation';
         const hasNotationAlert = this.hasIncompleteNotationCriteria(lot);
         const hasDestinationAlert = this.hasIncompleteDestinationFields(lot);
-        const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
-        const displayLongueur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLongueur || 0)) : lot.allotissement.longueur;
-        const displayLargeur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLargeur || 0)) : lot.allotissement.largeur;
-        const displayEpaisseur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgEpaisseur || 0)) : lot.allotissement.epaisseur;
+        const displayLongueur = hasDetailDimensions ? ((lot.allotissement._avgLongueur || 0) > 0 ? String(Math.round(lot.allotissement._avgLongueur)) : '') : lot.allotissement.longueur;
+        const displayLargeur = hasDetailDimensions ? ((lot.allotissement._avgLargeur || 0) > 0 ? String(Math.round(lot.allotissement._avgLargeur)) : '') : lot.allotissement.largeur;
+        const displayEpaisseur = hasDetailDimensions ? ((lot.allotissement._avgEpaisseur || 0) > 0 ? String(Math.round(lot.allotissement._avgEpaisseur)) : '') : lot.allotissement.epaisseur;
+        const displayDiametre = hasDetailDimensions ? ((lot.allotissement._avgDiametre || 0) > 0 ? String(Math.round(lot.allotissement._avgDiametre)) : '') : lot.allotissement.diametre;
         const hasDisplayLongueur = displayLongueur !== '' && displayLongueur != null;
         const hasDisplayLargeur = displayLargeur !== '' && displayLargeur != null;
         const hasDisplayEpaisseur = displayEpaisseur !== '' && displayEpaisseur != null;
@@ -6547,7 +6704,7 @@ closeEvalOpModal() {
                                 <div class="lot-dimension-computed"${hasLargeurEpaisseur ? ' data-muted="true"' : ''}>
                                     <label class="lot-field-label">Diamètre</label>
                                     <div class="lot-input-with-unit">
-                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.diametre)}" data-lot-input="diametre">
+                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayDiametre)}" data-lot-input="diametre">
                                         <span class="lot-input-unit">mm</span>
                                     </div>
                                 </div>
@@ -6562,40 +6719,56 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <div class="lot-group">
-                        <div class="lot-inline-grid lot-inline-grid--4">
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">CV Long.</label>
-                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLongueur)}" readonly data-display="cvLongueur">
+                        <div class="lot-inline-grid lot-inline-grid--4" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}" data-variabilite-grid="ecartType">
+                            <div class="lot-field-block" data-variabilite-dim="longueur">
+                                <label class="lot-field-label">σ Long.</label>
+                                <input type="text" class="lot-input" value="${this._formatEcartType(lot.allotissement.ecartTypeLongueur)}" readonly data-display="ecartTypeLongueur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">CV Larg.</label>
-                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLargeur)}" readonly data-display="cvLargeur">
+                            <div class="lot-field-block" data-variabilite-dim="largeur">
+                                <label class="lot-field-label">σ Larg.</label>
+                                <input type="text" class="lot-input" value="${this._formatEcartType(lot.allotissement.ecartTypeLargeur)}" readonly data-display="ecartTypeLargeur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">CV Épai.</label>
-                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvEpaisseur)}" readonly data-display="cvEpaisseur">
+                            <div class="lot-field-block" data-variabilite-dim="epaisseur">
+                                <label class="lot-field-label">σ Épai.</label>
+                                <input type="text" class="lot-input" value="${this._formatEcartType(lot.allotissement.ecartTypeEpaisseur)}" readonly data-display="ecartTypeEpaisseur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">CV Diam.</label>
-                                <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvDiametre)}" readonly data-display="cvDiametre">
+                            <div class="lot-field-block" data-variabilite-dim="diametre">
+                                <label class="lot-field-label">σ Diam.</label>
+                                <input type="text" class="lot-input" value="${this._formatEcartType(lot.allotissement.ecartTypeDiametre)}" readonly data-display="ecartTypeDiametre">
                             </div>
                         </div>
-                        <div class="lot-inline-grid lot-inline-grid--4">
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">EIq Long.</label>
-                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqLongueur)}" readonly data-display="eiqLongueur">
+                        <div class="lot-inline-grid lot-inline-grid--4" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}" data-variabilite-grid="eiqAbs">
+                            <div class="lot-field-block" data-variabilite-dim="longueur">
+                                <label class="lot-field-label">EIq abs. Long.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIqAbs(lot.allotissement.eiqAbsLongueur)}" readonly data-display="eiqAbsLongueur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">EIq Larg.</label>
-                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqLargeur)}" readonly data-display="eiqLargeur">
+                            <div class="lot-field-block" data-variabilite-dim="largeur">
+                                <label class="lot-field-label">EIq abs. Larg.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIqAbs(lot.allotissement.eiqAbsLargeur)}" readonly data-display="eiqAbsLargeur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">EIq Épai.</label>
-                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqEpaisseur)}" readonly data-display="eiqEpaisseur">
+                            <div class="lot-field-block" data-variabilite-dim="epaisseur">
+                                <label class="lot-field-label">EIq abs. Épai.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIqAbs(lot.allotissement.eiqAbsEpaisseur)}" readonly data-display="eiqAbsEpaisseur">
                             </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">EIq Diam.</label>
-                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqDiametre)}" readonly data-display="eiqDiametre">
+                            <div class="lot-field-block" data-variabilite-dim="diametre">
+                                <label class="lot-field-label">EIq abs. Diam.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIqAbs(lot.allotissement.eiqAbsDiametre)}" readonly data-display="eiqAbsDiametre">
+                            </div>
+                        </div>
+                        <div class="lot-group lot-group--taux-similarite">
+                            <div class="lot-field-block lot-field-block--taux-similarite">
+                                <label class="lot-field-label">Taux de similarité</label>
+                                <div class="lot-input-with-unit">
+                                    <input type="text"
+                                           class="lot-input lot-input--taux-similarite"
+                                           value="${this.formatTauxSimilarite(lot.allotissement.tauxSimilarite)}"
+                                           readonly
+                                           data-display="tauxSimilarite"
+                                           data-variabilite-state="${this.getTauxSimilariteState(lot.allotissement.tauxSimilarite)}" />
+                                </div>
+                                <p class="lot-field-meta">
+                                    Moyenne pondérée sur EIq absolus — section × 3, longueur × 1
+                                </p>
                             </div>
                         </div>
                         <details class="lot-group lot-group--collapsible lot-group--seuils">
@@ -6607,25 +6780,25 @@ closeEvalOpModal() {
                                     <div class="lot-seuils-header-cell lot-seuils-header-cell--t2">Bleu → Orange</div>
                                     <div class="lot-seuils-header-cell lot-seuils-header-cell--t3">Orange → Rouge</div>
 
-                                    <div class="lot-seuils-dim-label">Longueur</div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t1 ?? 8}" data-seuil-dim="longueur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t2 ?? 20}" data-seuil-dim="longueur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t3 ?? 40}" data-seuil-dim="longueur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-dim-label">L</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.longueur?.t1 ?? 50}" data-seuil-eiqabs-dim="longueur" data-seuil-eiqabs-tier="t1"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.longueur?.t2 ?? 150}" data-seuil-eiqabs-dim="longueur" data-seuil-eiqabs-tier="t2"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.longueur?.t3 ?? 300}" data-seuil-eiqabs-dim="longueur" data-seuil-eiqabs-tier="t3"></div>
 
-                                    <div class="lot-seuils-dim-label">Largeur</div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t1 ?? 5}" data-seuil-dim="largeur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t2 ?? 15}" data-seuil-dim="largeur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t3 ?? 30}" data-seuil-dim="largeur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-dim-label">l</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.largeur?.t1 ?? 10}" data-seuil-eiqabs-dim="largeur" data-seuil-eiqabs-tier="t1"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.largeur?.t2 ?? 30}" data-seuil-eiqabs-dim="largeur" data-seuil-eiqabs-tier="t2"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.largeur?.t3 ?? 60}" data-seuil-eiqabs-dim="largeur" data-seuil-eiqabs-tier="t3"></div>
 
-                                    <div class="lot-seuils-dim-label">Épaisseur</div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t1 ?? 5}" data-seuil-dim="epaisseur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t2 ?? 15}" data-seuil-dim="epaisseur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t3 ?? 30}" data-seuil-dim="epaisseur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-dim-label">e</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.epaisseur?.t1 ?? 5}" data-seuil-eiqabs-dim="epaisseur" data-seuil-eiqabs-tier="t1"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.epaisseur?.t2 ?? 15}" data-seuil-eiqabs-dim="epaisseur" data-seuil-eiqabs-tier="t2"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.epaisseur?.t3 ?? 30}" data-seuil-eiqabs-dim="epaisseur" data-seuil-eiqabs-tier="t3"></div>
 
-                                    <div class="lot-seuils-dim-label">Diamètre</div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t1 ?? 8}" data-seuil-dim="diametre" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t2 ?? 20}" data-seuil-dim="diametre" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
-                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t3 ?? 35}" data-seuil-dim="diametre" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-dim-label">Ø</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t1 ?? 30}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t1"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t2 ?? 80}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t2"></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t3 ?? 150}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t3"></div>
                                 </div>
                             </div>
                         </details>
@@ -6792,9 +6965,11 @@ closeEvalOpModal() {
 
             card.querySelector('[data-display="volumePiece"]').value = formatGrouped(lot.allotissement.volumePiece, 3);
             card.querySelector('[data-display="volumeLot"]').value = formatOneDecimal(lot.allotissement.volumeLot);
-            const diametreActif = (lot.allotissement.diametre || '') !== '';
-            const _lv = parseFloat(lot.allotissement.largeur) || 0;
-            const _hv = parseFloat(lot.allotissement.epaisseur) || 0;
+            const diametreActif = (lot.allotissement.diametre || '') !== '' || (lot.allotissement._avgDiametre || 0) > 0;
+            const _varMode2 = diametreActif ? 'cylindrical' : 'rectangular';
+            card.querySelectorAll('[data-variabilite-grid]').forEach(g => { g.dataset.variabiliteMode = _varMode2; });
+            const _lv = parseFloat(lot.allotissement.largeur) || parseFloat(lot.allotissement._avgLargeur) || 0;
+            const _hv = parseFloat(lot.allotissement.epaisseur) || parseFloat(lot.allotissement._avgEpaisseur) || 0;
             const surfaceMutedByShape = _hv > 55 || (_lv > 0 && _hv > 0 && _lv / _hv <= 4);
             const surfaceMuted = diametreActif || surfaceMutedByShape;
             card.querySelector('[data-display="surfacePiece"]').value = surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfacePiece);
@@ -6873,52 +7048,69 @@ closeEvalOpModal() {
                 const largeurInput = card.querySelector('input[data-lot-input="largeur"]');
                 const epaisseurInput = card.querySelector('input[data-lot-input="epaisseur"]');
                 if (longueurInput && document.activeElement !== longueurInput) {
-                    longueurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLongueur || 0)));
+                    const _avgL = lot.allotissement._avgLongueur || 0;
+                    longueurInput.value = _avgL > 0 ? this.formatAllotissementNumericDisplay(String(Math.round(_avgL))) : '';
                 }
                 if (largeurInput && document.activeElement !== largeurInput) {
-                    largeurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLargeur || 0)));
+                    const _avgLa = lot.allotissement._avgLargeur || 0;
+                    largeurInput.value = _avgLa > 0 ? this.formatAllotissementNumericDisplay(String(Math.round(_avgLa))) : '';
                 }
                 if (epaisseurInput && document.activeElement !== epaisseurInput) {
-                    epaisseurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgEpaisseur || 0)));
+                    const _avgE = lot.allotissement._avgEpaisseur || 0;
+                    epaisseurInput.value = _avgE > 0 ? this.formatAllotissementNumericDisplay(String(Math.round(_avgE))) : '';
+                }
+                const diametreInput = card.querySelector('input[data-lot-input="diametre"]');
+                if (diametreInput && document.activeElement !== diametreInput) {
+                    const _avgD = lot.allotissement._avgDiametre || 0;
+                    diametreInput.value = _avgD > 0 ? this.formatAllotissementNumericDisplay(String(Math.round(_avgD))) : '';
                 }
             }
 
-            // Mise à jour des Coefficients de Variation
-            const _fmtCV = v => this._formatCV(v);
-            const cvLongueurEl = card.querySelector('[data-display="cvLongueur"]');
-            const cvLargeurEl = card.querySelector('[data-display="cvLargeur"]');
-            const cvEpaisseurEl = card.querySelector('[data-display="cvEpaisseur"]');
-            const cvDiametreEl = card.querySelector('[data-display="cvDiametre"]');
-            if (cvLongueurEl)  cvLongueurEl.value  = _fmtCV(lot.allotissement.cvLongueur);
-            if (cvLargeurEl)   cvLargeurEl.value   = _fmtCV(lot.allotissement.cvLargeur);
-            if (cvEpaisseurEl) cvEpaisseurEl.value = _fmtCV(lot.allotissement.cvEpaisseur);
-            if (cvDiametreEl)  cvDiametreEl.value  = _fmtCV(lot.allotissement.cvDiametre);
+            // Mise à jour des écarts-types (σ)
+            const _fmtET = v => this._formatEcartType(v);
+            const etLongueurEl = card.querySelector('[data-display="ecartTypeLongueur"]');
+            const etLargeurEl = card.querySelector('[data-display="ecartTypeLargeur"]');
+            const etEpaisseurEl = card.querySelector('[data-display="ecartTypeEpaisseur"]');
+            const etDiametreEl = card.querySelector('[data-display="ecartTypeDiametre"]');
+            if (etLongueurEl)  etLongueurEl.value  = _fmtET(lot.allotissement.ecartTypeLongueur);
+            if (etLargeurEl)   etLargeurEl.value   = _fmtET(lot.allotissement.ecartTypeLargeur);
+            if (etEpaisseurEl) etEpaisseurEl.value = _fmtET(lot.allotissement.ecartTypeEpaisseur);
+            if (etDiametreEl)  etDiametreEl.value  = _fmtET(lot.allotissement.ecartTypeDiametre);
 
-            // Mise à jour des Écarts Inter-Quartiles
-            const _fmtEIq = v => this._formatEIq(v);
-            const eiqLongueurEl = card.querySelector('[data-display="eiqLongueur"]');
-            const eiqLargeurEl = card.querySelector('[data-display="eiqLargeur"]');
-            const eiqEpaisseurEl = card.querySelector('[data-display="eiqEpaisseur"]');
-            const eiqDiametreEl = card.querySelector('[data-display="eiqDiametre"]');
-            if (eiqLongueurEl)  eiqLongueurEl.value  = _fmtEIq(lot.allotissement.eiqLongueur);
-            if (eiqLargeurEl)   eiqLargeurEl.value   = _fmtEIq(lot.allotissement.eiqLargeur);
-            if (eiqEpaisseurEl) eiqEpaisseurEl.value = _fmtEIq(lot.allotissement.eiqEpaisseur);
-            if (eiqDiametreEl)  eiqDiametreEl.value  = _fmtEIq(lot.allotissement.eiqDiametre);
+            // Mise à jour des Écarts Inter-Quartiles absolus (mm)
+            const _fmtEIqAbs = v => this._formatEIqAbs(v);
+            const eiqAbsLongueurEl = card.querySelector('[data-display="eiqAbsLongueur"]');
+            const eiqAbsLargeurEl = card.querySelector('[data-display="eiqAbsLargeur"]');
+            const eiqAbsEpaisseurEl = card.querySelector('[data-display="eiqAbsEpaisseur"]');
+            const eiqAbsDiametreEl = card.querySelector('[data-display="eiqAbsDiametre"]');
+            if (eiqAbsLongueurEl)  eiqAbsLongueurEl.value  = _fmtEIqAbs(lot.allotissement.eiqAbsLongueur);
+            if (eiqAbsLargeurEl)   eiqAbsLargeurEl.value   = _fmtEIqAbs(lot.allotissement.eiqAbsLargeur);
+            if (eiqAbsEpaisseurEl) eiqAbsEpaisseurEl.value = _fmtEIqAbs(lot.allotissement.eiqAbsEpaisseur);
+            if (eiqAbsDiametreEl)  eiqAbsDiametreEl.value  = _fmtEIqAbs(lot.allotissement.eiqAbsDiametre);
 
-            // ── Colorisation des champs CV selon les seuils ───────────────
+            // ── Colorisation des champs σ / EIq abs selon les seuils ───────────────
             const dims = ['longueur', 'largeur', 'epaisseur', 'diametre'];
             dims.forEach(dim => {
                 const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
-                const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+                const ecartTypeKey = 'ecartType' + dim.charAt(0).toUpperCase() + dim.slice(1);
+                const eiqAbsKey = 'eiqAbs' + dim.charAt(0).toUpperCase() + dim.slice(1);
                 const cvState  = this.getVariabiliteState(
                                    lot.allotissement[cvKey],  dim);
-                const eiqState = this.getVariabiliteState(
-                                   lot.allotissement[eiqKey], dim);
-                document.querySelectorAll(`[data-display="${cvKey}"]`)
+                const eiqAbsState = this.getVariabiliteEiqAbsState(
+                                   lot.allotissement[eiqAbsKey], dim);
+                document.querySelectorAll(`[data-display="${ecartTypeKey}"]`)
                     .forEach(el => { el.dataset.variabiliteState = cvState; });
-                document.querySelectorAll(`[data-display="${eiqKey}"]`)
-                    .forEach(el => { el.dataset.variabiliteState = eiqState; });
+                document.querySelectorAll(`[data-display="${eiqAbsKey}"]`)
+                    .forEach(el => { el.dataset.variabiliteState = eiqAbsState; });
             });
+
+            // Taux de similarité
+            const tauxCardEl = card.querySelector('[data-display="tauxSimilarite"]');
+            if (tauxCardEl) {
+                tauxCardEl.value = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
+                tauxCardEl.dataset.variabiliteState =
+                    this.getTauxSimilariteState(lot.allotissement.tauxSimilarite);
+            }
 
             // Ne pas remplacer la carte "Pièce par défaut" ici pour conserver
             // la sélection active unique et les handlers déjà liés.
@@ -7446,22 +7638,31 @@ closeEvalOpModal() {
 
         card.addEventListener('change', e => {
             const seuilInput = e.target.closest('[data-seuil-dim]');
-            if (!seuilInput) return;
-            const dim  = seuilInput.dataset.seuilDim;
-            const tier = seuilInput.dataset.seuilTier;
-            this.updateSeuilVariabilite(dim, tier, seuilInput.value);
+            if (seuilInput) {
+                const dim  = seuilInput.dataset.seuilDim;
+                const tier = seuilInput.dataset.seuilTier;
+                this.updateSeuilVariabilite(dim, tier, seuilInput.value);
+                return;
+            }
+            const seuilEiqAbsInput = e.target.closest('[data-seuil-eiqabs-dim]');
+            if (seuilEiqAbsInput) {
+                const dim  = seuilEiqAbsInput.dataset.seuilEiqabsDim;
+                const tier = seuilEiqAbsInput.dataset.seuilEiqabsTier;
+                this.updateSeuilVariabiliteEiqAbs(dim, tier, seuilEiqAbsInput.value);
+            }
         });
 
-        // Colorisation initiale des champs CV / EIq
+        // Colorisation initiale des champs σ / EIq abs
         ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach(dim => {
             const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
-            const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const ecartTypeKey = 'ecartType' + dim.charAt(0).toUpperCase() + dim.slice(1);
+            const eiqAbsKey = 'eiqAbs' + dim.charAt(0).toUpperCase() + dim.slice(1);
             const cvState  = this.getVariabiliteState(lot.allotissement[cvKey],  dim);
-            const eiqState = this.getVariabiliteState(lot.allotissement[eiqKey], dim);
-            const cvEl = card.querySelector(`[data-display="${cvKey}"]`);
-            if (cvEl) cvEl.dataset.variabiliteState = cvState;
-            const eiqEl = card.querySelector(`[data-display="${eiqKey}"]`);
-            if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
+            const eiqAbsState = this.getVariabiliteEiqAbsState(lot.allotissement[eiqAbsKey], dim);
+            const etEl = card.querySelector(`[data-display="${ecartTypeKey}"]`);
+            if (etEl) etEl.dataset.variabiliteState = cvState;
+            const eiqAbsEl = card.querySelector(`[data-display="${eiqAbsKey}"]`);
+            if (eiqAbsEl) eiqAbsEl.dataset.variabiliteState = eiqAbsState;
         });
 
         rail.appendChild(card);
