@@ -1610,6 +1610,87 @@ body.day-mode .lot-group--collapsible summary:hover {
     color: var(--color-gray-300);
 }
 
+/* ── États de variabilité dimensionnelle (palette Wong) ── */
+[data-variabilite-state="homogene"] {
+    background-color: #009E73 !important;
+    color: #ffffff !important;
+}
+[data-variabilite-state="acceptable"] {
+    background-color: #56B4E9 !important;
+    color: #111111 !important;
+}
+[data-variabilite-state="heterogene"] {
+    background-color: #E69F00 !important;
+    color: #111111 !important;
+}
+[data-variabilite-state="tres-heterogene"] {
+    background-color: #D55E00 !important;
+    color: #ffffff !important;
+}
+[data-variabilite-state="neutre"],
+[data-variabilite-state=""] {
+    background-color: var(--color-surface, #f0f0f0);
+    color: var(--color-text, #111111);
+}
+
+/* ── Panneau de réglage des seuils ── */
+.lot-group--seuils summary {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text-secondary);
+}
+
+.lot-seuils-grid {
+    display: grid;
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    align-items: center;
+}
+
+.lot-seuils-header-cell {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    text-align: center;
+    line-height: 1.2;
+}
+.lot-seuils-header-cell--t1 { color: #009E73; font-weight: 600; }
+.lot-seuils-header-cell--t2 { color: #56B4E9; font-weight: 600; }
+.lot-seuils-header-cell--t3 { color: #E69F00; font-weight: 600; }
+
+.lot-seuils-dim-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    padding-right: 4px;
+}
+
+.lot-seuils-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.lot-seuils-input {
+    width: 100%;
+    text-align: right;
+    padding: 2px 4px;
+    font-size: var(--font-size-xs);
+}
+
+/* Supprime les flèches natives des input[type=number] */
+.lot-seuils-input::-webkit-outer-spin-button,
+.lot-seuils-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+.lot-seuils-input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
+.lot-seuils-unit {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    flex-shrink: 0;
+}
+
 .lot-dimension-field[data-muted="true"] > .lot-dimension-input-wrap .lot-dimension-unit {
     color: var(--color-gray-300) !important;
 }

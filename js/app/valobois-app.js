@@ -17,6 +17,43 @@ const _vbCV = vals => {
   return _vbEcartType(vv) / m;
 };
 
+// ── Utilitaires : Écart Inter-Quartile normalisé ──────────────
+// Interpolation linéaire au percentile p (0-100) sur tableau trié.
+const _vbPercentile = (sorted, p) => {
+  const r  = (p / 100) * (sorted.length - 1);
+  const lo = Math.floor(r);
+  const hi = Math.ceil(r);
+  return lo === hi
+    ? sorted[lo]
+    : sorted[lo] + (sorted[hi] - sorted[lo]) * (r - lo);
+};
+
+// Retourne (Q3 - Q1) / Q2  ou  null si < 2 valeurs valides.
+const _vbEIq = vals => {
+  const vv = vals.filter(v => Number.isFinite(v) && v > 0);
+  if (vv.length < 2) return null;
+  const sorted = [...vv].sort((a, b) => a - b);
+  const q1 = _vbPercentile(sorted, 25);
+  const q2 = _vbPercentile(sorted, 50);
+  const q3 = _vbPercentile(sorted, 75);
+  return q2 === 0 ? null : (q3 - q1) / q2;
+};
+
+// Retourne les bornes basse et haute selon la règle de Tukey (k = 1.5).
+const _vbTukeyFences = (vals, k = 1.5) => {
+  const vv = vals.filter(v => Number.isFinite(v) && v > 0);
+  if (vv.length < 4) return null;
+  const sorted = [...vv].sort((a, b) => a - b);
+  const q1  = _vbPercentile(sorted, 25);
+  const q3  = _vbPercentile(sorted, 75);
+  const eiq = q3 - q1;
+  return {
+    lowerFence : q1 - k * eiq,
+    upperFence : q3 + k * eiq,
+    q1, q3, eiq
+  };
+};
+
 class ValoboisApp {
     constructor() {
         this.storageKey = 'valobois_v1';
@@ -570,6 +607,14 @@ class ValoboisApp {
                 cvLargeur: null,
                 cvEpaisseur: null,
                 cvDiametre: null,
+                eiqLongueur: null,
+                eiqLargeur: null,
+                eiqEpaisseur: null,
+                eiqDiametre: null,
+                tukeyLongueur: null,
+                tukeyLargeur: null,
+                tukeyEpaisseur: null,
+                tukeyDiametre: null,
                 prixUnite: 'm3',
                 prixMarche: '',
                 surfacePiece: 0,
@@ -700,7 +745,17 @@ class ValoboisApp {
                 notes: false,
                 ...existingCollapsibles
             },
-            detailLotActiveCardByLot: { ...existingDetailLotActiveCardByLot }
+            detailLotActiveCardByLot: { ...existingDetailLotActiveCardByLot },
+            seuilsVariabilite: {
+                longueur:  { t1: 8,  t2: 20, t3: 40,
+                             ...existingUi?.seuilsVariabilite?.longueur },
+                largeur:   { t1: 5,  t2: 15, t3: 30,
+                             ...existingUi?.seuilsVariabilite?.largeur },
+                epaisseur: { t1: 5,  t2: 15, t3: 30,
+                             ...existingUi?.seuilsVariabilite?.epaisseur },
+                diametre:  { t1: 8,  t2: 20, t3: 35,
+                             ...existingUi?.seuilsVariabilite?.diametre }
+            }
         };
     }
 
@@ -1063,6 +1118,14 @@ class ValoboisApp {
             minimumFractionDigits: 1,
             maximumFractionDigits: 1,
         }) + '\u00a0%';
+    }
+
+    _formatEIq(val) {
+        if (val == null) return '—';
+        return val.toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+        });
     }
 
     computeAmortissementBiologique(ageArbre, dateMiseEnService) {
@@ -1893,6 +1956,31 @@ class ValoboisApp {
         backdrop.setAttribute('aria-hidden', 'true');
     }
 
+    getVariabiliteState(cvVal, dim) {
+        if (cvVal === null || cvVal === undefined) return 'neutre';
+        const seuils = (
+            this.data?.ui?.seuilsVariabilite?.[dim]
+        ) ?? { t1: 8, t2: 20, t3: 40 };
+        const pct = cvVal * 100;
+        if (pct <= seuils.t1) return 'homogene';
+        if (pct <= seuils.t2) return 'acceptable';
+        if (pct <= seuils.t3) return 'heterogene';
+        return 'tres-heterogene';
+    }
+
+    updateSeuilVariabilite(dim, tier, rawValue) {
+        const parsed = parseInt(rawValue, 10);
+        if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
+        if (!this.data.ui.seuilsVariabilite)
+            this.data.ui.seuilsVariabilite = {};
+        if (!this.data.ui.seuilsVariabilite[dim])
+            this.data.ui.seuilsVariabilite[dim] = { t1: 8, t2: 20, t3: 40 };
+        this.data.ui.seuilsVariabilite[dim][tier] = parsed;
+        this.saveData();
+        const currentLot = this.getCurrentLot();
+        if (currentLot) this.updateActiveLotCardDisplays(currentLot);
+    }
+
     updateActiveLotCardDisplays(lot) {
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotIndex < 0) return;
@@ -1930,6 +2018,12 @@ class ValoboisApp {
         setVal('[data-display="cvLargeur"]',   this._formatCV(lot.allotissement.cvLargeur));
         setVal('[data-display="cvEpaisseur"]', this._formatCV(lot.allotissement.cvEpaisseur));
         setVal('[data-display="cvDiametre"]',  this._formatCV(lot.allotissement.cvDiametre));
+
+        // Mise à jour des Écarts Inter-Quartiles
+        setVal('[data-display="eiqLongueur"]',  this._formatEIq(lot.allotissement.eiqLongueur));
+        setVal('[data-display="eiqLargeur"]',   this._formatEIq(lot.allotissement.eiqLargeur));
+        setVal('[data-display="eiqEpaisseur"]', this._formatEIq(lot.allotissement.eiqEpaisseur));
+        setVal('[data-display="eiqDiametre"]',  this._formatEIq(lot.allotissement.eiqDiametre));
 
         // Mise à jour du groupe "Amortissement biologique" du lot
         const avgAgeEl2 = el('[data-display="avgAgeArbre"]');
@@ -2291,6 +2385,17 @@ class ValoboisApp {
             lot.allotissement.cvEpaisseur = _vbCV(_cvE);
             lot.allotissement.cvDiametre  = _vbCV(_cvD);
 
+            lot.allotissement.eiqLongueur  = _vbEIq(_cvL);
+            lot.allotissement.eiqLargeur   = _vbEIq(_cvLg);
+            lot.allotissement.eiqEpaisseur = _vbEIq(_cvE);
+            lot.allotissement.eiqDiametre  = _vbEIq(_cvD);
+
+            // Outliers optionnels — utiles pour alerte pièce aberrante
+            lot.allotissement.tukeyLongueur  = _vbTukeyFences(_cvL);
+            lot.allotissement.tukeyLargeur   = _vbTukeyFences(_cvLg);
+            lot.allotissement.tukeyEpaisseur = _vbTukeyFences(_cvE);
+            lot.allotissement.tukeyDiametre  = _vbTukeyFences(_cvD);
+
             // Moyenne âge arbre et année de mise en service pour le groupe "Amortissement biologique" du lot
             const extractYear = (str) => {
                 if (!str) return null;
@@ -2321,6 +2426,14 @@ class ValoboisApp {
             lot.allotissement.cvLargeur = null;
             lot.allotissement.cvEpaisseur = null;
             lot.allotissement.cvDiametre = null;
+            lot.allotissement.eiqLongueur = null;
+            lot.allotissement.eiqLargeur = null;
+            lot.allotissement.eiqEpaisseur = null;
+            lot.allotissement.eiqDiametre = null;
+            lot.allotissement.tukeyLongueur = null;
+            lot.allotissement.tukeyLargeur = null;
+            lot.allotissement.tukeyEpaisseur = null;
+            lot.allotissement.tukeyDiametre = null;
         }
     }
 
@@ -6439,22 +6552,71 @@ closeEvalOpModal() {
                     <div class="lot-group">
                         <div class="lot-inline-grid lot-inline-grid--4">
                             <div class="lot-field-block">
-                                <label class="lot-field-label">CVlong.</label>
+                                <label class="lot-field-label">CV Long.</label>
                                 <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLongueur)}" readonly data-display="cvLongueur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">CVlarg.</label>
+                                <label class="lot-field-label">CV Larg.</label>
                                 <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvLargeur)}" readonly data-display="cvLargeur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">CV\u00e9pai.</label>
+                                <label class="lot-field-label">CV Épai.</label>
                                 <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvEpaisseur)}" readonly data-display="cvEpaisseur">
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">CVdiam.</label>
+                                <label class="lot-field-label">CV Diam.</label>
                                 <input type="text" class="lot-input" value="${this._formatCV(lot.allotissement.cvDiametre)}" readonly data-display="cvDiametre">
                             </div>
                         </div>
+                        <div class="lot-inline-grid lot-inline-grid--4">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">EIq Long.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqLongueur)}" readonly data-display="eiqLongueur">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">EIq Larg.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqLargeur)}" readonly data-display="eiqLargeur">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">EIq Épai.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqEpaisseur)}" readonly data-display="eiqEpaisseur">
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">EIq Diam.</label>
+                                <input type="text" class="lot-input" value="${this._formatEIq(lot.allotissement.eiqDiametre)}" readonly data-display="eiqDiametre">
+                            </div>
+                        </div>
+                        <details class="lot-group lot-group--collapsible lot-group--seuils">
+                            <summary>Réglage des seuils de variabilité</summary>
+                            <div class="lot-group-content">
+                                <div class="lot-seuils-grid">
+                                    <div class="lot-seuils-header-cell"></div>
+                                    <div class="lot-seuils-header-cell lot-seuils-header-cell--t1">Vert → Bleu</div>
+                                    <div class="lot-seuils-header-cell lot-seuils-header-cell--t2">Bleu → Orange</div>
+                                    <div class="lot-seuils-header-cell lot-seuils-header-cell--t3">Orange → Rouge</div>
+
+                                    <div class="lot-seuils-dim-label">Longueur</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t1 ?? 8}" data-seuil-dim="longueur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t2 ?? 20}" data-seuil-dim="longueur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.longueur?.t3 ?? 40}" data-seuil-dim="longueur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+
+                                    <div class="lot-seuils-dim-label">Largeur</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t1 ?? 5}" data-seuil-dim="largeur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t2 ?? 15}" data-seuil-dim="largeur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.largeur?.t3 ?? 30}" data-seuil-dim="largeur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+
+                                    <div class="lot-seuils-dim-label">Épaisseur</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t1 ?? 5}" data-seuil-dim="epaisseur" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t2 ?? 15}" data-seuil-dim="epaisseur" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.epaisseur?.t3 ?? 30}" data-seuil-dim="epaisseur" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+
+                                    <div class="lot-seuils-dim-label">Diamètre</div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t1 ?? 8}" data-seuil-dim="diametre" data-seuil-tier="t1"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t2 ?? 20}" data-seuil-dim="diametre" data-seuil-tier="t2"><span class="lot-seuils-unit">%</span></div>
+                                    <div class="lot-seuils-input-wrap"><input type="number" min="0" max="100" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabilite?.diametre?.t3 ?? 35}" data-seuil-dim="diametre" data-seuil-tier="t3"><span class="lot-seuils-unit">%</span></div>
+                                </div>
+                            </div>
+                        </details>
                     </div>
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : prix</p>
@@ -6719,6 +6881,32 @@ closeEvalOpModal() {
             if (cvLargeurEl)   cvLargeurEl.value   = _fmtCV(lot.allotissement.cvLargeur);
             if (cvEpaisseurEl) cvEpaisseurEl.value = _fmtCV(lot.allotissement.cvEpaisseur);
             if (cvDiametreEl)  cvDiametreEl.value  = _fmtCV(lot.allotissement.cvDiametre);
+
+            // Mise à jour des Écarts Inter-Quartiles
+            const _fmtEIq = v => this._formatEIq(v);
+            const eiqLongueurEl = card.querySelector('[data-display="eiqLongueur"]');
+            const eiqLargeurEl = card.querySelector('[data-display="eiqLargeur"]');
+            const eiqEpaisseurEl = card.querySelector('[data-display="eiqEpaisseur"]');
+            const eiqDiametreEl = card.querySelector('[data-display="eiqDiametre"]');
+            if (eiqLongueurEl)  eiqLongueurEl.value  = _fmtEIq(lot.allotissement.eiqLongueur);
+            if (eiqLargeurEl)   eiqLargeurEl.value   = _fmtEIq(lot.allotissement.eiqLargeur);
+            if (eiqEpaisseurEl) eiqEpaisseurEl.value = _fmtEIq(lot.allotissement.eiqEpaisseur);
+            if (eiqDiametreEl)  eiqDiametreEl.value  = _fmtEIq(lot.allotissement.eiqDiametre);
+
+            // ── Colorisation des champs CV selon les seuils ───────────────
+            const dims = ['longueur', 'largeur', 'epaisseur', 'diametre'];
+            dims.forEach(dim => {
+                const cvKey  = 'cv'  + dim.charAt(0).toUpperCase() + dim.slice(1);
+                const eiqKey = 'eiq' + dim.charAt(0).toUpperCase() + dim.slice(1);
+                const cvState  = this.getVariabiliteState(
+                                   lot.allotissement[cvKey],  dim);
+                const eiqState = this.getVariabiliteState(
+                                   lot.allotissement[eiqKey], dim);
+                const cvEl  = card.querySelector(`[data-display="${cvKey}"]`);
+                const eiqEl = card.querySelector(`[data-display="${eiqKey}"]`);
+                if (cvEl)  cvEl.dataset.variabiliteState  = cvState;
+                if (eiqEl) eiqEl.dataset.variabiliteState = eiqState;
+            });
 
             // Ne pas remplacer la carte "Pièce par défaut" ici pour conserver
             // la sélection active unique et les handlers déjà liés.
@@ -7242,6 +7430,14 @@ closeEvalOpModal() {
             input.addEventListener('input', updateField);
             input.addEventListener('change', updateField);
             input.addEventListener('blur', updateField);
+        });
+
+        card.addEventListener('change', e => {
+            const seuilInput = e.target.closest('[data-seuil-dim]');
+            if (!seuilInput) return;
+            const dim  = seuilInput.dataset.seuilDim;
+            const tier = seuilInput.dataset.seuilTier;
+            this.updateSeuilVariabilite(dim, tier, seuilInput.value);
         });
 
         rail.appendChild(card);
