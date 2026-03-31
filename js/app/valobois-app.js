@@ -283,7 +283,7 @@ class ValoboisApp {
                 essence: '',
                 longueur: '',
                 largeur: '',
-                hauteur: '',
+                epaisseur: '',
                 diametre: '',
                 prixUnite: '',
                 prixMarche: '',
@@ -320,7 +320,9 @@ class ValoboisApp {
         if (lot.defaultPiece.essence == null) lot.defaultPiece.essence = '';
         if (lot.defaultPiece.longueur == null) lot.defaultPiece.longueur = '';
         if (lot.defaultPiece.largeur == null) lot.defaultPiece.largeur = '';
-        if (lot.defaultPiece.hauteur == null) lot.defaultPiece.hauteur = '';
+        // Migration: hauteur → epaisseur
+        if (lot.defaultPiece.epaisseur == null) lot.defaultPiece.epaisseur = lot.defaultPiece.hauteur != null ? lot.defaultPiece.hauteur : '';
+        delete lot.defaultPiece.hauteur;
         if (lot.defaultPiece.diametre == null) lot.defaultPiece.diametre = '';
         if (lot.defaultPiece.prixUnite == null) lot.defaultPiece.prixUnite = '';
         if (lot.defaultPiece.prixMarche == null) lot.defaultPiece.prixMarche = '';
@@ -348,7 +350,7 @@ class ValoboisApp {
         piece.essence = [piece.essenceNomCommun, piece.essenceNomScientifique].filter(Boolean).join(' - ');
         piece.longueur = dp.longueur !== '' ? dp.longueur : (a.longueur || '');
         piece.largeur = dp.largeur !== '' ? dp.largeur : (a.largeur || '');
-        piece.hauteur = dp.hauteur !== '' ? dp.hauteur : (a.hauteur || '');
+        piece.epaisseur = dp.epaisseur !== '' ? dp.epaisseur : (a.epaisseur || '');
         piece.diametre = dp.diametre !== '' ? dp.diametre : (a.diametre || '');
         piece.prixUnite = (dp.prixUnite || a.prixUnite || 'm3').toLowerCase();
         piece.prixMarche = dp.prixMarche !== '' ? dp.prixMarche : (a.prixMarche || '');
@@ -509,6 +511,9 @@ class ValoboisApp {
         if (allotissement.bois == null) allotissement.bois = 100;
         if (allotissement.typeProduit == null) allotissement.typeProduit = '';
         if (allotissement.diametre == null) allotissement.diametre = '';
+        // Migration: hauteur → epaisseur
+        if (allotissement.epaisseur == null) { allotissement.epaisseur = allotissement.hauteur != null ? allotissement.hauteur : ''; }
+        delete allotissement.hauteur;
         if (allotissement.carboneBiogeniqueEstime == null) allotissement.carboneBiogeniqueEstime = '';
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
         lot.pieces.forEach((piece) => {
@@ -516,6 +521,9 @@ class ValoboisApp {
             if (piece.localisation == null) piece.localisation = '';
             if (piece.situation == null) piece.situation = '';
             if (piece.typeProduit == null) piece.typeProduit = '';
+            // Migration: hauteur → epaisseur
+            if (piece.epaisseur == null) { piece.epaisseur = piece.hauteur != null ? piece.hauteur : ''; }
+            delete piece.hauteur;
             this.ensurePieceMasseVolumiqueInitialized(piece);
         });
         this.ensureDefaultPieceData(lot);
@@ -536,7 +544,7 @@ class ValoboisApp {
                 essence: '',
                 longueur: '',
                 largeur: '',
-                hauteur: '',
+                epaisseur: '',
                 diametre: '',
                 longueurVariabilite: '',
                 largeurVariabilite: '',
@@ -605,7 +613,7 @@ class ValoboisApp {
                 essence: '',
                 longueur: '',
                 largeur: '',
-                hauteur: '',
+                epaisseur: '',
                 diametre: '',
                 prixUnite: '',
                 prixMarche: '',
@@ -631,7 +639,7 @@ class ValoboisApp {
             essence: '',
             longueur: '',
             largeur: '',
-            hauteur: '',
+            epaisseur: '',
             diametre: '',
             prixUnite: '',
             prixMarche: '',
@@ -897,8 +905,8 @@ class ValoboisApp {
             const hasLongueur = hasValue(piece.longueur);
             const hasDiametre = hasValue(piece.diametre);
             const hasLargeur = hasValue(piece.largeur);
-            const hasHauteur = hasValue(piece.hauteur);
-            const dimensionsComplete = hasLongueur && (hasDiametre || (hasLargeur && hasHauteur));
+            const hasEpaisseur = hasValue(piece.epaisseur);
+            const dimensionsComplete = hasLongueur && (hasDiametre || (hasLargeur && hasEpaisseur));
 
             return !(
                 hasValue(typePiece) &&
@@ -1250,7 +1258,7 @@ class ValoboisApp {
     getEffectiveStabiliteAlertDimensions(lot) {
         const targetLot = lot || this.getCurrentLot();
         if (!targetLot || !targetLot.allotissement) {
-            return { longueur: null, largeur: null, hauteur: null, diametre: null };
+            return { longueur: null, largeur: null, epaisseur: null, diametre: null };
         }
 
         const allotissement = targetLot.allotissement;
@@ -1264,56 +1272,56 @@ class ValoboisApp {
                 ? allotissement._avgLargeur
                 : allotissement.largeur
         );
-        const hauteur = this.parsePositiveAlertDimensionValue(
-            allotissement._avgHauteur != null && allotissement._avgHauteur !== ''
-                ? allotissement._avgHauteur
-                : allotissement.hauteur
+        const epaisseur = this.parsePositiveAlertDimensionValue(
+            allotissement._avgEpaisseur != null && allotissement._avgEpaisseur !== ''
+                ? allotissement._avgEpaisseur
+                : allotissement.epaisseur
         );
         const diametre = this.parsePositiveAlertDimensionValue(allotissement.diametre);
 
-        return { longueur, largeur, hauteur, diametre };
+        return { longueur, largeur, epaisseur, diametre };
     }
 
-    getStabiliteAlertState(longueurValue, largeurValue, hauteurValue, diametreValue) {
+    getStabiliteAlertState(longueurValue, largeurValue, epaisseurValue, diametreValue) {
         let longueur = this.parsePositiveAlertDimensionValue(longueurValue);
         let largeur = this.parsePositiveAlertDimensionValue(largeurValue);
-        let hauteur = this.parsePositiveAlertDimensionValue(hauteurValue);
+        let epaisseur = this.parsePositiveAlertDimensionValue(epaisseurValue);
         const diametre = this.parsePositiveAlertDimensionValue(diametreValue);
 
         if (diametre) {
-            hauteur = diametre;
+            epaisseur = diametre;
             largeur = diametre;
         }
 
-        if (!longueur || !hauteur || !largeur) {
+        if (!longueur || !epaisseur || !largeur) {
             return 'none';
         }
 
-        if (hauteur < largeur) {
-            const temp = hauteur;
-            hauteur = largeur;
+        if (epaisseur < largeur) {
+            const temp = epaisseur;
+            epaisseur = largeur;
             largeur = temp;
         }
 
-        const ratioLh = longueur / hauteur;
-        const ratioBh = largeur / hauteur;
+        const ratioLe = longueur / epaisseur;
+        const ratioBe = largeur / epaisseur;
 
-        if (!Number.isFinite(ratioLh) || !Number.isFinite(ratioBh) || ratioLh <= 0 || ratioBh <= 0) {
+        if (!Number.isFinite(ratioLe) || !Number.isFinite(ratioBe) || ratioLe <= 0 || ratioBe <= 0) {
             return 'none';
         }
 
-        if (ratioLh <= 18 && ratioBh >= 0.4) {
+        if (ratioLe <= 18 && ratioBe >= 0.4) {
             return 'strong';
         }
 
         if (
-            (ratioLh <= 18 && ratioBh >= 0.25 && ratioBh < 0.4) ||
-            (ratioLh > 18 && ratioLh <= 28 && ratioBh >= 0.25)
+            (ratioLe <= 18 && ratioBe >= 0.25 && ratioBe < 0.4) ||
+            (ratioLe > 18 && ratioLe <= 28 && ratioBe >= 0.25)
         ) {
             return 'medium';
         }
 
-        if (ratioLh > 28 || ratioBh < 0.25) {
+        if (ratioLe > 28 || ratioBe < 0.25) {
             return 'low';
         }
 
@@ -1490,7 +1498,7 @@ class ValoboisApp {
         const state = this.getStabiliteAlertState(
             dimensions.longueur,
             dimensions.largeur,
-            dimensions.hauteur,
+            dimensions.epaisseur,
             dimensions.diametre
         );
         alertBtn.dataset.alertStabiliteState = state;
@@ -1960,15 +1968,15 @@ class ValoboisApp {
         if (nbPieces > 0 || defaultQty > 0) {
             const longueurInput = el('input[data-lot-input="longueur"]');
             const largeurInput = el('input[data-lot-input="largeur"]');
-            const hauteurInput = el('input[data-lot-input="hauteur"]');
+            const epaisseurInput = el('input[data-lot-input="epaisseur"]');
             if (longueurInput && document.activeElement !== longueurInput) {
                 longueurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLongueur || 0)));
             }
             if (largeurInput && document.activeElement !== largeurInput) {
                 largeurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLargeur || 0)));
             }
-            if (hauteurInput && document.activeElement !== hauteurInput) {
-                hauteurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgHauteur || 0)));
+            if (epaisseurInput && document.activeElement !== epaisseurInput) {
+                epaisseurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgEpaisseur || 0)));
             }
         }
 
@@ -1980,7 +1988,7 @@ class ValoboisApp {
             'quantite',
             'longueur',
             'largeur',
-            'hauteur',
+            'epaisseur',
             'diametre',
             'longueurVariabilite',
             'largeurVariabilite',
@@ -2065,7 +2073,7 @@ class ValoboisApp {
         }
         const L = parseFloat(lot.allotissement.longueur) || 0;
         const l = parseFloat(lot.allotissement.largeur) || 0;
-        const h = parseFloat(lot.allotissement.hauteur) || 0;
+        const e = parseFloat(lot.allotissement.epaisseur) || 0;
         const d = parseFloat(lot.allotissement.diametre) || 0;
         const pm = parseFloat(lot.allotissement.prixMarche) || 0;
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
@@ -2079,7 +2087,7 @@ class ValoboisApp {
             const rayon = d / 2;
             lot.allotissement.volumePiece = (Math.PI * rayon * rayon * L) / 1000000000;
         } else {
-            lot.allotissement.volumePiece = (L * l * h) / 1000000000;
+            lot.allotissement.volumePiece = (L * l * e) / 1000000000;
         }
         lot.allotissement.volumeLot = lot.allotissement.volumePiece * q;
         lot.allotissement.lineaireLot = (q * L) / 1000;
@@ -2122,7 +2130,7 @@ class ValoboisApp {
 
             const dL = parseFloat(defaultPiece.longueur !== '' ? defaultPiece.longueur : lot.allotissement.longueur) || 0;
             const dl = parseFloat(defaultPiece.largeur !== '' ? defaultPiece.largeur : lot.allotissement.largeur) || 0;
-            const dh = parseFloat(defaultPiece.hauteur !== '' ? defaultPiece.hauteur : lot.allotissement.hauteur) || 0;
+            const de = parseFloat(defaultPiece.epaisseur !== '' ? defaultPiece.epaisseur : lot.allotissement.epaisseur) || 0;
             const dd = parseFloat(defaultPiece.diametre !== '' ? defaultPiece.diametre : lot.allotissement.diametre) || 0;
             const dPm = parseFloat(defaultPiece.prixMarche !== '' ? defaultPiece.prixMarche : lot.allotissement.prixMarche) || 0;
             const dPriceUnitRaw = ((defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
@@ -2151,7 +2159,7 @@ class ValoboisApp {
             const defaultSurfPerPiece = (dL * dl) / 1000000;
             const defaultVolPerPiece = dd > 0
                 ? (Math.PI * (dd / 2) * (dd / 2) * dL) / 1000000000
-                : (dL * dl * dh) / 1000000000;
+                : (dL * dl * de) / 1000000000;
             const defaultLinPerPiece = dL / 1000;
             const defaultPricingBase =
                 dPriceUnit === 'ml' ? defaultLinPerPiece :
@@ -2186,23 +2194,23 @@ class ValoboisApp {
             }
 
             // Moyenne pondérée des dimensions pour affichage dans le formulaire du lot
-            let sumLongueur = 0, sumLargeur = 0, sumHauteur = 0;
+            let sumLongueur = 0, sumLargeur = 0, sumEpaisseur = 0;
             lot.pieces.forEach(p => {
                 sumLongueur += parseFloat(p.longueur) || 0;
                 sumLargeur += parseFloat(p.largeur) || 0;
-                sumHauteur += parseFloat(p.hauteur) || 0;
+                sumEpaisseur += parseFloat(p.epaisseur) || 0;
             });
             sumLongueur += numDefault * dL;
             sumLargeur += numDefault * dl;
-            sumHauteur += numDefault * dh;
+            sumEpaisseur += numDefault * de;
             if (q > 0) {
                 lot.allotissement._avgLongueur = sumLongueur / q;
                 lot.allotissement._avgLargeur = sumLargeur / q;
-                lot.allotissement._avgHauteur = sumHauteur / q;
+                lot.allotissement._avgEpaisseur = sumEpaisseur / q;
             } else {
                 lot.allotissement._avgLongueur = L;
                 lot.allotissement._avgLargeur = l;
-                lot.allotissement._avgHauteur = h;
+                lot.allotissement._avgEpaisseur = e;
             }
 
             // Moyenne âge arbre et année de mise en service pour le groupe "Amortissement biologique" du lot
@@ -2228,7 +2236,7 @@ class ValoboisApp {
         } else {
             lot.allotissement._avgLongueur = L;
             lot.allotissement._avgLargeur = l;
-            lot.allotissement._avgHauteur = h;
+            lot.allotissement._avgEpaisseur = e;
             lot.allotissement._avgAgeArbre = null;
             lot.allotissement._avgServiceYear = null;
         }
@@ -2237,7 +2245,7 @@ class ValoboisApp {
     recalculatePiece(piece, lot) {
         const L = parseFloat(piece.longueur) || 0;
         const l = parseFloat(piece.largeur) || 0;
-        const h = parseFloat(piece.hauteur) || 0;
+        const e = parseFloat(piece.epaisseur) || 0;
         const d = parseFloat(piece.diametre) || 0;
         const pm = parseFloat(piece.prixMarche || lot.allotissement.prixMarche) || 0;
         const priceUnitRaw = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
@@ -2249,7 +2257,7 @@ class ValoboisApp {
             const rayon = d / 2;
             piece.volumePiece = (Math.PI * rayon * rayon * L) / 1000000000;
         } else {
-            piece.volumePiece = (L * l * h) / 1000000000;
+            piece.volumePiece = (L * l * e) / 1000000000;
         }
 
         const lineairePiece = L / 1000;
@@ -5525,9 +5533,9 @@ closeEvalOpModal() {
             : '...';
 
         const hasDiametre = dpPreview.diametre !== '' && dpPreview.diametre != null;
-        const hasLH = (dpPreview.largeur !== '' && dpPreview.largeur != null) || (dpPreview.hauteur !== '' && dpPreview.hauteur != null);
+        const hasLH = (dpPreview.largeur !== '' && dpPreview.largeur != null) || (dpPreview.epaisseur !== '' && dpPreview.epaisseur != null);
         const _lDim = parseFloat(dpPreview.largeur) || 0;
-        const _hDim = parseFloat(dpPreview.hauteur) || 0;
+        const _hDim = parseFloat(dpPreview.epaisseur) || 0;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
 
@@ -5619,8 +5627,8 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label">Épaisseur</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${dpPreview.hauteur !== '' && dpPreview.hauteur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.hauteur))}" placeholder="Chant, Rive…" data-default-piece-input="hauteur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                            <div class="lot-dimension-input-wrap" data-has-value="${dpPreview.epaisseur !== '' && dpPreview.epaisseur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
@@ -5780,9 +5788,9 @@ closeEvalOpModal() {
             : '...';
 
         const hasDiametre = piece.diametre !== '' && piece.diametre != null;
-        const hasLH = (piece.largeur !== '' && piece.largeur != null) || (piece.hauteur !== '' && piece.hauteur != null);
+        const hasLH = (piece.largeur !== '' && piece.largeur != null) || (piece.epaisseur !== '' && piece.epaisseur != null);
         const _lDim = parseFloat(piece.largeur) || 0;
-        const _hDim = parseFloat(piece.hauteur) || 0;
+        const _hDim = parseFloat(piece.epaisseur) || 0;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
 
@@ -5856,8 +5864,8 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label">Épaisseur</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${piece.hauteur !== '' && piece.hauteur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.hauteur)}" placeholder="Chant, Rive…" data-piece-input="hauteur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                            <div class="lot-dimension-input-wrap" data-has-value="${piece.epaisseur !== '' && piece.epaisseur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.epaisseur)}" placeholder="Chant, Rive…" data-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
@@ -6048,9 +6056,9 @@ closeEvalOpModal() {
                         : '...';
 
         const hasDiametre = lot.allotissement.diametre !== '' && lot.allotissement.diametre != null;
-        const hasLargeurHauteur = (lot.allotissement.largeur !== '' && lot.allotissement.largeur != null) || (lot.allotissement.hauteur !== '' && lot.allotissement.hauteur != null);
+        const hasLargeurEpaisseur = (lot.allotissement.largeur !== '' && lot.allotissement.largeur != null) || (lot.allotissement.epaisseur !== '' && lot.allotissement.epaisseur != null);
         const _lDim = parseFloat(lot.allotissement.largeur) || 0;
-        const _hDim = parseFloat(lot.allotissement.hauteur) || 0;
+        const _hDim = parseFloat(lot.allotissement.epaisseur) || 0;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
         const locationSituationGroups = this.getLotLocationSituationGroups(lot);
@@ -6072,10 +6080,10 @@ closeEvalOpModal() {
         const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
         const displayLongueur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLongueur || 0)) : lot.allotissement.longueur;
         const displayLargeur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgLargeur || 0)) : lot.allotissement.largeur;
-        const displayHauteur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgHauteur || 0)) : lot.allotissement.hauteur;
+        const displayEpaisseur = hasDetailDimensions ? String(Math.round(lot.allotissement._avgEpaisseur || 0)) : lot.allotissement.epaisseur;
         const hasDisplayLongueur = displayLongueur !== '' && displayLongueur != null;
         const hasDisplayLargeur = displayLargeur !== '' && displayLargeur != null;
-        const hasDisplayHauteur = displayHauteur !== '' && displayHauteur != null;
+        const hasDisplayEpaisseur = displayEpaisseur !== '' && displayEpaisseur != null;
 
         card.innerHTML = `
             <div class="lot-card-header">
@@ -6220,11 +6228,11 @@ closeEvalOpModal() {
                             </div>
                             <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
                                 <label class="lot-field-label">Épaisseur</label>
-                                <div class="lot-dimension-input-wrap" data-has-value="${hasDisplayHauteur ? 'true' : 'false'}">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayHauteur)}" data-lot-input="hauteur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                                <div class="lot-dimension-input-wrap" data-has-value="${hasDisplayEpaisseur ? 'true' : 'false'}">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayEpaisseur)}" data-lot-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                     <span class="lot-dimension-unit">mm</span>
                                 </div>
-                                <div class="lot-dimension-computed"${hasLargeurHauteur ? ' data-muted="true"' : ''}>
+                                <div class="lot-dimension-computed"${hasLargeurEpaisseur ? ' data-muted="true"' : ''}>
                                     <label class="lot-field-label">Diamètre</label>
                                     <div class="lot-input-with-unit">
                                         <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.diametre)}" data-lot-input="diametre">
@@ -6418,7 +6426,7 @@ closeEvalOpModal() {
             card.querySelector('[data-display="volumeLot"]').value = formatOneDecimal(lot.allotissement.volumeLot);
             const diametreActif = (lot.allotissement.diametre || '') !== '';
             const _lv = parseFloat(lot.allotissement.largeur) || 0;
-            const _hv = parseFloat(lot.allotissement.hauteur) || 0;
+            const _hv = parseFloat(lot.allotissement.epaisseur) || 0;
             const surfaceMutedByShape = _hv > 55 || (_lv > 0 && _hv > 0 && _lv / _hv <= 4);
             const surfaceMuted = diametreActif || surfaceMutedByShape;
             card.querySelector('[data-display="surfacePiece"]').value = surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfacePiece);
@@ -6490,15 +6498,15 @@ closeEvalOpModal() {
             if (nbPieces > 0 || defaultQty > 0) {
                 const longueurInput = card.querySelector('input[data-lot-input="longueur"]');
                 const largeurInput = card.querySelector('input[data-lot-input="largeur"]');
-                const hauteurInput = card.querySelector('input[data-lot-input="hauteur"]');
+                const epaisseurInput = card.querySelector('input[data-lot-input="epaisseur"]');
                 if (longueurInput && document.activeElement !== longueurInput) {
                     longueurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLongueur || 0)));
                 }
                 if (largeurInput && document.activeElement !== largeurInput) {
                     largeurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgLargeur || 0)));
                 }
-                if (hauteurInput && document.activeElement !== hauteurInput) {
-                    hauteurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgHauteur || 0)));
+                if (epaisseurInput && document.activeElement !== epaisseurInput) {
+                    epaisseurInput.value = this.formatAllotissementNumericDisplay(String(Math.round(lot.allotissement._avgEpaisseur || 0)));
                 }
             }
 
@@ -6800,20 +6808,20 @@ closeEvalOpModal() {
                 if (field === 'diametre') {
                     const hasDiameter = (lot.allotissement.diametre || '') !== '';
                     const largeurInput = card.querySelector('input[data-lot-input="largeur"]');
-                    const hauteurInput = card.querySelector('input[data-lot-input="hauteur"]');
+                    const epaisseurInput = card.querySelector('input[data-lot-input="epaisseur"]');
                     if (hasDiameter) {
                         lot.allotissement.largeur = '';
-                        lot.allotissement.hauteur = '';
+                        lot.allotissement.epaisseur = '';
                         if (largeurInput) {
                             largeurInput.value = '';
                             if (largeurInput.parentElement && largeurInput.parentElement.classList.contains('lot-dimension-input-wrap')) {
                                 largeurInput.parentElement.dataset.hasValue = 'false';
                             }
                         }
-                        if (hauteurInput) {
-                            hauteurInput.value = '';
-                            if (hauteurInput.parentElement && hauteurInput.parentElement.classList.contains('lot-dimension-input-wrap')) {
-                                hauteurInput.parentElement.dataset.hasValue = 'false';
+                        if (epaisseurInput) {
+                            epaisseurInput.value = '';
+                            if (epaisseurInput.parentElement && epaisseurInput.parentElement.classList.contains('lot-dimension-input-wrap')) {
+                                epaisseurInput.parentElement.dataset.hasValue = 'false';
                             }
                         }
                     }
@@ -6821,9 +6829,9 @@ closeEvalOpModal() {
                         const largeurField = largeurInput.closest('.lot-dimension-field');
                         if (largeurField) largeurField.dataset.muted = hasDiameter ? 'true' : 'false';
                     }
-                    if (hauteurInput) {
-                        const hauteurField = hauteurInput.closest('.lot-dimension-field');
-                        if (hauteurField) hauteurField.dataset.muted = hasDiameter ? 'true' : 'false';
+                    if (epaisseurInput) {
+                        const epaisseurField = epaisseurInput.closest('.lot-dimension-field');
+                        if (epaisseurField) epaisseurField.dataset.muted = hasDiameter ? 'true' : 'false';
                     }
                     const surfacePieceComputed = card.querySelector('[data-display="surfacePiece"]')?.closest('.lot-dimension-computed');
                     const surfaceLotComputed = card.querySelector('[data-display="surfaceLot"]')?.closest('.lot-dimension-computed');
@@ -6831,10 +6839,10 @@ closeEvalOpModal() {
                     if (surfaceLotComputed) surfaceLotComputed.dataset.muted = hasDiameter ? 'true' : 'false';
                 }
 
-                if (field === 'largeur' || field === 'hauteur') {
-                    const hasLargeurHauteurNow = (lot.allotissement.largeur || '') !== '' || (lot.allotissement.hauteur || '') !== '';
+                if (field === 'largeur' || field === 'epaisseur') {
+                    const hasLargeurEpaisseurNow = (lot.allotissement.largeur || '') !== '' || (lot.allotissement.epaisseur || '') !== '';
                     const diametreInput = card.querySelector('input[data-lot-input="diametre"]');
-                    if (hasLargeurHauteurNow) {
+                    if (hasLargeurEpaisseurNow) {
                         lot.allotissement.diametre = '';
                         if (diametreInput) diametreInput.value = '';
                         const surfacePieceComputed = card.querySelector('[data-display="surfacePiece"]')?.closest('.lot-dimension-computed');
@@ -6844,7 +6852,7 @@ closeEvalOpModal() {
                     }
                     if (diametreInput) {
                         const diametreComputed = diametreInput.closest('.lot-dimension-computed');
-                        if (diametreComputed) diametreComputed.dataset.muted = hasLargeurHauteurNow ? 'true' : 'false';
+                        if (diametreComputed) diametreComputed.dataset.muted = hasLargeurEpaisseurNow ? 'true' : 'false';
                     }
                 }
 
@@ -6897,16 +6905,16 @@ closeEvalOpModal() {
                 e.target.value = this.normalizeAllotissementNumericInput(e.target.value);
 
                 // Démutage automatique au clic : vider le mode opposé et lever le grisage
-                if ((field === 'largeur' || field === 'hauteur') && (lot.allotissement.diametre || '') !== '') {
+                if ((field === 'largeur' || field === 'epaisseur') && (lot.allotissement.diametre || '') !== '') {
                     lot.allotissement.diametre = '';
                     const diametreInput = card.querySelector('input[data-lot-input="diametre"]');
                     if (diametreInput) diametreInput.value = '';
                     const diametreComputed = diametreInput && diametreInput.closest('.lot-dimension-computed');
                     if (diametreComputed) diametreComputed.dataset.muted = 'false';
                     const largeurField = card.querySelector('input[data-lot-input="largeur"]')?.closest('.lot-dimension-field');
-                    const hauteurField = card.querySelector('input[data-lot-input="hauteur"]')?.closest('.lot-dimension-field');
+                    const epaisseurField = card.querySelector('input[data-lot-input="epaisseur"]')?.closest('.lot-dimension-field');
                     if (largeurField) largeurField.dataset.muted = 'false';
-                    if (hauteurField) hauteurField.dataset.muted = 'false';
+                    if (epaisseurField) epaisseurField.dataset.muted = 'false';
                     const surfacePieceComputed = card.querySelector('[data-display="surfacePiece"]')?.closest('.lot-dimension-computed');
                     const surfaceLotComputed = card.querySelector('[data-display="surfaceLot"]')?.closest('.lot-dimension-computed');
                     if (surfacePieceComputed) surfacePieceComputed.dataset.muted = 'false';
@@ -6914,26 +6922,26 @@ closeEvalOpModal() {
                 }
 
                 if (field === 'diametre') {
-                    const hasLH = (lot.allotissement.largeur || '') !== '' || (lot.allotissement.hauteur || '') !== '';
+                    const hasLH = (lot.allotissement.largeur || '') !== '' || (lot.allotissement.epaisseur || '') !== '';
                     if (hasLH) {
                         lot.allotissement.largeur = '';
-                        lot.allotissement.hauteur = '';
+                        lot.allotissement.epaisseur = '';
                         const largeurInput = card.querySelector('input[data-lot-input="largeur"]');
-                        const hauteurInput = card.querySelector('input[data-lot-input="hauteur"]');
+                        const epaisseurInput = card.querySelector('input[data-lot-input="epaisseur"]');
                         if (largeurInput) {
                             largeurInput.value = '';
                             if (largeurInput.parentElement?.classList.contains('lot-dimension-input-wrap'))
                                 largeurInput.parentElement.dataset.hasValue = 'false';
                         }
-                        if (hauteurInput) {
-                            hauteurInput.value = '';
-                            if (hauteurInput.parentElement?.classList.contains('lot-dimension-input-wrap'))
-                                hauteurInput.parentElement.dataset.hasValue = 'false';
+                        if (epaisseurInput) {
+                            epaisseurInput.value = '';
+                            if (epaisseurInput.parentElement?.classList.contains('lot-dimension-input-wrap'))
+                                epaisseurInput.parentElement.dataset.hasValue = 'false';
                         }
                         const largeurField = largeurInput?.closest('.lot-dimension-field');
-                        const hauteurField = hauteurInput?.closest('.lot-dimension-field');
+                        const epaisseurField = epaisseurInput?.closest('.lot-dimension-field');
                         if (largeurField) largeurField.dataset.muted = 'false';
-                        if (hauteurField) hauteurField.dataset.muted = 'false';
+                        if (epaisseurField) epaisseurField.dataset.muted = 'false';
                         const diametreComputed = e.target.closest('.lot-dimension-computed');
                         if (diametreComputed) diametreComputed.dataset.muted = 'false';
                         updateCalculs();
@@ -7045,7 +7053,7 @@ closeEvalOpModal() {
                         dp.essence = '';
                         dp.longueur = '';
                         dp.largeur = '';
-                        dp.hauteur = '';
+                        dp.epaisseur = '';
                         dp.diametre = '';
                         dp.prixUnite = '';
                         dp.prixMarche = '';
@@ -7166,12 +7174,12 @@ closeEvalOpModal() {
                     const hasDiam = (dp.diametre || '') !== '';
                     if (hasDiam) {
                         dp.largeur = '';
-                        dp.hauteur = '';
+                        dp.epaisseur = '';
                     }
                 }
 
-                if (field === 'largeur' || field === 'hauteur') {
-                    const hasLHNow = (dp.largeur || '') !== '' || (dp.hauteur || '') !== '';
+                if (field === 'largeur' || field === 'epaisseur') {
+                    const hasLHNow = (dp.largeur || '') !== '' || (dp.epaisseur || '') !== '';
                     if (hasLHNow) dp.diametre = '';
                 }
 
@@ -7357,24 +7365,24 @@ closeEvalOpModal() {
                         piece[field] = e.target.value;
                     }
 
-                    // Exclusion mutuelle diamètre/largeur-hauteur
+                    // Exclusion mutuelle diamètre/largeur-epaisseur
                     if (field === 'diametre') {
                         const hasDiam = (piece.diametre || '') !== '';
                         if (hasDiam) {
-                            piece.largeur = ''; piece.hauteur = '';
+                            piece.largeur = ''; piece.epaisseur = '';
                             const lI = pieceCard.querySelector('input[data-piece-input="largeur"]');
-                            const hI = pieceCard.querySelector('input[data-piece-input="hauteur"]');
+                            const hI = pieceCard.querySelector('input[data-piece-input="epaisseur"]');
                             if (lI) { lI.value = ''; if (lI.parentElement?.classList.contains('lot-dimension-input-wrap')) lI.parentElement.dataset.hasValue = 'false'; }
                             if (hI) { hI.value = ''; if (hI.parentElement?.classList.contains('lot-dimension-input-wrap')) hI.parentElement.dataset.hasValue = 'false'; }
                         }
                         const lField = pieceCard.querySelector('input[data-piece-input="largeur"]')?.closest('.lot-dimension-field');
-                        const hField = pieceCard.querySelector('input[data-piece-input="hauteur"]')?.closest('.lot-dimension-field');
+                        const hField = pieceCard.querySelector('input[data-piece-input="epaisseur"]')?.closest('.lot-dimension-field');
                         if (lField) lField.dataset.muted = hasDiam ? 'true' : 'false';
                         if (hField) hField.dataset.muted = hasDiam ? 'true' : 'false';
                     }
 
-                    if (field === 'largeur' || field === 'hauteur') {
-                        const hasLH = (piece.largeur || '') !== '' || (piece.hauteur || '') !== '';
+                    if (field === 'largeur' || field === 'epaisseur') {
+                        const hasLH = (piece.largeur || '') !== '' || (piece.epaisseur || '') !== '';
                         if (hasLH) {
                             piece.diametre = '';
                             const dI = pieceCard.querySelector('input[data-piece-input="diametre"]');
@@ -8946,9 +8954,9 @@ updateGeoRow(row, key, lot) {
 
     const updateGeoAlertBtns = () => {
         if (massiviteAlertBtn) {
-            const epaisseurValue = lot && lot.allotissement && lot.allotissement._avgHauteur != null
-                ? String(lot.allotissement._avgHauteur)
-                : (lot && lot.allotissement && lot.allotissement.hauteur != null ? String(lot.allotissement.hauteur) : '');
+            const epaisseurValue = lot && lot.allotissement && lot.allotissement._avgEpaisseur != null
+                ? String(lot.allotissement._avgEpaisseur)
+                : (lot && lot.allotissement && lot.allotissement.epaisseur != null ? String(lot.allotissement.epaisseur) : '');
             const state = this.getMassiviteAlertState(epaisseurValue);
             massiviteAlertBtn.dataset.alertMassiviteState = state;
         }
@@ -10724,7 +10732,7 @@ renderRadar() {
                 formatDimensionsLabel(
                     firstFilled(piece && piece.longueur, allot.longueur),
                     firstFilled(piece && piece.largeur, allot.largeur),
-                    firstFilled(piece && piece.hauteur, allot.hauteur)
+                    firstFilled(piece && piece.epaisseur, allot.epaisseur)
                 )
             ));
         });
@@ -10738,7 +10746,7 @@ renderRadar() {
                 formatDimensionsLabel(
                     firstFilled(defaultPiece.longueur, allot.longueur),
                     firstFilled(defaultPiece.largeur, allot.largeur),
-                    firstFilled(defaultPiece.hauteur, allot.hauteur)
+                    firstFilled(defaultPiece.epaisseur, allot.epaisseur)
                 )
             ));
         }
@@ -12173,16 +12181,16 @@ renderRadar() {
         const hasDetailDimensions = this.getLotQuantityFromDetail(currentLot) > 0;
         const displayLongueur = hasDetailDimensions ? String(Math.round(allotissement._avgLongueur || 0)) : (allotissement.longueur || '');
         const displayLargeur  = hasDetailDimensions ? String(Math.round(allotissement._avgLargeur  || 0)) : (allotissement.largeur  || '');
-        const displayHauteur  = hasDetailDimensions ? String(Math.round(allotissement._avgHauteur  || 0)) : (allotissement.hauteur  || '');
+        const displayEpaisseur  = hasDetailDimensions ? String(Math.round(allotissement._avgEpaisseur  || 0)) : (allotissement.epaisseur  || '');
         const displayDiametre = allotissement.diametre || '';
-        const hasDim = displayLongueur !== '' || displayLargeur !== '' || displayHauteur !== '' || displayDiametre !== '';
+        const hasDim = displayLongueur !== '' || displayLargeur !== '' || displayEpaisseur !== '' || displayDiametre !== '';
         let dimensionsValue;
         if (!hasDim) {
             dimensionsValue = '—';
         } else if (displayDiametre !== '') {
             dimensionsValue = (displayLongueur ? displayLongueur + ' × ' : '') + 'ø' + displayDiametre;
         } else {
-            dimensionsValue = [displayLongueur, displayLargeur, displayHauteur].map((v) => v || '0').join(' × ');
+            dimensionsValue = [displayLongueur, displayLargeur, displayEpaisseur].map((v) => v || '0').join(' × ');
         }
 
         const lotPairs = [
@@ -12634,7 +12642,7 @@ renderRadar() {
                 return (v != null && v !== '') ? v : '-';
             } },
             { label: 'Hauteur / Epaisseur (mm)', getValue: (lot) => {
-                const v = ((lot && lot.allotissement) || {}).hauteur;
+                const v = ((lot && lot.allotissement) || {}).epaisseur;
                 return (v != null && v !== '') ? v : '-';
             } },
             { label: 'Diamètre (mm)', getValue: (lot) => {
