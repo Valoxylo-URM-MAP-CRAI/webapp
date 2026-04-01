@@ -2991,54 +2991,78 @@ class ValoboisApp {
                 if (hasConformityBounds) {
                     let nbConformes = 0;
                     let nbRecoupe = 0;
-                    let nbTropCourt = 0;
-                    let nbReusinageL = 0;
-                    let nbReusinageE = 0;
-                    let nbReusinageD = 0;
+                    let nbCorroyage = 0;
+                    let nbRecoupeCorroyage = 0;
+                    let nbBoisCourt = 0;
+                    let nbRejet = 0;
 
                     const classifyPiece = (Lx, lax, ex, dx, count) => {
-                        let isTropCourt = false;
-                        let isRecoupe = false;
-                        let isReusinageL = false;
-                        let isReusinageE = false;
-                        let isReusinageD = false;
-
                         const bL = similarityBoundsByDim.longueur || {};
                         const vL = parseFloat(Lx);
-                        if (Number.isFinite(vL) && vL > 0) {
-                            if (bL.min != null && vL < bL.min) isTropCourt = true;
-                            if (bL.max != null && vL > bL.max) {
-                                isRecoupe = true;
-                                isReusinageL = true;
-                            }
+
+                        // Check for invalid or missing length
+                        if (!Number.isFinite(vL) || vL <= 0) {
+                            nbRejet += count;
+                            return;
                         }
+
+                        // Check for Bois court (length < min)
+                        if (bL.min != null && vL < bL.min) {
+                            nbBoisCourt += count;
+                            return;
+                        }
+
+                        // Check section constraints
+                        let hasSectionMax = false;
 
                         if (lotHasDiametreForSimilarity) {
                             const bD = similarityBoundsByDim.diametre || {};
                             const vD = parseFloat(dx);
+                            // Check for invalid section (< min)
+                            if (bD.min != null && Number.isFinite(vD) && vD < bD.min) {
+                                nbRejet += count;
+                                return;
+                            }
+                            // Check for section > max
                             if (bD.max != null && Number.isFinite(vD) && vD > bD.max) {
-                                isReusinageD = true;
+                                hasSectionMax = true;
                             }
                         } else {
                             const bLa = similarityBoundsByDim.largeur || {};
                             const bE = similarityBoundsByDim.epaisseur || {};
                             const vLa = parseFloat(lax);
                             const vE = parseFloat(ex);
+                            // Check for invalid section (< min)
+                            if (bLa.min != null && Number.isFinite(vLa) && vLa < bLa.min) {
+                                nbRejet += count;
+                                return;
+                            }
+                            if (bE.min != null && Number.isFinite(vE) && vE < bE.min) {
+                                nbRejet += count;
+                                return;
+                            }
+                            // Check for section > max
                             if (bLa.max != null && Number.isFinite(vLa) && vLa > bLa.max) {
-                                isReusinageL = true;
+                                hasSectionMax = true;
                             }
                             if (bE.max != null && Number.isFinite(vE) && vE > bE.max) {
-                                isReusinageE = true;
+                                hasSectionMax = true;
                             }
                         }
 
-                        const isConforme = !isTropCourt && !isRecoupe && !isReusinageL && !isReusinageE && !isReusinageD;
-                        if (isConforme) nbConformes += count;
-                        if (isRecoupe) nbRecoupe += count;
-                        if (isTropCourt) nbTropCourt += count;
-                        if (isReusinageL) nbReusinageL += count;
-                        if (isReusinageE) nbReusinageE += count;
-                        if (isReusinageD) nbReusinageD += count;
+                        // Check for length > max
+                        const hasLengthMax = bL.max != null && vL > bL.max;
+
+                        // Classify based on violations (mutually exclusive categories)
+                        if (!hasLengthMax && !hasSectionMax) {
+                            nbConformes += count;  // All dimensions within bounds
+                        } else if (hasLengthMax && !hasSectionMax) {
+                            nbRecoupe += count;  // Length > max, section OK
+                        } else if (!hasLengthMax && hasSectionMax) {
+                            nbCorroyage += count;  // Length OK, section > max
+                        } else {
+                            nbRecoupeCorroyage += count;  // Both violations
+                        }
                     };
 
                     lot.pieces.forEach((p) => {
@@ -3053,13 +3077,15 @@ class ValoboisApp {
                         classifyPiece(dL, dl, de, dd, numDefault);
                     }
 
+                    const totalPieces = nbConformes + nbRecoupe + nbCorroyage + nbRecoupeCorroyage + nbBoisCourt + nbRejet;
                     lot.allotissement.conformiteLot = {
                         nbConformes,
                         nbRecoupe,
-                        nbTropCourt,
-                        nbReusinageL,
-                        nbReusinageE,
-                        nbReusinageD,
+                        nbCorroyage,
+                        nbRecoupeCorroyage,
+                        nbBoisCourt,
+                        nbRejet,
+                        totalPieces,
                         tauxConformite: q > 0 ? Math.round(nbConformes / q * 100) : null,
                     };
                 } else {
@@ -7221,7 +7247,7 @@ closeEvalOpModal() {
                         <p class="lot-group-title">Groupe : dimensions, volumes, surface</p>
                         <div class="lot-inline-grid lot-inline-grid--lot-dimensions">
                             <div class="lot-dimension-field">
-                                <label class="lot-field-label">Longueur</label>
+                                <label class="lot-field-label">Longueur Moy.</label>
                                 <div class="lot-dimension-input-wrap" data-has-value="${hasDisplayLongueur ? 'true' : 'false'}">
                                     <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayLongueur)}" data-lot-input="longueur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                     <span class="lot-dimension-unit">mm</span>
@@ -7242,7 +7268,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                             <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
-                                <label class="lot-field-label">Largeur/Hauteur</label>
+                                <label class="lot-field-label">Largeur Moy.</label>
                                 <div class="lot-dimension-input-wrap" data-has-value="${hasDisplayLargeur ? 'true' : 'false'}">
                                     <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayLargeur)}" data-lot-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                     <span class="lot-dimension-unit">mm</span>
@@ -7263,7 +7289,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                             <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
-                                <label class="lot-field-label">Épaisseur</label>
+                                <label class="lot-field-label">Épaisseur Moy.</label>
                                 <div class="lot-dimension-input-wrap" data-has-value="${hasDisplayEpaisseur ? 'true' : 'false'}">
                                     <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(displayEpaisseur)}" data-lot-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                     <span class="lot-dimension-unit">mm</span>
@@ -7318,6 +7344,8 @@ closeEvalOpModal() {
                                 <p class="lot-field-meta">
                                     Similarité des pièces au regard de la pièce type et des seuils de destination
                                 </p>
+                                <div class="lot-taux-piece-type">
+                                    <p class="lot-taux-piece-type-title">Pièce type</p>
                                     <div class="lot-dest-medoide-label lot-dest-medoide-label--taux" data-display="medoideLabel">
                                         ${lot.allotissement.medoideLabel
                                             ? `${lot.allotissement.medoideLabel}${lot.allotissement.medoideScore !== null
@@ -7325,6 +7353,7 @@ closeEvalOpModal() {
                                                 : ''}`
                                             : 'Non calculé (≥ 2 pièces requises)'}
                                     </div>
+                                </div>
                             </div>
                         </div>
                         <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest" ${this.data?.ui?.collapsibles?.['seuils-dest'] === false ? '' : 'open'}>
@@ -7415,41 +7444,48 @@ closeEvalOpModal() {
                                 <p class="lot-seuils-section-title" style="margin-top:10px;">
                                     Conformité du lot
                                 </p>
-                                <div class="lot-seuils-poids-grid">
-                                    <div class="lot-seuils-dim-label">Conformes</div>
-                                    <div class="lot-seuils-input-wrap">
-                                        <input type="text" readonly class="lot-seuils-poids-input"
-                                               data-display="conformiteConformes"
-                                               value="${lot.allotissement.conformiteLot.nbConformes}">
-                                        <span class="lot-seuils-unit">
-                                            (${lot.allotissement.conformiteLot.tauxConformite}\u00a0%)
-                                        </span>
+                                <div class="lot-conformite-gauges">
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">Conforme</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbConformes / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbConformes}</span>
                                     </div>
-                                </div>
-                                <div class="lot-seuils-poids-grid">
-                                    <div class="lot-seuils-dim-label">Recoupe</div>
-                                    <div class="lot-seuils-input-wrap">
-                                        <input type="text" readonly class="lot-seuils-poids-input"
-                                               data-display="conformiteRecoupe"
-                                               value="${lot.allotissement.conformiteLot.nbRecoupe}">
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">Recoupe</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbRecoupe / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbRecoupe}</span>
                                     </div>
-                                </div>
-                                <div class="lot-seuils-poids-grid">
-                                    <div class="lot-seuils-dim-label">Trop court</div>
-                                    <div class="lot-seuils-input-wrap">
-                                        <input type="text" readonly class="lot-seuils-poids-input"
-                                               data-display="conformiteTropCourt"
-                                               value="${lot.allotissement.conformiteLot.nbTropCourt}">
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">Corroyage</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbCorroyage / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbCorroyage}</span>
                                     </div>
-                                </div>
-                                <div class="lot-seuils-poids-grid">
-                                    <div class="lot-seuils-dim-label">Réusinage</div>
-                                    <div class="lot-seuils-input-wrap">
-                                        <input type="text" readonly class="lot-seuils-poids-input"
-                                               data-display="conformiteReusinage"
-                                               value="${lot.allotissement.conformiteLot.nbReusinageL
-                                                    + lot.allotissement.conformiteLot.nbReusinageE
-                                                    + lot.allotissement.conformiteLot.nbReusinageD}">
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">R&amp;C</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbRecoupeCorroyage / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbRecoupeCorroyage}</span>
+                                    </div>
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">Bois court</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbBoisCourt / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbBoisCourt}</span>
+                                    </div>
+                                    <div class="lot-conformite-gauge-row">
+                                        <span class="lot-conformite-gauge-label">Rejet</span>
+                                        <div class="lot-conformite-gauge-track">
+                                            <div class="lot-conformite-gauge-fill" style="width: ${lot.allotissement.conformiteLot.totalPieces > 0 ? (lot.allotissement.conformiteLot.nbRejet / lot.allotissement.conformiteLot.totalPieces * 100) : 0}%"></div>
+                                        </div>
+                                        <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbRejet}</span>
                                     </div>
                                 </div>
                                 ` : ''}

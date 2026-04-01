@@ -1787,9 +1787,33 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding: 3px 6px;
     margin-top: 2px;
 }
+.lot-field-block--taux-similarite {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.lot-field-block--taux-similarite .lot-input-with-unit {
+    max-width: 160px;
+}
+.lot-taux-piece-type {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(29, 61, 150, 0.12);
+}
+.lot-taux-piece-type-title {
+    margin: 0;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
 .lot-dest-medoide-label--taux {
     display: block;
-    margin-top: 8px;
+    margin-top: 0;
+    background: rgba(29, 61, 150, 0.08);
 }
 /* Masquer visuellement le panneau EIqAbs héritage
    sans casser son fonctionnement JS */
@@ -1802,6 +1826,45 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-seuils-poids-input::-webkit-outer-spin-button,
 .lot-seuils-poids-input::-webkit-inner-spin-button {
     -webkit-appearance: none; margin: 0;
+}
+
+/* Gauges de conformité du lot — 6 catégories exclusives */
+.lot-conformite-gauges {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+.lot-conformite-gauge-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.lot-conformite-gauge-label {
+    min-width: 80px;
+    font-size: var(--font-size-xs);
+    white-space: nowrap;
+    color: var(--color-text);
+}
+.lot-conformite-gauge-track {
+    flex-grow: 1;
+    height: 16px;
+    background-color: #E6E6E6;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+.lot-conformite-gauge-fill {
+    height: 100%;
+    background-color: #B3B3B3;
+    border-radius: inherit;
+    transition: width 200ms ease-in-out;
+}
+.lot-conformite-gauge-count {
+    min-width: 40px;
+    text-align: right;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text);
 }
 
 .lot-dimension-field[data-muted="true"] > .lot-dimension-input-wrap .lot-dimension-unit {
