@@ -1016,6 +1016,24 @@
                 </div>
             </div>
 
+            <!-- Modale confirmation suppression de pièce par défaut -->
+            <div class="modal-backdrop hidden" id="deleteDefaultPieceConfirmBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteDefaultPieceConfirmTitle">
+                    <header class="modal-header">
+                        <h2 id="deleteDefaultPieceConfirmTitle" class="text-center">Supprimer la pièce par défaut</h2>
+                        <button class="modal-close" type="button" id="btnCloseDeleteDefaultPieceConfirm">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p id="deleteDefaultPieceConfirmMessage" style="text-align:center;">Voulez-vous vraiment supprimer cette pièce par défaut&nbsp;?</p>
+                    </div>
+                    <footer class="modal-footer" style="flex-direction: column; align-items: stretch;">
+                        <button class="btn btn-primary btn-full" type="button" id="btnConfirmDeleteDefaultPieceGenerate">Supprimer la pièce par défaut pour générer des formulaires de pièces</button>
+                        <button class="btn btn-secondary btn-full" type="button" id="btnConfirmDeleteDefaultPieceOnly">Supprimer la pièce par défaut et les données qu'elle contenait</button>
+                        <button class="btn btn-secondary btn-full" type="button" id="btnCancelDeleteDefaultPiece">Annuler</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale confirmation déduction pièce par défaut -->
             <div class="modal-backdrop hidden" id="createPieceDeductionBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="createPieceDeductionTitle">

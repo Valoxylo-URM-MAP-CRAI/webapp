@@ -423,9 +423,9 @@ class ValoboisApp {
         return target;
     }
 
-    ensureDefaultPiecesData(lot) {
+    ensureDefaultPiecesData(lot, { createIfEmpty = false } = {}) {
         if (!lot) {
-            return [this.ensureDefaultPieceShape(null, this.createEmptyDefaultPiece())];
+            return createIfEmpty ? [this.ensureDefaultPieceShape(null, this.createEmptyDefaultPiece())] : [];
         }
 
         const qLot = parseFloat((lot.allotissement && lot.allotissement.quantite) || 0) || 0;
@@ -435,15 +435,15 @@ class ValoboisApp {
         const fallbackLocation = (lot.localisation || '').toString();
         const fallbackSituation = (lot.situation || '').toString();
 
-        if (!Array.isArray(lot.defaultPieces) || lot.defaultPieces.length === 0) {
+        if (!Array.isArray(lot.defaultPieces)) {
             const basePiece = (lot.defaultPiece && typeof lot.defaultPiece === 'object')
                 ? lot.defaultPiece
-                : this.createEmptyDefaultPiece();
-            lot.defaultPieces = [this.ensureDefaultPieceShape(lot, basePiece, {
+                : null;
+            lot.defaultPieces = basePiece ? [this.ensureDefaultPieceShape(lot, basePiece, {
                 fallbackQty,
                 fallbackLocation,
                 fallbackSituation
-            })];
+            })] : [];
         } else {
             lot.defaultPieces = lot.defaultPieces
                 .filter((piece) => piece && typeof piece === 'object')
@@ -454,7 +454,7 @@ class ValoboisApp {
                 }));
         }
 
-        if (!lot.defaultPieces.length) {
+        if (createIfEmpty && !lot.defaultPieces.length) {
             lot.defaultPieces = [this.ensureDefaultPieceShape(lot, this.createEmptyDefaultPiece(), {
                 fallbackQty,
                 fallbackLocation,
@@ -462,21 +462,21 @@ class ValoboisApp {
             })];
         }
 
-        lot.defaultPiece = lot.defaultPieces[0];
+        lot.defaultPiece = lot.defaultPieces[0] || null;
         return lot.defaultPieces;
     }
 
     getDefaultPieceById(lot, defaultPieceId = null) {
-        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         if (defaultPieceId != null && defaultPieceId !== '') {
             const found = defaultPieces.find((piece) => piece.id === defaultPieceId);
             if (found) return found;
         }
-        return defaultPieces[0];
+        return defaultPieces[0] || null;
     }
 
     getTotalDefaultPieceQuantity(lot) {
-        return this.ensureDefaultPiecesData(lot).reduce((sum, piece) => {
+        return this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).reduce((sum, piece) => {
             return sum + Math.max(0, parseFloat(piece && piece.quantite) || 0);
         }, 0);
     }
@@ -513,24 +513,27 @@ class ValoboisApp {
         const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
         const a = lot && lot.allotissement ? lot.allotissement : {};
         const piece = this.createEmptyPiece(index);
-        piece.sourceDefaultPieceId = dp && dp.id ? dp.id : null;
-        piece.localisation = dp.localisation || '';
-        piece.situation = dp.situation || '';
-        piece.typePiece = dp.typePiece || a.typePiece || '';
-        piece.typeProduit = dp.typeProduit || a.typeProduit || '';
-        piece.essenceNomCommun = dp.essenceNomCommun || a.essenceNomCommun || '';
-        piece.essenceNomScientifique = dp.essenceNomScientifique || a.essenceNomScientifique || '';
+        const source = dp || {};
+        piece.sourceDefaultPieceId = source.id || null;
+        piece.localisation = source.localisation || '';
+        piece.situation = source.situation || '';
+        piece.typePiece = source.typePiece || a.typePiece || '';
+        piece.typeProduit = source.typeProduit || a.typeProduit || '';
+        piece.essenceNomCommun = source.essenceNomCommun || a.essenceNomCommun || '';
+        piece.essenceNomScientifique = source.essenceNomScientifique || a.essenceNomScientifique || '';
         piece.essence = [piece.essenceNomCommun, piece.essenceNomScientifique].filter(Boolean).join(' - ');
-        piece.longueur = dp.longueur !== '' ? dp.longueur : (a.longueur || '');
-        piece.largeur = dp.largeur !== '' ? dp.largeur : (a.largeur || '');
-        piece.epaisseur = dp.epaisseur !== '' ? dp.epaisseur : (a.epaisseur || '');
-        piece.diametre = dp.diametre !== '' ? dp.diametre : (a.diametre || '');
-        piece.prixUnite = (dp.prixUnite || a.prixUnite || 'm3').toLowerCase();
-        piece.prixMarche = dp.prixMarche !== '' ? dp.prixMarche : (a.prixMarche || '');
-        piece.masseVolumique = dp.masseVolumique !== '' ? dp.masseVolumique : String(this.getInitialPieceMasseVolumique(dp));
-        piece.humidite = dp.humidite !== '' ? String(dp.humidite) : (a.humidite !== undefined ? String(a.humidite) : '');
-        piece.fractionCarbonee = dp.fractionCarbonee !== '' ? String(dp.fractionCarbonee) : (a.fractionCarbonee !== undefined ? String(a.fractionCarbonee) : '');
-        piece.bois = dp.bois !== '' ? String(dp.bois) : (a.bois !== undefined ? String(a.bois) : '');
+        piece.longueur = source.longueur !== '' && source.longueur != null ? source.longueur : (a.longueur || '');
+        piece.largeur = source.largeur !== '' && source.largeur != null ? source.largeur : (a.largeur || '');
+        piece.epaisseur = source.epaisseur !== '' && source.epaisseur != null ? source.epaisseur : (a.epaisseur || '');
+        piece.diametre = source.diametre !== '' && source.diametre != null ? source.diametre : (a.diametre || '');
+        piece.prixUnite = (source.prixUnite || a.prixUnite || 'm3').toLowerCase();
+        piece.prixMarche = source.prixMarche !== '' && source.prixMarche != null ? source.prixMarche : (a.prixMarche || '');
+        piece.masseVolumique = source.masseVolumique !== '' && source.masseVolumique != null
+            ? source.masseVolumique
+            : String(this.getInitialPieceMasseVolumique(source));
+        piece.humidite = source.humidite !== '' && source.humidite != null ? String(source.humidite) : (a.humidite !== undefined ? String(a.humidite) : '');
+        piece.fractionCarbonee = source.fractionCarbonee !== '' && source.fractionCarbonee != null ? String(source.fractionCarbonee) : (a.fractionCarbonee !== undefined ? String(a.fractionCarbonee) : '');
+        piece.bois = source.bois !== '' && source.bois != null ? String(source.bois) : (a.bois !== undefined ? String(a.bois) : '');
         return piece;
     }
 
@@ -544,7 +547,7 @@ class ValoboisApp {
             piece.sourceDefaultPieceId = dp.id;
         }
 
-        if (deductDefaultPiece) {
+        if (deductDefaultPiece && dp) {
             const currentDefaultQty = Math.max(0, parseFloat(dp.quantite || 0) || 0);
             if (currentDefaultQty > 0) {
                 dp.quantite = String(Math.max(0, currentDefaultQty - 1));
@@ -567,12 +570,12 @@ class ValoboisApp {
         lot.pieces.splice(pi, 1);
         lot.pieces.forEach((p, idx) => { p.nom = `Pi\u00e8ce ${idx + 1}`; });
 
-        if (restoreDefaultPiece) {
+        if (restoreDefaultPiece && dp) {
             const currentDefaultQty = Math.max(0, parseFloat(dp.quantite || 0) || 0);
             dp.quantite = String(currentDefaultQty + 1);
         }
 
-        this.setDetailLotActiveCardKey(lot, dp && dp.id ? `default:${dp.id}` : 'default', { persist: false });
+        this.setDetailLotActiveCardKey(lot, dp && dp.id ? `default:${dp.id}` : null, { persist: false });
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
         this.saveData();
@@ -587,7 +590,7 @@ class ValoboisApp {
         if (piece.sourceDefaultPieceId == null && dp && dp.id) {
             piece.sourceDefaultPieceId = dp.id;
         }
-        const currentDefaultQty = Math.max(0, parseFloat(dp.quantite || 0) || 0);
+        const currentDefaultQty = dp ? Math.max(0, parseFloat(dp.quantite || 0) || 0) : 0;
         if (currentDefaultQty <= 0) {
             this.addDetailedPieceToLot(lot, piece, { deductDefaultPiece: false, defaultPieceId: dp && dp.id });
             return;
@@ -601,6 +604,48 @@ class ValoboisApp {
                 });
             }
         });
+    }
+
+    deleteDefaultPieceFromLot(lot, defaultPieceId, { generateDetailedPieces = false } = {}) {
+        if (!lot || !defaultPieceId) return;
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const index = defaultPieces.findIndex((piece) => piece && piece.id === defaultPieceId);
+        if (index < 0) return;
+
+        const removedDefaultPiece = defaultPieces[index];
+        const generatedCount = generateDetailedPieces
+            ? Math.max(0, Math.floor(parseFloat((removedDefaultPiece && removedDefaultPiece.quantite) || 0) || 0))
+            : 0;
+
+        if (generatedCount > 0) {
+            for (let i = 0; i < generatedCount; i += 1) {
+                const newPiece = this.buildPieceFromDefault(lot, lot.pieces.length, defaultPieceId);
+                newPiece.sourceDefaultPieceId = null;
+                lot.pieces.push(newPiece);
+            }
+        }
+
+        defaultPieces.splice(index, 1);
+        lot.defaultPiece = defaultPieces[0] || null;
+
+        (lot.pieces || []).forEach((piece, pieceIndex) => {
+            piece.nom = `Pièce ${pieceIndex + 1}`;
+            if (piece.sourceDefaultPieceId === defaultPieceId) {
+                piece.sourceDefaultPieceId = null;
+            }
+        });
+
+        const nextDefault = defaultPieces[index] || defaultPieces[index - 1] || null;
+        const nextCardKey = nextDefault && nextDefault.id
+            ? `default:${nextDefault.id}`
+            : (lot.pieces.length > 0 ? `piece:${Math.max(0, lot.pieces.length - 1)}` : null);
+
+        this.setDetailLotActiveCardKey(lot, nextCardKey, { persist: false });
+        lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
+        this.recalculateLotAllotissement(lot);
+        this.saveData();
+        this.renderAllotissement();
+        this.renderDetailLot();
     }
 
     getLotLocationSituationGroups(lot) {
@@ -711,7 +756,7 @@ class ValoboisApp {
             delete piece.hauteur;
             this.ensurePieceMasseVolumiqueInitialized(piece);
         });
-        this.ensureDefaultPieceData(lot);
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         if (!lot.poidsSimilarite || typeof lot.poidsSimilarite !== 'object') {
             lot.poidsSimilarite = { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 };
         } else {
@@ -1170,8 +1215,11 @@ class ValoboisApp {
     }
 
     normalizeDetailLotActiveCardKey(lot, rawKey) {
-        const defaultPieces = this.ensureDefaultPiecesData(lot);
-        const fallbackKey = defaultPieces[0] && defaultPieces[0].id ? `default:${defaultPieces[0].id}` : 'default';
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const hasPieces = Array.isArray(lot && lot.pieces) && lot.pieces.length > 0;
+        const fallbackKey = defaultPieces[0] && defaultPieces[0].id
+            ? `default:${defaultPieces[0].id}`
+            : (hasPieces ? 'piece:0' : null);
 
         if (rawKey === 'default') return fallbackKey;
         if (typeof rawKey === 'string' && rawKey.startsWith('default:')) {
@@ -1190,7 +1238,7 @@ class ValoboisApp {
     }
 
     getDetailLotActiveCardKey(lot) {
-        if (!lot) return 'default';
+        if (!lot) return null;
         const store = this.getDetailLotActiveCardStore();
         const storageKey = this.getDetailLotStorageKey(lot);
         const normalized = this.normalizeDetailLotActiveCardKey(lot, store[storageKey]);
@@ -1199,7 +1247,7 @@ class ValoboisApp {
     }
 
     setDetailLotActiveCardKey(lot, nextKey, { persist = true } = {}) {
-        if (!lot) return 'default';
+        if (!lot) return null;
         const store = this.getDetailLotActiveCardStore();
         const storageKey = this.getDetailLotStorageKey(lot);
         const normalized = this.normalizeDetailLotActiveCardKey(lot, nextKey);
@@ -4268,6 +4316,40 @@ deleteLot(index) {
                 btnConfirmDeletePiece.addEventListener('click', () => executePendingDeletePiece(false));
             }
 
+            this._pendingDeleteDefaultPiece = null;
+            const deleteDefaultPieceBackdrop = document.getElementById('deleteDefaultPieceConfirmBackdrop');
+            const btnCloseDeleteDefaultPiece = document.getElementById('btnCloseDeleteDefaultPieceConfirm');
+            const btnCancelDeleteDefaultPiece = document.getElementById('btnCancelDeleteDefaultPiece');
+            const btnConfirmDeleteDefaultPieceOnly = document.getElementById('btnConfirmDeleteDefaultPieceOnly');
+            const btnConfirmDeleteDefaultPieceGenerate = document.getElementById('btnConfirmDeleteDefaultPieceGenerate');
+            const closeDeleteDefaultPieceModal = () => {
+                if (deleteDefaultPieceBackdrop) {
+                    deleteDefaultPieceBackdrop.classList.add('hidden');
+                    deleteDefaultPieceBackdrop.setAttribute('aria-hidden', 'true');
+                }
+            };
+            const executePendingDeleteDefaultPiece = (generateDetailedPieces) => {
+                closeDeleteDefaultPieceModal();
+                if (this._pendingDeleteDefaultPiece) {
+                    const { lot, defaultPieceId } = this._pendingDeleteDefaultPiece;
+                    this._pendingDeleteDefaultPiece = null;
+                    this.deleteDefaultPieceFromLot(lot, defaultPieceId, { generateDetailedPieces });
+                }
+            };
+            if (deleteDefaultPieceBackdrop) {
+                if (btnCloseDeleteDefaultPiece) btnCloseDeleteDefaultPiece.addEventListener('click', closeDeleteDefaultPieceModal);
+                if (btnCancelDeleteDefaultPiece) btnCancelDeleteDefaultPiece.addEventListener('click', closeDeleteDefaultPieceModal);
+                deleteDefaultPieceBackdrop.addEventListener('click', (e) => {
+                    if (e.target === deleteDefaultPieceBackdrop) closeDeleteDefaultPieceModal();
+                });
+                if (btnConfirmDeleteDefaultPieceOnly) {
+                    btnConfirmDeleteDefaultPieceOnly.addEventListener('click', () => executePendingDeleteDefaultPiece(false));
+                }
+                if (btnConfirmDeleteDefaultPieceGenerate) {
+                    btnConfirmDeleteDefaultPieceGenerate.addEventListener('click', () => executePendingDeleteDefaultPiece(true));
+                }
+            }
+
             const createPieceDeductionBackdrop = document.getElementById('createPieceDeductionBackdrop');
             const btnCloseCreatePieceDeduction = document.getElementById('btnCloseCreatePieceDeduction');
             const btnCreatePieceDeductionYes = document.getElementById('btnCreatePieceDeductionYes');
@@ -6820,6 +6902,7 @@ closeEvalOpModal() {
                 <div class="piece-card-actions piece-card-actions--stacked">
                     <button class="piece-delete-btn btn-reset" type="button" data-default-piece-reset="${defaultPieceId}" title="Réinitialiser la pièce par défaut">${resetIconMarkup}</button>
                     <button class="piece-duplicate-btn piece-duplicate-btn--default" type="button" data-default-piece-duplicate="${defaultPieceId}" title="Dupliquer la pièce par défaut"${isDisabled ? ' disabled' : ''}>Dupliquer</button>
+                    <button class="piece-delete-btn" type="button" data-default-piece-delete="${defaultPieceId}" title="Supprimer la pièce par défaut">Supprimer</button>
                 </div>
             </div>
             <div class="piece-form-grid">
@@ -7282,7 +7365,7 @@ closeEvalOpModal() {
 
         this.normalizeLotEssenceFields(lot);
         this.normalizeLotAllotissementFields(lot);
-        this.ensureDefaultPieceData(lot);
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
 
@@ -8593,7 +8676,7 @@ closeEvalOpModal() {
         }
 
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
-        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
 
         section.style.display = '';
@@ -8687,6 +8770,28 @@ closeEvalOpModal() {
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
                     const cloned = this.buildPieceFromDefault(lot, lot.pieces.length, defaultPieceId);
                     this.requestDetailedPieceCreation(lot, cloned, defaultPieceId);
+                });
+            }
+
+            const defaultDeleteBtn = defaultPieceCard.querySelector(`[data-default-piece-delete="${defaultPieceId}"]`);
+            if (defaultDeleteBtn) {
+                defaultDeleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const backdrop = document.getElementById('deleteDefaultPieceConfirmBackdrop');
+                    const msgEl = document.getElementById('deleteDefaultPieceConfirmMessage');
+                    if (msgEl) {
+                        const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                        const defaultIndex = defaultPieces.findIndex((piece) => piece && piece.id === defaultPieceId);
+                        const qty = Math.max(0, Math.floor(parseFloat((dp && dp.quantite) || 0) || 0));
+                        const labelIndex = defaultIndex >= 0 ? defaultIndex + 1 : '?';
+                        msgEl.textContent = `Voulez-vous supprimer « Pièce par défaut ${labelIndex} » ? L'option de génération créera ${qty} formulaire(s) de pièce détaillée.`;
+                    }
+                    this._pendingDeleteDefaultPiece = { lot, defaultPieceId };
+                    if (backdrop) {
+                        backdrop.classList.remove('hidden');
+                        backdrop.setAttribute('aria-hidden', 'false');
+                    }
                 });
             }
 
