@@ -94,6 +94,7 @@ const vbMAD = (vals, ref) => {
 class ValoboisApp {
     constructor() {
         this.storageKey = 'valobois_v1';
+        this.storageBackupKey = 'valobois_v1_backup';
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */
         this.persistenceMode = 'guest';
         this.data = this.loadGuestDataFromLocalStorage();
@@ -240,16 +241,15 @@ class ValoboisApp {
             });
         }
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-        const defaultRhoNormalized = this.normalizeAllotissementNumericInput(defaultPiece && defaultPiece.masseVolumique);
-        if (defaultQty > 0 && defaultRhoNormalized) {
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            const defaultRhoNormalized = this.normalizeAllotissementNumericInput(defaultPiece && defaultPiece.masseVolumique);
+            if (defaultQty <= 0 || !defaultRhoNormalized) return;
             const defaultRho = parseFloat(defaultRhoNormalized);
-            if (Number.isFinite(defaultRho)) {
-                weightedSum += defaultRho * defaultQty;
-                totalWeight += defaultQty;
-            }
-        }
+            if (!Number.isFinite(defaultRho)) return;
+            weightedSum += defaultRho * defaultQty;
+            totalWeight += defaultQty;
+        });
 
         if (totalWeight <= 0) return null;
         return weightedSum / totalWeight;
@@ -363,72 +363,157 @@ class ValoboisApp {
         return initial;
     }
 
-    ensureDefaultPieceData(lot) {
+    createDefaultPieceId() {
+        return `default-piece-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    createEmptyDefaultPiece() {
+        return {
+            id: this.createDefaultPieceId(),
+            quantite: '1',
+            localisation: '',
+            situation: '',
+            typePiece: '',
+            typeProduit: '',
+            essenceNomCommun: '',
+            essenceNomScientifique: '',
+            essence: '',
+            longueur: '',
+            largeur: '',
+            epaisseur: '',
+            diametre: '',
+            prixUnite: '',
+            prixMarche: '',
+            masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
+            humidite: '',
+            fractionCarbonee: '',
+            bois: '',
+            ageArbre: '',
+            dateMiseEnService: ''
+        };
+    }
+
+    ensureDefaultPieceShape(lot, piece, { fallbackQty = '', fallbackLocation = '', fallbackSituation = '' } = {}) {
+        const target = (piece && typeof piece === 'object') ? piece : this.createEmptyDefaultPiece();
+
+        if (target.id == null || target.id === '') target.id = this.createDefaultPieceId();
+        if (target.quantite == null || target.quantite === '') target.quantite = fallbackQty;
+        if (target.localisation == null) target.localisation = fallbackLocation;
+        if (target.situation == null) target.situation = fallbackSituation;
+        if (target.typePiece == null) target.typePiece = '';
+        if (target.typeProduit == null) target.typeProduit = '';
+        if (target.essenceNomCommun == null) target.essenceNomCommun = '';
+        if (target.essenceNomScientifique == null) target.essenceNomScientifique = '';
+        if (target.essence == null) target.essence = '';
+        if (target.longueur == null) target.longueur = '';
+        if (target.largeur == null) target.largeur = '';
+        if (target.epaisseur == null) target.epaisseur = target.hauteur != null ? target.hauteur : '';
+        delete target.hauteur;
+        if (target.diametre == null) target.diametre = '';
+        if (target.prixUnite == null) target.prixUnite = '';
+        if (target.prixMarche == null) target.prixMarche = '';
+        if (target.masseVolumique == null) target.masseVolumique = '';
+        this.ensurePieceMasseVolumiqueInitialized(target);
+        if (target.humidite == null) target.humidite = '';
+        if (target.fractionCarbonee == null) target.fractionCarbonee = '';
+        if (target.bois == null) target.bois = '';
+        if (target.ageArbre == null) target.ageArbre = '';
+        if (target.dateMiseEnService == null) target.dateMiseEnService = '';
+
+        return target;
+    }
+
+    ensureDefaultPiecesData(lot) {
         if (!lot) {
-            return {
-                quantite: '',
-                localisation: '',
-                situation: '',
-                typePiece: '',
-                typeProduit: '',
-                essenceNomCommun: '',
-                essenceNomScientifique: '',
-                essence: '',
-                longueur: '',
-                largeur: '',
-                epaisseur: '',
-                diametre: '',
-                prixUnite: '',
-                prixMarche: '',
-                masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
-            };
-        }
-        if (!lot.defaultPiece || typeof lot.defaultPiece !== 'object') {
-            lot.defaultPiece = {};
+            return [this.ensureDefaultPieceShape(null, this.createEmptyDefaultPiece())];
         }
 
         const qLot = parseFloat((lot.allotissement && lot.allotissement.quantite) || 0) || 0;
         const nbPieces = Array.isArray(lot.pieces) ? lot.pieces.length : 0;
         const derivedQty = Math.max(0, qLot - nbPieces);
+        const fallbackQty = derivedQty > 0 ? String(derivedQty) : '';
+        const fallbackLocation = (lot.localisation || '').toString();
+        const fallbackSituation = (lot.situation || '').toString();
 
-        if (lot.defaultPiece.quantite == null || lot.defaultPiece.quantite === '') {
-            lot.defaultPiece.quantite = derivedQty > 0 ? String(derivedQty) : '';
-        }
-        if (lot.defaultPiece.localisation == null || lot.defaultPiece.localisation === '') {
-            lot.defaultPiece.localisation = (lot.localisation || '').toString();
-        }
-        if (lot.defaultPiece.situation == null || lot.defaultPiece.situation === '') {
-            lot.defaultPiece.situation = (lot.situation || '').toString();
+        if (!Array.isArray(lot.defaultPieces) || lot.defaultPieces.length === 0) {
+            const basePiece = (lot.defaultPiece && typeof lot.defaultPiece === 'object')
+                ? lot.defaultPiece
+                : this.createEmptyDefaultPiece();
+            lot.defaultPieces = [this.ensureDefaultPieceShape(lot, basePiece, {
+                fallbackQty,
+                fallbackLocation,
+                fallbackSituation
+            })];
+        } else {
+            lot.defaultPieces = lot.defaultPieces
+                .filter((piece) => piece && typeof piece === 'object')
+                .map((piece, index) => this.ensureDefaultPieceShape(lot, piece, {
+                    fallbackQty: index === 0 ? fallbackQty : '0',
+                    fallbackLocation,
+                    fallbackSituation
+                }));
         }
 
-        if (lot.defaultPiece.typePiece == null) lot.defaultPiece.typePiece = '';
-        if (lot.defaultPiece.typeProduit == null) lot.defaultPiece.typeProduit = '';
-        if (lot.defaultPiece.essenceNomCommun == null) lot.defaultPiece.essenceNomCommun = '';
-        if (lot.defaultPiece.essenceNomScientifique == null) lot.defaultPiece.essenceNomScientifique = '';
-        if (lot.defaultPiece.essence == null) lot.defaultPiece.essence = '';
-        if (lot.defaultPiece.longueur == null) lot.defaultPiece.longueur = '';
-        if (lot.defaultPiece.largeur == null) lot.defaultPiece.largeur = '';
-        // Migration: hauteur → epaisseur
-        if (lot.defaultPiece.epaisseur == null) lot.defaultPiece.epaisseur = lot.defaultPiece.hauteur != null ? lot.defaultPiece.hauteur : '';
-        delete lot.defaultPiece.hauteur;
-        if (lot.defaultPiece.diametre == null) lot.defaultPiece.diametre = '';
-        if (lot.defaultPiece.prixUnite == null) lot.defaultPiece.prixUnite = '';
-        if (lot.defaultPiece.prixMarche == null) lot.defaultPiece.prixMarche = '';
-        if (lot.defaultPiece.masseVolumique == null) lot.defaultPiece.masseVolumique = '';
-        this.ensurePieceMasseVolumiqueInitialized(lot.defaultPiece);
-        if (lot.defaultPiece.humidite == null) lot.defaultPiece.humidite = '';
-        if (lot.defaultPiece.fractionCarbonee == null) lot.defaultPiece.fractionCarbonee = '';
-        if (lot.defaultPiece.bois == null) lot.defaultPiece.bois = '';
-        if (lot.defaultPiece.ageArbre == null) lot.defaultPiece.ageArbre = '';
-        if (lot.defaultPiece.dateMiseEnService == null) lot.defaultPiece.dateMiseEnService = '';
+        if (!lot.defaultPieces.length) {
+            lot.defaultPieces = [this.ensureDefaultPieceShape(lot, this.createEmptyDefaultPiece(), {
+                fallbackQty,
+                fallbackLocation,
+                fallbackSituation
+            })];
+        }
 
-        return lot.defaultPiece;
+        lot.defaultPiece = lot.defaultPieces[0];
+        return lot.defaultPieces;
     }
 
-    buildPieceFromDefault(lot, index) {
-        const dp = this.ensureDefaultPieceData(lot);
+    getDefaultPieceById(lot, defaultPieceId = null) {
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        if (defaultPieceId != null && defaultPieceId !== '') {
+            const found = defaultPieces.find((piece) => piece.id === defaultPieceId);
+            if (found) return found;
+        }
+        return defaultPieces[0];
+    }
+
+    getTotalDefaultPieceQuantity(lot) {
+        return this.ensureDefaultPiecesData(lot).reduce((sum, piece) => {
+            return sum + Math.max(0, parseFloat(piece && piece.quantite) || 0);
+        }, 0);
+    }
+
+    resetDefaultPieceData(defaultPiece) {
+        if (!defaultPiece) return;
+        defaultPiece.localisation = '';
+        defaultPiece.situation = '';
+        defaultPiece.typePiece = '';
+        defaultPiece.typeProduit = '';
+        defaultPiece.essenceNomCommun = '';
+        defaultPiece.essenceNomScientifique = '';
+        defaultPiece.essence = '';
+        defaultPiece.longueur = '';
+        defaultPiece.largeur = '';
+        defaultPiece.epaisseur = '';
+        defaultPiece.diametre = '';
+        defaultPiece.prixUnite = '';
+        defaultPiece.prixMarche = '';
+        defaultPiece.masseVolumique = String(DEFAULT_MASSE_VOLUMIQUE);
+        defaultPiece.humidite = '';
+        defaultPiece.fractionCarbonee = '';
+        defaultPiece.bois = '';
+        defaultPiece.ageArbre = '';
+        defaultPiece.dateMiseEnService = '';
+        defaultPiece.quantite = '0';
+    }
+
+    ensureDefaultPieceData(lot, defaultPieceId = null) {
+        return this.getDefaultPieceById(lot, defaultPieceId);
+    }
+
+    buildPieceFromDefault(lot, index, defaultPieceId = null) {
+        const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
         const a = lot && lot.allotissement ? lot.allotissement : {};
         const piece = this.createEmptyPiece(index);
+        piece.sourceDefaultPieceId = dp && dp.id ? dp.id : null;
         piece.localisation = dp.localisation || '';
         piece.situation = dp.situation || '';
         piece.typePiece = dp.typePiece || a.typePiece || '';
@@ -449,11 +534,15 @@ class ValoboisApp {
         return piece;
     }
 
-    addDetailedPieceToLot(lot, piece, { deductDefaultPiece = false } = {}) {
+    addDetailedPieceToLot(lot, piece, { deductDefaultPiece = false, defaultPieceId = null } = {}) {
         if (!lot || !piece) return;
 
-        const dp = this.ensureDefaultPieceData(lot);
+        const dp = this.ensureDefaultPieceData(lot, defaultPieceId || piece.sourceDefaultPieceId);
         lot.pieces.push(piece);
+
+        if (piece.sourceDefaultPieceId == null && dp && dp.id) {
+            piece.sourceDefaultPieceId = dp.id;
+        }
 
         if (deductDefaultPiece) {
             const currentDefaultQty = Math.max(0, parseFloat(dp.quantite || 0) || 0);
@@ -473,7 +562,8 @@ class ValoboisApp {
     deletePieceFromLot(lot, pi, { restoreDefaultPiece = false } = {}) {
         if (!lot || !Array.isArray(lot.pieces) || pi < 0 || pi >= lot.pieces.length) return;
 
-        const dp = this.ensureDefaultPieceData(lot);
+        const piece = lot.pieces[pi];
+        const dp = this.ensureDefaultPieceData(lot, piece && piece.sourceDefaultPieceId);
         lot.pieces.splice(pi, 1);
         lot.pieces.forEach((p, idx) => { p.nom = `Pi\u00e8ce ${idx + 1}`; });
 
@@ -482,7 +572,7 @@ class ValoboisApp {
             dp.quantite = String(currentDefaultQty + 1);
         }
 
-        this.setDetailLotActiveCardKey(lot, 'default', { persist: false });
+        this.setDetailLotActiveCardKey(lot, dp && dp.id ? `default:${dp.id}` : 'default', { persist: false });
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
         this.saveData();
@@ -490,19 +580,25 @@ class ValoboisApp {
         this.renderDetailLot();
     }
 
-    requestDetailedPieceCreation(lot, piece) {
+    requestDetailedPieceCreation(lot, piece, defaultPieceId = null) {
         if (!lot || !piece) return;
 
-        const dp = this.ensureDefaultPieceData(lot);
+        const dp = this.ensureDefaultPieceData(lot, defaultPieceId || piece.sourceDefaultPieceId);
+        if (piece.sourceDefaultPieceId == null && dp && dp.id) {
+            piece.sourceDefaultPieceId = dp.id;
+        }
         const currentDefaultQty = Math.max(0, parseFloat(dp.quantite || 0) || 0);
         if (currentDefaultQty <= 0) {
-            this.addDetailedPieceToLot(lot, piece, { deductDefaultPiece: false });
+            this.addDetailedPieceToLot(lot, piece, { deductDefaultPiece: false, defaultPieceId: dp && dp.id });
             return;
         }
 
         this.openCreatePieceDeductionModal({
             onDecision: (shouldDeductDefault) => {
-                this.addDetailedPieceToLot(lot, piece, { deductDefaultPiece: shouldDeductDefault });
+                this.addDetailedPieceToLot(lot, piece, {
+                    deductDefaultPiece: shouldDeductDefault,
+                    defaultPieceId: dp && dp.id
+                });
             }
         });
     }
@@ -521,11 +617,12 @@ class ValoboisApp {
             groups.get(key).labels.push(label);
         };
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = parseFloat(defaultPiece.quantite || 0) || 0;
-        if (defaultQty > 0) {
-            addGroup(defaultPiece.localisation, defaultPiece.situation, `Pièce par défaut (${Math.round(defaultQty)})`);
-        }
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece, index) => {
+            const defaultQty = parseFloat(defaultPiece.quantite || 0) || 0;
+            if (defaultQty > 0) {
+                addGroup(defaultPiece.localisation, defaultPiece.situation, `Pièce par défaut ${index + 1} (${Math.round(defaultQty)})`);
+            }
+        });
 
         (lot.pieces || []).forEach((piece, index) => {
             addGroup(piece.localisation, piece.situation, `Pièce ${index + 1}`);
@@ -536,8 +633,7 @@ class ValoboisApp {
 
     getLotQuantityFromDetail(lot) {
         if (!lot) return 0;
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = Math.max(0, parseFloat(defaultPiece.quantite || 0) || 0);
+        const defaultQty = this.getTotalDefaultPieceQuantity(lot);
         const pieceQty = Array.isArray(lot.pieces) ? lot.pieces.length : 0;
         return defaultQty + pieceQty;
     }
@@ -688,6 +784,7 @@ class ValoboisApp {
     }
 
     createEmptyLot(index) {
+        const defaultPiece = this.createEmptyDefaultPiece();
         return {
             id: Date.now() + index,
             nom: `Lot ${index + 1}`,
@@ -787,26 +884,8 @@ class ValoboisApp {
             provenance: {
                 confianceProv: null, transportProv: null, reputationProv: null, macroProv: null, territorialiteProv: null
             },
-            defaultPiece: {
-                quantite: '1',
-                localisation: '',
-                situation: '',
-                typePiece: '',
-                typeProduit: '',
-                essenceNomCommun: '',
-                essenceNomScientifique: '',
-                essence: '',
-                longueur: '',
-                largeur: '',
-                epaisseur: '',
-                diametre: '',
-                prixUnite: '',
-                prixMarche: '',
-                masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
-                humidite: '',
-                fractionCarbonee: '',
-                bois: ''
-            },
+            defaultPiece,
+            defaultPieces: [defaultPiece],
             pieces: [],
             criteres: [],
             poidsSimilarite: { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 },
@@ -829,6 +908,7 @@ class ValoboisApp {
     createEmptyPiece(index) {
         return {
             nom: `Pièce ${index + 1}`,
+            sourceDefaultPieceId: null,
             localisation: '',
             situation: '',
             typePiece: '',
@@ -964,30 +1044,72 @@ class ValoboisApp {
         return `${operation}_${date}`;
     }
 
+    parseStoredEvaluation(raw) {
+        if (typeof raw !== 'string' || !raw.trim()) return null;
+        try {
+            return JSON.parse(raw);
+        } catch (e) {
+            console.warn('Impossible de parser les donnees stockees.', e);
+            return null;
+        }
+    }
+
+    normalizeGuestEvaluationData(data) {
+        if (!data || typeof data !== 'object') return null;
+        if (!Array.isArray(data.lots)) {
+            if (data.lots && typeof data.lots === 'object') {
+                data.lots = Object.values(data.lots).filter((lot) => lot && typeof lot === 'object');
+            } else {
+                data.lots = [];
+            }
+        }
+
+        data.meta = this.getDefaultMeta(data.meta || {});
+        data.ui = this.getDefaultUi(data.ui || {});
+        data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
+        if (!data.lots.length) {
+            data.lots = [this.createEmptyLot(0)];
+        }
+
+        data.lots.forEach((lot) => {
+            this.normalizeLotEssenceFields(lot);
+            this.normalizeLotAllotissementFields(lot);
+        });
+
+        return data;
+    }
+
     /** Données invité / export HTML autonome — jamais utilisé pour le corps de l’évaluation en mode cloud. */
     loadGuestDataFromLocalStorage() {
         try {
             // Vérifier d'abord si les données sont injectées dans la page (depuis un fichier HTML téléchargé)
             if (window.__VALOBOIS_DATA__) {
-                const data = window.__VALOBOIS_DATA__;
-                // Sauvegarder aussi dans localStorage pour la persistance locale
-                localStorage.setItem(this.storageKey, JSON.stringify(data));
-                return data;
+                const injectedData = this.normalizeGuestEvaluationData(window.__VALOBOIS_DATA__);
+                if (injectedData) {
+                    const serialized = JSON.stringify(injectedData);
+                    // Sauvegarder aussi dans localStorage pour la persistance locale
+                    localStorage.setItem(this.storageKey, serialized);
+                    localStorage.setItem(this.storageBackupKey, serialized);
+                    return injectedData;
+                }
             }
 
-            const raw = localStorage.getItem(this.storageKey);
-            if (!raw) return this.createInitialData();
-            const parsed = JSON.parse(raw);
-            if (!parsed.lots || !Array.isArray(parsed.lots)) {
-                return this.createInitialData();
+            const rawPrimary = localStorage.getItem(this.storageKey);
+            const primaryParsed = this.parseStoredEvaluation(rawPrimary);
+            const primaryData = this.normalizeGuestEvaluationData(primaryParsed);
+            if (primaryData) {
+                return primaryData;
             }
-            parsed.meta = this.getDefaultMeta(parsed.meta || {});
-            parsed.ui = this.getDefaultUi(parsed.ui || {});
-            parsed.lots.forEach((lot) => {
-                this.normalizeLotEssenceFields(lot);
-                this.normalizeLotAllotissementFields(lot);
-            });
-            return parsed;
+
+            const rawBackup = localStorage.getItem(this.storageBackupKey);
+            const backupParsed = this.parseStoredEvaluation(rawBackup);
+            const backupData = this.normalizeGuestEvaluationData(backupParsed);
+            if (backupData) {
+                localStorage.setItem(this.storageKey, JSON.stringify(backupData));
+                return backupData;
+            }
+
+            return this.createInitialData();
         } catch (e) {
             console.error(e);
             return this.createInitialData();
@@ -1014,7 +1136,9 @@ class ValoboisApp {
                     window.__valoboisScheduleCloudSave(this);
                 }
             } else {
-                localStorage.setItem(this.storageKey, JSON.stringify(this.data));
+                const serialized = JSON.stringify(this.data);
+                localStorage.setItem(this.storageKey, serialized);
+                localStorage.setItem(this.storageBackupKey, serialized);
             }
         } catch (e) {
             console.error(e);
@@ -1046,14 +1170,23 @@ class ValoboisApp {
     }
 
     normalizeDetailLotActiveCardKey(lot, rawKey) {
-        if (rawKey === 'default') return 'default';
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const fallbackKey = defaultPieces[0] && defaultPieces[0].id ? `default:${defaultPieces[0].id}` : 'default';
+
+        if (rawKey === 'default') return fallbackKey;
+        if (typeof rawKey === 'string' && rawKey.startsWith('default:')) {
+            const defaultPieceId = rawKey.slice(8);
+            if (defaultPieces.some((piece) => piece.id === defaultPieceId)) {
+                return `default:${defaultPieceId}`;
+            }
+        }
         if (typeof rawKey === 'string' && rawKey.startsWith('piece:')) {
             const idx = parseInt(rawKey.slice(6), 10);
             if (Number.isFinite(idx) && idx >= 0 && Array.isArray(lot.pieces) && idx < lot.pieces.length) {
                 return `piece:${idx}`;
             }
         }
-        return 'default';
+        return fallbackKey;
     }
 
     getDetailLotActiveCardKey(lot) {
@@ -1145,9 +1278,11 @@ class ValoboisApp {
 
     lotHasMissingPrixMarche(lot) {
         const isMissing = (v) => !v || String(v).trim() === '';
-        const defaultPiece = lot.defaultPiece || {};
-        const defaultQty = parseFloat(defaultPiece.quantite) || 0;
-        if (defaultQty > 0 && isMissing(defaultPiece.prixMarche)) return true;
+        const hasMissingDefaultPrix = this.ensureDefaultPiecesData(lot).some((defaultPiece) => {
+            const defaultQty = parseFloat(defaultPiece.quantite) || 0;
+            return defaultQty > 0 && isMissing(defaultPiece.prixMarche);
+        });
+        if (hasMissingDefaultPrix) return true;
         return (lot.pieces || []).some((piece) => isMissing(piece.prixMarche));
     }
 
@@ -1736,11 +1871,10 @@ class ValoboisApp {
             ? String(targetLot.allotissement.diametre || '').trim()
             : '';
         let hasDetailDiametre = false;
-        const defaultPiece = this.ensureDefaultPieceData(targetLot);
-        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-        if (defaultQty > 0 && String((defaultPiece && defaultPiece.diametre) || '').trim() !== '') {
-            hasDetailDiametre = true;
-        }
+        hasDetailDiametre = this.ensureDefaultPiecesData(targetLot).some((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            return defaultQty > 0 && String((defaultPiece && defaultPiece.diametre) || '').trim() !== '';
+        });
         if (!hasDetailDiametre && Array.isArray(targetLot.pieces)) {
             hasDetailDiametre = targetLot.pieces.some((piece) => piece && String(piece.diametre || '').trim() !== '');
         }
@@ -1943,12 +2077,12 @@ class ValoboisApp {
         const baseEssence = this.getEssenceCommonLabel(allot.essenceNomCommun || allot.essence || '');
         const baseValue = fieldName === 'essenceNomCommun' ? baseEssence : baseType;
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-        if (defaultQty > 0) {
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (defaultQty <= 0) return;
             const defaultRaw = (defaultPiece && defaultPiece[fieldName]) || '';
             addCount(defaultRaw || baseValue, defaultQty);
-        }
+        });
 
         (lot.pieces || []).forEach((piece) => {
             if (!piece || typeof piece !== 'object') return;
@@ -2007,12 +2141,12 @@ class ValoboisApp {
             });
         }
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-        if (defaultQty > 0) {
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (defaultQty <= 0) return;
             const defaultValue = (defaultPiece[fieldName] || '').toString().trim();
             addValue(defaultValue || baseValue);
-        }
+        });
 
         if (values.size > 1) return 'Multiples';
         if (values.size === 1) return Array.from(values)[0];
@@ -2046,13 +2180,13 @@ class ValoboisApp {
                 addValue(this.composeEssenceLabel(common, scientific) || baseEssence);
             });
 
-            const defaultPiece = this.ensureDefaultPieceData(lot);
-            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-            if (defaultQty > 0) {
+            this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+                const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+                if (defaultQty <= 0) return;
                 const common = (defaultPiece.essenceNomCommun || '').toString().trim() || baseCommon;
                 const scientific = (defaultPiece.essenceNomScientifique || '').toString().trim() || baseScientific;
                 addValue(this.composeEssenceLabel(common, scientific) || baseEssence);
-            }
+            });
 
             if (values.size === 0) addValue(baseEssence);
             return Array.from(values);
@@ -2066,12 +2200,12 @@ class ValoboisApp {
             addValue(pieceValue || baseValue);
         });
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-        if (defaultQty > 0) {
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (defaultQty <= 0) return;
             const defaultValue = (defaultPiece[fieldName] || '').toString().trim();
             addValue(defaultValue || baseValue);
-        }
+        });
 
         if (values.size === 0) addValue(baseValue);
         return Array.from(values);
@@ -2353,7 +2487,7 @@ class ValoboisApp {
         }
 
         // Mise à jour des dimensions moyennes dans le formulaire lot
-        const defaultQty = parseFloat(((lot.defaultPiece || {}).quantite)) || 0;
+        const defaultQty = this.getTotalDefaultPieceQuantity(lot);
         if (nbPieces > 0 || defaultQty > 0) {
             const longueurInput = el('input[data-lot-input="longueur"]');
             const largeurInput = el('input[data-lot-input="largeur"]');
@@ -2436,10 +2570,12 @@ class ValoboisApp {
         // allDimValues = { longueur: [], largeur: [], epaisseur: [], diametre: [] }
         // construit dans recalculateLotAllotissement (voir etape 5)
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
-        const n_d = Math.max(0, parseFloat(defaultPiece?.quantite) || 0);
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const totalDefaultCount = defaultPieces.reduce((sum, piece) => {
+            return sum + Math.max(0, parseFloat(piece && piece.quantite) || 0);
+        }, 0);
         const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
-        const N = n_d + detailedPieces.length;
+        const N = totalDefaultCount + detailedPieces.length;
         if (N < 2) return null;
 
         const lotHasDiametre = (parseFloat(lot.allotissement?.diametre) || 0) > 0;
@@ -2456,11 +2592,13 @@ class ValoboisApp {
 
         // Construire la liste des "atoms" : {label, count, dims}
         const atoms = [];
-        if (n_d > 0) {
+        defaultPieces.forEach((defaultPiece, index) => {
+            const count = Math.max(0, parseFloat(defaultPiece?.quantite) || 0);
+            if (count <= 0) return;
             atoms.push({
-                key: 'default',
-                label: `Pièce par défaut (×${Math.round(n_d)})`,
-                count: n_d,
+                key: `default_${defaultPiece.id || index}`,
+                label: `Pièce par défaut ${index + 1} (×${Math.round(count)})`,
+                count,
                 dims: {
                     longueur:  resolveDim(defaultPiece.longueur, lot.allotissement?.longueur),
                     largeur:   resolveDim(defaultPiece.largeur, lot.allotissement?.largeur),
@@ -2468,7 +2606,7 @@ class ValoboisApp {
                     diametre:  resolveDim(defaultPiece.diametre, lot.allotissement?.diametre),
                 },
             });
-        }
+        });
         detailedPieces.forEach((p, idx) => {
             atoms.push({
                 key: `piece_${idx}`,
@@ -2506,15 +2644,13 @@ class ValoboisApp {
                 if (i === j) return;
                 const s = pairScore(atomI.dims, atomJ.dims);
                 if (s === null) return;
-                // Si atomJ est la piece par defaut, elle compte pour n_d comparaisons
-                const w = (atomJ.key === 'default') ? Math.max(1, atomJ.count) : 1;
+                const w = Math.max(1, atomJ.count);
                 sumS += s * w;
                 totalPairs += w;
             });
-            // Paires intra-defaut : score 1.0 par definition
-            if (atomI.key === 'default' && n_d > 1) {
-                sumS += (n_d - 1) * 1.0;
-                totalPairs += (n_d - 1);
+            if (atomI.key.startsWith('default_') && atomI.count > 1) {
+                sumS += (atomI.count - 1) * 1.0;
+                totalPairs += (atomI.count - 1);
             }
             return {
                 key: atomI.key,
@@ -2577,7 +2713,7 @@ class ValoboisApp {
 
     recalculateLotAllotissement(lot) {
         if (!lot || !lot.allotissement) return;
-        const defaultPiece = this.ensureDefaultPieceData(lot);
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
         const q = this.getLotQuantityFromDetail(lot);
         lot.allotissement.quantite = String(q);
         const currentLotMasseVolumique = this.normalizeAllotissementNumericInput(lot.allotissement.masseVolumique);
@@ -2653,22 +2789,6 @@ class ValoboisApp {
         // ─── Agrégation pièces ───
         if (q > 0) {
             lot.pieces.forEach(p => this.recalculatePiece(p, lot));
-            const numPieces = lot.pieces.length;
-            const numDefault = Math.max(0, parseFloat(defaultPiece.quantite || 0) || 0);
-
-            const dL = parseFloat(defaultPiece.longueur !== '' ? defaultPiece.longueur : lot.allotissement.longueur) || 0;
-            const dl = parseFloat(defaultPiece.largeur !== '' ? defaultPiece.largeur : lot.allotissement.largeur) || 0;
-            const de = parseFloat(defaultPiece.epaisseur !== '' ? defaultPiece.epaisseur : lot.allotissement.epaisseur) || 0;
-            const dd = parseFloat(defaultPiece.diametre !== '' ? defaultPiece.diametre : lot.allotissement.diametre) || 0;
-            const dPm = parseFloat(defaultPiece.prixMarche !== '' ? defaultPiece.prixMarche : lot.allotissement.prixMarche) || 0;
-            const dPriceUnitRaw = ((defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-            const dPriceUnit = (dPriceUnitRaw === 'ml' || dPriceUnitRaw === 'm2' || dPriceUnitRaw === 'm3') ? dPriceUnitRaw : 'm3';
-            const dRho = parseFloat(defaultPiece.masseVolumique !== '' ? defaultPiece.masseVolumique : lot.allotissement.masseVolumique) || 0;
-            const dWood = parseFloat(defaultPiece.bois !== '' ? defaultPiece.bois : lot.allotissement.bois);
-            const dMc = parseFloat(defaultPiece.humidite !== '' ? defaultPiece.humidite : lot.allotissement.humidite);
-            const dSafeWood = Number.isFinite(dWood) ? dWood : 100;
-            const dSafeMc = Number.isFinite(dMc) ? dMc : 12;
-            const dMoistureDenominator = 1 + (dSafeMc / 100);
 
             // Somme des contributions des pièces individuelles
             let sumVolume = 0, sumSurface = 0, sumLineaire = 0;
@@ -2683,29 +2803,57 @@ class ValoboisApp {
                 sumCO2 += parseFloat(p.carboneBiogeniqueEstime) || 0;
             });
 
-            // Contributions des pièces "par défaut"
-            const defaultSurfPerPiece = (dL * dl) / 1000000;
-            const defaultVolPerPiece = dd > 0
-                ? (Math.PI * (dd / 2) * (dd / 2) * dL) / 1000000000
-                : (dL * dl * de) / 1000000000;
-            const defaultLinPerPiece = dL / 1000;
-            const defaultPricingBase =
-                dPriceUnit === 'ml' ? defaultLinPerPiece :
-                dPriceUnit === 'm2' ? defaultSurfPerPiece :
-                defaultVolPerPiece;
-            const defaultPrixPerPiece = defaultPricingBase * dPm;
+            const defaultPieceSamples = [];
+            defaultPieces.forEach((defaultPiece) => {
+                const numDefault = Math.max(0, parseFloat(defaultPiece.quantite || 0) || 0);
+                if (numDefault <= 0) return;
 
-            sumVolume += numDefault * defaultVolPerPiece;
-            sumSurface += numDefault * defaultSurfPerPiece;
-            sumLineaire += numDefault * defaultLinPerPiece;
-            sumPrix += numDefault * defaultPrixPerPiece;
-            sumPrixAjuste += numDefault * defaultPrixPerPiece * integrityFactor;
-            sumMasse += numDefault * (dRho * defaultVolPerPiece);
-            // CO2 pour pièces par défaut
-            const defaultCO2PerPiece = dMoistureDenominator > 0
-                ? (44 / 12) * carbonFractionFixed * dRho * defaultVolPerPiece * (dSafeWood / 100) / dMoistureDenominator
-                : 0;
-            sumCO2 += numDefault * defaultCO2PerPiece;
+                const dL = parseFloat(defaultPiece.longueur !== '' ? defaultPiece.longueur : lot.allotissement.longueur) || 0;
+                const dl = parseFloat(defaultPiece.largeur !== '' ? defaultPiece.largeur : lot.allotissement.largeur) || 0;
+                const de = parseFloat(defaultPiece.epaisseur !== '' ? defaultPiece.epaisseur : lot.allotissement.epaisseur) || 0;
+                const dd = parseFloat(defaultPiece.diametre !== '' ? defaultPiece.diametre : lot.allotissement.diametre) || 0;
+                const dPm = parseFloat(defaultPiece.prixMarche !== '' ? defaultPiece.prixMarche : lot.allotissement.prixMarche) || 0;
+                const dPriceUnitRaw = ((defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
+                const dPriceUnit = (dPriceUnitRaw === 'ml' || dPriceUnitRaw === 'm2' || dPriceUnitRaw === 'm3') ? dPriceUnitRaw : 'm3';
+                const dRho = parseFloat(defaultPiece.masseVolumique !== '' ? defaultPiece.masseVolumique : lot.allotissement.masseVolumique) || 0;
+                const dWood = parseFloat(defaultPiece.bois !== '' ? defaultPiece.bois : lot.allotissement.bois);
+                const dMc = parseFloat(defaultPiece.humidite !== '' ? defaultPiece.humidite : lot.allotissement.humidite);
+                const dSafeWood = Number.isFinite(dWood) ? dWood : 100;
+                const dSafeMc = Number.isFinite(dMc) ? dMc : 12;
+                const dMoistureDenominator = 1 + (dSafeMc / 100);
+
+                const defaultSurfPerPiece = (dL * dl) / 1000000;
+                const defaultVolPerPiece = dd > 0
+                    ? (Math.PI * (dd / 2) * (dd / 2) * dL) / 1000000000
+                    : (dL * dl * de) / 1000000000;
+                const defaultLinPerPiece = dL / 1000;
+                const defaultPricingBase =
+                    dPriceUnit === 'ml' ? defaultLinPerPiece :
+                    dPriceUnit === 'm2' ? defaultSurfPerPiece :
+                    defaultVolPerPiece;
+                const defaultPrixPerPiece = defaultPricingBase * dPm;
+                const defaultCO2PerPiece = dMoistureDenominator > 0
+                    ? (44 / 12) * carbonFractionFixed * dRho * defaultVolPerPiece * (dSafeWood / 100) / dMoistureDenominator
+                    : 0;
+
+                sumVolume += numDefault * defaultVolPerPiece;
+                sumSurface += numDefault * defaultSurfPerPiece;
+                sumLineaire += numDefault * defaultLinPerPiece;
+                sumPrix += numDefault * defaultPrixPerPiece;
+                sumPrixAjuste += numDefault * defaultPrixPerPiece * integrityFactor;
+                sumMasse += numDefault * (dRho * defaultVolPerPiece);
+                sumCO2 += numDefault * defaultCO2PerPiece;
+
+                defaultPieceSamples.push({
+                    count: numDefault,
+                    longueur: dL,
+                    largeur: dl,
+                    epaisseur: de,
+                    diametre: dd,
+                    ageArbre: defaultPiece.ageArbre,
+                    dateMiseEnService: defaultPiece.dateMiseEnService,
+                });
+            });
 
             lot.allotissement.volumeLot = sumVolume;
             lot.allotissement.surfaceLot = sumSurface;
@@ -2740,10 +2888,18 @@ class ValoboisApp {
                 sumEpaisseur += parseFloat(p.epaisseur) || 0;
                 sumDiametre += parseFloat(p.diametre) || 0;
             });
-            sumLongueur += numDefault * dL;
-            sumLargeur += numDefault * dl;
-            sumEpaisseur += numDefault * de;
-            sumDiametre += numDefault * dd;
+            defaultPieces.forEach((defaultPiece) => {
+                const numDefault = Math.max(0, parseFloat(defaultPiece.quantite || 0) || 0);
+                if (numDefault <= 0) return;
+                const dL = parseFloat(defaultPiece.longueur !== '' ? defaultPiece.longueur : lot.allotissement.longueur) || 0;
+                const dl = parseFloat(defaultPiece.largeur !== '' ? defaultPiece.largeur : lot.allotissement.largeur) || 0;
+                const de = parseFloat(defaultPiece.epaisseur !== '' ? defaultPiece.epaisseur : lot.allotissement.epaisseur) || 0;
+                const dd = parseFloat(defaultPiece.diametre !== '' ? defaultPiece.diametre : lot.allotissement.diametre) || 0;
+                sumLongueur += numDefault * dL;
+                sumLargeur += numDefault * dl;
+                sumEpaisseur += numDefault * de;
+                sumDiametre += numDefault * dd;
+            });
             if (q > 0) {
                 lot.allotissement._avgLongueur = sumLongueur / q;
                 lot.allotissement._avgLargeur = sumLargeur / q;
@@ -2773,12 +2929,14 @@ class ValoboisApp {
                 if (Number.isFinite(vD)  && vD  > 0) _cvD.push(vD);
             });
 
-            for (let _i = 0; _i < numDefault; _i++) {
-                if (Number.isFinite(dL) && dL > 0)  _cvL.push(dL);
-                if (Number.isFinite(dl) && dl > 0)  _cvLg.push(dl);
-                if (Number.isFinite(de) && de > 0)  _cvE.push(de);
-                if (Number.isFinite(dd) && dd > 0)  _cvD.push(dd);
-            }
+            defaultPieceSamples.forEach((sample) => {
+                for (let _i = 0; _i < sample.count; _i++) {
+                    if (Number.isFinite(sample.longueur) && sample.longueur > 0) _cvL.push(sample.longueur);
+                    if (Number.isFinite(sample.largeur) && sample.largeur > 0) _cvLg.push(sample.largeur);
+                    if (Number.isFinite(sample.epaisseur) && sample.epaisseur > 0) _cvE.push(sample.epaisseur);
+                    if (Number.isFinite(sample.diametre) && sample.diametre > 0) _cvD.push(sample.diametre);
+                }
+            });
 
             // Tableaux de dimensions tous lots confondus (pour MAD)
             const allDimValues = {
@@ -2974,9 +3132,11 @@ class ValoboisApp {
                         evalPieceSimilarity(pL, pLa, pE, pD, 1);
                     });
 
-                    if (numDefault > 0) {
-                        evalPieceSimilarity(dL, dl, de, dd, numDefault);
-                    }
+                    defaultPieceSamples.forEach((sample) => {
+                        if (sample.count > 0) {
+                            evalPieceSimilarity(sample.longueur, sample.largeur, sample.epaisseur, sample.diametre, sample.count);
+                        }
+                    });
 
                     lot.allotissement.tauxSimilarite = sumWeights > 0
                         ? Math.round((sumScores / sumWeights) * 100)
@@ -3073,9 +3233,11 @@ class ValoboisApp {
                         classifyPiece(pL, pLa, pE, pD, 1);
                     });
 
-                    if (numDefault > 0) {
-                        classifyPiece(dL, dl, de, dd, numDefault);
-                    }
+                    defaultPieceSamples.forEach((sample) => {
+                        if (sample.count > 0) {
+                            classifyPiece(sample.longueur, sample.largeur, sample.epaisseur, sample.diametre, sample.count);
+                        }
+                    });
 
                     const totalPieces = nbConformes + nbRecoupe + nbCorroyage + nbRecoupeCorroyage + nbBoisCourt + nbRejet;
                     lot.allotissement.conformiteLot = {
@@ -3113,10 +3275,18 @@ class ValoboisApp {
                 const yr = extractYear(p.dateMiseEnService);
                 if (yr != null) { sumServiceYear += yr; countServiceYear++; }
             });
-            const dAge = parseFloat(defaultPiece.ageArbre);
-            if (isFinite(dAge) && dAge > 0) { sumAgeArbre += numDefault * dAge; countAgeArbre += numDefault; }
-            const dYr = extractYear(defaultPiece.dateMiseEnService);
-            if (dYr != null) { sumServiceYear += numDefault * dYr; countServiceYear += numDefault; }
+            defaultPieceSamples.forEach((sample) => {
+                const dAge = parseFloat(sample.ageArbre);
+                if (isFinite(dAge) && dAge > 0) {
+                    sumAgeArbre += sample.count * dAge;
+                    countAgeArbre += sample.count;
+                }
+                const dYr = extractYear(sample.dateMiseEnService);
+                if (dYr != null) {
+                    sumServiceYear += sample.count * dYr;
+                    countServiceYear += sample.count;
+                }
+            });
             lot.allotissement._avgAgeArbre = countAgeArbre > 0 ? sumAgeArbre / countAgeArbre : null;
             lot.allotissement._avgServiceYear = countServiceYear > 0 ? Math.round(sumServiceYear / countServiceYear) : null;
         } else {
@@ -6585,26 +6755,26 @@ closeEvalOpModal() {
         });
     }
 
-    renderDefaultPieceCardHTML(lot, isActive = true) {
+    renderDefaultPieceCardHTML(lot, defaultPiece, defaultPieceIndex, isActive = true) {
         const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
             maximumFractionDigits: digits
         });
         const formatOneDecimal = (value) => formatGrouped(value, 1);
 
-        const defaultPiece = this.ensureDefaultPieceData(lot);
+        const defaultPieceId = defaultPiece && defaultPiece.id ? defaultPiece.id : '';
         const numDefault = Math.max(0, parseFloat(defaultPiece.quantite || 0) || 0);
         const isDisabled = numDefault <= 0;
 
-        const dpPreview = this.buildPieceFromDefault(lot, -1);
+        const dpPreview = this.buildPieceFromDefault(lot, -1, defaultPieceId);
         this.recalculatePiece(dpPreview, lot);
 
-        const pEffTypePiece = dpPreview.typePiece || '';
-        const pEffEssenceCommun = dpPreview.essenceNomCommun || '';
-        const pEffEssenceScientifique = dpPreview.essenceNomScientifique || '';
+        const pEffTypePiece = defaultPiece.typePiece || '';
+        const pEffEssenceCommun = defaultPiece.essenceNomCommun || '';
+        const pEffEssenceScientifique = defaultPiece.essenceNomScientifique || '';
         const pPriceUnit = ((dpPreview.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-        const pPrixMarche = dpPreview.prixMarche;
-        const pMasseVol = dpPreview.masseVolumique;
+        const pPrixMarche = defaultPiece.prixMarche;
+        const pMasseVol = defaultPiece.masseVolumique;
         const pMasseVolSourceLabel = this.getMasseVolumiqueSourceLabel({
             essenceNomCommun: pEffEssenceCommun,
             essenceNomScientifique: pEffEssenceScientifique,
@@ -6641,15 +6811,15 @@ closeEvalOpModal() {
         `;
 
         return `
-        <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece data-detail-card-key="default">
+        <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
             <div class="piece-card-header">
                 <div class="piece-card-title-row">
-                    <span class="piece-card-title">Pièce par défaut</span>
+                    <span class="piece-card-title">Pièce par défaut ${defaultPieceIndex + 1}</span>
                     <span class="piece-default-count">${isDisabled ? 'Aucune' : (numDefault + ' pièce' + (numDefault > 1 ? 's' : ''))}</span>
                 </div>
                 <div class="piece-card-actions piece-card-actions--stacked">
-                    <button class="piece-delete-btn btn-reset" type="button" data-default-piece-reset title="Réinitialiser la pièce par défaut">${resetIconMarkup}</button>
-                    <button class="piece-duplicate-btn piece-duplicate-btn--default" type="button" data-default-piece-duplicate title="Dupliquer la pièce par défaut"${isDisabled ? ' disabled' : ''}>Dupliquer</button>
+                    <button class="piece-delete-btn btn-reset" type="button" data-default-piece-reset="${defaultPieceId}" title="Réinitialiser la pièce par défaut">${resetIconMarkup}</button>
+                    <button class="piece-duplicate-btn piece-duplicate-btn--default" type="button" data-default-piece-duplicate="${defaultPieceId}" title="Dupliquer la pièce par défaut"${isDisabled ? ' disabled' : ''}>Dupliquer</button>
                 </div>
             </div>
             <div class="piece-form-grid">
@@ -6657,31 +6827,31 @@ closeEvalOpModal() {
                     <div class="lot-inline-grid lot-inline-grid--2">
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
-                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.localisation || '')}" placeholder="Bâtiment, zone, espace…" data-default-piece-input="localisation">
+                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.localisation || '')}" placeholder="Bâtiment, zone, espace…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="localisation">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
-                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.situation || '')}" placeholder="Situation du lot" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
+                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.situation || '')}" placeholder="Situation du lot" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                     </div>
                     <div class="lot-field-block" style="margin-top: 6px;">
                         <label class="lot-field-label lot-field-label--hidden">Quantité pièce par défaut</label>
-                        <input type="text" inputmode="numeric" class="lot-input" value="${this.formatAllotissementNumericDisplay(defaultPiece.quantite)}" placeholder="Quantité pièce par défaut" data-default-piece-input="quantite">
+                        <input type="text" inputmode="numeric" class="lot-input" value="${this.formatAllotissementNumericDisplay(defaultPiece.quantite)}" placeholder="Quantité pièce par défaut" data-default-piece-id="${defaultPieceId}" data-default-piece-input="quantite">
                     </div>
                 </div>
                 <div class="lot-group" style="margin-bottom: 4px;">
                     <p class="lot-group-title">Type de pièce, essence</p>
                     <div class="lot-field-block">
                         <div class="lot-essence-picker">
-                            <input type="text" class="lot-input" value="${viewValue(pEffTypePiece)}" placeholder="Type de pièce" data-default-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
+                            <input type="text" class="lot-input" value="${viewValue(pEffTypePiece)}" placeholder="Type de pièce" data-default-piece-id="${defaultPieceId}" data-default-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
                         </div>
                     </div>
                     <div class="lot-field-block">
-                        <input type="text" class="lot-input" value="${viewValue(defaultPiece.typeProduit || '')}" placeholder="Type de produit" data-default-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
+                        <input type="text" class="lot-input" value="${viewValue(defaultPiece.typeProduit || '')}" placeholder="Type de produit" data-default-piece-id="${defaultPieceId}" data-default-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
                     </div>
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
-                        <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
-                        <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
+                        <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
+                        <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                     </div>
                 </div>
                 <div class="lot-group">
@@ -6689,42 +6859,42 @@ closeEvalOpModal() {
                     <div class="lot-inline-grid lot-inline-grid--lot-dimensions">
                         <div class="lot-dimension-field">
                             <label class="lot-field-label">Longueur</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${dpPreview.longueur !== '' && dpPreview.longueur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.longueur))}" data-default-piece-input="longueur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                            <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.longueur !== '' && defaultPiece.longueur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.longueur))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="longueur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed">
                                 <label class="lot-field-label">Volume unitaire</label>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" class="lot-input" value="${viewValue(formatGrouped(dpPreview.volumePiece, 3))}" readonly data-default-piece-display="volumePiece">
+                                    <input type="text" class="lot-input" value="${viewValue(formatGrouped(dpPreview.volumePiece, 3))}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="volumePiece">
                                     <span class="lot-input-unit">m3</span>
                                 </div>
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label">Largeur</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${dpPreview.largeur !== '' && dpPreview.largeur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.largeur))}" placeholder="Face, Plat…" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                            <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.largeur !== '' && defaultPiece.largeur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.largeur))}" placeholder="Face, Plat…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${isSurfaceMuted ? ' data-muted="true"' : ''}>
                                 <label class="lot-field-label">Surface unitaire</label>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" class="lot-input" value="${(isDisabled || isSurfaceMuted) ? '' : formatOneDecimal(dpPreview.surfacePiece)}" readonly data-default-piece-display="surfacePiece">
+                                    <input type="text" class="lot-input" value="${(isDisabled || isSurfaceMuted) ? '' : formatOneDecimal(dpPreview.surfacePiece)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="surfacePiece">
                                     <span class="lot-input-unit">m2</span>
                                 </div>
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label">Épaisseur</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${dpPreview.epaisseur !== '' && dpPreview.epaisseur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                            <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.epaisseur !== '' && defaultPiece.epaisseur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
                                 <label class="lot-field-label">Diamètre</label>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(dpPreview.diametre))}" data-default-piece-input="diametre">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.diametre))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="diametre">
                                     <span class="lot-input-unit">mm</span>
                                 </div>
                             </div>
@@ -6737,13 +6907,13 @@ closeEvalOpModal() {
                         <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
                         <div class="lot-price-market-row">
                             <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                <span class="lot-input-unit" data-default-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
+                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
                             </div>
                             <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix">
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                             </div>
                         </div>
                     </div>
@@ -6751,20 +6921,20 @@ closeEvalOpModal() {
                         <div class="lot-field-block">
                             <label class="lot-field-label">Prix de la pièce</label>
                             <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${viewValue(formatGrouped(Math.round(dpPreview.prixPiece || 0), 0))}" readonly data-default-piece-display="prixPiece">
+                                <input type="text" class="lot-input" value="${viewValue(formatGrouped(Math.round(dpPreview.prixPiece || 0), 0))}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPiece">
                                 <span class="lot-input-unit">€</span>
                             </div>
                         </div>
                         <div class="lot-field-block"${integriteData.ignore ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label">Prix ajusté</label>
                             <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${(isDisabled || integriteData.ignore) ? '' : formatGrouped(Math.round(dpPreview.prixPieceAjusteIntegrite || 0), 0)}" readonly data-default-piece-display="prixPieceAjuste">
+                                <input type="text" class="lot-input" value="${(isDisabled || integriteData.ignore) ? '' : formatGrouped(Math.round(dpPreview.prixPieceAjusteIntegrite || 0), 0)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPieceAjuste">
                                 <span class="lot-input-unit">€</span>
                             </div>
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label">Intégrité lot</label>
-                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-default-piece-display="integriteLot">
+                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="integriteLot">
                         </div>
                     </div>
                 </div>
@@ -6775,16 +6945,16 @@ closeEvalOpModal() {
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Masse volumique</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pMasseVol))}" data-default-piece-input="masseVolumique">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pMasseVol))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="masseVolumique">
                                     <span class="lot-input-unit">kg/m3</span>
                                 </div>
-                                <p class="lot-field-meta" data-default-piece-display="masseVolumiqueSource">${showAsDisabled ? '' : pMasseVolSourceLabel}</p>
+                                <p class="lot-field-meta" data-default-piece-id="${defaultPieceId}" data-default-piece-display="masseVolumiqueSource">${showAsDisabled ? '' : pMasseVolSourceLabel}</p>
                             </div>
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Masse pièce</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" class="lot-input" value="${viewValue(masseDisplay.value)}" readonly data-default-piece-display="massePiece">
-                                    <span class="lot-input-unit" data-default-piece-display="massePieceUnit">${masseDisplay.unit}</span>
+                                    <input type="text" class="lot-input" value="${viewValue(masseDisplay.value)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="massePiece">
+                                    <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="massePieceUnit">${masseDisplay.unit}</span>
                                 </div>
                             </div>
                         </div>
@@ -6792,21 +6962,21 @@ closeEvalOpModal() {
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Fraction C</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pFractionC))}" data-default-piece-input="fractionCarbonee">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pFractionC))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="fractionCarbonee">
                                     <span class="lot-input-unit">%</span>
                                 </div>
                             </div>
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Humidité</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pHumidite))}" data-default-piece-input="humidite">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pHumidite))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="humidite">
                                     <span class="lot-input-unit">%</span>
                                 </div>
                             </div>
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Bois</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pBois))}" data-default-piece-input="bois">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pBois))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="bois">
                                     <span class="lot-input-unit">%</span>
                                 </div>
                             </div>
@@ -6816,8 +6986,8 @@ closeEvalOpModal() {
                         <div class="lot-field-block">
                             <label class="lot-field-label">PCO₂ pièce</label>
                             <div class="lot-input-with-unit">
-                                <input type="text" class="lot-input" value="${viewValue(pco2Display.value)}" readonly data-default-piece-display="carboneBiogeniqueEstime">
-                                <span class="lot-input-unit" data-default-piece-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
+                                <input type="text" class="lot-input" value="${viewValue(pco2Display.value)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="carboneBiogeniqueEstime">
+                                <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
                             </div>
                         </div>
                     </div>
@@ -6828,17 +6998,17 @@ closeEvalOpModal() {
                         <div class="lot-field-block">
                             <label class="lot-field-label">Âge de<br>l'arbre</label>
                             <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(defaultPiece.ageArbre || '')}" data-default-piece-input="ageArbre">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(defaultPiece.ageArbre || '')}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="ageArbre">
                                 <span class="lot-input-unit">ans</span>
                             </div>
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label">Date de mise<br>en service</label>
-                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.dateMiseEnService || '')}" data-default-piece-input="dateMiseEnService">
+                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.dateMiseEnService || '')}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="dateMiseEnService">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label">Amortissement<br>biologique</label>
-                            <input type="text" class="lot-input" value="${viewValue(this.computeAmortissementBiologique(defaultPiece.ageArbre, defaultPiece.dateMiseEnService))}" readonly data-default-piece-display="amortissementBiologique">
+                            <input type="text" class="lot-input" value="${viewValue(this.computeAmortissementBiologique(defaultPiece.ageArbre, defaultPiece.dateMiseEnService))}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="amortissementBiologique">
                         </div>
                     </div>
                 </div>
@@ -7782,7 +7952,7 @@ closeEvalOpModal() {
             }
 
             // Mise à jour des dimensions moyennes dans le formulaire lot
-            const defaultQty = parseFloat(((lot.defaultPiece || {}).quantite)) || 0;
+            const defaultQty = this.getTotalDefaultPieceQuantity(lot);
             if (nbPieces > 0 || defaultQty > 0) {
                 const longueurInput = card.querySelector('input[data-lot-input="longueur"]');
                 const largeurInput = card.querySelector('input[data-lot-input="largeur"]');
@@ -8423,7 +8593,7 @@ closeEvalOpModal() {
         }
 
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
-        const defaultPiece = this.ensureDefaultPieceData(lot);
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
 
         section.style.display = '';
@@ -8436,9 +8606,11 @@ closeEvalOpModal() {
         });
         const formatOneDecimal = (value) => formatGrouped(value, 1);
 
-        // Rendre la pièce par défaut + les pièces détaillées avec carte active persistante
         const activeCardKey = this.getDetailLotActiveCardKey(lot);
-        pieceRail.innerHTML = this.renderDefaultPieceCardHTML(lot, activeCardKey === 'default')
+        pieceRail.innerHTML = defaultPieces.map((defaultPiece, defaultPieceIndex) => {
+            const cardKey = `default:${defaultPiece.id}`;
+            return this.renderDefaultPieceCardHTML(lot, defaultPiece, defaultPieceIndex, activeCardKey === cardKey);
+        }).join('')
             + lot.pieces.map((p, pi) => this.renderPieceCardHTML(p, pi, lot, activeCardKey === `piece:${pi}`)).join('');
         this.applyDetailLotCardActivation(pieceRail, lot);
 
@@ -8453,90 +8625,41 @@ closeEvalOpModal() {
             });
         });
 
-        // Bouton dupliquer pièce par défaut
-        const defaultDupBtn = pieceRail.querySelector('[data-default-piece-duplicate]');
-        if (defaultDupBtn) {
-            defaultDupBtn.addEventListener('click', () => {
-                if (!this.isDetailLotCardActive(lot, 'default')) return;
-                const cloned = this.buildPieceFromDefault(lot, lot.pieces.length);
-                this.requestDetailedPieceCreation(lot, cloned);
-            });
-        }
-
-        const defaultResetBtn = pieceRail.querySelector('[data-default-piece-reset]');
-        if (defaultResetBtn) {
-            defaultResetBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!this.isDetailLotCardActive(lot, 'default')) return;
-                this.openResetConfirmModal({
-                    title: 'Réinitialiser la pièce par défaut',
-                    message: 'Voulez-vous vraiment réinitialiser les données du formulaire de pièce par défaut ?',
-                    confirmLabel: 'Oui, réinitialiser',
-                    onConfirm: () => {
-                        const dp = this.ensureDefaultPieceData(lot);
-                        dp.localisation = '';
-                        dp.situation = '';
-                        dp.typePiece = '';
-                        dp.essenceNomCommun = '';
-                        dp.essenceNomScientifique = '';
-                        dp.essence = '';
-                        dp.longueur = '';
-                        dp.largeur = '';
-                        dp.epaisseur = '';
-                        dp.diametre = '';
-                        dp.prixUnite = '';
-                        dp.prixMarche = '';
-                        dp.masseVolumique = String(DEFAULT_MASSE_VOLUMIQUE);
-                        dp.humidite = '';
-                        dp.fractionCarbonee = '';
-                        dp.bois = '';
-                        dp.quantite = '0';
-
-                        lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
-                        this.recalculateLotAllotissement(lot);
-                        this.saveData();
-                        this.renderAllotissement();
-                        this.renderDetailLot();
-                    }
-                });
-            });
-        }
-
-        const updateDefaultPieceDisplays = () => {
-            const dp = this.ensureDefaultPieceData(lot);
+        const updateDefaultPieceDisplays = (defaultPieceId) => {
+            const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
             const isDisabled = (Math.max(0, parseFloat(dp.quantite || 0) || 0) <= 0);
-            const preview = this.buildPieceFromDefault(lot, -1);
+            const preview = this.buildPieceFromDefault(lot, -1, defaultPieceId);
             this.recalculatePiece(preview, lot);
 
             this.recalculateLotAllotissement(lot);
             this.saveData();
 
-            const qVP = pieceRail.querySelector('[data-default-piece-display="volumePiece"]');
+            const qVP = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="volumePiece"]`);
             if (qVP) qVP.value = isDisabled ? '' : formatGrouped(preview.volumePiece, 3);
-            const qSP = pieceRail.querySelector('[data-default-piece-display="surfacePiece"]');
+            const qSP = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="surfacePiece"]`);
             if (qSP) qSP.value = isDisabled ? '' : formatOneDecimal(preview.surfacePiece);
-            const qPP = pieceRail.querySelector('[data-default-piece-display="prixPiece"]');
+            const qPP = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="prixPiece"]`);
             if (qPP) qPP.value = isDisabled ? '' : formatGrouped(Math.round(preview.prixPiece || 0), 0);
-            const qPA = pieceRail.querySelector('[data-default-piece-display="prixPieceAjuste"]');
+            const qPA = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="prixPieceAjuste"]`);
             const isIgnored = !!(((lot.inspection || {}).integrite || {}).ignore);
             if (qPA) qPA.value = (isDisabled || isIgnored) ? '' : formatGrouped(Math.round(preview.prixPieceAjusteIntegrite || 0), 0);
             const masseD = this.formatMasseDisplay(preview.massePiece);
-            const qMP = pieceRail.querySelector('[data-default-piece-display="massePiece"]');
+            const qMP = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="massePiece"]`);
             if (qMP) qMP.value = isDisabled ? '' : masseD.value;
-            const qMPU = pieceRail.querySelector('[data-default-piece-display="massePieceUnit"]');
+            const qMPU = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="massePieceUnit"]`);
             if (qMPU) qMPU.textContent = masseD.unit;
             const pco2D = this.formatPco2Display(preview.carboneBiogeniqueEstime);
-            const qCO2 = pieceRail.querySelector('[data-default-piece-display="carboneBiogeniqueEstime"]');
+            const qCO2 = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="carboneBiogeniqueEstime"]`);
             if (qCO2) qCO2.value = isDisabled ? '' : pco2D.value;
-            const qCO2U = pieceRail.querySelector('[data-default-piece-display="carboneBiogeniqueEstimeUnit"]');
+            const qCO2U = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="carboneBiogeniqueEstimeUnit"]`);
             if (qCO2U) qCO2U.textContent = pco2D.unit;
 
-            const unitDisp = pieceRail.querySelector('[data-default-piece-display="prixMarcheUnit"]');
+            const unitDisp = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="prixMarcheUnit"]`);
             if (unitDisp) {
                 const u = ((dp.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
                 unitDisp.textContent = '€/' + (u === 'ml' || u === 'm2' || u === 'm3' ? u : 'm3');
             }
-            const masseVolSourceEl = pieceRail.querySelector('[data-default-piece-display="masseVolumiqueSource"]');
+            const masseVolSourceEl = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="masseVolumiqueSource"]`);
             if (masseVolSourceEl) {
                 masseVolSourceEl.textContent = isDisabled ? '' : this.getMasseVolumiqueSourceLabel({
                     essenceNomCommun: preview.essenceNomCommun,
@@ -8544,131 +8667,166 @@ closeEvalOpModal() {
                     _ownMasseVolumique: dp.masseVolumique
                 });
             }
-            const qAmortDefault = pieceRail.querySelector('[data-default-piece-display="amortissementBiologique"]');
+            const qAmortDefault = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="amortissementBiologique"]`);
             if (qAmortDefault) qAmortDefault.value = isDisabled ? '' : this.computeAmortissementBiologique(dp.ageArbre, dp.dateMiseEnService);
             this.refreshNaturaliteAlertButton(lot);
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
-
         };
 
-        pieceRail.querySelectorAll('button[data-default-piece-price-unit]').forEach((btn) => {
-            btn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (!this.isDetailLotCardActive(lot, 'default')) return;
-                const nextUnit = (btn.dataset.defaultPiecePriceUnit || '').toLowerCase();
-                if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
-                const dp = this.ensureDefaultPieceData(lot);
-                dp.prixUnite = nextUnit;
-                pieceRail.querySelectorAll('button[data-default-piece-price-unit]').forEach((b) => {
-                    b.setAttribute('aria-pressed', b.dataset.defaultPiecePriceUnit === nextUnit ? 'true' : 'false');
+        pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
+            const defaultPieceId = defaultPieceCard.dataset.defaultPieceId;
+            if (!defaultPieceId) return;
+            const cardKey = `default:${defaultPieceId}`;
+
+            const defaultDupBtn = defaultPieceCard.querySelector(`[data-default-piece-duplicate="${defaultPieceId}"]`);
+            if (defaultDupBtn) {
+                defaultDupBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const cloned = this.buildPieceFromDefault(lot, lot.pieces.length, defaultPieceId);
+                    this.requestDetailedPieceCreation(lot, cloned, defaultPieceId);
                 });
-                updateDefaultPieceDisplays();
+            }
+
+            const defaultResetBtn = defaultPieceCard.querySelector(`[data-default-piece-reset="${defaultPieceId}"]`);
+            if (defaultResetBtn) {
+                defaultResetBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    this.openResetConfirmModal({
+                        title: 'Réinitialiser la pièce par défaut',
+                        message: 'Voulez-vous vraiment réinitialiser les données du formulaire de pièce par défaut ?',
+                        confirmLabel: 'Oui, réinitialiser',
+                        onConfirm: () => {
+                            this.resetDefaultPieceData(this.ensureDefaultPieceData(lot, defaultPieceId));
+                            lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
+                            this.recalculateLotAllotissement(lot);
+                            this.saveData();
+                            this.renderAllotissement();
+                            this.renderDetailLot();
+                        }
+                    });
+                });
+            }
+
+            defaultPieceCard.querySelectorAll(`button[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const nextUnit = (btn.dataset.defaultPiecePriceUnit || '').toLowerCase();
+                    if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
+                    const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                    dp.prixUnite = nextUnit;
+                    defaultPieceCard.querySelectorAll(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((button) => {
+                        button.setAttribute('aria-pressed', button.dataset.defaultPiecePriceUnit === nextUnit ? 'true' : 'false');
+                    });
+                    updateDefaultPieceDisplays(defaultPieceId);
+                });
             });
-        });
 
-        // Branchement des inputs de la pièce par défaut
-        pieceRail.querySelectorAll('input[data-default-piece-input]').forEach((input) => {
-            const updateDefaultPieceField = (e) => {
-                const field = e.target.dataset.defaultPieceInput;
-                if (!field) return;
-                if (!this.isDetailLotCardActive(lot, 'default')) return;
-                const dp = this.ensureDefaultPieceData(lot);
-                const isDefaultDisabled = (Math.max(0, parseFloat(dp.quantite || 0) || 0) <= 0);
-                if (field !== 'quantite' && isDefaultDisabled) return;
+            defaultPieceCard.querySelectorAll(`input[data-default-piece-id="${defaultPieceId}"][data-default-piece-input]`).forEach((input) => {
+                const updateDefaultPieceField = (e) => {
+                    const field = e.target.dataset.defaultPieceInput;
+                    if (!field) return;
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                    const isDefaultDisabled = (Math.max(0, parseFloat(dp.quantite || 0) || 0) <= 0);
+                    if (field !== 'quantite' && isDefaultDisabled) return;
 
-                if (field === 'quantite') {
-                    const normalized = this.normalizeAllotissementNumericInput(e.target.value);
-                    dp.quantite = normalized;
-                    if (e.type === 'change' || e.type === 'blur') {
-                        e.target.value = this.formatAllotissementNumericDisplay(dp.quantite);
+                    if (field === 'quantite') {
+                        const normalized = this.normalizeAllotissementNumericInput(e.target.value);
+                        dp.quantite = normalized;
+                        if (e.type === 'change' || e.type === 'blur') {
+                            e.target.value = this.formatAllotissementNumericDisplay(dp.quantite);
+                        }
+                    } else if (this.isAllotissementNumericField(field)) {
+                        const normalized = this.normalizeAllotissementNumericInput(e.target.value);
+                        dp[field] = normalized;
+                        if (field === 'masseVolumique' && normalized === '' && (e.type === 'blur' || e.type === 'change')) {
+                            const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
+                            dp[field] = String(suggested);
+                        }
+                        const shouldFormatDisplay = e.type === 'change' || e.type === 'blur' || !this.isCarbonPrixNumericField(field);
+                        if (shouldFormatDisplay) {
+                            e.target.value = this.formatAllotissementNumericDisplay(dp[field]);
+                        }
+                    } else {
+                        dp[field] = e.target.value;
                     }
-                } else if (this.isAllotissementNumericField(field)) {
-                    const normalized = this.normalizeAllotissementNumericInput(e.target.value);
-                    dp[field] = normalized;
-                    if (field === 'masseVolumique' && normalized === '' && (e.type === 'blur' || e.type === 'change')) {
-                        const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
-                        dp[field] = String(suggested);
-                    }
-                    const shouldFormatDisplay = e.type === 'change' || e.type === 'blur' || !this.isCarbonPrixNumericField(field);
-                    if (shouldFormatDisplay) {
-                        e.target.value = this.formatAllotissementNumericDisplay(dp[field]);
-                    }
-                } else {
-                    dp[field] = e.target.value;
-                }
 
-                if (field === 'diametre') {
-                    const hasDiam = (dp.diametre || '') !== '';
-                    if (hasDiam) {
-                        dp.largeur = '';
-                        dp.epaisseur = '';
+                    if (field === 'diametre') {
+                        const hasDiam = (dp.diametre || '') !== '';
+                        if (hasDiam) {
+                            dp.largeur = '';
+                            dp.epaisseur = '';
+                        }
                     }
-                }
 
-                if (field === 'largeur' || field === 'epaisseur') {
-                    const hasLHNow = (dp.largeur || '') !== '' || (dp.epaisseur || '') !== '';
-                    if (hasLHNow) dp.diametre = '';
-                }
-
-                if (field === 'essenceNomCommun') {
-                    const nm = (dp.essenceNomCommun || '').toString().trim();
-                    const match = this.findEssenceByCommonName(nm);
-                    if (match) {
-                        dp.essenceNomScientifique = match.nomScientifique;
-                        const sci = pieceRail.querySelector('input[data-default-piece-input="essenceNomScientifique"]');
-                        if (sci) sci.value = match.nomScientifique;
+                    if (field === 'largeur' || field === 'epaisseur') {
+                        const hasLHNow = (dp.largeur || '') !== '' || (dp.epaisseur || '') !== '';
+                        if (hasLHNow) dp.diametre = '';
                     }
-                    const shouldApplyMasseSuggestion = e.type !== 'input' || !!match;
-                    if (shouldApplyMasseSuggestion) {
-                        const masseInput = pieceRail.querySelector('input[data-default-piece-input="masseVolumique"]');
-                        const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
-                        if (dp.masseVolumique === '' || e.type !== 'input') dp.masseVolumique = String(suggested);
-                        if (masseInput) masseInput.value = this.formatAllotissementNumericDisplay(dp.masseVolumique);
+
+                    if (field === 'essenceNomCommun') {
+                        const nm = (dp.essenceNomCommun || '').toString().trim();
+                        const match = this.findEssenceByCommonName(nm);
+                        if (match) {
+                            dp.essenceNomScientifique = match.nomScientifique;
+                            const sci = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="essenceNomScientifique"]`);
+                            if (sci) sci.value = match.nomScientifique;
+                        }
+                        const shouldApplyMasseSuggestion = e.type !== 'input' || !!match;
+                        if (shouldApplyMasseSuggestion) {
+                            const masseInput = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="masseVolumique"]`);
+                            const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
+                            if (dp.masseVolumique === '' || e.type !== 'input') dp.masseVolumique = String(suggested);
+                            if (masseInput) masseInput.value = this.formatAllotissementNumericDisplay(dp.masseVolumique);
+                        }
                     }
-                }
 
-                if (field === 'essenceNomScientifique') {
-                    const nm = (dp.essenceNomScientifique || '').toString().trim();
-                    const match = this.findEssenceByScientificName(nm);
-                    if (match) {
-                        dp.essenceNomCommun = match.nomUsuel;
-                        const com = pieceRail.querySelector('input[data-default-piece-input="essenceNomCommun"]');
-                        if (com) com.value = match.nomUsuel;
+                    if (field === 'essenceNomScientifique') {
+                        const nm = (dp.essenceNomScientifique || '').toString().trim();
+                        const match = this.findEssenceByScientificName(nm);
+                        if (match) {
+                            dp.essenceNomCommun = match.nomUsuel;
+                            const com = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="essenceNomCommun"]`);
+                            if (com) com.value = match.nomUsuel;
+                        }
+                        const shouldApplyMasseSuggestion = e.type !== 'input' || !!match;
+                        if (shouldApplyMasseSuggestion) {
+                            const masseInput = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="masseVolumique"]`);
+                            const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
+                            if (dp.masseVolumique === '' || e.type !== 'input') dp.masseVolumique = String(suggested);
+                            if (masseInput) masseInput.value = this.formatAllotissementNumericDisplay(dp.masseVolumique);
+                        }
                     }
-                    const shouldApplyMasseSuggestion = e.type !== 'input' || !!match;
-                    if (shouldApplyMasseSuggestion) {
-                        const masseInput = pieceRail.querySelector('input[data-default-piece-input="masseVolumique"]');
-                        const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
-                        if (dp.masseVolumique === '' || e.type !== 'input') dp.masseVolumique = String(suggested);
-                        if (masseInput) masseInput.value = this.formatAllotissementNumericDisplay(dp.masseVolumique);
+
+                    dp.essence = [
+                        (dp.essenceNomCommun || '').toString().trim(),
+                        (dp.essenceNomScientifique || '').toString().trim()
+                    ].filter(Boolean).join(' - ');
+
+                    lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
+                    updateDefaultPieceDisplays(defaultPieceId);
+                    this.renderAllotissement();
+                    const shouldFullRerender = (field === 'quantite' && e.type !== 'input') || e.type === 'change' || e.type === 'blur';
+                    if (shouldFullRerender) {
+                        this.renderDetailLot();
                     }
-                }
+                };
 
-                dp.essence = [
-                    (dp.essenceNomCommun || '').toString().trim(),
-                    (dp.essenceNomScientifique || '').toString().trim()
-                ].filter(Boolean).join(' - ');
-
-                lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
-                updateDefaultPieceDisplays();
-                this.renderAllotissement();
-                const shouldFullRerender = (field === 'quantite' && e.type !== 'input') || e.type === 'change' || e.type === 'blur';
-                if (shouldFullRerender) {
-                    this.renderDetailLot();
-                }
-            };
-
-            input.addEventListener('click', (e) => e.stopPropagation());
-            input.addEventListener('focus', (e) => {
-                const field = e.target.dataset.defaultPieceInput;
-                if (!field || (field !== 'quantite' && !this.isAllotissementNumericField(field))) return;
-                e.target.value = this.normalizeAllotissementNumericInput(e.target.value);
+                input.addEventListener('click', (e) => e.stopPropagation());
+                input.addEventListener('focus', (e) => {
+                    const field = e.target.dataset.defaultPieceInput;
+                    if (!field || (field !== 'quantite' && !this.isAllotissementNumericField(field))) return;
+                    e.target.value = this.normalizeAllotissementNumericInput(e.target.value);
+                });
+                input.addEventListener('input', updateDefaultPieceField);
+                input.addEventListener('change', updateDefaultPieceField);
+                input.addEventListener('blur', updateDefaultPieceField);
             });
-            input.addEventListener('input', updateDefaultPieceField);
-            input.addEventListener('change', updateDefaultPieceField);
-            input.addEventListener('blur', updateDefaultPieceField);
         });
 
         // Bouton ajouter pièce
@@ -8677,8 +8835,34 @@ closeEvalOpModal() {
             const newBtn = btnAdd.cloneNode(true);
             btnAdd.parentNode.replaceChild(newBtn, btnAdd);
             newBtn.addEventListener('click', () => {
+                const activeCardKey = this.getDetailLotActiveCardKey(lot);
+                const activeDefaultPieceId = (activeCardKey && activeCardKey.startsWith('default:'))
+                    ? activeCardKey.slice('default:'.length)
+                    : null;
+                const fallbackDefaultPieceId = defaultPieces[0] && defaultPieces[0].id;
+                const sourceDefaultPieceId = activeDefaultPieceId || fallbackDefaultPieceId || null;
                 const newPiece = this.createEmptyPiece(lot.pieces.length);
-                this.requestDetailedPieceCreation(lot, newPiece);
+                this.requestDetailedPieceCreation(lot, newPiece, sourceDefaultPieceId);
+            });
+        }
+
+        const btnAddDefaultPiece = document.getElementById('btnAddDefaultPiece');
+        if (btnAddDefaultPiece) {
+            const newBtn = btnAddDefaultPiece.cloneNode(true);
+            btnAddDefaultPiece.parentNode.replaceChild(newBtn, btnAddDefaultPiece);
+            newBtn.addEventListener('click', () => {
+                const newDefaultPiece = this.createEmptyDefaultPiece();
+                newDefaultPiece.quantite = '1';
+                newDefaultPiece.localisation = (lot.localisation || '').toString();
+                newDefaultPiece.situation = (lot.situation || '').toString();
+                const defaultPiecesList = this.ensureDefaultPiecesData(lot);
+                const normalizedDefaultPiece = this.ensureDefaultPieceShape(newDefaultPiece, defaultPiecesList.length);
+                defaultPiecesList.push(normalizedDefaultPiece);
+                this.setDetailLotActiveCardKey(lot, `default:${normalizedDefaultPiece.id}`, { persist: false });
+                this.recalculateLotAllotissement(lot);
+                this.saveData();
+                this.renderAllotissement();
+                this.renderDetailLot();
             });
         }
 
@@ -12012,6 +12196,7 @@ renderRadar() {
         if (this.persistenceMode === 'guest') {
             try {
                 localStorage.removeItem(this.storageKey);
+                localStorage.removeItem(this.storageBackupKey);
             } catch (e) {
                 console.error(e);
             }
@@ -12108,7 +12293,7 @@ renderRadar() {
         const items = [];
         const allot = (lot && lot.allotissement) || {};
         const meta = this.data.meta || {};
-        const defaultPiece = this.ensureDefaultPieceData(lot);
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
 
         const asText = (value) => (value == null ? '' : String(value)).trim();
         const firstFilled = (...values) => values.map(asText).find(Boolean) || '';
@@ -12166,19 +12351,21 @@ renderRadar() {
             ));
         });
 
-        const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
-        for (let i = 0; i < defaultQty; i += 1) {
-            items.push(createBaseItem(
-                `Pièce par défaut n°${i + 1}`,
-                firstFilled(defaultPiece.typePiece, allot.typePiece),
-                firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
-                formatDimensionsLabel(
-                    firstFilled(defaultPiece.longueur, allot.longueur),
-                    firstFilled(defaultPiece.largeur, allot.largeur),
-                    firstFilled(defaultPiece.epaisseur, allot.epaisseur)
-                )
-            ));
-        }
+        defaultPieces.forEach((defaultPiece, defaultPieceIndex) => {
+            const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
+            for (let i = 0; i < defaultQty; i += 1) {
+                items.push(createBaseItem(
+                    `Pièce par défaut ${defaultPieceIndex + 1} n°${i + 1}`,
+                    firstFilled(defaultPiece.typePiece, allot.typePiece),
+                    firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
+                    formatDimensionsLabel(
+                        firstFilled(defaultPiece.longueur, allot.longueur),
+                        firstFilled(defaultPiece.largeur, allot.largeur),
+                        firstFilled(defaultPiece.epaisseur, allot.epaisseur)
+                    )
+                ));
+            }
+        });
 
         return items;
     }
