@@ -1235,6 +1235,81 @@
                     </footer>
                 </div>
             </div>
+            <!-- Modale info Taux de similarité et Pièce type -->
+            <div class="modal-backdrop hidden" id="tauxLogicModalBackdrop" aria-hidden="true">
+                <div class="modal modal--info-sheet" role="dialog" aria-modal="true"
+                    aria-labelledby="tauxLogicModalTitle">
+                    <header class="modal-header">
+                        <h2 id="tauxLogicModalTitle">À propos du Taux de similarité et la Pièce type</h2>
+                        <button class="modal-close" type="button" id="btnCloseTauxLogicModal">×</button>
+                    </header>
+                    <div class="modal-body">
+                        <div class="info-sheet">
+                            <div class="info-sheet-intro">
+                                Le Taux de similarité et la Pièce type sont deux concepts liés qui décrivent la variabilité et la représentativité des pièces du lot.
+                            </div>
+
+                            <div class="info-sheet-grid">
+                                <section class="info-sheet-section">
+                                    <h3>Taux de similarité</h3>
+                                    <p>Le Taux de similarité mesure la proximité des pièces du lot avec la pièce type (médoïde). Il est calculé en distance euclidienne normalisée dans l'espace des dimensions (longueur, section) en tenant compte des seuils de destination.</p>
+                                    <p>Une valeur proche de 100 % indique que les pièces du lot sont très homogènes et proches de la pièce type. Une valeur basse indique une grande variabilité.</p>
+                                </section>
+
+                                <section class="info-sheet-section">
+                                    <h3>Pièce type (Médoïde)</h3>
+                                    <p>La Pièce type, ou médoïde, est la pièce du lot qui minimise la distance euclidienne au reste des pièces. Elle représente la pièce la plus « centrale » ou « représentative » du lot.</p>
+                                    <p>Le score (pourcentage) indique la qualité de cette représentativité.</p>
+                                </section>
+
+                                <section class="info-sheet-section">
+                                    <h3>Catégories de conformité</h3>
+                                    <p>Chaque pièce du lot est classée selon sa conformité aux seuils de destination :</p>
+                                    <ul style="margin: 12px 0 0 16px; line-height: 1.6;">
+                                        <li><strong>Conforme</strong> : pièce respectant tous les critères dimensionnels des bornes.</li>
+                                        <li><strong>Recoupe</strong> : pièce nécessitant une découpe transversale pour se conformer (longueur supérieure à la borne max et dans les bornes Largeur et Épaisseur ou Diamètre).</li>
+                                        <li><strong>Corroyage</strong> : pièce nécessitant un rabotage/corroyage pour se conformer (conforme à des ou à l’une, des bornes max Largeur, Épaisseur ou Diamètre, et dans les bornes de Longueur).</li>
+                                        <li><strong>R&C</strong> : pièce nécessitant à la fois une recoupe et un corroyage (hors de des bornes max de Largeur et d'aisseur ou Diamètre, et hors de la borne max de Longueur).</li>
+                                        <li><strong>Bois court</strong> : pièce sous la longueur minimale mais dans les bornes Largeur et Épaisseur.</li>
+                                        <li><strong>Rejet</strong> : pièce non conforme aux précédentes catégories.</li>
+                                    </ul>
+                                    <p style="margin-top: 12px; font-size: 13px; color: #666;">Le taux de conformité affiche le pourcentage de pièces dans chaque catégorie.</p>
+                                </section>
+
+                                <section class="info-sheet-section">
+                                    <h3>Fondement mathématique</h3>
+                                    <p><strong>Distance euclidienne normalisée :</strong></p>
+                                    <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
+                                        d(P, M) = √[ (L<sub>P</sub> − L<sub>M</sub>)² / σ<sub>L</sub>² + (S<sub>P</sub> − S<sub>M</sub>)² / σ<sub>S</sub>² ]
+                                    </div>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où P est une pièce, M est la médoïde, L et S les dimensions (longueur, section), σ les écarts-types.</p>
+
+                                    <p style="margin-top: 12px;"><strong>Taux de similarité :</strong></p>
+                                    <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
+                                        T = (1 − d<sub>norm</sub>) × 100%
+                                    </div>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où d<sub>norm</sub> est la distance normalisée à l'intervalle [0, 1].</p>
+
+                                    <p style="margin-top: 12px;"><strong>Pièce type (Médoïde) :</strong></p>
+                                    <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
+                                        M* = arg min<sub>i</sub> Σ<sub>j</sub> d(P<sub>i</sub>, P<sub>j</sub>)
+                                    </div>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">La pièce M* minimise la somme des distances au reste des pièces du lot.</p>
+                                </section>
+                            </div>
+
+                            <div class="info-sheet-note">
+                                <strong>À retenir :</strong> Un Taux de similarité élevé et une Pièce type bien définie indiquent un lot homogène et facile à valoriser.
+                            </div>
+                        </div>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary btn-full" type="button" id="btnCloseTauxLogicModalFooter">
+                            J'ai compris
+                        </button>
+                    </footer>
+                </div>
+            </div>
             <!-- Modale confirmation suppression de lot -->
             <div class="modal-backdrop hidden" id="deleteLotConfirmBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deleteLotConfirmTitle">

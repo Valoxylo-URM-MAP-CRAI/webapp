@@ -1505,6 +1505,15 @@ body.day-mode .lot-group--collapsible summary:hover {
     display: none;
 }
 
+.lot-dest-grid[data-variabilite-mode="rectangular"] [data-variabilite-dim="diametre"] {
+    display: none;
+}
+
+.lot-dest-grid[data-variabilite-mode="cylindrical"] [data-variabilite-dim="largeur"],
+.lot-dest-grid[data-variabilite-mode="cylindrical"] [data-variabilite-dim="epaisseur"] {
+    display: none;
+}
+
 .lot-inline-grid--lot-essence {
     display: grid;
     gap: 8px;
@@ -1753,8 +1762,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-dest-input {
     width: 100%;
     text-align: right;
-    padding: 2px 4px;
-    font-size: var(--font-size-xs);
+    padding: var(--space-4) var(--space-8);
+    font-size: var(--font-size-sm);
     background-color: #e6e6e6;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -1813,8 +1822,108 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-dest-medoide-label--taux {
     display: block;
     margin-top: 0;
-    background: rgba(29, 61, 150, 0.08);
+    background: #F2EFE7;
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    color: #5D564A;
+    border: 1px solid #DDD6C8;
+    padding: var(--space-4) var(--space-8);
 }
+
+/* Wrapper two-column layout for Taux and Pièce type */
+.lot-taux-piecetype-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+.lot-taux-piecetype-title {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    color: var(--color-text);
+}
+.lot-taux-info-btn {
+    flex-shrink: 0;
+    min-width: 36px;
+    max-width: 48px;
+    padding: var(--space-4) var(--space-8);
+    border-radius: var(--radius-base);
+    border: 1px solid var(--bleu-crai);
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    min-height: 2.3em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    white-space: nowrap;
+    text-transform: lowercase;
+}
+.lot-piece-type-summary-inline {
+    margin-top: var(--space-8);
+}
+.lot-taux-piecetype-wrapper {
+    display: block;
+}
+.lot-piece-type-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: var(--space-8);
+    align-items: stretch;
+}
+.lot-piece-type-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+.lot-piece-type-field > .lot-field-label {
+    min-height: calc(2 * 1.2em);
+    display: flex;
+    align-items: flex-end;
+}
+.lot-dest-medoide-label--piece-name {
+    white-space: normal;
+    word-break: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+.lot-field-label--two-lines {
+    line-height: 1.2;
+}
+.lot-piece-type-field--nom .lot-dest-medoide-label,
+.lot-piece-type-field--score .lot-dest-medoide-label,
+.lot-piece-type-field--taux .lot-taux-similarite-display {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+.lot-piece-type-field--nom .lot-dest-medoide-label {
+    align-items: flex-start;
+}
+.lot-piece-type-field--score .lot-dest-medoide-label,
+.lot-piece-type-field--taux .lot-taux-similarite-display {
+    justify-content: center;
+    text-align: center;
+}
+.lot-taux-similarite-display {
+    padding: var(--space-4) 4px;
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    font-weight: var(--font-weight-regular);
+}
+@media (max-width: 640px) {
+    .lot-piece-type-fields {
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+        gap: 6px;
+    }
+}
+
 /* Masquer visuellement le panneau EIqAbs héritage
    sans casser son fonctionnement JS */
 .lot-group--seuils-legacy {
@@ -1834,6 +1943,9 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-direction: column;
     gap: 8px;
     margin-top: 10px;
+}
+.lot-group--conformite-lot {
+    margin-top: 8px;
 }
 .lot-conformite-gauge-row {
     display: flex;
@@ -1983,6 +2095,32 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-inline-grid--4 .lot-input[readonly] {
     padding-left: var(--space-4);
     padding-right: var(--space-4);
+}
+
+.lot-inline-grid[data-variabilite-grid="pieceType"] .lot-dimension-input-wrap .lot-input[readonly] {
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
+}
+
+.lot-inline-grid[data-variabilite-grid="pieceType"] .lot-dimension-input-wrap:not([data-has-value="true"]) .lot-input[readonly] {
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
+}
+
+.lot-inline-grid[data-variabilite-grid="pieceType"] .lot-dimension-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.lot-inline-grid[data-variabilite-grid="pieceType"] .lot-dimension-unit {
+    position: static;
+    top: auto;
+    right: auto;
+    transform: none;
+    min-width: 18px;
+    opacity: 1;
+    transition: none;
 }
 
 .lot-input--qty {
@@ -2654,6 +2792,10 @@ body.day-mode .lot-group--collapsible summary:hover {
 /* Centrer le texte des champs de dimension */
 .lot-inline-grid--lot-dimensions .lot-input {
   text-align: center;
+}
+
+.lot-inline-grid[data-variabilite-grid="pieceType"] .lot-input {
+    text-align: center;
 }
 
 /* Styles lot identiques sur tous les formats (la carte a une largeur fixe ~280-320px) */

@@ -381,11 +381,6 @@ class ValoboisApp {
                 prixUnite: '',
                 prixMarche: '',
                 masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
-                humidite: '',
-                fractionCarbonee: '',
-                bois: '',
-                ageArbre: '',
-                dateMiseEnService: ''
             };
         }
         if (!lot.defaultPiece || typeof lot.defaultPiece !== 'object') {
@@ -2154,14 +2149,6 @@ class ValoboisApp {
         return 'tres-heterogene';
     }
 
-    getTauxSimilariteState(val) {
-        if (val === null || val === undefined) return 'neutre';
-        if (val >= 75) return 'homogene';
-        if (val >= 50) return 'acceptable';
-        if (val >= 25) return 'heterogene';
-        return 'tres-heterogene';
-    }
-
     updateSeuilVariabilite(dim, tier, rawValue) {
         const parsed = parseInt(rawValue, 10);
         if (!Number.isFinite(parsed) || parsed < 0 || parsed > 100) return;
@@ -2254,28 +2241,41 @@ class ValoboisApp {
         const formatPieceTypeDim = (dim) => {
             const value = lot.allotissement.medoideDims?.[dim];
             return value != null
-                ? Math.round(value).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm'
-                : '—';
+                ? Math.round(value).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 })
+                : '';
         };
         setVal('[data-display="pieceTypeLongueur"]', formatPieceTypeDim('longueur'));
         setVal('[data-display="pieceTypeLargeur"]', formatPieceTypeDim('largeur'));
         setVal('[data-display="pieceTypeEpaisseur"]', formatPieceTypeDim('epaisseur'));
         setVal('[data-display="pieceTypeDiametre"]', formatPieceTypeDim('diametre'));
-        const medoideLabelEl = el('[data-display="medoideLabel"]');
-        if (medoideLabelEl) {
-            medoideLabelEl.textContent = lot.allotissement.medoideLabel
-                ? `${lot.allotissement.medoideLabel}${lot.allotissement.medoideScore !== null
-                    ? ' — score ' + Math.round(lot.allotissement.medoideScore) + '\u00a0%'
-                    : ''}`
-                : 'Non calculé (≥ 2 pièces requises)';
+        ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach((dim) => {
+            const wrap = el(`[data-piece-type-dim-wrap="${dim}"]`);
+            if (wrap) {
+                const hasValue = lot.allotissement.medoideDims?.[dim] != null;
+                wrap.dataset.hasValue = hasValue ? 'true' : 'false';
+            }
+        });
+        const medoideNomEl = el('[data-display="medoideNom"]');
+        if (medoideNomEl) {
+            const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
+            medoideNomEl.textContent = rawLabel;
+        }
+        const medoideScoreEl = el('[data-display="medoideScore"]');
+        if (medoideScoreEl) {
+            medoideScoreEl.textContent = lot.allotissement.medoideScore !== null
+                ? `${Math.round(lot.allotissement.medoideScore)}\u00a0%`
+                : '—';
         }
 
         // Taux de similarité
         const tauxEl = el('[data-display="tauxSimilarite"]');
         if (tauxEl) {
-            tauxEl.value = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
-            tauxEl.dataset.variabiliteState =
-                this.getTauxSimilariteState(lot.allotissement.tauxSimilarite);
+            const formattedTaux = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
+            if ('value' in tauxEl) {
+                tauxEl.value = formattedTaux;
+            } else {
+                tauxEl.textContent = formattedTaux;
+            }
         }
 
         // Mise à jour du groupe "Amortissement biologique" du lot
@@ -4161,6 +4161,19 @@ deleteLot(index) {
             });
         }
 
+        // Modale info Taux de similarité et Pièce type
+        const tauxLogicBackdrop = document.getElementById('tauxLogicModalBackdrop');
+        const tauxLogicClose = document.getElementById('btnCloseTauxLogicModal');
+        const tauxLogicCloseFooter = document.getElementById('btnCloseTauxLogicModalFooter');
+
+        if (tauxLogicBackdrop && tauxLogicClose && tauxLogicCloseFooter) {
+            tauxLogicClose.addEventListener('click', () => this.closeTauxLogicModal());
+            tauxLogicCloseFooter.addEventListener('click', () => this.closeTauxLogicModal());
+            tauxLogicBackdrop.addEventListener('click', (e) => {
+                if (e.target === tauxLogicBackdrop) this.closeTauxLogicModal();
+            });
+        }
+
         // Modale import documents (placeholder)
         const importButtons = document.querySelectorAll('[data-import-target]');
         const documentsImportBackdrop = document.getElementById('documentsImportModalBackdrop');
@@ -4796,6 +4809,22 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
     closePrixLogicModal() {
         const b = document.getElementById('prixLogicModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openTauxLogicModal() {
+        const b = document.getElementById('tauxLogicModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeTauxLogicModal() {
+        const b = document.getElementById('tauxLogicModalBackdrop');
         if (b) {
             b.classList.add('hidden');
             b.setAttribute('aria-hidden', 'true');
@@ -7312,47 +7341,69 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <div class="lot-group">
+                        <div class="lot-piece-type-summary-inline">
+                            <div class="lot-taux-piecetype-header">
+                                <h3 class="lot-taux-piecetype-title">Pièce type</h3>
+                                <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type">info</button>
+                            </div>
+                            <div class="lot-taux-piecetype-wrapper">
+                                <div class="lot-field-block lot-field-block--taux-similarite lot-field-block--piece-type-summary">
+                                    <div class="lot-piece-type-fields">
+                                        <div class="lot-piece-type-field lot-piece-type-field--nom">
+                                            <label class="lot-field-label">Nom</label>
+                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux lot-dest-medoide-label--piece-name" data-display="medoideNom">
+                                                ${(() => {
+                                                    const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
+                                                    return rawLabel;
+                                                })()}
+                                            </div>
+                                        </div>
+                                        <div class="lot-piece-type-field lot-piece-type-field--score">
+                                            <label class="lot-field-label">Score</label>
+                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux" data-display="medoideScore">
+                                                ${lot.allotissement.medoideScore !== null
+                                                    ? `${Math.round(lot.allotissement.medoideScore)}\u00a0%`
+                                                    : '—'}
+                                            </div>
+                                        </div>
+                                        <div class="lot-piece-type-field lot-piece-type-field--taux">
+                                            <label class="lot-field-label lot-field-label--two-lines">Taux de<br>similarité</label>
+                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux lot-taux-similarite-display"
+                                                 data-display="tauxSimilarite">
+                                                ${this.formatTauxSimilarite(lot.allotissement.tauxSimilarite)}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         <div class="lot-inline-grid lot-inline-grid--4" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}" data-variabilite-grid="pieceType">
                             <div class="lot-field-block" data-variabilite-dim="longueur">
                                 <label class="lot-field-label">L type</label>
-                                <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.longueur != null ? Math.round(lot.allotissement.medoideDims.longueur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm' : '—'}" readonly data-display="pieceTypeLongueur">
+                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="longueur" data-has-value="${lot.allotissement.medoideDims?.longueur != null ? 'true' : 'false'}">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.longueur != null ? Math.round(lot.allotissement.medoideDims.longueur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLongueur">
+                                    <span class="lot-dimension-unit">mm</span>
+                                </div>
                             </div>
                             <div class="lot-field-block" data-variabilite-dim="largeur">
                                 <label class="lot-field-label">l type</label>
-                                <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.largeur != null ? Math.round(lot.allotissement.medoideDims.largeur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm' : '—'}" readonly data-display="pieceTypeLargeur">
+                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="largeur" data-has-value="${lot.allotissement.medoideDims?.largeur != null ? 'true' : 'false'}">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.largeur != null ? Math.round(lot.allotissement.medoideDims.largeur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLargeur">
+                                    <span class="lot-dimension-unit">mm</span>
+                                </div>
                             </div>
                             <div class="lot-field-block" data-variabilite-dim="epaisseur">
                                 <label class="lot-field-label">e type</label>
-                                <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.epaisseur != null ? Math.round(lot.allotissement.medoideDims.epaisseur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm' : '—'}" readonly data-display="pieceTypeEpaisseur">
+                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="epaisseur" data-has-value="${lot.allotissement.medoideDims?.epaisseur != null ? 'true' : 'false'}">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.epaisseur != null ? Math.round(lot.allotissement.medoideDims.epaisseur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeEpaisseur">
+                                    <span class="lot-dimension-unit">mm</span>
+                                </div>
                             </div>
                             <div class="lot-field-block" data-variabilite-dim="diametre">
-                                <label class="lot-field-label">∅ type</label>
-                                <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.diametre != null ? Math.round(lot.allotissement.medoideDims.diametre).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm' : '—'}" readonly data-display="pieceTypeDiametre">
-                            </div>
-                        </div>
-                        <div class="lot-group lot-group--taux-similarite">
-                            <div class="lot-field-block lot-field-block--taux-similarite">
-                                <label class="lot-field-label">Taux de similarité</label>
-                                <div class="lot-input-with-unit">
-                                    <input type="text"
-                                           class="lot-input lot-input--taux-similarite"
-                                           value="${this.formatTauxSimilarite(lot.allotissement.tauxSimilarite)}"
-                                           readonly
-                                           data-display="tauxSimilarite"
-                                           data-variabilite-state="${this.getTauxSimilariteState(lot.allotissement.tauxSimilarite)}" />
-                                </div>
-                                <p class="lot-field-meta">
-                                    Similarité des pièces au regard de la pièce type et des seuils de destination
-                                </p>
-                                <div class="lot-taux-piece-type">
-                                    <p class="lot-taux-piece-type-title">Pièce type</p>
-                                    <div class="lot-dest-medoide-label lot-dest-medoide-label--taux" data-display="medoideLabel">
-                                        ${lot.allotissement.medoideLabel
-                                            ? `${lot.allotissement.medoideLabel}${lot.allotissement.medoideScore !== null
-                                                ? ' — score ' + Math.round(lot.allotissement.medoideScore) + '\u00a0%'
-                                                : ''}`
-                                            : 'Non calculé (≥ 2 pièces requises)'}
-                                    </div>
+                                <label class="lot-field-label">d type</label>
+                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="diametre" data-has-value="${lot.allotissement.medoideDims?.diametre != null ? 'true' : 'false'}">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.diametre != null ? Math.round(lot.allotissement.medoideDims.diametre).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeDiametre">
+                                    <span class="lot-dimension-unit">mm</span>
                                 </div>
                             </div>
                         </div>
@@ -7362,27 +7413,24 @@ closeEvalOpModal() {
                             </summary>
                             <div class="lot-group-content">
 
-                                <p class="lot-seuils-section-title" style="margin-top:10px;">
-                                    Seuils de destination
-                                </p>
                                 <p class="lot-seuils-section-title" style="font-weight:normal;opacity:0.75;margin-top:-4px;">
-                                    Saisie en valeurs absolues. Les bornes restent centrées sur la Pièce type.
+                                    Renseigner ici les bornes minimum et maximum admissibles pour que les pièces du lot soient définies comme similaires à la pièce type.
                                 </p>
 
-                                <div class="lot-dest-grid">
+                                <div class="lot-dest-grid" data-variabilite-grid="seuilsDest" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}">
                                     <div></div>
                                     <div class="lot-dest-header-cell">Borne min</div>
                                     <div class="lot-dest-header-cell">Borne max</div>
 
-                                    <div class="lot-seuils-dim-label">L</div>
-                                    <div class="lot-dest-input-wrap">
+                                    <div class="lot-seuils-dim-label" data-variabilite-dim="longueur">L</div>
+                                    <div class="lot-dest-input-wrap" data-variabilite-dim="longueur">
                                         <input type="number" class="lot-dest-input"
                                                data-dest-seuil-dim="longueur" data-dest-seuil-bound="min"
                                                                                                  value="${lot.seuilsDestination?.longueur?.min ?? ''}"
                                                placeholder="—">
                                         <span class="lot-seuils-unit">mm</span>
                                     </div>
-                                    <div class="lot-dest-input-wrap">
+                                    <div class="lot-dest-input-wrap" data-variabilite-dim="longueur">
                                         <input type="number" class="lot-dest-input"
                                                data-dest-seuil-dim="longueur" data-dest-seuil-bound="max"
                                                                                                  value="${lot.seuilsDestination?.longueur?.max ?? ''}"
@@ -7390,15 +7438,15 @@ closeEvalOpModal() {
                                         <span class="lot-seuils-unit">mm</span>
                                     </div>
 
-                                    <div class="lot-seuils-dim-label">l</div>
-                                                                        <div class="lot-dest-input-wrap">
+                                    <div class="lot-seuils-dim-label" data-variabilite-dim="largeur">l</div>
+                                                                        <div class="lot-dest-input-wrap" data-variabilite-dim="largeur">
                                                                                 <input type="number" class="lot-dest-input"
                                                                                              data-dest-seuil-dim="largeur" data-dest-seuil-bound="min"
                                                                                                  value="${lot.seuilsDestination?.largeur?.min ?? ''}"
                                                                                              placeholder="—">
                                                                                 <span class="lot-seuils-unit">mm</span>
                                                                         </div>
-                                    <div class="lot-dest-input-wrap">
+                                    <div class="lot-dest-input-wrap" data-variabilite-dim="largeur">
                                         <input type="number" class="lot-dest-input"
                                                data-dest-seuil-dim="largeur" data-dest-seuil-bound="max"
                                                                                                  value="${lot.seuilsDestination?.largeur?.max ?? ''}"
@@ -7406,15 +7454,15 @@ closeEvalOpModal() {
                                         <span class="lot-seuils-unit">mm</span>
                                     </div>
 
-                                    <div class="lot-seuils-dim-label">e</div>
-                                                                        <div class="lot-dest-input-wrap">
+                                    <div class="lot-seuils-dim-label" data-variabilite-dim="epaisseur">e</div>
+                                                                        <div class="lot-dest-input-wrap" data-variabilite-dim="epaisseur">
                                                                                 <input type="number" class="lot-dest-input"
                                                                                              data-dest-seuil-dim="epaisseur" data-dest-seuil-bound="min"
                                                                                                  value="${lot.seuilsDestination?.epaisseur?.min ?? ''}"
                                                                                              placeholder="—">
                                                                                 <span class="lot-seuils-unit">mm</span>
                                                                         </div>
-                                    <div class="lot-dest-input-wrap">
+                                    <div class="lot-dest-input-wrap" data-variabilite-dim="epaisseur">
                                         <input type="number" class="lot-dest-input"
                                                data-dest-seuil-dim="epaisseur" data-dest-seuil-bound="max"
                                                                                                  value="${lot.seuilsDestination?.epaisseur?.max ?? ''}"
@@ -7422,15 +7470,15 @@ closeEvalOpModal() {
                                         <span class="lot-seuils-unit">mm</span>
                                     </div>
 
-                                    <div class="lot-seuils-dim-label">∅</div>
-                                                                        <div class="lot-dest-input-wrap">
+                                    <div class="lot-seuils-dim-label" data-variabilite-dim="diametre">∅</div>
+                                                                        <div class="lot-dest-input-wrap" data-variabilite-dim="diametre">
                                                                                 <input type="number" class="lot-dest-input"
                                                                                              data-dest-seuil-dim="diametre" data-dest-seuil-bound="min"
                                                                                                  value="${lot.seuilsDestination?.diametre?.min ?? ''}"
                                                                                              placeholder="—">
                                                                                 <span class="lot-seuils-unit">mm</span>
                                                                         </div>
-                                    <div class="lot-dest-input-wrap">
+                                    <div class="lot-dest-input-wrap" data-variabilite-dim="diametre">
                                         <input type="number" class="lot-dest-input"
                                                data-dest-seuil-dim="diametre" data-dest-seuil-bound="max"
                                                                                                  value="${lot.seuilsDestination?.diametre?.max ?? ''}"
@@ -7439,11 +7487,14 @@ closeEvalOpModal() {
                                     </div>
 
                                 </div>
-
+                            </div>
+                        </details>
+                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot" ${this.data?.ui?.collapsibles?.['conformite-lot'] === false ? '' : 'open'}>
+                            <summary class="lot-group-summary">
+                                <span>Conformité du lot</span>
+                            </summary>
+                            <div class="lot-group-content">
                                 ${lot.allotissement.conformiteLot ? `
-                                <p class="lot-seuils-section-title" style="margin-top:10px;">
-                                    Conformité du lot
-                                </p>
                                 <div class="lot-conformite-gauges">
                                     <div class="lot-conformite-gauge-row">
                                         <span class="lot-conformite-gauge-label">Conforme</span>
@@ -7488,8 +7539,7 @@ closeEvalOpModal() {
                                         <span class="lot-conformite-gauge-count">${lot.allotissement.conformiteLot.nbRejet}</span>
                                     </div>
                                 </div>
-                                ` : ''}
-
+                                ` : '<p class="lot-seuils-section-title" style="font-weight:normal;opacity:0.75;">Renseigner les seuils de destination pour calculer la conformité du lot.</p>'}
                             </div>
                         </details>
                     </div>
@@ -7759,8 +7809,8 @@ closeEvalOpModal() {
             const _fmtPieceType = dim => {
                 const value = lot.allotissement.medoideDims?.[dim];
                 return value != null
-                    ? Math.round(value).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) + '\u00a0mm'
-                    : '—';
+                    ? Math.round(value).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 })
+                    : '';
             };
             const pieceTypeLongueurEl = card.querySelector('[data-display="pieceTypeLongueur"]');
             const pieceTypeLargeurEl = card.querySelector('[data-display="pieceTypeLargeur"]');
@@ -7770,21 +7820,34 @@ closeEvalOpModal() {
             if (pieceTypeLargeurEl)   pieceTypeLargeurEl.value   = _fmtPieceType('largeur');
             if (pieceTypeEpaisseurEl) pieceTypeEpaisseurEl.value = _fmtPieceType('epaisseur');
             if (pieceTypeDiametreEl)  pieceTypeDiametreEl.value  = _fmtPieceType('diametre');
-            const medoideLabelEl = card.querySelector('[data-display="medoideLabel"]');
-            if (medoideLabelEl) {
-                medoideLabelEl.textContent = lot.allotissement.medoideLabel
-                    ? `${lot.allotissement.medoideLabel}${lot.allotissement.medoideScore !== null
-                        ? ' — score ' + Math.round(lot.allotissement.medoideScore) + '\u00a0%'
-                        : ''}`
-                    : 'Non calculé (≥ 2 pièces requises)';
+            ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach((dim) => {
+                const wrap = card.querySelector(`[data-piece-type-dim-wrap="${dim}"]`);
+                if (wrap) {
+                    const hasValue = lot.allotissement.medoideDims?.[dim] != null;
+                    wrap.dataset.hasValue = hasValue ? 'true' : 'false';
+                }
+            });
+            const medoideNomCardEl = card.querySelector('[data-display="medoideNom"]');
+            if (medoideNomCardEl) {
+                const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
+                medoideNomCardEl.textContent = rawLabel;
+            }
+            const medoideScoreCardEl = card.querySelector('[data-display="medoideScore"]');
+            if (medoideScoreCardEl) {
+                medoideScoreCardEl.textContent = lot.allotissement.medoideScore !== null
+                    ? `${Math.round(lot.allotissement.medoideScore)}\u00a0%`
+                    : '—';
             }
 
             // Taux de similarité
             const tauxCardEl = card.querySelector('[data-display="tauxSimilarite"]');
             if (tauxCardEl) {
-                tauxCardEl.value = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
-                tauxCardEl.dataset.variabiliteState =
-                    this.getTauxSimilariteState(lot.allotissement.tauxSimilarite);
+                const formattedTaux = this.formatTauxSimilarite(lot.allotissement.tauxSimilarite);
+                if ('value' in tauxCardEl) {
+                    tauxCardEl.value = formattedTaux;
+                } else {
+                    tauxCardEl.textContent = formattedTaux;
+                }
             }
 
             // Ne pas remplacer la carte "Pièce par défaut" ici pour conserver
@@ -8088,6 +8151,14 @@ closeEvalOpModal() {
             prixInfoBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.openPrixLogicModal();
+            });
+        }
+
+        const tauxInfoBtn = card.querySelector('[data-lot-taux-info-btn]');
+        if (tauxInfoBtn) {
+            tauxInfoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openTauxLogicModal();
             });
         }
 
