@@ -1731,6 +1731,74 @@ body.day-mode .lot-group--collapsible summary:hover {
     color: #5d564a;
     border-radius: var(--radius-sm);
 }
+
+/* Panneau seuils de destination */
+.lot-dest-grid {
+    display: grid;
+    grid-template-columns: auto 1fr 1fr;
+    gap: 6px;
+    align-items: center;
+}
+.lot-dest-header-cell {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    text-align: center;
+    font-weight: 600;
+}
+.lot-dest-input-wrap {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+.lot-dest-input {
+    width: 100%;
+    text-align: right;
+    padding: 2px 4px;
+    font-size: var(--font-size-xs);
+    background-color: #e6e6e6;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text);
+}
+.lot-dest-input::-webkit-outer-spin-button,
+.lot-dest-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.lot-dest-input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+.lot-dest-suggest-btn {
+    font-size: 9px;
+    padding: 1px 4px;
+    background: var(--bleu-crai, #1d3d96);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    white-space: nowrap;
+    line-height: 1.4;
+}
+.lot-dest-suggest-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+.lot-dest-medoide-label {
+    grid-column: 1 / -1;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    background: rgba(29,61,150,0.06);
+    border-radius: var(--radius-sm);
+    padding: 3px 6px;
+    margin-top: 2px;
+}
+.lot-dest-medoide-label--taux {
+    display: block;
+    margin-top: 8px;
+}
+/* Masquer visuellement le panneau EIqAbs héritage
+   sans casser son fonctionnement JS */
+.lot-group--seuils-legacy {
+    opacity: 0.55;
+}
+.lot-group--seuils-legacy summary {
+    font-style: italic;
+}
 .lot-seuils-poids-input::-webkit-outer-spin-button,
 .lot-seuils-poids-input::-webkit-inner-spin-button {
     -webkit-appearance: none; margin: 0;
