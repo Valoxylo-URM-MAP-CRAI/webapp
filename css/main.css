@@ -1713,6 +1713,29 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-shrink: 0;
 }
 
+/* Section poids de pondération dans le panneau seuils */
+.lot-seuils-poids-grid {
+    display: grid;
+    grid-template-columns: auto 1fr auto 1fr auto 1fr auto 1fr;
+    gap: 6px;
+    align-items: center;
+    margin-top: 4px;
+}
+.lot-seuils-poids-input {
+    width: 100%;
+    text-align: right;
+    padding: 2px 4px;
+    font-size: var(--font-size-xs);
+    background-color: #f2efe7;
+    border: 1px solid #ddd6c8;
+    color: #5d564a;
+    border-radius: var(--radius-sm);
+}
+.lot-seuils-poids-input::-webkit-outer-spin-button,
+.lot-seuils-poids-input::-webkit-inner-spin-button {
+    -webkit-appearance: none; margin: 0;
+}
+
 .lot-dimension-field[data-muted="true"] > .lot-dimension-input-wrap .lot-dimension-unit {
     color: var(--color-gray-300) !important;
 }

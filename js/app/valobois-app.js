@@ -594,6 +594,15 @@ class ValoboisApp {
             this.ensurePieceMasseVolumiqueInitialized(piece);
         });
         this.ensureDefaultPieceData(lot);
+        // Migration : poidsSimilarite par lot (anciennement global dans ui)
+        if (!lot.poidsSimilarite || typeof lot.poidsSimilarite !== 'object') {
+            lot.poidsSimilarite = { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 };
+        } else {
+            if (lot.poidsSimilarite.longueur == null) lot.poidsSimilarite.longueur = 0;
+            if (lot.poidsSimilarite.largeur == null) lot.poidsSimilarite.largeur = 0;
+            if (lot.poidsSimilarite.epaisseur == null) lot.poidsSimilarite.epaisseur = 0;
+            if (lot.poidsSimilarite.diametre == null) lot.poidsSimilarite.diametre = 0;
+        }
     }
 
     createEmptyLot(index) {
@@ -707,7 +716,8 @@ class ValoboisApp {
                 bois: ''
             },
             pieces: [],
-            criteres: []
+            criteres: [],
+            poidsSimilarite: { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 }
         };
     }
 
@@ -784,7 +794,7 @@ class ValoboisApp {
                              ...existingUi?.seuilsVariabiliteEiqAbs?.epaisseur },
                 diametre:  { t1: 30,  t2: 80,  t3: 150,
                              ...existingUi?.seuilsVariabiliteEiqAbs?.diametre }
-            }
+            },
         };
     }
 
@@ -2063,6 +2073,31 @@ class ValoboisApp {
         if (currentLot) this.updateActiveLotCardDisplays(currentLot);
     }
 
+    updatePoidsSimilarite(dim, rawValue) {
+        const parsed = parseFloat(rawValue);
+        if (!Number.isFinite(parsed) || parsed < 0) return;
+        const currentLot = this.getCurrentLot();
+        if (!currentLot) return;
+        if (!currentLot.poidsSimilarite || typeof currentLot.poidsSimilarite !== 'object') {
+            currentLot.poidsSimilarite = { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 };
+        }
+        currentLot.poidsSimilarite[dim] = parsed;
+        this.saveData();
+        this.recalculateLotAllotissement(currentLot);
+        this.updateActiveLotCardDisplays(currentLot);
+        // Rafraîchit les inputs DOM en place sans re-render complet
+        const lotIndex = this.data.lots.indexOf(currentLot);
+        const card = document.querySelector(`.lot-card[data-lot-index="${lotIndex}"]`);
+        if (card) {
+            card.querySelectorAll('[data-poids-dim]').forEach((input) => {
+                const d = input.dataset.poidsDim;
+                if (d && currentLot.poidsSimilarite[d] != null) {
+                    input.value = currentLot.poidsSimilarite[d];
+                }
+            });
+        }
+    }
+
     updateActiveLotCardDisplays(lot) {
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotIndex < 0) return;
@@ -2284,6 +2319,32 @@ class ValoboisApp {
             return `${negative ? '-' : ''}${groupedInt},${decPartRaw}`;
         }
         return `${negative ? '-' : ''}${groupedInt}`;
+    }
+
+    computePoidsSimilarite(lot) {
+        const poids = lot?.poidsSimilarite ?? {};
+        const wL  = Math.max(0, parseFloat(poids.longueur)  || 0) || 1;
+        const wLa = Math.max(0, parseFloat(poids.largeur)   || 0) || 1;
+        const wE  = Math.max(0, parseFloat(poids.epaisseur) || 0) || 1;
+        const wD  = Math.max(0, parseFloat(poids.diametre)  || 0) || 1;
+
+        const hasDiametre = lot?.allotissement?.diametre !== ''
+          && lot?.allotissement?.diametre !== null
+          && lot?.allotissement?.diametre !== undefined;
+
+        const activeDims = hasDiametre
+          ? [{ dim: 'longueur', w: wL }, { dim: 'diametre', w: wD }]
+          : [{ dim: 'longueur', w: wL }, { dim: 'largeur', w: wLa }, { dim: 'epaisseur', w: wE }];
+
+        const totalW = activeDims.reduce((s, d) => s + d.w, 0);
+
+        const result = { longueur: null, largeur: null, epaisseur: null, diametre: null };
+        if (totalW > 0) {
+          activeDims.forEach(d => {
+            result[d.dim] = (d.w / totalW) * 100;
+          });
+        }
+        return result;
     }
 
     recalculateLotAllotissement(lot) {
@@ -2512,7 +2573,7 @@ class ValoboisApp {
             lot.allotissement.eiqAbsDiametre  = _vbEIqAbs(_cvD);
 
             // Taux de similarité — moyenne pondérée sur dimensions disponibles
-            // Poids : longueur = 1 (recoupable), section = 3 (critique)
+            // Poids définis par l'utilisateur dans ui.poidsSimilarite (défaut 1)
             // Base : EIqAbs vs seuil t3 de chaque dimension
             {
                 const seuilsEiq = this.data?.ui?.seuilsVariabiliteEiqAbs ?? {};
@@ -2520,6 +2581,8 @@ class ValoboisApp {
                 const t3La = seuilsEiq?.largeur?.t3   ?? 60;
                 const t3E  = seuilsEiq?.epaisseur?.t3 ?? 30;
                 const t3D  = seuilsEiq?.diametre?.t3  ?? 150;
+
+                const poidsUi = this.data?.ui?.poidsSimilarite ?? {};
 
                 const score = (val, t3) =>
                     (val !== null && val !== undefined && t3 > 0)
@@ -2531,18 +2594,16 @@ class ValoboisApp {
                 const sE  = score(lot.allotissement.eiqAbsEpaisseur, t3E);
                 const sD  = score(lot.allotissement.eiqAbsDiametre,  t3D);
 
-                // Si diamètre disponible : utiliser longueur (w=1) + diamètre (w=3)
-                // Sinon : utiliser longueur (w=1) + largeur (w=3) + épaisseur (w=3)
                 let sumW = 0, sumS = 0;
                 const add = (s, w) => { if (s !== null) { sumS += s * w; sumW += w; } };
 
                 if (sD !== null) {
-                    add(sL, 1);
-                    add(sD, 3);
+                    add(sL, Math.max(0, parseFloat(poidsUi.longueur) || 0) || 1);
+                    add(sD, Math.max(0, parseFloat(poidsUi.diametre) || 0) || 1);
                 } else {
-                    add(sL, 1);
-                    add(sLa, 3);
-                    add(sE, 3);
+                    add(sL,  Math.max(0, parseFloat(poidsUi.longueur)  || 0) || 1);
+                    add(sLa, Math.max(0, parseFloat(poidsUi.largeur)   || 0) || 1);
+                    add(sE,  Math.max(0, parseFloat(poidsUi.epaisseur) || 0) || 1);
                 }
 
                 lot.allotissement.tauxSimilarite = sumW > 0 ? (sumS / sumW) * 100 : null;
@@ -6799,6 +6860,38 @@ closeEvalOpModal() {
                                     <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t1 ?? 30}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t1"></div>
                                     <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t2 ?? 80}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t2"></div>
                                     <div class="lot-seuils-input-wrap"><input type="number" min="0" step="1" class="lot-input lot-seuils-input" value="${this.data?.ui?.seuilsVariabiliteEiqAbs?.diametre?.t3 ?? 150}" data-seuil-eiqabs-dim="diametre" data-seuil-eiqabs-tier="t3"></div>
+                                    <p class="lot-seuils-section-title" style="grid-column: 1 / -1; margin-top: 10px;">
+                                        Pondération du taux de similarité
+                                    </p>
+                                </div>
+                                <div class="lot-seuils-poids-grid">
+                                    <div class="lot-seuils-dim-label">L</div>
+                                    <div class="lot-seuils-input-wrap">
+                                        <input type="number" min="0" step="0.1" class="lot-input lot-seuils-poids-input"
+                                               data-poids-dim="longueur"
+                                               value="${lot?.poidsSimilarite?.longueur ?? 0}">
+                                    </div>
+
+                                    <div class="lot-seuils-dim-label">l</div>
+                                    <div class="lot-seuils-input-wrap">
+                                        <input type="number" min="0" step="0.1" class="lot-input lot-seuils-poids-input"
+                                               data-poids-dim="largeur"
+                                               value="${lot?.poidsSimilarite?.largeur ?? 0}">
+                                    </div>
+
+                                    <div class="lot-seuils-dim-label">e</div>
+                                    <div class="lot-seuils-input-wrap">
+                                        <input type="number" min="0" step="0.1" class="lot-input lot-seuils-poids-input"
+                                               data-poids-dim="epaisseur"
+                                               value="${lot?.poidsSimilarite?.epaisseur ?? 0}">
+                                    </div>
+
+                                    <div class="lot-seuils-dim-label">∅</div>
+                                    <div class="lot-seuils-input-wrap">
+                                        <input type="number" min="0" step="0.1" class="lot-input lot-seuils-poids-input"
+                                               data-poids-dim="diametre"
+                                               value="${lot?.poidsSimilarite?.diametre ?? 0}">
+                                    </div>
                                 </div>
                             </div>
                         </details>
@@ -7649,6 +7742,10 @@ closeEvalOpModal() {
                 const dim  = seuilEiqAbsInput.dataset.seuilEiqabsDim;
                 const tier = seuilEiqAbsInput.dataset.seuilEiqabsTier;
                 this.updateSeuilVariabiliteEiqAbs(dim, tier, seuilEiqAbsInput.value);
+            }
+            const poidsInput = e.target.closest('[data-poids-dim]');
+            if (poidsInput) {
+                this.updatePoidsSimilarite(poidsInput.dataset.poidsDim, poidsInput.value);
             }
         });
 
