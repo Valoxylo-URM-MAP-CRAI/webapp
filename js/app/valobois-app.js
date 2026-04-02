@@ -12386,7 +12386,9 @@ renderRadar() {
         const fallbackLongueur = parseFloat(allot.longueur) || 0;
         const fallbackLargeur = parseFloat(allot.largeur) || 0;
         const fallbackEpaisseur = parseFloat(allot.epaisseur) || 0;
+        const fallbackDiametre = parseFloat(allot.diametre) || 0;
         const fallbackTypePiece = typeof allot.typePiece === 'string' ? allot.typePiece.trim() : '';
+        const fallbackEssenceNomCommun = typeof allot.essenceNomCommun === 'string' ? allot.essenceNomCommun.trim() : '';
 
         const toRoundedDimension = (value, fallbackValue) => {
             const hasOwnValue = value !== '' && value != null;
@@ -12407,43 +12409,78 @@ renderRadar() {
             return 'Type inconnu';
         };
 
-        const registerAtom = (sourceLongueur, sourceLargeur, sourceEpaisseur, sourceTypePiece, count) => {
+        const normalizeEssenceNomCommun = (value) => {
+            const raw = typeof value === 'string' ? value.trim() : '';
+            if (raw) return raw;
+            return fallbackEssenceNomCommun || 'Inconnue';
+        };
+
+        const normalizePieceTitle = (value, isDefaultPiece) => {
+            const raw = typeof value === 'string' ? value.trim() : '';
+            if (raw) return raw;
+            return isDefaultPiece ? 'Pièce par défaut' : 'Pièce';
+        };
+
+        const registerAtom = (
+            sourceLongueur,
+            sourceLargeur,
+            sourceEpaisseur,
+            sourceDiametre,
+            sourceTypePiece,
+            sourceEssenceNomCommun,
+            sourcePieceTitle,
+            isDefaultPiece,
+            count
+        ) => {
             const safeCount = Math.max(0, Math.round(Number(count) || 0));
             if (safeCount <= 0) return;
 
             const longueur = toRoundedDimension(sourceLongueur, fallbackLongueur);
             const largeur = toRoundedDimension(sourceLargeur, fallbackLargeur);
             const epaisseur = toRoundedDimension(sourceEpaisseur, fallbackEpaisseur);
+            const diametre = toRoundedDimension(sourceDiametre, fallbackDiametre);
 
             if (longueur > 0) hasNonZeroLongueur = true;
             if (largeur > 0) hasNonZeroLargeur = true;
             if (epaisseur > 0) hasNonZeroEpaisseur = true;
 
             const typePiece = normalizeTypePiece(sourceTypePiece);
+            const essenceNomCommun = normalizeEssenceNomCommun(sourceEssenceNomCommun);
+            const pieceTitle = normalizePieceTitle(sourcePieceTitle, isDefaultPiece);
             const section = Math.round(largeur * epaisseur);
             const key = section + '|' + longueur + '|' + epaisseur;
             const existing = grouped.get(key);
             if (existing) {
                 existing.count += safeCount;
                 existing.typeCounts[typePiece] = (existing.typeCounts[typePiece] || 0) + safeCount;
+                existing.essenceCounts[essenceNomCommun] = (existing.essenceCounts[essenceNomCommun] || 0) + safeCount;
+                existing.titleCounts[pieceTitle] = (existing.titleCounts[pieceTitle] || 0) + safeCount;
+                if (diametre > 0 && existing.diametre <= 0) existing.diametre = diametre;
             } else {
                 grouped.set(key, {
                     section,
                     longueur,
                     largeur,
                     epaisseur,
+                    diametre,
                     count: safeCount,
-                    typeCounts: { [typePiece]: safeCount }
+                    typeCounts: { [typePiece]: safeCount },
+                    essenceCounts: { [essenceNomCommun]: safeCount },
+                    titleCounts: { [pieceTitle]: safeCount }
                 });
             }
         };
 
-        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece) => {
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece, defaultIndex) => {
             registerAtom(
                 defaultPiece ? defaultPiece.longueur : '',
                 defaultPiece ? defaultPiece.largeur : '',
                 defaultPiece ? defaultPiece.epaisseur : '',
+                defaultPiece ? defaultPiece.diametre : '',
                 defaultPiece ? defaultPiece.typePiece : '',
+                defaultPiece ? defaultPiece.essenceNomCommun : '',
+                defaultPiece ? (defaultPiece.nom || `Pièce par défaut ${defaultIndex + 1}`) : '',
+                true,
                 defaultPiece ? defaultPiece.quantite : 0
             );
         });
@@ -12453,7 +12490,11 @@ renderRadar() {
                 piece ? piece.longueur : '',
                 piece ? piece.largeur : '',
                 piece ? piece.epaisseur : '',
+                piece ? piece.diametre : '',
                 piece ? piece.typePiece : '',
+                piece ? piece.essenceNomCommun : '',
+                piece ? piece.nom : '',
+                false,
                 1
             );
         });
@@ -12499,6 +12540,26 @@ renderRadar() {
                 .join(', ');
         };
 
+        const getTopEntryLabel = (counts, fallback) => {
+            const entries = Object.entries(counts || {})
+                .filter(([, qty]) => Number(qty) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+            return entries.length ? String(entries[0][0]) : fallback;
+        };
+
+        const formatTypeLine = (typeCounts) => {
+            const entries = Object.entries(typeCounts || {})
+                .filter(([, qty]) => Number(qty) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+            if (!entries.length) return 'Type inconnu';
+            return entries
+                .map(([typeName, qty]) => `${typeName} (${Math.round(Number(qty) || 0)})`)
+                .join(' · ');
+        };
+
+        const orientationLabel = (lot.orientationLabel || lot.orientation || '').toString().trim() || 'Non renseignée';
+        const lotNumber = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot ?';
+
         const datasetData = Array.from(grouped.values())
             .map((group) => ({
                 x: group.longueur,
@@ -12506,8 +12567,17 @@ renderRadar() {
                 r: Math.min(18, Math.max(5, 4 + (group.count * 2))),
                 epaisseur: group.epaisseur,
                 largeur: group.largeur,
+                diametre: group.diametre,
                 count: group.count,
-                typePiecesLabel: formatTypePiecesLabel(group.typeCounts)
+                typeCounts: Object.assign({}, group.typeCounts),
+                typePiecesLabel: formatTypePiecesLabel(group.typeCounts),
+                tooltipTitle: getTopEntryLabel(group.titleCounts, 'Pièce'),
+                tooltipLotOrientation: `${lotNumber} · ${orientationLabel}`,
+                tooltipTypeLine: formatTypeLine(group.typeCounts),
+                tooltipDimensionsLine: group.diametre > 0
+                    ? `${Math.round(group.longueur)} × ${Math.round(group.diametre)} mm`
+                    : `${Math.round(group.longueur)} × ${Math.round(group.largeur)} × ${Math.round(group.epaisseur)} mm`,
+                tooltipEssenceLine: getTopEntryLabel(group.essenceCounts, 'Inconnue')
             }))
             .sort((a, b) => {
                 if (a.x !== b.x) return a.x - b.x;
@@ -12538,23 +12608,94 @@ renderRadar() {
 
         const pointColors = datasetData.map((point) => getThicknessColor(Number(point.epaisseur) || 0));
 
-        const tooltipLabel = (rawPoint) => {
-            const safeL = Number.isFinite(rawPoint?.x) ? Math.round(rawPoint.x) : 0;
-            const safeSection = Number.isFinite(rawPoint?.y) ? Math.round(rawPoint.y) : 0;
-            const safeLargeur = Number.isFinite(rawPoint?.largeur) ? Math.round(rawPoint.largeur) : 0;
-            const safeE = Number.isFinite(rawPoint?.epaisseur) ? Math.round(rawPoint.epaisseur) : 0;
-            const safeCount = Number.isFinite(rawPoint?.count) ? Math.round(rawPoint.count) : 0;
-            const typeLabel = String(rawPoint?.typePiecesLabel || '').trim();
-            const suffix = typeLabel ? ` — ${typeLabel}` : '';
-            return `Longueur : ${safeL} mm — Section : ${safeSection} mm² (l:${safeLargeur} × é:${safeE}) — ${safeCount} pièce(s)${suffix}`;
+        const tooltipTitle = (rawPoint) => {
+            const value = String(rawPoint?.tooltipTitle || 'Pièce').trim();
+            const maxChars = window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 22 : 34;
+            const words = value.split(/\s+/).filter(Boolean);
+            const lines = [];
+            let currentLine = '';
+            words.forEach((word) => {
+                const candidate = currentLine ? `${currentLine} ${word}` : word;
+                if (candidate.length <= maxChars) {
+                    currentLine = candidate;
+                } else {
+                    if (currentLine) lines.push(currentLine);
+                    currentLine = word;
+                }
+            });
+            if (currentLine) lines.push(currentLine);
+            return lines.length ? lines : [value];
         };
+
+        const tooltipLines = (rawPoint) => {
+            const baseLines = [
+                String(rawPoint?.tooltipLotOrientation || 'Lot ? · Non renseignée').trim(),
+                `Type de pièce : ${String(rawPoint?.tooltipTypeLine || 'Type inconnu').trim()}`,
+                String(rawPoint?.tooltipDimensionsLine || 'Dimensions non renseignées').trim(),
+                `Essence : ${String(rawPoint?.tooltipEssenceLine || 'Inconnue').trim()}`
+            ];
+            const maxChars = window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 24 : 42;
+            const wrappedLines = [];
+            const wrapSingleLine = (line) => {
+                const text = String(line || '').trim();
+                if (!text) return;
+                const words = text.split(/\s+/).filter(Boolean);
+                let currentLine = '';
+                words.forEach((word) => {
+                    const candidate = currentLine ? `${currentLine} ${word}` : word;
+                    if (candidate.length <= maxChars) {
+                        currentLine = candidate;
+                    } else {
+                        if (currentLine) wrappedLines.push(currentLine);
+                        currentLine = word;
+                    }
+                });
+                if (currentLine) wrappedLines.push(currentLine);
+            };
+
+            baseLines.forEach((line) => wrapSingleLine(line));
+            return wrappedLines;
+        };
+
+        if (typeof Chart !== 'undefined' && Chart.Tooltip && Chart.Tooltip.positioners && !Chart.Tooltip.positioners.scatterBounded) {
+            Chart.Tooltip.positioners.scatterBounded = function (elements, eventPosition) {
+                const fallback = eventPosition || { x: 0, y: 0 };
+                const average = Chart.Tooltip.positioners.average
+                    ? Chart.Tooltip.positioners.average.call(this, elements, eventPosition)
+                    : fallback;
+                const base = average && Number.isFinite(average.x) && Number.isFinite(average.y) ? average : fallback;
+                const area = this.chart && this.chart.chartArea ? this.chart.chartArea : null;
+                if (!area) return base;
+
+                const maxAllowedWidth = Math.max(120, (area.right - area.left) - 20);
+                const tooltipWidth = Math.min(maxAllowedWidth, this.width || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 220 : 300));
+                const tooltipHeight = Math.min((area.bottom - area.top) - 20, this.height || (window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 170 : 190));
+                const halfWidth = tooltipWidth / 2;
+                const halfHeight = tooltipHeight / 2;
+                const padding = 10;
+                const minX = area.left + padding + halfWidth;
+                const maxX = area.right - padding - halfWidth;
+                const minY = area.top + padding + halfHeight;
+                const maxY = area.bottom - padding - halfHeight;
+                const clamp = (value, min, max) => {
+                    if (max < min) return (min + max) / 2;
+                    return Math.max(min, Math.min(max, value));
+                };
+
+                return {
+                    x: clamp(base.x, minX, maxX),
+                    y: clamp(base.y, minY, maxY)
+                };
+            };
+        }
 
         const scatterTypeLabelsPlugin = {
             id: 'scatterTypeLabels',
             afterDatasetsDraw(chart) {
                 const dataset = chart?.data?.datasets?.[0];
                 const meta = chart.getDatasetMeta(0);
-                if (!dataset || !meta || !Array.isArray(meta.data)) return;
+                const chartArea = chart?.chartArea;
+                if (!dataset || !meta || !Array.isArray(meta.data) || !chartArea) return;
 
                 const chartCtx = chart.ctx;
                 chartCtx.save();
@@ -12564,32 +12705,224 @@ renderRadar() {
                 chartCtx.font = '11px sans-serif';
                 chartCtx.textBaseline = 'middle';
 
-                dataset.data.forEach((point, index) => {
-                    const label = String(point?.typePiecesLabel || '').trim();
-                    if (!label) return;
+                const points = dataset.data
+                    .map((point, index) => {
+                        const element = meta.data[index];
+                        if (!element) return null;
+                        return {
+                            x: element.x,
+                            y: element.y,
+                            r: Number.isFinite(point?.r) ? point.r : 8,
+                            typeCounts: Object.assign({}, point?.typeCounts || {})
+                        };
+                    })
+                    .filter(Boolean);
 
-                    const element = meta.data[index];
-                    if (!element) return;
+                const averageRadius = points.length
+                    ? points.reduce((sum, point) => sum + (Number(point.r) || 0), 0) / points.length
+                    : 0;
+                const distanceThreshold = Math.max(36, Math.min(52, Math.round(averageRadius * 2.4)));
 
-                    const x = element.x;
-                    const y = element.y;
-                    const radius = Number.isFinite(point?.r) ? point.r : 8;
-                    const direction = index % 2 === 0 ? 1 : -1;
-                    const verticalShift = ((index % 3) - 1) * 10;
-                    const lineStartX = x + (direction * (radius + 2));
-                    const lineStartY = y;
-                    const lineEndX = x + (direction * (radius + 16));
-                    const lineEndY = y + verticalShift;
-                    const textX = lineEndX + (direction * 4);
-                    const textY = lineEndY;
+                const clusters = [];
+                points.forEach((point) => {
+                    let targetCluster = null;
+                    for (let i = 0; i < clusters.length; i += 1) {
+                        const cluster = clusters[i];
+                        const dx = point.x - cluster.cx;
+                        const dy = point.y - cluster.cy;
+                        if (Math.hypot(dx, dy) <= distanceThreshold) {
+                            targetCluster = cluster;
+                            break;
+                        }
+                    }
 
-                    chartCtx.beginPath();
-                    chartCtx.moveTo(lineStartX, lineStartY);
-                    chartCtx.lineTo(lineEndX, lineEndY);
-                    chartCtx.stroke();
+                    if (!targetCluster) {
+                        clusters.push({
+                            members: [point],
+                            cx: point.x,
+                            cy: point.y,
+                            maxRadius: point.r
+                        });
+                        return;
+                    }
 
-                    chartCtx.textAlign = direction > 0 ? 'left' : 'right';
-                    chartCtx.fillText(label, textX, textY);
+                    targetCluster.members.push(point);
+                    const count = targetCluster.members.length;
+                    targetCluster.cx = ((targetCluster.cx * (count - 1)) + point.x) / count;
+                    targetCluster.cy = ((targetCluster.cy * (count - 1)) + point.y) / count;
+                    targetCluster.maxRadius = Math.max(targetCluster.maxRadius, point.r);
+                });
+
+                const margin = 4;
+                const minTextY = chartArea.top + 8;
+                const maxTextY = chartArea.bottom - 8;
+                const labelHeight = 11;
+                const occupiedLabelBoxes = [];
+                const bubblePadding = 4;
+                const bubbleExclusions = points.map((point) => ({
+                    x: point.x,
+                    y: point.y,
+                    r: point.r + bubblePadding
+                }));
+
+                const intersects = (a, b) => !(
+                    a.right < b.left ||
+                    a.left > b.right ||
+                    a.bottom < b.top ||
+                    a.top > b.bottom
+                );
+
+                const canPlaceBox = (box) => {
+                    const inside = box.left >= (chartArea.left + margin)
+                        && box.right <= (chartArea.right - margin)
+                        && box.top >= (chartArea.top + margin)
+                        && box.bottom <= (chartArea.bottom - margin);
+                    if (!inside) return false;
+                    const collidesWithLabels = occupiedLabelBoxes.some((placed) => intersects(box, placed));
+                    if (collidesWithLabels) return false;
+
+                    const nearestX = (value, min, max) => Math.max(min, Math.min(max, value));
+                    const collidesWithBubbles = bubbleExclusions.some((bubble) => {
+                        const closestX = nearestX(bubble.x, box.left, box.right);
+                        const closestY = nearestX(bubble.y, box.top, box.bottom);
+                        const dx = bubble.x - closestX;
+                        const dy = bubble.y - closestY;
+                        return ((dx * dx) + (dy * dy)) <= (bubble.r * bubble.r);
+                    });
+
+                    return !collidesWithBubbles;
+                };
+
+                clusters.forEach((cluster, clusterIndex) => {
+                    const aggregatedTypeCounts = {};
+                    cluster.members.forEach((member) => {
+                        Object.entries(member.typeCounts || {}).forEach(([typeName, qty]) => {
+                            const amount = Math.max(0, Math.round(Number(qty) || 0));
+                            if (amount <= 0) return;
+                            aggregatedTypeCounts[typeName] = (aggregatedTypeCounts[typeName] || 0) + amount;
+                        });
+                    });
+
+                    const typeEntries = Object.entries(aggregatedTypeCounts)
+                        .filter(([, qty]) => Number(qty) > 0)
+                        .sort((a, b) => Number(b[1]) - Number(a[1]));
+
+                    if (!typeEntries.length) return;
+
+                    const direction = cluster.cx <= ((chartArea.left + chartArea.right) / 2) ? 1 : -1;
+                    const anchorX = cluster.cx + (direction * (cluster.maxRadius + 2));
+                    const baseLineX = cluster.cx + (direction * (cluster.maxRadius + 16));
+                    const availableHeight = Math.max(24, maxTextY - minTextY);
+                    const adaptiveGap = availableHeight / Math.max(2, typeEntries.length + 1);
+                    const lineGap = Math.max(9, Math.min(14, adaptiveGap));
+                    const blockHeight = (typeEntries.length - 1) * lineGap;
+                    const rawBaseY = cluster.cy - (blockHeight / 2);
+                    const baseY = Math.max(minTextY, Math.min(maxTextY - blockHeight, rawBaseY));
+                    const verticalOffsets = [0, lineGap, -lineGap, lineGap * 2, -lineGap * 2, lineGap * 3, -lineGap * 3];
+
+                    typeEntries.forEach(([typeName, qty], typeIndex) => {
+                        const label = `${abbreviateTypeWords(typeName)} (${Math.round(Number(qty) || 0)})`;
+                        const textWidth = chartCtx.measureText(label).width;
+                        const directionCandidates = [direction, -direction];
+                        const baseTextY = baseY + (typeIndex * lineGap);
+
+                        let placement = null;
+
+                        for (let d = 0; d < directionCandidates.length && !placement; d += 1) {
+                            const currentDirection = directionCandidates[d];
+                            const candidateAnchorX = cluster.cx + (currentDirection * (cluster.maxRadius + 2));
+                            const candidateBaseLineX = cluster.cx + (currentDirection * (cluster.maxRadius + 16));
+
+                            for (let o = 0; o < verticalOffsets.length; o += 1) {
+                                const candidateYRaw = baseTextY + verticalOffsets[o];
+                                const candidateY = Math.max(minTextY, Math.min(maxTextY, candidateYRaw));
+                                let candidateTextX = candidateBaseLineX + (currentDirection * 4);
+
+                                if (currentDirection > 0) {
+                                    const minX = chartArea.left + margin;
+                                    const maxX = chartArea.right - margin - textWidth;
+                                    candidateTextX = Math.max(minX, Math.min(maxX, candidateTextX));
+                                } else {
+                                    const minX = chartArea.left + margin + textWidth;
+                                    const maxX = chartArea.right - margin;
+                                    candidateTextX = Math.max(minX, Math.min(maxX, candidateTextX));
+                                }
+
+                                const left = currentDirection > 0 ? candidateTextX : candidateTextX - textWidth;
+                                const right = currentDirection > 0 ? candidateTextX + textWidth : candidateTextX;
+                                const top = candidateY - (labelHeight / 2) - 2;
+                                const bottom = candidateY + (labelHeight / 2) + 2;
+                                const candidateBox = { left, right, top, bottom };
+
+                                if (!canPlaceBox(candidateBox)) continue;
+
+                                placement = {
+                                    direction: currentDirection,
+                                    textX: candidateTextX,
+                                    textY: candidateY,
+                                    anchorX: candidateAnchorX,
+                                    box: candidateBox
+                                };
+                                break;
+                            }
+                        }
+
+                        if (!placement) {
+                            const fallbackDirection = direction;
+                            const fallbackY = Math.max(minTextY, Math.min(maxTextY, baseTextY));
+                            let fallbackTextX = (cluster.cx + (fallbackDirection * (cluster.maxRadius + 16))) + (fallbackDirection * 4);
+                            if (fallbackDirection > 0) {
+                                const minX = chartArea.left + margin;
+                                const maxX = chartArea.right - margin - textWidth;
+                                fallbackTextX = Math.max(minX, Math.min(maxX, fallbackTextX));
+                            } else {
+                                const minX = chartArea.left + margin + textWidth;
+                                const maxX = chartArea.right - margin;
+                                fallbackTextX = Math.max(minX, Math.min(maxX, fallbackTextX));
+                            }
+
+                            const left = fallbackDirection > 0 ? fallbackTextX : fallbackTextX - textWidth;
+                            const right = fallbackDirection > 0 ? fallbackTextX + textWidth : fallbackTextX;
+                            placement = {
+                                direction: fallbackDirection,
+                                textX: fallbackTextX,
+                                textY: fallbackY,
+                                anchorX: cluster.cx + (fallbackDirection * (cluster.maxRadius + 2)),
+                                box: {
+                                    left,
+                                    right,
+                                    top: fallbackY - (labelHeight / 2) - 2,
+                                    bottom: fallbackY + (labelHeight / 2) + 2
+                                }
+                            };
+
+                            if (!canPlaceBox(placement.box)) {
+                                return;
+                            }
+                        }
+
+                        occupiedLabelBoxes.push(placement.box);
+
+                        const textY = placement.textY;
+                        const textX = placement.textX;
+                        const currentDirection = placement.direction;
+                        const anchorX = placement.anchorX;
+
+                        const lineEndX = currentDirection > 0
+                            ? Math.max(anchorX + 1, textX - 3)
+                            : Math.min(anchorX - 1, textX + 3);
+
+                        const safeAnchorX = Math.max(chartArea.left + margin, Math.min(chartArea.right - margin, anchorX));
+                        const safeAnchorY = Math.max(chartArea.top + margin, Math.min(chartArea.bottom - margin, cluster.cy));
+
+                        chartCtx.beginPath();
+                        chartCtx.moveTo(safeAnchorX, safeAnchorY);
+                        chartCtx.lineTo(lineEndX, textY);
+                        chartCtx.stroke();
+
+                        chartCtx.textAlign = currentDirection > 0 ? 'left' : 'right';
+                        chartCtx.fillText(label, textX, textY);
+                    });
                 });
 
                 chartCtx.restore();
@@ -12664,9 +12997,35 @@ renderRadar() {
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            position: 'scatterBounded',
+                            displayColors: false,
+                            backgroundColor: 'rgba(255, 255, 255, 0.96)',
+                            borderColor: '#1D3D96',
+                            borderWidth: 1,
+                            titleColor: '#1D3D96',
+                            bodyColor: '#111111',
+                            titleFont: {
+                                size: 12,
+                                weight: '700'
+                            },
+                            bodyFont: {
+                                size: 11,
+                                weight: '500'
+                            },
+                            titleMarginBottom: 6,
+                            bodySpacing: 4,
+                            padding: 10,
+                            titleAlign: 'left',
+                            bodyAlign: 'left',
+                            cornerRadius: 8,
+                            caretPadding: 8,
+                            caretSize: 6,
                             callbacks: {
+                                title(items) {
+                                    return tooltipTitle(items && items[0] ? items[0].raw || {} : {});
+                                },
                                 label(context) {
-                                    return tooltipLabel(context.raw || {});
+                                    return tooltipLines(context.raw || {});
                                 }
                             }
                         }
@@ -12687,8 +13046,28 @@ renderRadar() {
             this.scatterDimsChart.options.scales.x.max = maxLongueur + 1000;
             this.scatterDimsChart.options.scales.y.title.text = yTitle;
             this.scatterDimsChart.options.scales.y.max = maxSection + 10000;
+            this.scatterDimsChart.options.plugins.tooltip.position = 'scatterBounded';
+            this.scatterDimsChart.options.plugins.tooltip.displayColors = false;
+            this.scatterDimsChart.options.plugins.tooltip.backgroundColor = 'rgba(255, 255, 255, 0.96)';
+            this.scatterDimsChart.options.plugins.tooltip.borderColor = '#1D3D96';
+            this.scatterDimsChart.options.plugins.tooltip.borderWidth = 1;
+            this.scatterDimsChart.options.plugins.tooltip.titleColor = '#1D3D96';
+            this.scatterDimsChart.options.plugins.tooltip.bodyColor = '#111111';
+            this.scatterDimsChart.options.plugins.tooltip.titleFont = { size: 12, weight: '700' };
+            this.scatterDimsChart.options.plugins.tooltip.bodyFont = { size: 11, weight: '500' };
+            this.scatterDimsChart.options.plugins.tooltip.titleMarginBottom = 6;
+            this.scatterDimsChart.options.plugins.tooltip.bodySpacing = 4;
+            this.scatterDimsChart.options.plugins.tooltip.padding = 10;
+            this.scatterDimsChart.options.plugins.tooltip.titleAlign = 'left';
+            this.scatterDimsChart.options.plugins.tooltip.bodyAlign = 'left';
+            this.scatterDimsChart.options.plugins.tooltip.cornerRadius = 8;
+            this.scatterDimsChart.options.plugins.tooltip.caretPadding = 8;
+            this.scatterDimsChart.options.plugins.tooltip.caretSize = 6;
+            this.scatterDimsChart.options.plugins.tooltip.callbacks.title = function (items) {
+                return tooltipTitle(items && items[0] ? items[0].raw || {} : {});
+            };
             this.scatterDimsChart.options.plugins.tooltip.callbacks.label = function (context) {
-                return tooltipLabel(context.raw || {});
+                return tooltipLines(context.raw || {});
             };
             this.scatterDimsChart.update();
         }
