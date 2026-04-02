@@ -965,6 +965,10 @@ class ValoboisApp {
                 medoideKey: null,
                 medoideLabel: null,
                 medoideScore: null,
+                scoreMinPiece: null,
+                scoreMinDelta: null,
+                scoreMinPieceLabel: null,
+                dispersionScores: null,
                 medoideDims: null,
                 madLongueur: null,
                 madLargeur: null,
@@ -2705,9 +2709,25 @@ class ValoboisApp {
             medoideNomEl.textContent = rawLabel;
         }
         const medoideScoreEl = el('[data-display="medoideScore"]');
-        if (medoideScoreEl) {
+        if (medoideScoreEl)
             medoideScoreEl.textContent = lot.allotissement.medoideScore !== null
-                ? `${Math.round(lot.allotissement.medoideScore)}\u00a0%`
+                ? Math.round(lot.allotissement.medoideScore) + '\u00a0%'
+                : '—';
+        const scoreMinEl = el('[data-display="scoreMinPiece"]');
+        if (scoreMinEl) {
+            const val = lot.allotissement.scoreMinPiece;
+            scoreMinEl.textContent = val !== null
+                ? Math.round(val) + '\u00a0%'
+                : '—';
+        }
+        const scoreMinLblEl = el('[data-display="scoreMinPieceLabel"]');
+        if (scoreMinLblEl)
+            scoreMinLblEl.textContent = lot.allotissement.scoreMinPieceLabel ?? '';
+        const dispEl = el('[data-display="dispersionScores"]');
+        if (dispEl) {
+            const val = lot.allotissement.dispersionScores;
+            dispEl.textContent = val !== null
+                ? '±\u00a0' + Math.round(val) + '\u00a0%'
                 : '—';
         }
 
@@ -2893,6 +2913,12 @@ class ValoboisApp {
         if (N < 2) return null;
 
         const lotHasDiametre = (parseFloat(lot.allotissement?.diametre) || 0) > 0;
+        const seuils = this.data?.ui?.seuilsVariabiliteEiqAbs ?? {};
+        const t3L  = seuils?.longueur?.t3  ?? 300;
+        const t3La = seuils?.largeur?.t3   ?? 60;
+        const t3E  = seuils?.epaisseur?.t3 ?? 30;
+        const t3D  = seuils?.diametre?.t3  ?? 150;
+        const t3ByDim = { longueur: t3L, largeur: t3La, epaisseur: t3E, diametre: t3D };
         const activeDims = lotHasDiametre
             ? ['longueur', 'diametre']
             : ['longueur', 'largeur', 'epaisseur'];
@@ -2935,20 +2961,19 @@ class ValoboisApp {
             });
         });
 
-        // Score pairwise entre deux sets de dims
+        // Score pairwise normalisé par t3 (interprétable comme % de similarité)
         const pairScore = (dimsA, dimsB) => {
-            let sumS = 0;
-            let count = 0;
+            let sumW = 0, sumS = 0;
             activeDims.forEach(d => {
-                const a = dimsA[d];
-                const b = dimsB[d];
+                const a = dimsA[d], b = dimsB[d];
                 if (a === null || b === null) return;
-                const scale = Math.max(1, Math.abs(a), Math.abs(b));
-                const relDiff = Math.abs(a - b) / scale;
-                sumS += Math.max(0, 1 - relDiff);
-                count += 1;
+                const t3 = t3ByDim[d] ?? 1;
+                if (t3 <= 0) return;
+                const w = 1 / t3;
+                sumW += w;
+                sumS += w * Math.max(0, 1 - Math.abs(a - b) / t3);
             });
-            return count > 0 ? sumS / count : null;
+            return sumW > 0 ? sumS / sumW : null;
         };
 
         // Score moyen de chaque atom vs tous les autres (pondere par count)
@@ -2979,6 +3004,29 @@ class ValoboisApp {
         // Medoide = atom avec le score le plus eleve
         const medoide = scored.reduce((best, a) => a.score > best.score ? a : best);
 
+        // scoreMinPiece : score de la pièce la plus divergente
+        const scoreMin = scored.reduce(
+            (min, a) => (a.score < min.score ? a : min),
+            scored[0]
+        );
+
+        // dispersionScores : écart-type des scores pairwise entre atoms
+        // (pondéré par count de chaque paire)
+        let pairScoreSum = 0, pairScoreSum2 = 0, pairCount = 0;
+        for (let i = 0; i < atoms.length; i++) {
+            for (let j = i + 1; j < atoms.length; j++) {
+                const s = pairScore(atoms[i].dims, atoms[j].dims);
+                if (s === null) continue;
+                const w = Math.max(1, atoms[i].count) * Math.max(1, atoms[j].count);
+                pairScoreSum  += s * w;
+                pairScoreSum2 += s * s * w;
+                pairCount     += w;
+            }
+        }
+        const dispersion = pairCount > 0
+            ? Math.sqrt(Math.max(0, pairScoreSum2 / pairCount - (pairScoreSum / pairCount) ** 2)) * 100
+            : null;
+
         // MAD par dimension depuis le medoide
         const mad = {};
         ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach(dim => {
@@ -2993,6 +3041,9 @@ class ValoboisApp {
             label: medoide.label,
             score: medoide.score,
             dims: medoide.dims,
+            scoreMinPiece: scoreMin ? Math.round(scoreMin.score) : null,
+            scoreMinPieceLabel: scoreMin ? scoreMin.label : null,
+            dispersionScores: dispersion !== null ? Math.round(dispersion) : null,
             mad,
         };
     }
@@ -3294,6 +3345,15 @@ class ValoboisApp {
                     lot.allotissement.madDiametre = medoideResult.mad.diametre;
                     // Archivage MAD conserve ; suggestion de seuils désactivée.
                     lot.allotissement.seuilSuggest = null;
+                    lot.allotissement.scoreMinPiece = medoideResult.scoreMinPiece;
+                                        lot.allotissement.scoreMinDelta =
+                                                (lot.allotissement.medoideScore !== null &&
+                                                 lot.allotissement.scoreMinPiece !== null)
+                                                        ? Math.round(lot.allotissement.medoideScore) -
+                                                            Math.round(lot.allotissement.scoreMinPiece)
+                                                        : null;
+                    lot.allotissement.scoreMinPieceLabel = medoideResult.scoreMinPieceLabel;
+                    lot.allotissement.dispersionScores = medoideResult.dispersionScores;
                 } else {
                     lot.allotissement.medoideKey = null;
                     lot.allotissement.medoideLabel = null;
@@ -3304,6 +3364,9 @@ class ValoboisApp {
                     lot.allotissement.madEpaisseur = null;
                     lot.allotissement.madDiametre = null;
                     lot.allotissement.seuilSuggest = null;
+                    lot.allotissement.scoreMinPiece = null;
+                    lot.allotissement.scoreMinPieceLabel = null;
+                    lot.allotissement.dispersionScores = null;
                 }
 
                 // Taux de similarite du lot par rapport a la piece type (medoide),
@@ -8057,30 +8120,71 @@ closeEvalOpModal() {
                             <div class="lot-taux-piecetype-wrapper">
                                 <div class="lot-field-block lot-field-block--taux-similarite lot-field-block--piece-type-summary">
                                     <div class="lot-piece-type-fields">
-                                        <div class="lot-piece-type-field lot-piece-type-field--nom">
+
+                                        <!-- Ligne 1 : nom de la pièce type — pleine largeur -->
+                                        <div class="lot-piece-type-name-row" style="grid-column: 1 / -1;">
                                             <label class="lot-field-label">Nom</label>
-                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux lot-dest-medoide-label--piece-name" data-display="medoideNom">
+                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux lot-dest-medoide-label--piece-name"
+                                                 data-display="medoideNom">
                                                 ${(() => {
-                                                    const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
-                                                    return rawLabel;
+                                                    const rawLabel = lot.allotissement.medoideLabel || '';
+                                                    return rawLabel || 'Non calculé (2 pièces requises)';
                                                 })()}
                                             </div>
                                         </div>
-                                        <div class="lot-piece-type-field lot-piece-type-field--score">
-                                            <label class="lot-field-label">Score</label>
-                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux" data-display="medoideScore">
-                                                ${lot.allotissement.medoideScore !== null
-                                                    ? `${Math.round(lot.allotissement.medoideScore)}\u00a0%`
-                                                    : '—'}
+
+                                        <!-- Ligne 2 : grille 2×2 — pleine largeur -->
+                                        <div class="lot-piece-type-duality" style="grid-column: 1 / -1;">
+
+                                            <!-- Quadrant gauche : Homogénéité -->
+                                            <div class="lot-piece-type-quadrant lot-piece-type-quadrant--homo">
+                                                <p class="lot-piece-type-quadrant-title">Homogénéité</p>
+                                                <div class="lot-piece-type-kv">
+                                                    <span class="lot-piece-type-kv-label">Score médoïde</span>
+                                                    <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux"
+                                                          data-display="medoideScore">
+                                                        ${lot.allotissement.medoideScore !== null
+                                                            ? Math.round(lot.allotissement.medoideScore) + '\u00a0%'
+                                                            : '—'}
+                                                    </span>
+                                                </div>
+                                                <div class="lot-piece-type-kv">
+                                                    <span class="lot-piece-type-kv-label">Similarité</span>
+                                                    <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux lot-taux-similarite-display"
+                                                          data-display="tauxSimilarite">
+                                                        ${this.formatTauxSimilarite(lot.allotissement.tauxSimilarite)}
+                                                    </span>
+                                                </div>
+                                            </div>
+
+                                            <!-- Quadrant droit : Hétérogénéité -->
+                                            <div class="lot-piece-type-quadrant lot-piece-type-quadrant--hetero">
+                                                <p class="lot-piece-type-quadrant-title">Hétérogénéité</p>
+                                                <div class="lot-piece-type-kv">
+                                                    <span class="lot-piece-type-kv-label">Score min lot</span>
+                                                    <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux"
+                                                          data-display="scoreMinPiece">
+                                                        ${lot.allotissement.scoreMinPiece !== null
+                                                            ? Math.round(lot.allotissement.scoreMinPiece) + '\u00a0%'
+                                                            : '—'}
+                                                    </span>
+                                                </div>
+                                                <div class="lot-piece-type-kv-sub"
+                                                     data-display="scoreMinPieceLabel">
+                                                    ${lot.allotissement.scoreMinPieceLabel ?? ''}
+                                                </div>
+                                                <div class="lot-piece-type-kv">
+                                                    <span class="lot-piece-type-kv-label">Variation</span>
+                                                    <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux"
+                                                          data-display="dispersionScores">
+                                                        ${lot.allotissement.dispersionScores !== null
+                                                            ? '±\u00a0' + Math.round(lot.allotissement.dispersionScores) + '\u00a0%'
+                                                            : '—'}
+                                                    </span>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="lot-piece-type-field lot-piece-type-field--taux">
-                                            <label class="lot-field-label lot-field-label--two-lines">Taux de<br>similarité</label>
-                                            <div class="lot-dest-medoide-label lot-dest-medoide-label--taux lot-taux-similarite-display"
-                                                 data-display="tauxSimilarite">
-                                                ${this.formatTauxSimilarite(lot.allotissement.tauxSimilarite)}
-                                            </div>
-                                        </div>
+
                                     </div>
                                 </div>
                             </div>

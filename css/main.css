@@ -1827,6 +1827,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     line-height: 1.2;
     color: #5D564A;
     border: 1px solid #DDD6C8;
+    border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-8);
 }
 
@@ -1874,6 +1875,88 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: var(--space-8);
     align-items: stretch;
 }
+
+/* Nom pièce type — ligne pleine */
+.lot-piece-type-name-row {
+    width: 100%;
+    margin-bottom: 6px;
+}
+.lot-piece-type-name-row .lot-field-label {
+    margin-bottom: 2px;
+}
+
+/* Grille 2×2 homogénéité / hétérogénéité */
+.lot-piece-type-duality {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 6px;
+    align-items: stretch;
+}
+.lot-piece-type-quadrant {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px;
+    border-radius: var(--radius-base);
+    border: 1px solid #D4D4D4;
+    background: rgba(255, 255, 255, 0.45);
+    min-width: 0;
+}
+.lot-piece-type-quadrant--homo {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: #D4D4D4;
+}
+.lot-piece-type-quadrant--hetero {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: #D4D4D4;
+}
+.lot-piece-type-quadrant-title {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    letter-spacing: 0;
+    text-transform: none;
+    color: var(--color-text);
+    margin: 0;
+}
+.lot-piece-type-quadrant--homo .lot-piece-type-quadrant-title {
+    color: var(--color-text);
+}
+.lot-piece-type-quadrant--hetero .lot-piece-type-quadrant-title {
+    color: var(--color-text);
+}
+.lot-piece-type-kv {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: var(--space-4);
+    min-width: 0;
+}
+.lot-piece-type-kv-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    white-space: normal;
+    line-height: 1.2;
+}
+.lot-piece-type-kv-value {
+    display: block;
+    min-width: 0;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-regular);
+    color: #5D564A;
+    white-space: normal;
+    overflow-wrap: anywhere;
+}
+.lot-piece-type-kv-sub {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-align: left;
+    line-height: 1.2;
+    margin-top: 0;
+    overflow-wrap: anywhere;
+}
+
 .lot-piece-type-field {
     display: flex;
     flex-direction: column;
@@ -1921,6 +2004,10 @@ body.day-mode .lot-group--collapsible summary:hover {
     .lot-piece-type-fields {
         grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
         gap: 6px;
+    }
+
+    .lot-piece-type-duality {
+        grid-template-columns: 1fr;
     }
 }
 
