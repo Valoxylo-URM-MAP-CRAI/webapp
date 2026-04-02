@@ -4017,6 +4017,10 @@ deleteLot(index) {
             window.addEventListener('valobois:langchange', syncThemeToggleLabel);
         }
 
+        window.addEventListener('valobois:langchange', () => {
+            this.renderScatterDims();
+        });
+
         // Toggle À propos
         const aproposBtn = document.getElementById('btnAproposToggle');
         const aproposContent = document.getElementById('aproposContent');
@@ -12343,6 +12347,11 @@ renderRadar() {
         const lotLabel = document.getElementById('scatterDimsActiveLotLabel');
         const canvas = document.getElementById('scatterDimsChart');
         const wrapper = section ? section.querySelector('.scatter-dims-canvas-wrapper') : null;
+        const scale = document.getElementById('scatterDimsScale');
+        const scaleTitle = document.getElementById('scatterDimsScaleTitle');
+        const scaleBar = document.getElementById('scatterDimsScaleBar');
+        const scaleMin = document.getElementById('scatterDimsScaleMin');
+        const scaleMax = document.getElementById('scatterDimsScaleMax');
         const emptyEl = document.getElementById('scatterDimsEmpty');
 
         if (!section) return;
@@ -12377,6 +12386,7 @@ renderRadar() {
         const fallbackLongueur = parseFloat(allot.longueur) || 0;
         const fallbackLargeur = parseFloat(allot.largeur) || 0;
         const fallbackEpaisseur = parseFloat(allot.epaisseur) || 0;
+        const fallbackTypePiece = typeof allot.typePiece === 'string' ? allot.typePiece.trim() : '';
 
         const toRoundedDimension = (value, fallbackValue) => {
             const hasOwnValue = value !== '' && value != null;
@@ -12390,7 +12400,14 @@ renderRadar() {
         let hasNonZeroLargeur = false;
         let hasNonZeroEpaisseur = false;
 
-        const registerAtom = (sourceLongueur, sourceLargeur, sourceEpaisseur, count) => {
+        const normalizeTypePiece = (value) => {
+            const raw = typeof value === 'string' ? value.trim() : '';
+            if (raw) return raw;
+            if (fallbackTypePiece) return fallbackTypePiece;
+            return 'Type inconnu';
+        };
+
+        const registerAtom = (sourceLongueur, sourceLargeur, sourceEpaisseur, sourceTypePiece, count) => {
             const safeCount = Math.max(0, Math.round(Number(count) || 0));
             if (safeCount <= 0) return;
 
@@ -12402,12 +12419,22 @@ renderRadar() {
             if (largeur > 0) hasNonZeroLargeur = true;
             if (epaisseur > 0) hasNonZeroEpaisseur = true;
 
-            const key = longueur + '|' + largeur + '|' + epaisseur;
+            const typePiece = normalizeTypePiece(sourceTypePiece);
+            const section = Math.round(largeur * epaisseur);
+            const key = section + '|' + longueur + '|' + epaisseur;
             const existing = grouped.get(key);
             if (existing) {
                 existing.count += safeCount;
+                existing.typeCounts[typePiece] = (existing.typeCounts[typePiece] || 0) + safeCount;
             } else {
-                grouped.set(key, { longueur, largeur, epaisseur, count: safeCount });
+                grouped.set(key, {
+                    section,
+                    longueur,
+                    largeur,
+                    epaisseur,
+                    count: safeCount,
+                    typeCounts: { [typePiece]: safeCount }
+                });
             }
         };
 
@@ -12416,6 +12443,7 @@ renderRadar() {
                 defaultPiece ? defaultPiece.longueur : '',
                 defaultPiece ? defaultPiece.largeur : '',
                 defaultPiece ? defaultPiece.epaisseur : '',
+                defaultPiece ? defaultPiece.typePiece : '',
                 defaultPiece ? defaultPiece.quantite : 0
             );
         });
@@ -12425,6 +12453,7 @@ renderRadar() {
                 piece ? piece.longueur : '',
                 piece ? piece.largeur : '',
                 piece ? piece.epaisseur : '',
+                piece ? piece.typePiece : '',
                 1
             );
         });
@@ -12435,6 +12464,10 @@ renderRadar() {
         if (!hasData) {
             if (wrapper) wrapper.style.display = 'none';
             canvas.style.display = 'none';
+            if (scale) {
+                scale.classList.add('hidden');
+                scale.setAttribute('aria-hidden', 'true');
+            }
             if (emptyEl) {
                 emptyEl.textContent = tr('editor.scatterDims.empty', 'Renseignez les dimensions pour afficher ce graphique');
                 emptyEl.classList.remove('hidden');
@@ -12446,13 +12479,35 @@ renderRadar() {
         canvas.style.display = 'block';
         if (emptyEl) emptyEl.classList.add('hidden');
 
+        const abbreviateTypeWords = (value) => String(value || '')
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((word) => {
+                const clean = word.replace(/[^A-Za-zÀ-ÖØ-öø-ÿ]/g, '');
+                if (clean.length <= 15) return word;
+                return `${clean.slice(0, 5)}.`;
+            })
+            .join(' ');
+
+        const formatTypePiecesLabel = (typeCounts) => {
+            const entries = Object.entries(typeCounts || {})
+                .filter(([, qty]) => Number(qty) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+            if (!entries.length) return '';
+            return entries
+                .map(([typeName, qty]) => `${abbreviateTypeWords(typeName)} (${Math.round(Number(qty) || 0)})`)
+                .join(', ');
+        };
+
         const datasetData = Array.from(grouped.values())
             .map((group) => ({
                 x: group.longueur,
-                y: group.largeur,
+                y: group.section,
                 r: Math.min(18, Math.max(5, 4 + (group.count * 2))),
                 epaisseur: group.epaisseur,
-                count: group.count
+                largeur: group.largeur,
+                count: group.count,
+                typePiecesLabel: formatTypePiecesLabel(group.typeCounts)
             }))
             .sort((a, b) => {
                 if (a.x !== b.x) return a.x - b.x;
@@ -12460,30 +12515,123 @@ renderRadar() {
                 return (a.epaisseur || 0) - (b.epaisseur || 0);
             });
 
+        const epaisseurs = datasetData
+            .map((point) => Number(point.epaisseur) || 0)
+            .filter((value) => Number.isFinite(value) && value > 0);
+        const minEpaisseur = epaisseurs.length ? Math.min(...epaisseurs) : 0;
+        const maxEpaisseur = epaisseurs.length ? Math.max(...epaisseurs) : 0;
+
+        const getThicknessRatio = (value) => {
+            if (!Number.isFinite(value) || maxEpaisseur <= minEpaisseur) return 0.55;
+            return Math.max(0, Math.min(1, (value - minEpaisseur) / (maxEpaisseur - minEpaisseur)));
+        };
+
+        const getThicknessColor = (value) => {
+            const ratio = getThicknessRatio(value);
+            const low = { r: 219, g: 234, b: 254 };
+            const high = { r: 21, g: 67, b: 153 };
+            const r = Math.round(low.r + ((high.r - low.r) * ratio));
+            const g = Math.round(low.g + ((high.g - low.g) * ratio));
+            const b = Math.round(low.b + ((high.b - low.b) * ratio));
+            return `rgba(${r},${g},${b},0.88)`;
+        };
+
+        const pointColors = datasetData.map((point) => getThicknessColor(Number(point.epaisseur) || 0));
+
         const tooltipLabel = (rawPoint) => {
-            const pattern = tr('editor.scatterDims.tooltipPattern', 'L: {L}mm / l: {l}mm / é: {e}mm — {n} pièce(s)');
-            const safeX = Number.isFinite(rawPoint && rawPoint.x) ? Math.round(rawPoint.x) : 0;
-            const safeY = Number.isFinite(rawPoint && rawPoint.y) ? Math.round(rawPoint.y) : 0;
-            const safeE = Number.isFinite(rawPoint && rawPoint.epaisseur) ? Math.round(rawPoint.epaisseur) : 0;
-            const safeCount = Number.isFinite(rawPoint && rawPoint.count) ? Math.round(rawPoint.count) : 0;
-            return pattern
-                .replace('{L}', String(safeX))
-                .replace('{l}', String(safeY))
-                .replace('{e}', String(safeE))
-                .replace('{n}', String(safeCount));
+            const safeL = Number.isFinite(rawPoint?.x) ? Math.round(rawPoint.x) : 0;
+            const safeSection = Number.isFinite(rawPoint?.y) ? Math.round(rawPoint.y) : 0;
+            const safeLargeur = Number.isFinite(rawPoint?.largeur) ? Math.round(rawPoint.largeur) : 0;
+            const safeE = Number.isFinite(rawPoint?.epaisseur) ? Math.round(rawPoint.epaisseur) : 0;
+            const safeCount = Number.isFinite(rawPoint?.count) ? Math.round(rawPoint.count) : 0;
+            const typeLabel = String(rawPoint?.typePiecesLabel || '').trim();
+            const suffix = typeLabel ? ` — ${typeLabel}` : '';
+            return `Longueur : ${safeL} mm — Section : ${safeSection} mm² (l:${safeLargeur} × é:${safeE}) — ${safeCount} pièce(s)${suffix}`;
+        };
+
+        const scatterTypeLabelsPlugin = {
+            id: 'scatterTypeLabels',
+            afterDatasetsDraw(chart) {
+                const dataset = chart?.data?.datasets?.[0];
+                const meta = chart.getDatasetMeta(0);
+                if (!dataset || !meta || !Array.isArray(meta.data)) return;
+
+                const chartCtx = chart.ctx;
+                chartCtx.save();
+                chartCtx.strokeStyle = '#000000';
+                chartCtx.fillStyle = '#000000';
+                chartCtx.lineWidth = 1;
+                chartCtx.font = '11px sans-serif';
+                chartCtx.textBaseline = 'middle';
+
+                dataset.data.forEach((point, index) => {
+                    const label = String(point?.typePiecesLabel || '').trim();
+                    if (!label) return;
+
+                    const element = meta.data[index];
+                    if (!element) return;
+
+                    const x = element.x;
+                    const y = element.y;
+                    const radius = Number.isFinite(point?.r) ? point.r : 8;
+                    const direction = index % 2 === 0 ? 1 : -1;
+                    const verticalShift = ((index % 3) - 1) * 10;
+                    const lineStartX = x + (direction * (radius + 2));
+                    const lineStartY = y;
+                    const lineEndX = x + (direction * (radius + 16));
+                    const lineEndY = y + verticalShift;
+                    const textX = lineEndX + (direction * 4);
+                    const textY = lineEndY;
+
+                    chartCtx.beginPath();
+                    chartCtx.moveTo(lineStartX, lineStartY);
+                    chartCtx.lineTo(lineEndX, lineEndY);
+                    chartCtx.stroke();
+
+                    chartCtx.textAlign = direction > 0 ? 'left' : 'right';
+                    chartCtx.fillText(label, textX, textY);
+                });
+
+                chartCtx.restore();
+            }
         };
 
         const xTitle = tr('editor.scatterDims.axisLength', 'Longueur (mm)');
-        const yTitle = tr('editor.scatterDims.axisWidth', 'Largeur (mm)');
+        const yTitle = tr('editor.scatterDims.axisSection', 'Section (mm²)');
+
+        const longueurs = datasetData.map((point) => Number(point.x) || 0).filter((value) => Number.isFinite(value) && value >= 0);
+        const sections = datasetData.map((point) => Number(point.y) || 0).filter((value) => Number.isFinite(value) && value >= 0);
+        const maxLongueur = longueurs.length ? Math.max(...longueurs) : 1;
+        const maxSection = sections.length ? Math.max(...sections) : 1;
+
+        const locale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : undefined;
+        const formatMm = (value) => `${Math.round(Number(value) || 0).toLocaleString(locale, { maximumFractionDigits: 0 })} mm`;
+
+        if (scale) {
+            scale.classList.remove('hidden');
+            scale.setAttribute('aria-hidden', 'false');
+        }
+        if (scaleTitle) {
+            scaleTitle.textContent = tr('editor.scatterDims.scaleTitle', 'Épaisseur (mm)');
+        }
+        if (scaleMin) scaleMin.textContent = formatMm(minEpaisseur);
+        if (scaleMax) scaleMax.textContent = formatMm(maxEpaisseur);
+        if (scaleBar) {
+            const lowColor = getThicknessColor(minEpaisseur || 0);
+            const highColor = getThicknessColor(maxEpaisseur || minEpaisseur || 0);
+            scaleBar.style.setProperty('--scatter-dims-low', lowColor);
+            scaleBar.style.setProperty('--scatter-dims-high', highColor);
+        }
 
         if (!this.scatterDimsChart) {
             this.scatterDimsChart = new Chart(ctx, {
                 type: 'bubble',
+                plugins: [scatterTypeLabelsPlugin],
                 data: {
                     datasets: [
                         {
                             data: datasetData,
-                            backgroundColor: 'rgba(0,0,0,0.55)',
+                            backgroundColor: pointColors,
                             borderColor: '#000000',
                             borderWidth: 1
                         }
@@ -12491,17 +12639,22 @@ renderRadar() {
                 },
                 options: {
                     responsive: true,
-                    maintainAspectRatio: true,
+                    maintainAspectRatio: false,
+                    layout: {
+                        padding: { top: 10, right: 10, bottom: 10, left: 10 }
+                    },
                     scales: {
                         x: {
-                            beginAtZero: false,
+                            beginAtZero: true,
+                            max: maxLongueur + 1000,
                             title: {
                                 display: true,
                                 text: xTitle
                             }
                         },
                         y: {
-                            beginAtZero: false,
+                            beginAtZero: true,
+                            max: maxSection + 10000,
                             title: {
                                 display: true,
                                 text: yTitle
@@ -12522,8 +12675,18 @@ renderRadar() {
             });
         } else {
             this.scatterDimsChart.data.datasets[0].data = datasetData;
+            this.scatterDimsChart.data.datasets[0].backgroundColor = pointColors;
+            if (!Array.isArray(this.scatterDimsChart.config.plugins)) {
+                this.scatterDimsChart.config.plugins = [];
+            }
+            if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterTypeLabels')) {
+                this.scatterDimsChart.config.plugins.push(scatterTypeLabelsPlugin);
+            }
+            this.scatterDimsChart.options.maintainAspectRatio = false;
             this.scatterDimsChart.options.scales.x.title.text = xTitle;
+            this.scatterDimsChart.options.scales.x.max = maxLongueur + 1000;
             this.scatterDimsChart.options.scales.y.title.text = yTitle;
+            this.scatterDimsChart.options.scales.y.max = maxSection + 10000;
             this.scatterDimsChart.options.plugins.tooltip.callbacks.label = function (context) {
                 return tooltipLabel(context.raw || {});
             };

@@ -264,6 +264,7 @@
                 modalIntro: 'Ce graphique représente la distribution dimensionnelle des pièces du lot. Chaque point correspond à un groupe de pièces de même dimensions (L × l × é). La taille du point indique le nombre de pièces dans ce groupe. Un nuage compact indique un lot homogène ; un nuage dispersé indique un lot hétérogène.',
                 axisLength: 'Longueur (mm)',
                 axisWidth: 'Largeur (mm)',
+                scaleTitle: 'Épaisseur (mm)',
                 tooltipPattern: 'L: {L}mm / l: {l}mm / é: {e}mm — {n} pièce(s)',
             },
             orientation: {
@@ -550,6 +551,7 @@
                 modalIntro: 'This chart shows the dimensional distribution of lot pieces. Each point represents a group of pieces sharing the same dimensions (L × W × T). Point size indicates the number of pieces in that group. A compact cloud suggests a homogeneous lot, while a dispersed cloud suggests a heterogeneous lot.',
                 axisLength: 'Length (mm)',
                 axisWidth: 'Width (mm)',
+                scaleTitle: 'Thickness (mm)',
                 tooltipPattern: 'L: {L}mm / W: {l}mm / T: {e}mm - {n} piece(s)',
             },
             orientation: {

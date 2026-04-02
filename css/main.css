@@ -7120,7 +7120,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             text-align: center;
             margin-bottom: 0;
             color: var(--color-text);
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-base);
         }
 
         .radar-lot-badge {
@@ -7180,7 +7180,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             text-align: center;
             margin-bottom: 0;
             color: var(--color-text);
-            font-size: var(--font-size-sm);
+            font-size: var(--font-size-base);
         }
 
         .scatter-dims-lot-badge {
@@ -7195,10 +7195,10 @@ body.day-mode .lot-group--collapsible summary:hover {
 
         .scatter-dims-info-btn {
             padding: var(--space-4) var(--space-12);
-            background-color: var(--color-black);
+            background-color: var(--bleu-crai);
             color: var(--color-white);
             border-radius: var(--radius-base);
-            border: 1px solid var(--color-black);
+            border: 1px solid var(--bleu-crai);
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
             cursor: pointer;
@@ -7206,19 +7206,111 @@ body.day-mode .lot-group--collapsible summary:hover {
 
         .scatter-dims-body {
             padding-top: var(--space-4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-12);
+            flex-wrap: nowrap;
         }
 
         .scatter-dims-canvas-wrapper {
             width: 100%;
-            max-width: 480px;
-            margin: 0 auto;
-            aspect-ratio: 1 / 1;
+            max-width: 700px;
+            margin: 0;
+            aspect-ratio: 16 / 10;
+            flex-shrink: 0;
+        }
+
+        .scatter-dims-scale {
+            width: auto;
+            display: grid;
+            grid-template-columns: 14px auto;
+            grid-template-rows: auto 260px;
+            align-items: center;
+            column-gap: var(--space-8);
+            row-gap: var(--space-6);
+        }
+
+        .scatter-dims-scale-title {
+            grid-column: 1 / -1;
+            grid-row: 1;
+            font-size: var(--font-size-xs);
+            color: var(--color-text);
+            text-align: center;
+        }
+
+        .scatter-dims-scale-bar {
+            grid-column: 1;
+            grid-row: 2;
+            width: 14px;
+            height: 260px;
+            border-radius: var(--radius-base);
+            border: 1px solid var(--color-border);
+            background: linear-gradient(
+                to top,
+                var(--scatter-dims-low, rgba(219, 234, 254, 0.9)),
+                var(--scatter-dims-high, rgba(21, 67, 153, 0.9))
+            );
+        }
+
+        .scatter-dims-scale-labels {
+            grid-column: 2;
+            grid-row: 2;
+            width: auto;
+            height: 260px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: flex-start;
+            font-size: var(--font-size-xs);
+            color: var(--color-text);
         }
 
         #scatterDimsChart {
             width: 100%;
             height: 100%;
             display: block;
+        }
+
+        @media (max-width: 768px) {
+            .scatter-dims-body {
+                flex-direction: column;
+                align-items: stretch;
+                gap: var(--space-10);
+            }
+
+            .scatter-dims-canvas-wrapper {
+                max-width: 100%;
+                aspect-ratio: auto;
+                height: clamp(320px, 56vh, 460px);
+            }
+
+            .scatter-dims-scale {
+                display: flex;
+                width: 100%;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                gap: var(--space-8);
+            }
+
+            .scatter-dims-scale-bar {
+                width: 180px;
+                height: 14px;
+                background: linear-gradient(
+                    to right,
+                    var(--scatter-dims-low, rgba(219, 234, 254, 0.9)),
+                    var(--scatter-dims-high, rgba(21, 67, 153, 0.9))
+                );
+            }
+
+            .scatter-dims-scale-labels {
+                width: 180px;
+                height: auto;
+                flex-direction: row-reverse;
+                justify-content: space-between;
+                align-items: center;
+            }
         }
 
         .scatter-dims-empty {
