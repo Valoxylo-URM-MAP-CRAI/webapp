@@ -101,6 +101,7 @@ class ValoboisApp {
         this.currentLotIndex = 0;
         this.pendingDeleteLotIndex = null;
         this.pendingPieceCreationDecision = null;
+        this.pendingPieceCreationModalOptions = null;
         this.seuilsCharts = {};
         this.radarChart = null;
         this.ensureTermesBoisDatalist();
@@ -185,7 +186,8 @@ class ValoboisApp {
             'Bois Ossature (BO)',
             'Bois Fermette (BF)',
             'Bois Massif Abouté (BMA)',
-            'Bois Massif Reconstitué (BMR)'
+            'Bois Massif Reconstitué (BMR)',
+            'Panneau Bois (PB)'
         ].forEach((label) => {
             const option = document.createElement('option');
             option.value = label;
@@ -591,6 +593,89 @@ class ValoboisApp {
         this.renderDetailLot();
     }
 
+    cloneDefaultPiece(lot, sourceDefaultPieceId) {
+        if (!lot || !sourceDefaultPieceId) return null;
+        
+        const source = this.ensureDefaultPieceData(lot, sourceDefaultPieceId);
+        if (!source) return null;
+        
+        // Clone profond de tous les champs de la pièce par défaut
+        const cloned = {
+            id: this.createDefaultPieceId(),
+            quantite: '1', // Nouvelle pièce avec quantité 1
+            localisation: source.localisation || '',
+            situation: source.situation || '',
+            typePiece: source.typePiece || '',
+            typeProduit: source.typeProduit || '',
+            essenceNomCommun: source.essenceNomCommun || '',
+            essenceNomScientifique: source.essenceNomScientifique || '',
+            essence: source.essence || '',
+            longueur: source.longueur || '',
+            largeur: source.largeur || '',
+            epaisseur: source.epaisseur || '',
+            diametre: source.diametre || '',
+            prixUnite: source.prixUnite || '',
+            prixMarche: source.prixMarche || '',
+            masseVolumique: source.masseVolumique || String(DEFAULT_MASSE_VOLUMIQUE),
+            masseVolumiqueMesuree: source.masseVolumiqueMesuree || '',
+            massePieceMesuree: source.massePieceMesuree || '',
+            humidite: source.humidite || '',
+            fractionCarbonee: source.fractionCarbonee || '',
+            bois: source.bois || '',
+            ageArbre: source.ageArbre || '',
+            dateMiseEnService: source.dateMiseEnService || ''
+        };
+        
+        // Normaliser la structure du clone
+        this.ensureDefaultPieceShape(lot, cloned);
+        
+        // Ajouter à la liste des pièces par défaut
+        if (!Array.isArray(lot.defaultPieces)) {
+            lot.defaultPieces = [];
+        }
+        lot.defaultPieces.push(cloned);
+        
+        // Mettre à jour la référence rapide si c'est la première pièce
+        if (!lot.defaultPiece) {
+            lot.defaultPiece = cloned;
+        }
+        
+        return cloned;
+    }
+
+    requestDefaultPieceDuplication(lot, defaultPieceId) {
+        if (!lot || !defaultPieceId) return;
+
+        const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+        if (!dp) return;
+
+        const detailedPiece = this.buildPieceFromDefault(lot, lot.pieces.length, defaultPieceId);
+
+        this.openCreatePieceDeductionModal({
+            showCreationModeChoice: true,
+            onDecision: (decision) => {
+                const mode = decision && typeof decision === 'object' ? decision.creationMode : 'detailed';
+                if (mode === 'default') {
+                    const clonedDefaultPiece = this.cloneDefaultPiece(lot, defaultPieceId);
+                    if (!clonedDefaultPiece) return;
+                    this.setDetailLotActiveCardKey(lot, `default:${clonedDefaultPiece.id}`, { persist: false });
+                    lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
+                    this.recalculateLotAllotissement(lot);
+                    this.saveData();
+                    this.renderAllotissement();
+                    this.renderDetailLot();
+                    return;
+                }
+
+                const shouldDeductDefault = !!(decision && typeof decision === 'object' && decision.shouldDeductDefault);
+                this.addDetailedPieceToLot(lot, detailedPiece, {
+                    deductDefaultPiece: shouldDeductDefault,
+                    defaultPieceId: dp && dp.id
+                });
+            }
+        });
+    }
+
     requestDetailedPieceCreation(lot, piece, defaultPieceId = null) {
         if (!lot || !piece) return;
 
@@ -605,7 +690,10 @@ class ValoboisApp {
         }
 
         this.openCreatePieceDeductionModal({
-            onDecision: (shouldDeductDefault) => {
+            onDecision: (decision) => {
+                const shouldDeductDefault = !!(decision && typeof decision === 'object'
+                    ? decision.shouldDeductDefault
+                    : decision);
                 this.addDetailedPieceToLot(lot, piece, {
                     deductDefaultPiece: shouldDeductDefault,
                     defaultPieceId: dp && dp.id
@@ -1588,6 +1676,35 @@ class ValoboisApp {
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
         }
+    }
+
+    /**
+     * Retourne la valeur par défaut du champ Bois (%) selon le type de produit.
+     * BLC, CLT, CC, BMA, BMR, PB → 95 ; autres types connus → 100 ; vide → null.
+     * @param {string} typeProduitValue
+     * @returns {string|null}
+     */
+    getDefaultBoisFromTypeProduit(typeProduitValue) {
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const typeProduit = normalize(typeProduitValue);
+        if (!typeProduit) return null;
+
+        const types95 = [
+            'Bois Lamellé-Collé (BLC)',
+            'Bois Lamellé-Croisé (CLT)',
+            'Bois Contre-Collé (CC)',
+            'Bois Massif Abouté (BMA)',
+            'Bois Massif Reconstitué (BMR)',
+            'Panneau Bois (PB)',
+        ];
+        if (types95.some(t => normalize(t) === typeProduit)) return '95';
+        return '100';
     }
 
     /**
@@ -3356,65 +3473,58 @@ class ValoboisApp {
                         const bL = similarityBoundsByDim.longueur || {};
                         const vL = parseFloat(Lx);
 
-                        // Check for invalid or missing length
-                        if (!Number.isFinite(vL) || vL <= 0) {
-                            nbRejet += count;
-                            return;
-                        }
+                        // --- Compute all dimension violations ---
+                        const lengthInvalid = !Number.isFinite(vL) || vL <= 0;
+                        const lengthMin = !lengthInvalid && bL.min != null && vL < bL.min;
+                        const lengthMax = !lengthInvalid && bL.max != null && vL > bL.max;
+                        
+                        let sectionMin = false;
+                        let sectionMax = false;
 
-                        // Check for Bois court (length < min)
-                        if (bL.min != null && vL < bL.min) {
-                            nbBoisCourt += count;
-                            return;
-                        }
-
-                        // Check section constraints
-                        let hasSectionMax = false;
-
+                        // Check section violations
                         if (lotHasDiametreForSimilarity) {
                             const bD = similarityBoundsByDim.diametre || {};
                             const vD = parseFloat(dx);
-                            // Check for invalid section (< min)
                             if (bD.min != null && Number.isFinite(vD) && vD < bD.min) {
-                                nbRejet += count;
-                                return;
+                                sectionMin = true;
                             }
-                            // Check for section > max
                             if (bD.max != null && Number.isFinite(vD) && vD > bD.max) {
-                                hasSectionMax = true;
+                                sectionMax = true;
                             }
                         } else {
                             const bLa = similarityBoundsByDim.largeur || {};
                             const bE = similarityBoundsByDim.epaisseur || {};
                             const vLa = parseFloat(lax);
                             const vE = parseFloat(ex);
-                            // Check for invalid section (< min)
                             if (bLa.min != null && Number.isFinite(vLa) && vLa < bLa.min) {
-                                nbRejet += count;
-                                return;
+                                sectionMin = true;
                             }
                             if (bE.min != null && Number.isFinite(vE) && vE < bE.min) {
-                                nbRejet += count;
-                                return;
+                                sectionMin = true;
                             }
-                            // Check for section > max
                             if (bLa.max != null && Number.isFinite(vLa) && vLa > bLa.max) {
-                                hasSectionMax = true;
+                                sectionMax = true;
                             }
                             if (bE.max != null && Number.isFinite(vE) && vE > bE.max) {
-                                hasSectionMax = true;
+                                sectionMax = true;
                             }
                         }
 
-                        // Check for length > max
-                        const hasLengthMax = bL.max != null && vL > bL.max;
-
-                        // Classify based on violations (mutually exclusive categories)
-                        if (!hasLengthMax && !hasSectionMax) {
+                        // --- Classify based on all violations ---
+                        // Rejet = any critical/unusable condition
+                        if (lengthInvalid || sectionMin || (lengthMin && sectionMin)) {
+                            nbRejet += count;
+                        }
+                        // Bois court = length too short, but section is OK
+                        else if (lengthMin) {
+                            nbBoisCourt += count;
+                        }
+                        // Recoupe, Corroyage, or Conforme (length-based logic only)
+                        else if (!lengthMax && !sectionMax) {
                             nbConformes += count;  // All dimensions within bounds
-                        } else if (hasLengthMax && !hasSectionMax) {
+                        } else if (lengthMax && !sectionMax) {
                             nbRecoupe += count;  // Length > max, section OK
-                        } else if (!hasLengthMax && hasSectionMax) {
+                        } else if (!lengthMax && sectionMax) {
                             nbCorroyage += count;  // Length OK, section > max
                         } else {
                             nbRecoupeCorroyage += count;  // Both violations
@@ -3635,14 +3745,49 @@ class ValoboisApp {
             backdrop.setAttribute('aria-hidden', 'true');
         }
         this.pendingPieceCreationDecision = null;
+        this.pendingPieceCreationModalOptions = null;
+    }
+
+    getCreatePieceDuplicationMode() {
+        const defaultModeRadio = document.getElementById('createPieceDuplicationModeDefault');
+        return defaultModeRadio && defaultModeRadio.checked ? 'default' : 'detailed';
+    }
+
+    updateCreatePieceDeductionModalByMode() {
+        const messageEl = document.getElementById('createPieceDeductionMessage');
+        const yesBtn = document.getElementById('btnCreatePieceDeductionYes');
+        const noBtn = document.getElementById('btnCreatePieceDeductionNo');
+        const mode = this.getCreatePieceDuplicationMode();
+
+        if (messageEl) {
+            const detailedMessage = messageEl.dataset.detailedMessage || '';
+            const defaultMessage = messageEl.dataset.defaultMessage || detailedMessage;
+            messageEl.textContent = mode === 'default' ? defaultMessage : detailedMessage;
+        }
+        if (yesBtn) {
+            const detailedLabel = yesBtn.dataset.detailedLabel || yesBtn.textContent;
+            const defaultLabel = yesBtn.dataset.defaultLabel || detailedLabel;
+            yesBtn.textContent = mode === 'default' ? defaultLabel : detailedLabel;
+        }
+        if (noBtn) {
+            const detailedLabel = noBtn.dataset.detailedLabel || noBtn.textContent;
+            const defaultLabel = noBtn.dataset.defaultLabel || detailedLabel;
+            noBtn.textContent = mode === 'default' ? defaultLabel : detailedLabel;
+        }
     }
 
     confirmCreatePieceDeductionAction(shouldDeductDefault) {
         const action = this.pendingPieceCreationDecision;
-        this.pendingPieceCreationDecision = null;
+        const modalOptions = this.pendingPieceCreationModalOptions || {};
+        const mode = this.getCreatePieceDuplicationMode();
         this.closeCreatePieceDeductionModal();
         if (typeof action === 'function') {
-            action(shouldDeductDefault);
+            if (modalOptions.showCreationModeChoice && mode === 'default') {
+                if (!shouldDeductDefault) return;
+                action({ creationMode: 'default', shouldDeductDefault: false });
+                return;
+            }
+            action({ creationMode: 'detailed', shouldDeductDefault: !!shouldDeductDefault });
         }
     }
 
@@ -4502,6 +4647,8 @@ deleteLot(index) {
             const btnCloseCreatePieceDeduction = document.getElementById('btnCloseCreatePieceDeduction');
             const btnCreatePieceDeductionYes = document.getElementById('btnCreatePieceDeductionYes');
             const btnCreatePieceDeductionNo = document.getElementById('btnCreatePieceDeductionNo');
+            const modeDetailedRadio = document.getElementById('createPieceDuplicationModeDetailed');
+            const modeDefaultRadio = document.getElementById('createPieceDuplicationModeDefault');
             if (createPieceDeductionBackdrop) {
                 if (btnCloseCreatePieceDeduction) {
                     btnCloseCreatePieceDeduction.addEventListener('click', () => this.closeCreatePieceDeductionModal());
@@ -4515,6 +4662,12 @@ deleteLot(index) {
                 createPieceDeductionBackdrop.addEventListener('click', (e) => {
                     if (e.target === createPieceDeductionBackdrop) this.closeCreatePieceDeductionModal();
                 });
+                if (modeDetailedRadio) {
+                    modeDetailedRadio.addEventListener('change', () => this.updateCreatePieceDeductionModalByMode());
+                }
+                if (modeDefaultRadio) {
+                    modeDefaultRadio.addEventListener('change', () => this.updateCreatePieceDeductionModalByMode());
+                }
             }
         }
 
@@ -6700,6 +6853,11 @@ closeEvalOpModal() {
             message = 'Souhaitez-vous déduire cette nouvelle pièce de la quantité des Pièces par défaut ?',
             yesLabel = 'Oui, déduire',
             noLabel = 'Non, conserver la quantité',
+            showCreationModeChoice = false,
+            defaultCreationMode = 'detailed',
+            defaultModeMessage = 'Créer un nouveau formulaire de pièce par défaut à partir de cette pièce ?',
+            defaultModeYesLabel = 'Créer la pièce par défaut',
+            defaultModeNoLabel = 'Annuler',
             onDecision = () => {}
         } = options;
 
@@ -6708,13 +6866,38 @@ closeEvalOpModal() {
         const messageEl = document.getElementById('createPieceDeductionMessage');
         const yesBtn = document.getElementById('btnCreatePieceDeductionYes');
         const noBtn = document.getElementById('btnCreatePieceDeductionNo');
+        const modeGroup = document.getElementById('createPieceDuplicationModeGroup');
+        const modeDetailedRadio = document.getElementById('createPieceDuplicationModeDetailed');
+        const modeDefaultRadio = document.getElementById('createPieceDuplicationModeDefault');
 
         if (backdrop) {
             this.pendingPieceCreationDecision = onDecision;
+            this.pendingPieceCreationModalOptions = { showCreationModeChoice };
             if (titleEl) titleEl.textContent = title;
-            if (messageEl) messageEl.textContent = message;
-            if (yesBtn) yesBtn.textContent = yesLabel;
-            if (noBtn) noBtn.textContent = noLabel;
+
+            if (messageEl) {
+                messageEl.dataset.detailedMessage = message;
+                messageEl.dataset.defaultMessage = defaultModeMessage;
+            }
+            if (yesBtn) {
+                yesBtn.dataset.detailedLabel = yesLabel;
+                yesBtn.dataset.defaultLabel = defaultModeYesLabel;
+            }
+            if (noBtn) {
+                noBtn.dataset.detailedLabel = noLabel;
+                noBtn.dataset.defaultLabel = defaultModeNoLabel;
+            }
+
+            if (modeGroup) {
+                modeGroup.classList.toggle('hidden', !showCreationModeChoice);
+            }
+            if (modeDetailedRadio && modeDefaultRadio) {
+                const useDefaultMode = showCreationModeChoice && defaultCreationMode === 'default';
+                modeDefaultRadio.checked = useDefaultMode;
+                modeDetailedRadio.checked = !useDefaultMode;
+            }
+
+            this.updateCreatePieceDeductionModalByMode();
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
         }
@@ -7044,14 +7227,14 @@ closeEvalOpModal() {
         return `
         <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
             <div class="piece-card-header">
-                <div class="piece-card-title-row">
+                <div class="piece-card-title-block">
                     <span class="piece-card-title">Pièce par défaut ${defaultPieceIndex + 1}</span>
                     <span class="piece-default-count">${isDisabled ? 'Aucune' : (numDefault + ' pièce' + (numDefault > 1 ? 's' : ''))}</span>
                 </div>
-                <div class="piece-card-actions piece-card-actions--stacked">
+                <div class="piece-card-actions">
                     <button class="piece-delete-btn btn-reset" type="button" data-default-piece-reset="${defaultPieceId}" title="Réinitialiser la pièce par défaut">${resetIconMarkup}</button>
+                    <button class="piece-delete-btn" type="button" data-default-piece-delete="${defaultPieceId}" title="Supprimer la pièce par défaut" aria-label="Supprimer la pièce par défaut">✕</button>
                     <button class="piece-duplicate-btn piece-duplicate-btn--default" type="button" data-default-piece-duplicate="${defaultPieceId}" title="Dupliquer la pièce par défaut"${isDisabled ? ' disabled' : ''}>Dupliquer</button>
-                    <button class="piece-delete-btn" type="button" data-default-piece-delete="${defaultPieceId}" title="Supprimer la pièce par défaut">Supprimer</button>
                 </div>
             </div>
             <div class="piece-form-grid">
@@ -7307,7 +7490,7 @@ closeEvalOpModal() {
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
             <div class="piece-card-header">
                 <span class="piece-card-title">${piece.nom || ('Pièce ' + (pieceIndex + 1))}</span>
-                <div class="piece-card-actions piece-card-actions--stacked">
+                <div class="piece-card-actions">
                     <button class="piece-delete-btn" type="button" data-piece-delete="${pieceIndex}">✕</button>
                     <button class="piece-duplicate-btn" type="button" data-piece-duplicate="${pieceIndex}" title="Dupliquer cette pièce">Dupliquer</button>
                 </div>
@@ -8769,6 +8952,18 @@ closeEvalOpModal() {
                     }
                 }
 
+                if (field === 'typeProduit' && e.type !== 'input') {
+                    const currentBois = lot.allotissement.bois;
+                    if (currentBois === '' || currentBois == null) {
+                        const suggestedBois = this.getDefaultBoisFromTypeProduit(lot.allotissement.typeProduit);
+                        if (suggestedBois !== null) {
+                            lot.allotissement.bois = suggestedBois;
+                            const boisInput = card.querySelector('input[data-lot-input="bois"]');
+                            if (boisInput) boisInput.value = this.formatAllotissementNumericDisplay(suggestedBois);
+                        }
+                    }
+                }
+
                 lot.allotissement.essence = [
                     (lot.allotissement.essenceNomCommun || '').toString().trim(),
                     (lot.allotissement.essenceNomScientifique || '').toString().trim()
@@ -8980,8 +9175,7 @@ closeEvalOpModal() {
                 defaultDupBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
-                    const cloned = this.buildPieceFromDefault(lot, lot.pieces.length, defaultPieceId);
-                    this.requestDetailedPieceCreation(lot, cloned, defaultPieceId);
+                    this.requestDefaultPieceDuplication(lot, defaultPieceId);
                 });
             }
 
@@ -9117,6 +9311,18 @@ closeEvalOpModal() {
                             const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
                             if (dp.masseVolumique === '' || e.type !== 'input') dp.masseVolumique = String(suggested);
                             if (masseInput) masseInput.value = this.formatAllotissementNumericDisplay(dp.masseVolumique);
+                        }
+                    }
+
+                    if (field === 'typeProduit' && e.type !== 'input') {
+                        const currentBois = dp.bois;
+                        if (currentBois === '' || currentBois == null) {
+                            const suggestedBois = this.getDefaultBoisFromTypeProduit(dp.typeProduit);
+                            if (suggestedBois !== null) {
+                                dp.bois = suggestedBois;
+                                const boisInput = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="bois"]`);
+                                if (boisInput) boisInput.value = this.formatAllotissementNumericDisplay(suggestedBois);
+                            }
                         }
                     }
 
@@ -9356,6 +9562,18 @@ closeEvalOpModal() {
                             this.applySuggestedPieceMasseVolumique(piece, lot, { force: true });
                             if (masseInput) {
                                 masseInput.value = this.formatAllotissementNumericDisplay(piece.masseVolumique);
+                            }
+                        }
+                    }
+
+                    if (field === 'typeProduit' && e.type !== 'input') {
+                        const currentBois = piece.bois;
+                        if (currentBois === '' || currentBois == null) {
+                            const suggestedBois = this.getDefaultBoisFromTypeProduit(piece.typeProduit);
+                            if (suggestedBois !== null) {
+                                piece.bois = suggestedBois;
+                                const boisInput = pieceCard.querySelector('input[data-piece-input="bois"]');
+                                if (boisInput) boisInput.value = this.formatAllotissementNumericDisplay(suggestedBois);
                             }
                         }
                     }

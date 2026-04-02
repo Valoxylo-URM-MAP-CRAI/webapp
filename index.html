@@ -1043,6 +1043,17 @@
                     </header>
                     <div class="modal-body">
                         <p id="createPieceDeductionMessage" style="text-align:center;">Souhaitez-vous déduire cette nouvelle pièce de la quantité des Pièces par défaut ?</p>
+                        <div id="createPieceDuplicationModeGroup" class="hidden" style="margin-top: 12px;">
+                            <p style="margin: 0 0 8px 0; font-weight: 600;">Type de duplication</p>
+                            <label style="display:block; margin-bottom: 6px; cursor: pointer;">
+                                <input type="radio" name="createPieceDuplicationMode" id="createPieceDuplicationModeDetailed" value="detailed" checked>
+                                Créer une pièce détaillée
+                            </label>
+                            <label style="display:block; cursor: pointer;">
+                                <input type="radio" name="createPieceDuplicationMode" id="createPieceDuplicationModeDefault" value="default">
+                                Dupliquer le formulaire de pièce par défaut
+                            </label>
+                        </div>
                     </div>
                     <footer class="modal-footer" style="flex-direction: column; align-items: stretch;">
                         <button class="btn btn-primary btn-full" type="button" id="btnCreatePieceDeductionYes">Oui, déduire</button>

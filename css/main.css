@@ -3038,6 +3038,14 @@ body.day-mode .lot-group--collapsible summary:hover {
     min-width: 0;
 }
 
+.piece-card-title-block {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+}
+
 .piece-card-actions {
     display: flex;
     align-items: center;
@@ -3096,7 +3104,15 @@ body.day-mode .lot-group--collapsible summary:hover {
 /* Le reset de la pièce par défaut reprend exactement la boîte du bouton suppression pièce */
 .piece-card .piece-delete-btn.btn-reset {
     min-width: 28px;
-    min-height: 24px;
+    min-height: 28px;
+    padding: var(--space-4) var(--space-8);
+    line-height: 1;
+}
+
+.piece-card .piece-delete-btn[data-default-piece-delete],
+.piece-card .piece-delete-btn[data-piece-delete] {
+    min-width: 28px;
+    min-height: 28px;
     padding: var(--space-4) var(--space-8);
     line-height: 1;
 }
