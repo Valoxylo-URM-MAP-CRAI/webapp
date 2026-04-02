@@ -4351,6 +4351,45 @@ deleteLot(index) {
 
             const allSliders = document.querySelectorAll('.bio-slider, .mech-slider, .usage-slider, .denat-slider, .debit-slider, .geo-slider, .essence-slider, .ancien-slider, .traces-slider, .provenance-slider, .inspection-slider');
 
+            // ── Fix mobile : détecter la direction du geste tactile pour éviter
+            //    qu'un scroll vertical ne modifie accidentellement la valeur du slider ──
+            (function setupSliderTouchGuard() {
+                const sliderSelector = [
+                    '.bio-slider', '.mech-slider', '.usage-slider', '.denat-slider',
+                    '.debit-slider', '.geo-slider', '.essence-slider', '.ancien-slider',
+                    '.traces-slider', '.provenance-slider', '.inspection-slider'
+                ].join(', ');
+
+                document.querySelectorAll(sliderSelector).forEach(slider => {
+                    let _touchStartX = 0;
+                    let _touchStartY = 0;
+                    let _isVerticalScroll = false;
+
+                    slider.addEventListener('touchstart', (e) => {
+                        if (!e.touches || !e.touches[0]) return;
+                        _touchStartX = e.touches[0].clientX;
+                        _touchStartY = e.touches[0].clientY;
+                        _isVerticalScroll = false;
+                    }, { passive: true });
+
+                    slider.addEventListener('touchmove', (e) => {
+                        if (!e.touches || !e.touches[0]) return;
+                        const deltaX = Math.abs(e.touches[0].clientX - _touchStartX);
+                        const deltaY = Math.abs(e.touches[0].clientY - _touchStartY);
+
+                        // Déterminer la direction dominante sur le premier mouvement significatif
+                        if (!_isVerticalScroll && (deltaX > 4 || deltaY > 4)) {
+                            _isVerticalScroll = deltaY > deltaX;
+                        }
+
+                        // Si geste majoritairement vertical → bloquer la modification du slider
+                        if (_isVerticalScroll) {
+                            e.preventDefault();
+                        }
+                    }, { passive: false }); // passive:false obligatoire pour pouvoir appeler preventDefault
+                });
+            })();
+
             const refreshAllSliderLabels = () => {
                 document.querySelectorAll('.bio-slider, .mech-slider, .usage-slider, .denat-slider, .debit-slider, .geo-slider, .essence-slider, .ancien-slider, .traces-slider, .provenance-slider, .inspection-slider').forEach((sliderEl) => {
                     if (typeof sliderEl.__refreshActiveSliderLabel === 'function') {

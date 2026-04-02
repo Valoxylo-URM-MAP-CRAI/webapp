@@ -5503,6 +5503,49 @@ body.day-mode .lot-group--collapsible summary:hover {
     border-color: var(--disabled-surface);
 }
 
+/* ── Fix mobile : empêcher le scroll de modifier les sliders ── */
+.inspection-slider,
+.bio-slider,
+.mech-slider,
+.usage-slider,
+.denat-slider,
+.debit-slider,
+.geo-slider,
+.essence-slider,
+.ancien-slider,
+.traces-slider,
+.provenance-slider {
+    touch-action: pan-y;
+}
+
+.inspection-slider::-webkit-slider-thumb,
+.bio-slider::-webkit-slider-thumb,
+.mech-slider::-webkit-slider-thumb,
+.usage-slider::-webkit-slider-thumb,
+.denat-slider::-webkit-slider-thumb,
+.debit-slider::-webkit-slider-thumb,
+.geo-slider::-webkit-slider-thumb,
+.essence-slider::-webkit-slider-thumb,
+.ancien-slider::-webkit-slider-thumb,
+.traces-slider::-webkit-slider-thumb,
+.provenance-slider::-webkit-slider-thumb {
+    touch-action: none;
+}
+
+.inspection-slider::-moz-range-thumb,
+.bio-slider::-moz-range-thumb,
+.mech-slider::-moz-range-thumb,
+.usage-slider::-moz-range-thumb,
+.denat-slider::-moz-range-thumb,
+.debit-slider::-moz-range-thumb,
+.geo-slider::-moz-range-thumb,
+.essence-slider::-moz-range-thumb,
+.ancien-slider::-moz-range-thumb,
+.traces-slider::-moz-range-thumb,
+.provenance-slider::-moz-range-thumb {
+    touch-action: none;
+}
+
 /* Confiance faible => titre rouge */
 
 .provenance-label-confiance[data-provenance-confiance-title] {
