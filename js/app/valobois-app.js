@@ -385,6 +385,8 @@ class ValoboisApp {
             prixUnite: '',
             prixMarche: '',
             masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
+            masseVolumiqueMesuree: '',
+            massePieceMesuree: '',
             humidite: '',
             fractionCarbonee: '',
             bois: '',
@@ -413,6 +415,8 @@ class ValoboisApp {
         if (target.prixUnite == null) target.prixUnite = '';
         if (target.prixMarche == null) target.prixMarche = '';
         if (target.masseVolumique == null) target.masseVolumique = '';
+        if (target.masseVolumiqueMesuree == null) target.masseVolumiqueMesuree = '';
+        if (target.massePieceMesuree == null) target.massePieceMesuree = '';
         this.ensurePieceMasseVolumiqueInitialized(target);
         if (target.humidite == null) target.humidite = '';
         if (target.fractionCarbonee == null) target.fractionCarbonee = '';
@@ -497,6 +501,8 @@ class ValoboisApp {
         defaultPiece.prixUnite = '';
         defaultPiece.prixMarche = '';
         defaultPiece.masseVolumique = String(DEFAULT_MASSE_VOLUMIQUE);
+        defaultPiece.masseVolumiqueMesuree = '';
+        defaultPiece.massePieceMesuree = '';
         defaultPiece.humidite = '';
         defaultPiece.fractionCarbonee = '';
         defaultPiece.bois = '';
@@ -531,6 +537,8 @@ class ValoboisApp {
         piece.masseVolumique = source.masseVolumique !== '' && source.masseVolumique != null
             ? source.masseVolumique
             : String(this.getInitialPieceMasseVolumique(source));
+        piece.masseVolumiqueMesuree = source.masseVolumiqueMesuree !== '' && source.masseVolumiqueMesuree != null ? source.masseVolumiqueMesuree : '';
+        piece.massePieceMesuree = source.massePieceMesuree !== '' && source.massePieceMesuree != null ? source.massePieceMesuree : '';
         piece.humidite = source.humidite !== '' && source.humidite != null ? String(source.humidite) : (a.humidite !== undefined ? String(a.humidite) : '');
         piece.fractionCarbonee = source.fractionCarbonee !== '' && source.fractionCarbonee != null ? String(source.fractionCarbonee) : (a.fractionCarbonee !== undefined ? String(a.fractionCarbonee) : '');
         piece.bois = source.bois !== '' && source.bois != null ? String(source.bois) : (a.bois !== undefined ? String(a.bois) : '');
@@ -751,6 +759,8 @@ class ValoboisApp {
             if (piece.localisation == null) piece.localisation = '';
             if (piece.situation == null) piece.situation = '';
             if (piece.typeProduit == null) piece.typeProduit = '';
+            if (piece.masseVolumiqueMesuree == null) piece.masseVolumiqueMesuree = '';
+            if (piece.massePieceMesuree == null) piece.massePieceMesuree = '';
             // Migration: hauteur → epaisseur
             if (piece.epaisseur == null) { piece.epaisseur = piece.hauteur != null ? piece.hauteur : ''; }
             delete piece.hauteur;
@@ -972,6 +982,8 @@ class ValoboisApp {
             prixPiece: 0,
             prixPieceAjusteIntegrite: 0,
             masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
+            masseVolumiqueMesuree: '',
+            massePieceMesuree: '',
             humidite: '',
             fractionCarbonee: '',
             bois: '',
@@ -2062,6 +2074,130 @@ class ValoboisApp {
         };
     }
 
+    getMeasuredDensityValue(measuredMassRaw, volumeRaw) {
+        const normalizedMeasuredMass = this.normalizeAllotissementNumericInput(measuredMassRaw);
+        const measuredMass = parseFloat(normalizedMeasuredMass);
+        const volume = parseFloat(volumeRaw);
+
+        if (!Number.isFinite(measuredMass) || measuredMass < 0 || !Number.isFinite(volume) || volume <= 0) {
+            return null;
+        }
+
+        return measuredMass / volume;
+    }
+
+    formatDensityDisplay(valueRaw) {
+        const value = parseFloat(valueRaw);
+        if (!Number.isFinite(value) || value < 0) return '';
+        return value.toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 1
+        });
+    }
+
+    formatMeasuredDensityDisplay(measuredMassRaw, volumeRaw) {
+        return this.formatDensityDisplay(this.getMeasuredDensityValue(measuredMassRaw, volumeRaw));
+    }
+
+    getMeasuredLotDensityDisplay(lot) {
+        if (!lot) return { value: '…', unit: '', status: 'none' };
+
+        let hasAnyMeasuredValue = false;
+        let hasMissingMeasuredValue = false;
+        let weightedDensitySum = 0;
+        let totalWeight = 0;
+
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece) => {
+            const qty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (qty <= 0) return;
+
+            const preview = this.buildPieceFromDefault(lot, -1, defaultPiece && defaultPiece.id);
+            this.recalculatePiece(preview, lot);
+
+            const density = this.getMeasuredDensityValue(defaultPiece && defaultPiece.massePieceMesuree, preview.volumePiece);
+            if (density == null) {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            hasAnyMeasuredValue = true;
+            weightedDensitySum += density * qty;
+            totalWeight += qty;
+        });
+
+        (lot.pieces || []).forEach((piece) => {
+            const density = this.getMeasuredDensityValue(piece && piece.massePieceMesuree, piece && piece.volumePiece);
+            if (density == null) {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            hasAnyMeasuredValue = true;
+            weightedDensitySum += density;
+            totalWeight += 1;
+        });
+
+        if (!hasAnyMeasuredValue || totalWeight <= 0) return { value: '…', unit: '', status: 'none' };
+        if (hasMissingMeasuredValue) return { value: 'Partielle', unit: '', status: 'partial' };
+
+        return {
+            value: this.formatDensityDisplay(weightedDensitySum / totalWeight),
+            unit: 'kg/m3',
+            status: 'full'
+        };
+    }
+
+    getMeasuredLotMassDisplay(lot) {
+        if (!lot) return { value: '…', unit: '', status: 'none' };
+
+        let hasAnyMeasuredValue = false;
+        let hasMissingMeasuredValue = false;
+        let measuredMassKg = 0;
+
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece) => {
+            const qty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (qty <= 0) return;
+
+            const normalizedMeasured = this.normalizeAllotissementNumericInput(defaultPiece && defaultPiece.massePieceMesuree);
+            if (normalizedMeasured === '') {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            const value = parseFloat(normalizedMeasured);
+            if (!Number.isFinite(value)) {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            hasAnyMeasuredValue = true;
+            measuredMassKg += value * qty;
+        });
+
+        (lot.pieces || []).forEach((piece) => {
+            const normalizedMeasured = this.normalizeAllotissementNumericInput(piece && piece.massePieceMesuree);
+            if (normalizedMeasured === '') {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            const value = parseFloat(normalizedMeasured);
+            if (!Number.isFinite(value)) {
+                hasMissingMeasuredValue = true;
+                return;
+            }
+
+            hasAnyMeasuredValue = true;
+            measuredMassKg += value;
+        });
+
+        if (!hasAnyMeasuredValue) return { value: '…', unit: '', status: 'none' };
+        if (hasMissingMeasuredValue) return { value: 'Partielle', unit: '', status: 'partial' };
+
+        const display = this.formatMasseDisplay(measuredMassKg);
+        return { value: display.value, unit: display.unit, status: 'full' };
+    }
+
     getStudyStatusValues() {
         return ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
     }
@@ -2411,6 +2547,14 @@ class ValoboisApp {
         setVal('[data-display="masseLot"]', masseLotD.value);
         const masseLotUnitEl = el('[data-display="masseLotUnit"]');
         if (masseLotUnitEl) masseLotUnitEl.textContent = masseLotD.unit;
+        const masseVolumiqueMoyenneMesureeD = this.getMeasuredLotDensityDisplay(lot);
+        setVal('[data-display="masseVolumiqueMoyenneMesureeLot"]', masseVolumiqueMoyenneMesureeD.value);
+        const masseVolumiqueMoyenneMesureeUnitEl = el('[data-display="masseVolumiqueMoyenneMesureeLotUnit"]');
+        if (masseVolumiqueMoyenneMesureeUnitEl) masseVolumiqueMoyenneMesureeUnitEl.textContent = masseVolumiqueMoyenneMesureeD.unit;
+        const masseLotMesureeD = this.getMeasuredLotMassDisplay(lot);
+        setVal('[data-display="masseLotMesuree"]', masseLotMesureeD.value);
+        const masseLotMesureeUnitEl = el('[data-display="masseLotMesureeUnit"]');
+        if (masseLotMesureeUnitEl) masseLotMesureeUnitEl.textContent = masseLotMesureeD.unit;
         const pco2D = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
         setVal('[data-display="carboneBiogeniqueEstime"]', pco2D.value);
         const pco2UnitEl = el('[data-display="carboneBiogeniqueEstimeUnit"]');
@@ -2563,6 +2707,8 @@ class ValoboisApp {
             'diametre',
             'prixMarche',
             'masseVolumique',
+            'masseVolumiqueMesuree',
+            'massePieceMesuree',
             'humidite',
             'fractionCarbonee',
             'bois'
@@ -2573,6 +2719,8 @@ class ValoboisApp {
         return [
             'prixMarche',
             'masseVolumique',
+            'masseVolumiqueMesuree',
+            'massePieceMesuree',
             'fractionCarbonee',
             'humidite',
             'bois'
@@ -6867,6 +7015,7 @@ closeEvalOpModal() {
         const pBois = dpPreview.bois;
         const pco2Display = this.formatPco2Display(dpPreview.carboneBiogeniqueEstime);
         const masseDisplay = this.formatMasseDisplay(dpPreview.massePiece);
+        const measuredDensityDisplay = this.formatMeasuredDensityDisplay(defaultPiece.massePieceMesuree, dpPreview.volumePiece);
         const integriteData = (lot.inspection && lot.inspection.integrite) || {};
         const integrityLabel = integriteData.ignore ? 'Ignoré'
             : integriteData.niveau === 'forte' ? `Forte (${integriteData.coeff ?? '...'})`
@@ -7024,9 +7173,9 @@ closeEvalOpModal() {
                 <div class="lot-group">
                     <p class="lot-group-title">Carbone</p>
                     <div class="lot-carbon-input-row">
-                        <div class="lot-carbon-mass-row">
+                        <div class="lot-carbon-volumique-row">
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Masse volumique</label>
+                                <label class="lot-field-label">Masse volumique théorique</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
                                     <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pMasseVol))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="masseVolumique">
                                     <span class="lot-input-unit">kg/m3</span>
@@ -7034,10 +7183,26 @@ closeEvalOpModal() {
                                 <p class="lot-field-meta" data-default-piece-id="${defaultPieceId}" data-default-piece-display="masseVolumiqueSource">${showAsDisabled ? '' : pMasseVolSourceLabel}</p>
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Masse pièce</label>
+                                <label class="lot-field-label">Masse volumique mesurée</label>
+                                <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
+                                    <input type="text" class="lot-input" value="${viewValue(measuredDensityDisplay)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="masseVolumiqueMesuree">
+                                    <span class="lot-input-unit">kg/m3</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lot-carbon-unit-row">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Masse unitaire théorique</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
                                     <input type="text" class="lot-input" value="${viewValue(masseDisplay.value)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="massePiece">
                                     <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="massePieceUnit">${masseDisplay.unit}</span>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Masse unitaire mesurée</label>
+                                <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.massePieceMesuree))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="massePieceMesuree">
+                                    <span class="lot-input-unit">kg</span>
                                 </div>
                             </div>
                         </div>
@@ -7067,7 +7232,7 @@ closeEvalOpModal() {
                     </div>
                     <div class="lot-carbon-summary-row">
                         <div class="lot-field-block">
-                            <label class="lot-field-label">PCO₂ pièce</label>
+                            <label class="lot-field-label">PCO₂ pièce théorique</label>
                             <div class="lot-input-with-unit">
                                 <input type="text" class="lot-input" value="${viewValue(pco2Display.value)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="carboneBiogeniqueEstime">
                                 <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
@@ -7123,6 +7288,7 @@ closeEvalOpModal() {
         const pBois = piece.bois !== '' ? piece.bois : lot.allotissement.bois;
         const pco2Display = this.formatPco2Display(piece.carboneBiogeniqueEstime);
         const masseDisplay = this.formatMasseDisplay(piece.massePiece);
+        const measuredDensityDisplay = this.formatMeasuredDensityDisplay(piece.massePieceMesuree, piece.volumePiece);
         const integriteData = (lot.inspection && lot.inspection.integrite) || {};
         const integrityLabel = integriteData.ignore ? 'Ignoré'
             : integriteData.niveau === 'forte' ? `Forte (${integriteData.coeff ?? '...'})`
@@ -7261,9 +7427,9 @@ closeEvalOpModal() {
                 <div class="lot-group">
                     <p class="lot-group-title">Carbone</p>
                     <div class="lot-carbon-input-row">
-                        <div class="lot-carbon-mass-row">
+                        <div class="lot-carbon-volumique-row">
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Masse volumique</label>
+                                <label class="lot-field-label">Masse volumique théorique</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
                                     <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pMasseVol)}" data-piece-input="masseVolumique">
                                     <span class="lot-input-unit">kg/m3</span>
@@ -7271,10 +7437,26 @@ closeEvalOpModal() {
                                 <p class="lot-field-meta" data-piece-display="masseVolumiqueSource">${pMasseVolSourceLabel}</p>
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Masse pièce</label>
+                                <label class="lot-field-label">Masse volumique mesurée</label>
+                                <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
+                                    <input type="text" class="lot-input" value="${measuredDensityDisplay}" readonly data-piece-display="masseVolumiqueMesuree">
+                                    <span class="lot-input-unit">kg/m3</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="lot-carbon-unit-row">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Masse unitaire théorique</label>
                                 <div class="lot-input-with-unit lot-input-with-unit--compact">
                                     <input type="text" class="lot-input" value="${masseDisplay.value}" readonly data-piece-display="massePiece">
                                     <span class="lot-input-unit" data-piece-display="massePieceUnit">${masseDisplay.unit}</span>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Masse unitaire mesurée</label>
+                                <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(piece.massePieceMesuree)}" data-piece-input="massePieceMesuree">
+                                    <span class="lot-input-unit">kg</span>
                                 </div>
                             </div>
                         </div>
@@ -7304,7 +7486,7 @@ closeEvalOpModal() {
                     </div>
                     <div class="lot-carbon-summary-row">
                         <div class="lot-field-block">
-                            <label class="lot-field-label">PCO₂ pièce</label>
+                            <label class="lot-field-label">PCO₂ pièce théorique</label>
                             <div class="lot-input-with-unit">
                                 <input type="text" class="lot-input" value="${pco2Display.value}" readonly data-piece-display="carboneBiogeniqueEstime">
                                 <span class="lot-input-unit" data-piece-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
@@ -7386,6 +7568,8 @@ closeEvalOpModal() {
         const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
         const masseLotDisplay = this.formatMasseDisplay(lot.allotissement.masseLot);
+        const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
+        const masseVolumiqueMoyenneMesureeDisplay = this.getMeasuredLotDensityDisplay(lot);
         const masseVolumiqueSourceLabel = this.getMasseVolumiqueSourceLabel(lot.allotissement);
         const integriteData = (lot.inspection && lot.inspection.integrite) || {};
         const lotIntegrityLabel = integriteData.ignore
@@ -7843,9 +8027,9 @@ closeEvalOpModal() {
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : carbone</p>
                         <div class="lot-carbon-input-row">
-                            <div class="lot-carbon-mass-row">
+                            <div class="lot-carbon-volumique-row">
                                 <div class="lot-field-block">
-                                    <label class="lot-field-label">Masse volumique</label>
+                                    <label class="lot-field-label">Masse volumique théorique moyenne</label>
                                     <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
                                         <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.masseVolumique ?? 510)}" data-lot-input="masseVolumique">
                                         <span class="lot-input-unit">kg/m3</span>
@@ -7853,10 +8037,26 @@ closeEvalOpModal() {
                                     <p class="lot-field-meta" data-display="masseVolumiqueSource">${masseVolumiqueSourceLabel}</p>
                                 </div>
                                 <div class="lot-field-block">
-                                    <label class="lot-field-label">Masse du lot</label>
+                                    <label class="lot-field-label">Masse volumique moyenne mesurée du lot</label>
+                                    <div class="lot-input-with-unit lot-input-with-unit--compact lot-input-with-unit--mass-density">
+                                        <input type="text" class="lot-input" value="${masseVolumiqueMoyenneMesureeDisplay.value}" readonly data-display="masseVolumiqueMoyenneMesureeLot">
+                                        <span class="lot-input-unit" data-display="masseVolumiqueMoyenneMesureeLotUnit">${masseVolumiqueMoyenneMesureeDisplay.unit}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="lot-carbon-unit-row">
+                                <div class="lot-field-block">
+                                    <label class="lot-field-label">Masse du lot théorique</label>
                                     <div class="lot-input-with-unit lot-input-with-unit--compact">
                                         <input type="text" class="lot-input" value="${masseLotDisplay.value}" readonly data-display="masseLot">
                                         <span class="lot-input-unit" data-display="masseLotUnit">${masseLotDisplay.unit}</span>
+                                    </div>
+                                </div>
+                                <div class="lot-field-block">
+                                    <label class="lot-field-label">Masse du lot mesurée</label>
+                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                        <input type="text" class="lot-input" value="${masseLotMesureeDisplay.value}" readonly data-display="masseLotMesuree">
+                                        <span class="lot-input-unit" data-display="masseLotMesureeUnit">${masseLotMesureeDisplay.unit}</span>
                                     </div>
                                 </div>
                             </div>
@@ -7886,7 +8086,7 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-carbon-summary-row">
                             <div class="lot-field-block">
-                                <label class="lot-field-label">PCO₂ : masse de CO₂ séquestré estimée</label>
+                                <label class="lot-field-label">PCO₂ : masse de CO₂ séquestré théorique</label>
                                 <div class="lot-input-with-unit">
                                     <input type="text" class="lot-input" value="${pco2Display.value}" readonly data-display="carboneBiogeniqueEstime">
                                     <span class="lot-input-unit" data-display="carboneBiogeniqueEstimeUnit">${pco2Display.unit}</span>
@@ -7985,6 +8185,14 @@ closeEvalOpModal() {
             card.querySelector('[data-display="masseLot"]').value = masseLotDisplay.value;
             const masseLotUnitEl = card.querySelector('[data-display="masseLotUnit"]');
             if (masseLotUnitEl) masseLotUnitEl.textContent = masseLotDisplay.unit;
+            const masseVolumiqueMoyenneMesureeDisplay = this.getMeasuredLotDensityDisplay(lot);
+            card.querySelector('[data-display="masseVolumiqueMoyenneMesureeLot"]').value = masseVolumiqueMoyenneMesureeDisplay.value;
+            const masseVolumiqueMoyenneMesureeUnitEl = card.querySelector('[data-display="masseVolumiqueMoyenneMesureeLotUnit"]');
+            if (masseVolumiqueMoyenneMesureeUnitEl) masseVolumiqueMoyenneMesureeUnitEl.textContent = masseVolumiqueMoyenneMesureeDisplay.unit;
+            const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
+            card.querySelector('[data-display="masseLotMesuree"]').value = masseLotMesureeDisplay.value;
+            const masseLotMesureeUnitEl = card.querySelector('[data-display="masseLotMesureeUnit"]');
+            if (masseLotMesureeUnitEl) masseLotMesureeUnitEl.textContent = masseLotMesureeDisplay.unit;
             const masseVolumiqueSourceEl = card.querySelector('[data-display="masseVolumiqueSource"]');
             if (masseVolumiqueSourceEl) {
                 masseVolumiqueSourceEl.textContent = this.getMasseVolumiqueSourceLabel(lot.allotissement);
@@ -8731,6 +8939,10 @@ closeEvalOpModal() {
             if (qMP) qMP.value = isDisabled ? '' : masseD.value;
             const qMPU = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="massePieceUnit"]`);
             if (qMPU) qMPU.textContent = masseD.unit;
+            const qMVM = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="masseVolumiqueMesuree"]`);
+            if (qMVM) {
+                qMVM.value = isDisabled ? '' : this.formatMeasuredDensityDisplay(dp.massePieceMesuree, preview.volumePiece);
+            }
             const pco2D = this.formatPco2Display(preview.carboneBiogeniqueEstime);
             const qCO2 = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="carboneBiogeniqueEstime"]`);
             if (qCO2) qCO2.value = isDisabled ? '' : pco2D.value;
@@ -9022,6 +9234,8 @@ closeEvalOpModal() {
                 if (qMP) qMP.value = masseD.value;
                 const qMPU = pieceCard.querySelector('[data-piece-display="massePieceUnit"]');
                 if (qMPU) qMPU.textContent = masseD.unit;
+                const qMVM = pieceCard.querySelector('[data-piece-display="masseVolumiqueMesuree"]');
+                if (qMVM) qMVM.value = this.formatMeasuredDensityDisplay(piece.massePieceMesuree, piece.volumePiece);
                 const pco2D = this.formatPco2Display(piece.carboneBiogeniqueEstime);
                 const qCO2 = pieceCard.querySelector('[data-piece-display="carboneBiogeniqueEstime"]');
                 if (qCO2) qCO2.value = pco2D.value;

@@ -2529,8 +2529,15 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: 8px;
 }
 
-/* Ligne Masse volumique et Masse du lot */
-.lot-carbon-mass-row {
+/* Ligne Masse volumique */
+.lot-carbon-volumique-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+/* Ligne Masse unitaire theorique et Masse unitaire mesuree */
+.lot-carbon-unit-row {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
@@ -2543,8 +2550,9 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: 8px;
 }
 
-/* Masse volumique et Masse du lot sur sa propre ligne */
-.lot-carbon-mass-row .lot-field-block {
+/* Masse volumique et Masse unitaire sur leur ligne */
+.lot-carbon-volumique-row .lot-field-block,
+.lot-carbon-unit-row .lot-field-block {
     gap: 4px;
 }
 
@@ -2569,12 +2577,12 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-carbon-input-row input[data-lot-input="masseVolumique"] {
-    text-align: right;
+    text-align: center;
 }
 
 .lot-input-with-unit--mass-density .lot-input {
-    padding-left: 8px;
-    padding-right: 42px;
+    padding-left: 4px;
+    padding-right: 30px;
 }
 
 .lot-input-with-unit--mass-density .lot-input-unit {
@@ -2593,11 +2601,11 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-carbon-summary-row .lot-input {
-    text-align: center;
+    text-align: left;
 }
 
 .lot-carbon-summary-row .lot-input-with-unit {
-    width: min(240px, 100%);
+    width: min(240px, 60%);
 }
 
 .lot-price-summary-row .lot-field-block {
@@ -2623,8 +2631,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-price-summary-row .lot-input-with-unit--compact .lot-input-unit {
-    right: 2px;
-    padding: 0 1px;
+    right: 3px;
+    padding: 0 2px;
     box-sizing: border-box;
     text-align: center;
 }
@@ -2676,11 +2684,11 @@ body.day-mode .lot-group--collapsible summary:hover {
     }
 
     .lot-price-summary-row .lot-input-with-unit--compact .lot-input {
-        padding-right: 16px;
+        padding-right: 12px;
     }
 
     .lot-price-summary-row .lot-input-with-unit--compact .lot-input-unit {
-        right: 1px;
+        right: 2px;
         padding: 0 1px;
     }
 }
