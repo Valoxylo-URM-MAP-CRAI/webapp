@@ -4351,8 +4351,8 @@ deleteLot(index) {
 
             const allSliders = document.querySelectorAll('.bio-slider, .mech-slider, .usage-slider, .denat-slider, .debit-slider, .geo-slider, .essence-slider, .ancien-slider, .traces-slider, .provenance-slider, .inspection-slider');
 
-            // ── Fix mobile : détecter la direction du geste tactile pour éviter
-            //    qu'un scroll vertical ne modifie accidentellement la valeur du slider ──
+            // ── Fix mobile : pendant un scroll vertical, conserver la valeur de départ
+            //    du slider pour éviter les modifications accidentelles sans bloquer le scroll ──
             (function setupSliderTouchGuard() {
                 const sliderSelector = [
                     '.bio-slider', '.mech-slider', '.usage-slider', '.denat-slider',
@@ -4363,13 +4363,21 @@ deleteLot(index) {
                 document.querySelectorAll(sliderSelector).forEach(slider => {
                     let _touchStartX = 0;
                     let _touchStartY = 0;
-                    let _isVerticalScroll = false;
+                    let _touchStartValue = slider.value;
+                    let _directionLocked = false;
+                    let _isVerticalGesture = false;
+
+                    const resetTouchState = () => {
+                        _directionLocked = false;
+                        _isVerticalGesture = false;
+                    };
 
                     slider.addEventListener('touchstart', (e) => {
                         if (!e.touches || !e.touches[0]) return;
                         _touchStartX = e.touches[0].clientX;
                         _touchStartY = e.touches[0].clientY;
-                        _isVerticalScroll = false;
+                        _touchStartValue = slider.value;
+                        resetTouchState();
                     }, { passive: true });
 
                     slider.addEventListener('touchmove', (e) => {
@@ -4377,16 +4385,21 @@ deleteLot(index) {
                         const deltaX = Math.abs(e.touches[0].clientX - _touchStartX);
                         const deltaY = Math.abs(e.touches[0].clientY - _touchStartY);
 
-                        // Déterminer la direction dominante sur le premier mouvement significatif
-                        if (!_isVerticalScroll && (deltaX > 4 || deltaY > 4)) {
-                            _isVerticalScroll = deltaY > deltaX;
+                        // Verrouiller la direction au premier mouvement significatif
+                        if (!_directionLocked && (deltaX > 8 || deltaY > 8)) {
+                            _isVerticalGesture = deltaY > (deltaX * 1.2);
+                            _directionLocked = true;
                         }
 
-                        // Si geste majoritairement vertical → bloquer la modification du slider
-                        if (_isVerticalScroll) {
-                            e.preventDefault();
+                        // Si geste vertical : laisser défiler la page mais figer la valeur du slider
+                        if (_directionLocked && _isVerticalGesture && slider.value !== _touchStartValue) {
+                            slider.value = _touchStartValue;
+                            slider.dispatchEvent(new Event('input', { bubbles: true }));
                         }
-                    }, { passive: false }); // passive:false obligatoire pour pouvoir appeler preventDefault
+                    }, { passive: true });
+
+                    slider.addEventListener('touchend', resetTouchState, { passive: true });
+                    slider.addEventListener('touchcancel', resetTouchState, { passive: true });
                 });
             })();
 
