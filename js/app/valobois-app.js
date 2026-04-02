@@ -104,6 +104,7 @@ class ValoboisApp {
         this.pendingPieceCreationModalOptions = null;
         this.seuilsCharts = {};
         this.radarChart = null;
+        this.scatterDimsChart = null;
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -5080,6 +5081,20 @@ if (provDetailBackdrop && provDetailClose && provDetailCloseFooter) {
             });
         }
 
+        const scatterDimsBtn = document.getElementById('btnScatterDimsInfo');
+        const scatterDimsBackdrop = document.getElementById('scatterDimsModalBackdrop');
+        const scatterDimsClose = document.getElementById('btnCloseScatterDimsModal');
+        const scatterDimsCloseFooter = document.getElementById('btnCloseScatterDimsModalFooter');
+
+        if (scatterDimsBtn && scatterDimsBackdrop && scatterDimsClose && scatterDimsCloseFooter) {
+            scatterDimsBtn.addEventListener('click', () => this.openScatterDimsModal());
+            scatterDimsClose.addEventListener('click', () => this.closeScatterDimsModal());
+            scatterDimsCloseFooter.addEventListener('click', () => this.closeScatterDimsModal());
+            scatterDimsBackdrop.addEventListener('click', (e) => {
+                if (e.target === scatterDimsBackdrop) this.closeScatterDimsModal();
+            });
+        }
+
 // Modale Orientation
 const orientBtn = document.getElementById('btnOrientationInfo');
 const orientBackdrop = document.getElementById('orientationModalBackdrop');
@@ -6792,6 +6807,22 @@ closeProvenanceDetailModal() {
         }
     }
 
+    openScatterDimsModal() {
+        const b = document.getElementById('scatterDimsModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeScatterDimsModal() {
+        const b = document.getElementById('scatterDimsModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
 openOrientationModal() {
     const backdrop = document.getElementById('orientationModalBackdrop');
     if (backdrop) {
@@ -7073,6 +7104,7 @@ closeEvalOpModal() {
         this.renderProvenance();
         this.renderSeuils();
         this.renderRadar();
+        this.renderScatterDims();
         this.renderOrientation();
         this.renderEvalOp();
         this.setupNotationResetConfirmations();
@@ -12306,6 +12338,199 @@ renderRadar() {
         }
     }
 
+    renderScatterDims() {
+        const section = document.getElementById('scatterDimsSection');
+        const lotLabel = document.getElementById('scatterDimsActiveLotLabel');
+        const canvas = document.getElementById('scatterDimsChart');
+        const wrapper = section ? section.querySelector('.scatter-dims-canvas-wrapper') : null;
+        const emptyEl = document.getElementById('scatterDimsEmpty');
+
+        if (!section) return;
+
+        const lot = this.getCurrentLot();
+        if (!lot) {
+            section.style.display = 'none';
+            return;
+        }
+
+        section.style.display = 'block';
+
+        const lots = this.data.lots || [];
+        const lotIndex = lots.indexOf(lot);
+        if (lotLabel) {
+            const defaultName = lotIndex >= 0 ? 'Lot ' + (lotIndex + 1) : 'Lot …';
+            const lotName = (lot.nom || '').trim();
+            lotLabel.textContent = lotName ? lotName : defaultName;
+        }
+
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        const tr = (key, fallback) => {
+            if (typeof window.t !== 'function') return fallback;
+            const translated = window.t(key);
+            return translated && translated !== key ? translated : fallback;
+        };
+
+        const allot = lot.allotissement || {};
+        const fallbackLongueur = parseFloat(allot.longueur) || 0;
+        const fallbackLargeur = parseFloat(allot.largeur) || 0;
+        const fallbackEpaisseur = parseFloat(allot.epaisseur) || 0;
+
+        const toRoundedDimension = (value, fallbackValue) => {
+            const hasOwnValue = value !== '' && value != null;
+            const parsed = parseFloat(hasOwnValue ? value : fallbackValue);
+            if (!Number.isFinite(parsed)) return 0;
+            return Math.round(parsed);
+        };
+
+        const grouped = new Map();
+        let hasNonZeroLongueur = false;
+        let hasNonZeroLargeur = false;
+        let hasNonZeroEpaisseur = false;
+
+        const registerAtom = (sourceLongueur, sourceLargeur, sourceEpaisseur, count) => {
+            const safeCount = Math.max(0, Math.round(Number(count) || 0));
+            if (safeCount <= 0) return;
+
+            const longueur = toRoundedDimension(sourceLongueur, fallbackLongueur);
+            const largeur = toRoundedDimension(sourceLargeur, fallbackLargeur);
+            const epaisseur = toRoundedDimension(sourceEpaisseur, fallbackEpaisseur);
+
+            if (longueur > 0) hasNonZeroLongueur = true;
+            if (largeur > 0) hasNonZeroLargeur = true;
+            if (epaisseur > 0) hasNonZeroEpaisseur = true;
+
+            const key = longueur + '|' + largeur + '|' + epaisseur;
+            const existing = grouped.get(key);
+            if (existing) {
+                existing.count += safeCount;
+            } else {
+                grouped.set(key, { longueur, largeur, epaisseur, count: safeCount });
+            }
+        };
+
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece) => {
+            registerAtom(
+                defaultPiece ? defaultPiece.longueur : '',
+                defaultPiece ? defaultPiece.largeur : '',
+                defaultPiece ? defaultPiece.epaisseur : '',
+                defaultPiece ? defaultPiece.quantite : 0
+            );
+        });
+
+        (Array.isArray(lot.pieces) ? lot.pieces : []).forEach((piece) => {
+            registerAtom(
+                piece ? piece.longueur : '',
+                piece ? piece.largeur : '',
+                piece ? piece.epaisseur : '',
+                1
+            );
+        });
+
+        const hasAllDimensions = hasNonZeroLongueur && hasNonZeroLargeur && hasNonZeroEpaisseur;
+        const hasData = grouped.size > 0 && hasAllDimensions;
+
+        if (!hasData) {
+            if (wrapper) wrapper.style.display = 'none';
+            canvas.style.display = 'none';
+            if (emptyEl) {
+                emptyEl.textContent = tr('editor.scatterDims.empty', 'Renseignez les dimensions pour afficher ce graphique');
+                emptyEl.classList.remove('hidden');
+            }
+            return;
+        }
+
+        if (wrapper) wrapper.style.display = '';
+        canvas.style.display = 'block';
+        if (emptyEl) emptyEl.classList.add('hidden');
+
+        const datasetData = Array.from(grouped.values())
+            .map((group) => ({
+                x: group.longueur,
+                y: group.largeur,
+                r: Math.min(18, Math.max(5, 4 + (group.count * 2))),
+                epaisseur: group.epaisseur,
+                count: group.count
+            }))
+            .sort((a, b) => {
+                if (a.x !== b.x) return a.x - b.x;
+                if (a.y !== b.y) return a.y - b.y;
+                return (a.epaisseur || 0) - (b.epaisseur || 0);
+            });
+
+        const tooltipLabel = (rawPoint) => {
+            const pattern = tr('editor.scatterDims.tooltipPattern', 'L: {L}mm / l: {l}mm / é: {e}mm — {n} pièce(s)');
+            const safeX = Number.isFinite(rawPoint && rawPoint.x) ? Math.round(rawPoint.x) : 0;
+            const safeY = Number.isFinite(rawPoint && rawPoint.y) ? Math.round(rawPoint.y) : 0;
+            const safeE = Number.isFinite(rawPoint && rawPoint.epaisseur) ? Math.round(rawPoint.epaisseur) : 0;
+            const safeCount = Number.isFinite(rawPoint && rawPoint.count) ? Math.round(rawPoint.count) : 0;
+            return pattern
+                .replace('{L}', String(safeX))
+                .replace('{l}', String(safeY))
+                .replace('{e}', String(safeE))
+                .replace('{n}', String(safeCount));
+        };
+
+        const xTitle = tr('editor.scatterDims.axisLength', 'Longueur (mm)');
+        const yTitle = tr('editor.scatterDims.axisWidth', 'Largeur (mm)');
+
+        if (!this.scatterDimsChart) {
+            this.scatterDimsChart = new Chart(ctx, {
+                type: 'bubble',
+                data: {
+                    datasets: [
+                        {
+                            data: datasetData,
+                            backgroundColor: 'rgba(0,0,0,0.55)',
+                            borderColor: '#000000',
+                            borderWidth: 1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    scales: {
+                        x: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: xTitle
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            title: {
+                                display: true,
+                                text: yTitle
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label(context) {
+                                    return tooltipLabel(context.raw || {});
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        } else {
+            this.scatterDimsChart.data.datasets[0].data = datasetData;
+            this.scatterDimsChart.options.scales.x.title.text = xTitle;
+            this.scatterDimsChart.options.scales.y.title.text = yTitle;
+            this.scatterDimsChart.options.plugins.tooltip.callbacks.label = function (context) {
+                return tooltipLabel(context.raw || {});
+            };
+            this.scatterDimsChart.update();
+        }
+    }
+
     renderOrientation() {
         const section = document.getElementById('orientationSection');
     const lotLabel = document.getElementById('orientationActiveLotLabel');
@@ -12495,6 +12720,7 @@ renderRadar() {
         this.renderOrientation();
         this.renderSeuils();
         this.renderRadar();
+        this.renderScatterDims();
         this.renderEvalOp(); 
     } 
     

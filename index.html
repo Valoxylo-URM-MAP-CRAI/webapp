@@ -3439,6 +3439,35 @@
             </div>
         </div>
 
+        <section class="card mt-16 scatter-dims-card" id="scatterDimsSection" style="display:block;">
+            <header class="scatter-dims-header">
+                <div class="scatter-dims-lot-badge" id="scatterDimsActiveLotLabel">Lot …</div>
+                <h2 class="card-title scatter-dims-title" data-i18n="editor.section.scatterDims">Dimensions</h2>
+                <button class="scatter-dims-info-btn" type="button" id="btnScatterDimsInfo" data-i18n="editor.common.info">info</button>
+            </header>
+            <div class="scatter-dims-body">
+                <div class="scatter-dims-canvas-wrapper">
+                    <canvas id="scatterDimsChart"></canvas>
+                </div>
+                <div id="scatterDimsEmpty" class="scatter-dims-empty hidden" data-i18n="editor.scatterDims.empty">Renseignez les dimensions pour afficher ce graphique</div>
+            </div>
+        </section>
+
+        <div class="modal-backdrop hidden" id="scatterDimsModalBackdrop" aria-hidden="true">
+            <div class="modal" role="dialog" aria-modal="true" aria-labelledby="scatterDimsModalTitle">
+                <header class="modal-header">
+                    <h2 id="scatterDimsModalTitle" class="text-center" data-i18n="editor.section.scatterDims">Dimensions</h2>
+                    <button class="modal-close" type="button" id="btnCloseScatterDimsModal">×</button>
+                </header>
+                <div class="modal-body">
+                    <p data-i18n="editor.scatterDims.modalIntro">Ce graphique représente la distribution dimensionnelle des pièces du lot. Chaque point correspond à un groupe de pièces de même dimensions (L × l × é). La taille du point indique le nombre de pièces dans ce groupe. Un nuage compact indique un lot homogène ; un nuage dispersé indique un lot hétérogène.</p>
+                </div>
+                <footer class="modal-footer">
+                    <button class="btn btn-primary btn-full" type="button" id="btnCloseScatterDimsModalFooter" data-i18n="editor.common.understood">J’ai compris</button>
+                </footer>
+            </div>
+        </div>
+
         <!-- Orientation -->
         <section class="card mt-16 orientation-card" id="orientationSection" style="display:block;">
             <header class="orientation-header">
