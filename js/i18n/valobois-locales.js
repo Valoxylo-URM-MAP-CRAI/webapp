@@ -73,8 +73,25 @@
                 networkFailed: 'Problème de réseau. Vérifiez votre connexion.',
                 operationNotAllowed:
                     'La connexion par e-mail n’est pas activée sur ce projet Firebase.',
-            },
-        },
+            },            editor: {
+                mesures: {
+                    multiples: {
+                        btn: 'Mesures multiples',
+                        title: 'Préciser les sections',
+                        niveaux: 'Nombre de positions',
+                        extremite1: 'Extrémité 1',
+                        extremite2: 'Extrémité 2',
+                        milieu: 'Mi-longueur',
+                        quart1: 'Quart 1 (25\u00a0%)',
+                        quart3: 'Quart 3 (75\u00a0%)',
+                        typeRect: 'Rectangulaire (L\u00a0\u00d7\u00a0E)',
+                        typeCirc: 'Circulaire (\u2300)',
+                        enregistrer: 'Enregistrer',
+                        reinitialiser: 'Réinitialiser',
+                        resume: 'Sections renseignées',
+                    },
+                },
+            },        },
         en: {
             banner: {
                 langSelectLabel: 'Language',
@@ -145,6 +162,25 @@
                 tooManyRequests: 'Too many attempts. Try again later.',
                 networkFailed: 'Network problem. Check your connection.',
                 operationNotAllowed: 'Email sign-in is not enabled for this Firebase project.',
+            },
+            editor: {
+                mesures: {
+                    multiples: {
+                        btn: 'Multiple measurements',
+                        title: 'Define cross-sections',
+                        niveaux: 'Number of positions',
+                        extremite1: 'End 1',
+                        extremite2: 'End 2',
+                        milieu: 'Mid-length',
+                        quart1: 'Quarter 1 (25\u00a0%)',
+                        quart3: 'Quarter 3 (75\u00a0%)',
+                        typeRect: 'Rectangular (W\u00a0\u00d7\u00a0H)',
+                        typeCirc: 'Circular (\u2300)',
+                        enregistrer: 'Save',
+                        reinitialiser: 'Reset',
+                        resume: 'Sections entered',
+                    },
+                },
             },
         },
     };

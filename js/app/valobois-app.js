@@ -2708,6 +2708,296 @@ class ValoboisApp {
         backdrop.setAttribute('aria-hidden', 'true');
     }
 
+    // --- Modale Mesures multiples ---
+
+    /**
+     * Ouvre la modale Mesures multiples pour la pièce (par défaut ou détaillée) identifiée par context.
+     * @param {object} lot
+     * @param {number} lotIndex
+     * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
+     */
+    openMesuresMultiplesModal(lot, lotIndex, context) {
+        const backdrop = document.getElementById('mesuresMultiplesModalBackdrop');
+        if (!backdrop) return;
+
+        this._mesuresMultiplesContext = { lot, lotIndex, ...context };
+
+        const piece = context.isDefault
+            ? this.getDefaultPieceById(lot, context.defaultPieceId)
+            : (lot.pieces && lot.pieces[context.pieceIndex]);
+        if (!piece) return;
+
+        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
+        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
+        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepA(piece);
+        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepA();
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    closeMesuresMultiplesModal() {
+        const backdrop = document.getElementById('mesuresMultiplesModalBackdrop');
+        if (!backdrop) return;
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
+        this._mesuresMultiplesContext = null;
+    }
+
+    _renderMesuresMultiplesStepA(piece) {
+        const mm = piece && piece.mesuresMultiples;
+        const currentNiveaux = (mm && mm.niveaux) ? mm.niveaux : 1;
+        const options = [
+            { v: 1, label: '1 — extrémités seulement' },
+            { v: 2, label: '2 — extrémités + mi-longueur' },
+            { v: 3, label: '3 — extrémités + mi-longueur + quart 3/4' },
+            { v: 4, label: '4 — extrémités + 1/4 + 1/2 + 3/4' },
+        ];
+        const optionsHtml = options.map(o =>
+            `<option value="${o.v}"${o.v === currentNiveaux ? ' selected' : ''}>${o.label}</option>`
+        ).join('');
+        return `<div class="mesures-step-a">
+            <p class="mesures-step-desc">Saisissez les dimensions de section à plusieurs positions le long de la pièce. Ces données enrichissent l'analyse sans modifier le volume calculé actuellement.</p>
+            <div class="lot-field-block" style="margin-top:12px;">
+                <label class="lot-field-label" for="mmNiveauxSelect">Nombre de positions à mesurer</label>
+                <select id="mmNiveauxSelect" class="lot-input" style="max-width:320px;">${optionsHtml}</select>
+            </div>
+            <p class="mesures-step-note" style="margin-top:10px; font-size:0.85em; opacity:0.7;">Chaque position peut avoir une section rectangulaire (L × E) ou circulaire (⌀). Les types peuvent varier d'une section à l'autre.</p>
+        </div>`;
+    }
+
+    _renderMesuresMultiplesFooterStepA() {
+        return `<button class="btn btn-secondary" type="button" data-mm-action="annuler">Annuler</button>
+                <button class="btn btn-primary" type="button" data-mm-action="confirmer">Confirmer &#x2192;</button>`;
+    }
+
+    _mesuresMultiplesConfirmerStep() {
+        const ctx = this._mesuresMultiplesContext;
+        if (!ctx) return;
+        const selectEl = document.getElementById('mmNiveauxSelect');
+        const niveaux = selectEl ? (parseInt(selectEl.value, 10) || 1) : 1;
+        const piece = ctx.isDefault
+            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
+            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
+        if (!piece) return;
+        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
+        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
+        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepB(piece, niveaux);
+        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepB();
+    }
+
+    _renderMesuresMultiplesStepB(piece, niveaux) {
+        const posLabels = {
+            extremite1: 'Extrémité 1 (0\u00a0%)',
+            quart1:     'Quart 1 (25\u00a0%)',
+            milieu:     'Mi-longueur (50\u00a0%)',
+            quart3:     'Quart 3 (75\u00a0%)',
+            extremite2: 'Extrémité 2 (100\u00a0%)',
+        };
+        const template = this.createEmptyMesuresMultiples(niveaux);
+        const existingMm = piece.mesuresMultiples;
+        // Fusionner les données existantes si même niveaux
+        const sections = template.sections.map(templateSection => {
+            if (existingMm && Array.isArray(existingMm.sections)) {
+                const existing = existingMm.sections.find(s => s.position === templateSection.position);
+                if (existing) return { ...templateSection, ...existing };
+            }
+            return templateSection;
+        });
+
+        const blocksHtml = sections.map((s, i) => {
+            const label = posLabels[s.position] || s.position;
+            const isRect = s.typeSection === 'rect';
+            const isCirc = s.typeSection === 'circ';
+            const dimDisplay = s.typeSection === null ? 'none' : 'block';
+            const rectDisplay = isRect ? 'block' : 'none';
+            const circDisplay = isCirc ? 'block' : 'none';
+
+            const largeurVal = s.largeur != null ? String(s.largeur) : '';
+            const epaisseurVal = s.epaisseur != null ? String(s.epaisseur) : '';
+            const diametreVal = s.diametre != null ? String(s.diametre) : '';
+
+            return `<div class="mesures-section-bloc" data-section-index="${i}">
+                <p class="mesures-section-title">Section\u00a0: <strong>${label}</strong></p>
+                <div class="mesures-section-type-toggle" role="group" aria-label="Type de section position ${i + 1}">
+                    <label class="mesures-type-label"><input type="radio" name="mm-typeSection-${i}" value="rect" data-section-index="${i}"${isRect ? ' checked' : ''}> Rectangulaire (L\u00a0\u00d7\u00a0E)</label>
+                    <label class="mesures-type-label"><input type="radio" name="mm-typeSection-${i}" value="circ" data-section-index="${i}"${isCirc ? ' checked' : ''}> Circulaire (\u2300)</label>
+                </div>
+                <div class="mesures-section-dims" data-section-index="${i}" style="margin-top:8px; display:${s.typeSection !== null ? 'block' : 'none'};">
+                    <div class="mesures-dims-rect" data-section-index="${i}" style="display:${rectDisplay};">
+                        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Largeur</label>
+                                <div class="lot-input-with-unit">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${largeurVal}" data-mm-input="largeur" data-section-index="${i}" style="width:80px;">
+                                    <span class="lot-input-unit">mm</span>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Épaisseur</label>
+                                <div class="lot-input-with-unit">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${epaisseurVal}" data-mm-input="epaisseur" data-section-index="${i}" style="width:80px;">
+                                    <span class="lot-input-unit">mm</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mesures-dims-circ" data-section-index="${i}" style="display:${circDisplay};">
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Diamètre</label>
+                            <div class="lot-input-with-unit">
+                                <input type="text" inputmode="decimal" class="lot-input" value="${diametreVal}" data-mm-input="diametre" data-section-index="${i}" style="width:80px;">
+                                <span class="lot-input-unit">mm</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+        }).join('');
+
+        return `<div class="mesures-step-b">${blocksHtml}</div>`;
+    }
+
+    _renderMesuresMultiplesFooterStepB() {
+        return `<button class="btn btn-secondary btn-sm" type="button" data-mm-action="reinitialiser" style="margin-right:auto;">Réinitialiser</button>
+                <button class="btn btn-secondary" type="button" data-mm-action="annuler">Annuler</button>
+                <button class="btn btn-primary" type="button" data-mm-action="enregistrer">Enregistrer</button>`;
+    }
+
+    _mesuresMultiplesUpdateSectionType(sectionIndex, typeSection) {
+        const body = document.getElementById('mesuresMultiplesModalBody');
+        if (!body) return;
+        const dimsEl = body.querySelector(`.mesures-section-dims[data-section-index="${sectionIndex}"]`);
+        const rectEl = body.querySelector(`.mesures-dims-rect[data-section-index="${sectionIndex}"]`);
+        const circEl = body.querySelector(`.mesures-dims-circ[data-section-index="${sectionIndex}"]`);
+        if (dimsEl) dimsEl.style.display = 'block';
+        if (rectEl) rectEl.style.display = typeSection === 'rect' ? 'block' : 'none';
+        if (circEl) circEl.style.display = typeSection === 'circ' ? 'block' : 'none';
+    }
+
+    saveMesuresMultiples() {
+        const ctx = this._mesuresMultiplesContext;
+        if (!ctx) return;
+        const piece = ctx.isDefault
+            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
+            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
+        if (!piece) return;
+
+        const body = document.getElementById('mesuresMultiplesModalBody');
+        if (!body) return;
+
+        // Lire le niveaux depuis les blocs rendus (nombre de blocs = sections)
+        const sectionBlocs = body.querySelectorAll('.mesures-section-bloc');
+        if (!sectionBlocs.length) return;
+
+        const niveauxMap = { 2: 1, 3: 2, 4: 3, 5: 4 };
+        const niveaux = niveauxMap[sectionBlocs.length] || 1;
+        const template = this.createEmptyMesuresMultiples(niveaux);
+
+        const sections = template.sections.map((templateSection, i) => {
+            const bloc = body.querySelector(`.mesures-section-bloc[data-section-index="${i}"]`);
+            if (!bloc) return { ...templateSection };
+
+            const checkedRadio = bloc.querySelector(`input[name="mm-typeSection-${i}"]:checked`);
+            const typeSection = checkedRadio ? checkedRadio.value : null;
+
+            let largeur = null, epaisseur = null, diametre = null;
+            if (typeSection === 'rect') {
+                const lInput = bloc.querySelector(`input[data-mm-input="largeur"][data-section-index="${i}"]`);
+                const eInput = bloc.querySelector(`input[data-mm-input="epaisseur"][data-section-index="${i}"]`);
+                const lVal = this.normalizeAllotissementNumericInput(lInput ? lInput.value : '');
+                const eVal = this.normalizeAllotissementNumericInput(eInput ? eInput.value : '');
+                largeur = lVal !== '' ? parseFloat(lVal) : null;
+                epaisseur = eVal !== '' ? parseFloat(eVal) : null;
+            } else if (typeSection === 'circ') {
+                const dInput = bloc.querySelector(`input[data-mm-input="diametre"][data-section-index="${i}"]`);
+                const dVal = this.normalizeAllotissementNumericInput(dInput ? dInput.value : '');
+                diametre = dVal !== '' ? parseFloat(dVal) : null;
+            }
+
+            return {
+                position: templateSection.position,
+                positionRatio: templateSection.positionRatio,
+                typeSection,
+                largeur,
+                epaisseur,
+                diametre,
+            };
+        });
+
+        const hasAnyData = sections.some(s => s.typeSection !== null);
+
+        if (!hasAnyData) {
+            // Tout vide : nettoyer plutôt que d'écrire un objet vide
+            delete piece.mesuresMultiples;
+            delete piece.volumePieceEnrichi;
+        } else {
+            piece.mesuresMultiples = { active: true, niveaux, sections };
+            const volumeEnrichi = this.computeVolumeEnrichi(piece);
+            if (volumeEnrichi !== null) {
+                piece.volumePieceEnrichi = volumeEnrichi;
+            } else {
+                delete piece.volumePieceEnrichi;
+            }
+        }
+
+        this.saveData();
+        this._updateMesuresBadgeAndResume(piece, ctx);
+        this.closeMesuresMultiplesModal();
+    }
+
+    resetMesuresMultiples() {
+        const ctx = this._mesuresMultiplesContext;
+        if (!ctx) return;
+        const piece = ctx.isDefault
+            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
+            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
+        if (!piece) return;
+
+        delete piece.mesuresMultiples;
+        delete piece.volumePieceEnrichi;
+        this.saveData();
+        this._updateMesuresBadgeAndResume(piece, ctx);
+
+        // Re-render Step A dans la modale
+        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
+        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
+        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepA(piece);
+        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepA();
+    }
+
+    /**
+     * Met à jour chirurgicalement le badge du bouton et la zone résumé dans le DOM
+     * de la carte pièce concernée (sans re-render complet).
+     */
+    _updateMesuresBadgeAndResume(piece, ctx) {
+        const pieceRail = document.getElementById('pieceRail');
+        if (!pieceRail) return;
+        const mm = piece.mesuresMultiples;
+        const isActive = !!(mm && mm.active);
+        const badgeHtml = isActive ? ` <span class="badge-mesures">${mm.sections.length} sections</span>` : '';
+        const resumeHtml = this.renderMesuresMultiplesResume(piece);
+
+        let btn, resumeEl;
+        if (ctx.isDefault) {
+            btn = pieceRail.querySelector(`.btn-mesures-multiples[data-default-piece-id="${ctx.defaultPieceId}"]`);
+            resumeEl = pieceRail.querySelector(`[data-default-piece-mesures-resume][data-default-piece-id="${ctx.defaultPieceId}"]`);
+        } else {
+            btn = pieceRail.querySelector(`.btn-mesures-multiples[data-piece-index="${ctx.pieceIndex}"]`);
+            resumeEl = pieceRail.querySelector(`[data-piece-mesures-resume][data-piece-index="${ctx.pieceIndex}"]`);
+        }
+
+        if (btn) {
+            btn.dataset.mesuresActif = isActive ? 'true' : 'false';
+            btn.innerHTML = `&#x1F4D0; Mesures multiples${badgeHtml}`;
+        }
+        if (resumeEl) {
+            resumeEl.innerHTML = resumeHtml;
+        }
+    }
+
+    // --- Fin Modale Mesures multiples ---
+
     // [ARCHIVE TECHNIQUE] Etats de variabilite conserves, non relies a l'UI active.
 
     getVariabiliteState(cvVal, dim) {
@@ -3317,6 +3607,128 @@ class ValoboisApp {
         }
         return result;
     }
+
+    // --- Mesures multiples ---
+
+    /**
+     * Crée un objet mesuresMultiples initialisé selon le nombre de niveaux intermédiaires.
+     * @param {number} niveaux - 1 (extrémités seules) | 2 (+milieu) | 3 (+milieu+quart3) | 4 (+quart1+milieu+quart3)
+     * @returns {{ active: boolean, niveaux: number, sections: Array }}
+     */
+    createEmptyMesuresMultiples(niveaux = 1) {
+        const allPositions = [
+            { position: 'extremite1', positionRatio: 0 },
+            { position: 'quart1',     positionRatio: 0.25 },
+            { position: 'milieu',     positionRatio: 0.5 },
+            { position: 'quart3',     positionRatio: 0.75 },
+            { position: 'extremite2', positionRatio: 1 },
+        ];
+        const nv = Math.max(1, Math.min(4, parseInt(niveaux, 10) || 1));
+        let chosen;
+        if (nv === 1) chosen = [allPositions[0], allPositions[4]];
+        else if (nv === 2) chosen = [allPositions[0], allPositions[2], allPositions[4]];
+        else if (nv === 3) chosen = [allPositions[0], allPositions[2], allPositions[3], allPositions[4]];
+        else chosen = [allPositions[0], allPositions[1], allPositions[2], allPositions[3], allPositions[4]];
+
+        return {
+            active: false,
+            niveaux: nv,
+            sections: chosen.map(p => ({
+                position: p.position,
+                positionRatio: p.positionRatio,
+                typeSection: null,
+                largeur: null,
+                epaisseur: null,
+                diametre: null,
+            })),
+        };
+    }
+
+    /**
+     * Calcule le volume enrichi d'une pièce par intégration numérique (règle de Simpson composite)
+     * si mesuresMultiples.active === true et que toutes les sections sont complètes.
+     * Le résultat est stocké dans piece.volumePieceEnrichi (m³). Retourne null si indisponible.
+     * Remarque : recalculatePiece() est inchangée — volumePiece reste basé sur les scalaires.
+     * @param {object} piece - objet pièce ou pièce par défaut
+     * @returns {number|null}
+     */
+    computeVolumeEnrichi(piece) {
+        const mm = piece && piece.mesuresMultiples;
+        if (!mm || !mm.active || !Array.isArray(mm.sections) || mm.sections.length < 2) return null;
+
+        const longueur = parseFloat(piece.longueur);
+        if (!longueur || longueur <= 0) return null;
+
+        const getSectionArea = (s) => {
+            if (!s || !s.typeSection) return null;
+            if (s.typeSection === 'rect') {
+                const l = parseFloat(s.largeur);
+                const e = parseFloat(s.epaisseur);
+                if (!l || !e || l <= 0 || e <= 0) return null;
+                return (l * e) / 1e6; // m²
+            }
+            if (s.typeSection === 'circ') {
+                const d = parseFloat(s.diametre);
+                if (!d || d <= 0) return null;
+                return Math.PI * Math.pow(d / 2000, 2); // m²
+            }
+            return null;
+        };
+
+        const sections = mm.sections;
+        const n = sections.length;
+        const areas = sections.map(getSectionArea);
+        if (areas.some(a => a === null)) return null;
+
+        // Règle des trapèzes composite (sections non nécessairement équidistantes)
+        let volume = 0;
+        for (let i = 0; i < n - 1; i++) {
+            const dx = (sections[i + 1].positionRatio - sections[i].positionRatio) * (longueur / 1000); // m
+            volume += (areas[i] + areas[i + 1]) / 2 * dx;
+        }
+        return volume; // m³
+    }
+
+    /**
+     * Génère le HTML du résumé compact des mesures multiples d'une pièce (lecture seule).
+     * @param {object} piece - objet pièce ou pièce par défaut
+     * @returns {string} HTML
+     */
+    renderMesuresMultiplesResume(piece) {
+        const mm = piece && piece.mesuresMultiples;
+        if (!mm || !mm.active || !Array.isArray(mm.sections) || !mm.sections.length) return '';
+
+        const posLabels = {
+            extremite1: 'Extr.\u00a01',
+            quart1:     'Quart\u00a01',
+            milieu:     'Milieu',
+            quart3:     'Quart\u00a03',
+            extremite2: 'Extr.\u00a02',
+        };
+        const sectionLines = mm.sections.map(s => {
+            const lbl = posLabels[s.position] || s.position;
+            if (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) {
+                return `<span class="mesures-resume-line"><em>[${lbl}]</em> L\u00a0: ${s.largeur}\u00a0mm\u00a0\u00a0E\u00a0: ${s.epaisseur}\u00a0mm</span>`;
+            }
+            if (s.typeSection === 'circ' && s.diametre != null) {
+                return `<span class="mesures-resume-line"><em>[${lbl}]</em> \u2300\u00a0: ${s.diametre}\u00a0mm</span>`;
+            }
+            return `<span class="mesures-resume-line mesures-resume-line--empty"><em>[${lbl}]</em> —</span>`;
+        });
+
+        const filledCount = mm.sections.filter(s => s.typeSection !== null).length;
+        const totalCount = mm.sections.length;
+        let extra = '';
+        if (piece.volumePieceEnrichi != null) {
+            const vol = parseFloat(piece.volumePieceEnrichi);
+            if (!isNaN(vol)) {
+                extra = `<span class="mesures-resume-volume">\u2248\u00a0${vol.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 4, maximumFractionDigits: 4 })}\u00a0m\u00b3 (enrichi)</span>`;
+            }
+        }
+        return `<div class="mesures-resume-content"><span class="mesures-resume-header">\ud83d\udcd0\u00a0Sections\u00a0: ${filledCount}\u00a0/\u00a0${totalCount}</span>${sectionLines.join('')}${extra}</div>`;
+    }
+
+    // --- Fin Mesures multiples ---
 
     recalculateLotAllotissement(lot) {
         if (!lot || !lot.allotissement) return;
@@ -4944,6 +5356,42 @@ deleteLot(index) {
             lotLocationPiecesBackdrop.addEventListener('click', (e) => {
                 if (e.target === lotLocationPiecesBackdrop) this.closeLotLocationPiecesModal();
             });
+        }
+
+        // Modale Mesures multiples — listeners one-time
+        const mesuresMultiplesBackdrop = document.getElementById('mesuresMultiplesModalBackdrop');
+        const btnCloseMesuresMultiples = document.getElementById('btnCloseMesuresMultiplesModal');
+        if (mesuresMultiplesBackdrop) {
+            if (btnCloseMesuresMultiples) {
+                btnCloseMesuresMultiples.addEventListener('click', () => this.closeMesuresMultiplesModal());
+            }
+            mesuresMultiplesBackdrop.addEventListener('click', (e) => {
+                if (e.target === mesuresMultiplesBackdrop) this.closeMesuresMultiplesModal();
+            });
+            // Délégation sur le footer pour les boutons d'action
+            const mesuresFooter = document.getElementById('mesuresMultiplesModalFooter');
+            if (mesuresFooter) {
+                mesuresFooter.addEventListener('click', (e) => {
+                    const btn = e.target.closest('button[data-mm-action]');
+                    if (!btn) return;
+                    const action = btn.dataset.mmAction;
+                    if (action === 'annuler') this.closeMesuresMultiplesModal();
+                    else if (action === 'confirmer') this._mesuresMultiplesConfirmerStep();
+                    else if (action === 'enregistrer') this.saveMesuresMultiples();
+                    else if (action === 'reinitialiser') this.resetMesuresMultiples();
+                });
+            }
+            // Délégation sur le body pour les radios typeSection
+            const mesuresBody = document.getElementById('mesuresMultiplesModalBody');
+            if (mesuresBody) {
+                mesuresBody.addEventListener('change', (e) => {
+                    if (e.target.name && e.target.name.startsWith('mm-typeSection-')) {
+                        const sectionIndex = parseInt(e.target.dataset.sectionIndex, 10);
+                        const typeSection = e.target.value;
+                        this._mesuresMultiplesUpdateSectionType(sectionIndex, typeSection);
+                    }
+                });
+            }
         }
 
         // Modale confirmation suppression de pièce
@@ -7903,6 +8351,17 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
+                <div class="lot-group lot-group--mesures-multiples">
+                    <button type="button" class="btn btn-outline btn-sm btn-mesures-multiples"
+                        data-default-piece-id="${defaultPieceId}"
+                        data-mesures-actif="${(defaultPiece.mesuresMultiples && defaultPiece.mesuresMultiples.active) ? 'true' : 'false'}"
+                        aria-label="Préciser les sections de la pièce">
+                        &#x1F4D0; Mesures multiples${(defaultPiece.mesuresMultiples && defaultPiece.mesuresMultiples.active) ? ' <span class="badge-mesures">' + defaultPiece.mesuresMultiples.sections.length + ' sections</span>' : ''}
+                    </button>
+                    <div class="mesures-multiples-resume" data-default-piece-mesures-resume data-default-piece-id="${defaultPieceId}">
+                        ${this.renderMesuresMultiplesResume(defaultPiece)}
+                    </div>
+                </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
@@ -8155,6 +8614,17 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+                <div class="lot-group lot-group--mesures-multiples">
+                    <button type="button" class="btn btn-outline btn-sm btn-mesures-multiples"
+                        data-piece-index="${pieceIndex}"
+                        data-mesures-actif="${(piece.mesuresMultiples && piece.mesuresMultiples.active) ? 'true' : 'false'}"
+                        aria-label="Préciser les sections de la pièce">
+                        &#x1F4D0; Mesures multiples${(piece.mesuresMultiples && piece.mesuresMultiples.active) ? ' <span class="badge-mesures">' + piece.mesuresMultiples.sections.length + ' sections</span>' : ''}
+                    </button>
+                    <div class="mesures-multiples-resume" data-piece-mesures-resume data-piece-index="${pieceIndex}">
+                        ${this.renderMesuresMultiplesResume(piece)}
                     </div>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
@@ -9950,6 +10420,17 @@ closeEvalOpModal() {
                 });
             }
 
+            // Bouton Mesures multiples (pièce par défaut)
+            const defaultMesuresBtn = defaultPieceCard.querySelector(`.btn-mesures-multiples[data-default-piece-id="${defaultPieceId}"]`);
+            if (defaultMesuresBtn) {
+                defaultMesuresBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const lotIndex = this.data.lots.indexOf(lot);
+                    this.openMesuresMultiplesModal(lot, lotIndex, { isDefault: true, defaultPieceId, pieceIndex: null });
+                });
+            }
+
             defaultPieceCard.querySelectorAll(`button[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((btn) => {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -10192,6 +10673,17 @@ closeEvalOpModal() {
                 this.refreshArtisanaliteAlertButton(lot);
                 this.refreshIndustrialiteAlertButton(lot);
             };
+
+            // Bouton Mesures multiples (pièce détaillée)
+            const pieceMesuresBtn = pieceCard.querySelector(`.btn-mesures-multiples[data-piece-index="${pi}"]`);
+            if (pieceMesuresBtn) {
+                pieceMesuresBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    const lotIndex = this.data.lots.indexOf(lot);
+                    this.openMesuresMultiplesModal(lot, lotIndex, { isDefault: false, defaultPieceId: null, pieceIndex: pi });
+                });
+            }
 
             // Boutons unité de prix pièce
             pieceCard.querySelectorAll('button[data-piece-price-unit]').forEach((btn) => {

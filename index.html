@@ -997,6 +997,18 @@
                 </div>
             </div>
 
+            <!-- Modale Mesures multiples -->
+            <div class="modal-backdrop hidden" id="mesuresMultiplesModalBackdrop" aria-hidden="true">
+                <div class="modal modal--info-sheet" role="dialog" aria-modal="true" aria-labelledby="mesuresMultiplesModalTitle">
+                    <header class="modal-header">
+                        <h2 id="mesuresMultiplesModalTitle" class="text-center">&#x1F4D0; Mesures multiples</h2>
+                        <button class="modal-close" type="button" id="btnCloseMesuresMultiplesModal">&times;</button>
+                    </header>
+                    <div class="modal-body" id="mesuresMultiplesModalBody"></div>
+                    <footer class="modal-footer" id="mesuresMultiplesModalFooter"></footer>
+                </div>
+            </div>
+
             <!-- Modale confirmation suppression de pièce -->
             <div class="modal-backdrop hidden" id="deletePieceConfirmBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="deletePieceConfirmTitle">
@@ -1278,20 +1290,28 @@
                     <div class="modal-body">
                         <div class="info-sheet">
                             <div class="info-sheet-intro">
-                                Le Taux de similarité et la Pièce type sont deux concepts liés qui décrivent la variabilité et la représentativité des pièces du lot.
+                                Le Taux de similarité et la Pièce type sont deux indicateurs complémentaires qui décrivent, respectivement, la conformité des pièces aux bornes de destination et la centralité de la pièce représentative du lot.
                             </div>
 
                             <div class="info-sheet-grid">
                                 <section class="info-sheet-section">
                                     <h3>Taux de similarité</h3>
-                                    <p>Le Taux de similarité mesure la proximité des pièces du lot avec la pièce type (médoïde). Il est calculé en distance euclidienne normalisée dans l'espace des dimensions (longueur, section) en tenant compte des seuils de destination.</p>
-                                    <p>Une valeur proche de 100 % indique que les pièces du lot sont très homogènes et proches de la pièce type. Une valeur basse indique une grande variabilité.</p>
+                                    <p>Le Taux de similarité mesure à quel point les dimensions des pièces du lot sont conformes aux bornes de destination. Pour chaque pièce et dimension active (longueur + section, ou longueur + diamètre), un score de 0 à 1 est calculé : 1 si la pièce est dans les bornes, décroissant proportionnellement à l'écart hors borne par rapport à la tolérance (demi-amplitude des bornes).</p>
+                                    <p>Le taux final est la moyenne pondérée (par quantité) de ces scores sur toutes les pièces et dimensions, exprimée en pourcentage.</p>
+                                    <p>Une valeur proche de 100 % indique que toutes les pièces sont dans les bornes de destination. Une valeur basse indique que beaucoup de pièces dépassent significativement ces bornes.</p>
                                 </section>
 
                                 <section class="info-sheet-section">
                                     <h3>Pièce type (Médoïde)</h3>
-                                    <p>La Pièce type, ou médoïde, est la pièce du lot qui minimise la distance euclidienne au reste des pièces. Elle représente la pièce la plus « centrale » ou « représentative » du lot.</p>
-                                    <p>Le score (pourcentage) indique la qualité de cette représentativité.</p>
+                                    <p>La Pièce type, ou médoïde, est la pièce (ou groupe de pièces identiques) dont les dimensions sont les plus proches de l'ensemble des autres pièces du lot. Elle est déterminée en maximisant le score de similarité pairwise moyen pondéré avec toutes les autres pièces.</p>
+                                    <p>Le score du médoïde (%) indique sa centralité dans le lot : 100 % signifie que la pièce type est dimensionnellement identique à toutes les autres pièces.</p>
+                                    <p>La similarité pairwise entre deux pièces est calculée par dimension : max(0, 1 − |a − b| / t3), où t3 est le seuil de dispersion configurable par dimension.</p>
+                                </section>
+
+                                <section class="info-sheet-section">
+                                    <h3>Dispersion (± %) et Pièce la plus divergente (Δ %)</h3>
+                                    <p><strong>Dispersion (± %)</strong> : écart-type pondéré des scores de similarité de chaque pièce par rapport à la pièce type. Une dispersion faible indique que toutes les pièces sont proches de la pièce type.</p>
+                                    <p><strong>Δ Pièce la plus divergente</strong> : différence entre le score du médoïde et le score de la pièce la plus éloignée de la pièce type. Indique l'amplitude maximale de divergence dans le lot.</p>
                                 </section>
 
                                 <section class="info-sheet-section">
@@ -1310,23 +1330,25 @@
 
                                 <section class="info-sheet-section">
                                     <h3>Fondement mathématique</h3>
-                                    <p><strong>Distance euclidienne normalisée :</strong></p>
+                                    <p><strong>Score de conformité aux bornes (Taux de similarité) :</strong></p>
                                     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
-                                        d(P, M) = √[ (L<sub>P</sub> − L<sub>M</sub>)² / σ<sub>L</sub>² + (S<sub>P</sub> − S<sub>M</sub>)² / σ<sub>S</sub>² ]
+                                        s(x, dim) = max(0, 1 − écart(x, dim) / tolérance(dim))<br>
+                                        T = Σ s(x<sub>i</sub>, d) × n<sub>i</sub> / Σ n<sub>i</sub> × 100 %
                                     </div>
-                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où P est une pièce, M est la médoïde, L et S les dimensions (longueur, section), σ les écarts-types.</p>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où écart = dépassement hors borne, tolérance = demi-amplitude des bornes de destination, n<sub>i</sub> = quantité de la pièce i.</p>
 
-                                    <p style="margin-top: 12px;"><strong>Taux de similarité :</strong></p>
+                                    <p style="margin-top: 12px;"><strong>Score pairwise (Médoïde) :</strong></p>
                                     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
-                                        T = (1 − d<sub>norm</sub>) × 100%
+                                        pairScore(A, B) = moyenne<sub>dim</sub> de max(0, 1 − |a<sub>d</sub> − b<sub>d</sub>| / t3<sub>d</sub>)<br>
+                                        M* = arg max<sub>i</sub> [ Σ<sub>j≠i</sub> pairScore(i, j) × n<sub>j</sub> / Σ<sub>j≠i</sub> n<sub>j</sub> ]
                                     </div>
-                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où d<sub>norm</sub> est la distance normalisée à l'intervalle [0, 1].</p>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où t3<sub>d</sub> est le seuil de dispersion configurable par dimension, n<sub>j</sub> la quantité de chaque pièce j.</p>
 
-                                    <p style="margin-top: 12px;"><strong>Pièce type (Médoïde) :</strong></p>
+                                    <p style="margin-top: 12px;"><strong>Dispersion (± %) :</strong></p>
                                     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
-                                        M* = arg min<sub>i</sub> Σ<sub>j</sub> d(P<sub>i</sub>, P<sub>j</sub>)
+                                        σ = √( Σ w<sub>i</sub>·s<sub>i</sub>² / Σ w<sub>i</sub> − (Σ w<sub>i</sub>·s<sub>i</sub> / Σ w<sub>i</sub>)² ) × 100 %
                                     </div>
-                                    <p style="font-size: 13px; margin: 8px 0 0 0;">La pièce M* minimise la somme des distances au reste des pièces du lot.</p>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où s<sub>i</sub> = pairScore(pièce i, médoïde), w<sub>i</sub> = quantité de la pièce i.</p>
                                 </section>
                             </div>
 
