@@ -1399,6 +1399,10 @@ body.day-mode .lot-group--collapsible summary:hover {
     gap: 8px;
 }
 
+.lot-group--location-combination {
+    margin-bottom: 6px;
+}
+
 .lot-location-group-content {
     display: grid;
     gap: 8px;
@@ -1830,6 +1834,13 @@ body.day-mode .lot-group--collapsible summary:hover {
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-8);
 }
+.lot-taux-similarite-display {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    min-height: calc(1.2em + (2 * var(--space-4)));
+    box-sizing: border-box;
+}
 
 /* Wrapper two-column layout for Taux and Pièce type */
 .lot-taux-piecetype-header {
@@ -1947,6 +1958,33 @@ body.day-mode .lot-group--collapsible summary:hover {
     color: #5D564A;
     white-space: normal;
     overflow-wrap: anywhere;
+}
+.lot-piece-type-kv-value-row {
+    display: flex;
+    align-items: stretch;
+    gap: var(--space-6);
+}
+.lot-piece-type-kv-value-row .lot-piece-type-kv-value {
+    flex: 1 1 auto;
+    display: flex;
+    align-items: center;
+}
+.lot-extreme-piece-info-btn {
+    flex: 0 0 auto;
+    width: 2.3em;
+    min-height: 2.3em;
+    padding: 0;
+    border-radius: var(--radius-base);
+    border: 1px solid var(--bleu-crai);
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    text-transform: lowercase;
 }
 .lot-piece-type-kv-sub {
     font-size: var(--font-size-xs);
@@ -2168,6 +2206,24 @@ body.day-mode .lot-group--collapsible summary:hover {
     border-color: #DDD6C8;
     color: #5D564A;
     cursor: default;
+}
+
+.lot-input[readonly][data-lot-bois-variable="true"] {
+    cursor: pointer;
+}
+
+.lot-input[readonly][data-lot-fraction-c-variable="true"],
+.lot-input[readonly][data-lot-humidite-variable="true"] {
+    cursor: pointer;
+}
+
+.lot-input[readonly][data-lot-bois-variable="true"]:hover {
+    background-color: #CCCCCC;
+}
+
+.lot-input[readonly][data-lot-fraction-c-variable="true"]:hover,
+.lot-input[readonly][data-lot-humidite-variable="true"]:hover {
+    background-color: #CCCCCC;
 }
 
 .lot-input[readonly]:focus {
@@ -2658,6 +2714,13 @@ body.day-mode .lot-group--collapsible summary:hover {
     text-align: center;
 }
 
+/* Lisibilité du texte "Incomplète" dans les champs mesurés du lot */
+.lot-carbon-input-row input[data-display="masseVolumiqueMoyenneMesureeLot"],
+.lot-carbon-input-row input[data-display="masseLotMesuree"] {
+    text-align: left;
+    padding-left: var(--space-8);
+}
+
 .lot-carbon-input-row .lot-input-with-unit {
     width: min(148px, 100%);
     margin-inline: auto;
@@ -2675,6 +2738,26 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-input-with-unit--mass-density .lot-input-unit {
     right: 6px;
     font-size: 9px;
+}
+
+.lot-carbon-other-row .lot-input-with-unit[data-lot-bois-state="variable"] .lot-input-unit {
+    display: none;
+}
+
+.lot-carbon-other-row .lot-input-with-unit[data-lot-fraction-c-state="variable"] .lot-input-unit,
+.lot-carbon-other-row .lot-input-with-unit[data-lot-humidite-state="variable"] .lot-input-unit {
+    display: none;
+}
+
+.lot-carbon-other-row .lot-input-with-unit[data-lot-bois-state="variable"] .lot-input {
+    padding-right: var(--space-8);
+    text-align: left;
+}
+
+.lot-carbon-other-row .lot-input-with-unit[data-lot-fraction-c-state="variable"] .lot-input,
+.lot-carbon-other-row .lot-input-with-unit[data-lot-humidite-state="variable"] .lot-input {
+    padding-right: var(--space-8);
+    text-align: left;
 }
 
 .lot-carbon-summary-row .lot-field-block {

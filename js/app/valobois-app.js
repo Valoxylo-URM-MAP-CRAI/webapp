@@ -1083,6 +1083,7 @@ class ValoboisApp {
             ageArbre: '',
             dateMiseEnService: '',
             massePiece: 0,
+            carboneBiogeniqueEstimeExact: '',
             carboneBiogeniqueEstime: ''
         };
     }
@@ -1107,6 +1108,7 @@ class ValoboisApp {
                 'contexte-technique': false,
                 documents: false,
                 notes: false,
+                'lot-location-combination': false,
                 ...existingCollapsibles
             },
             detailLotActiveCardByLot: { ...existingDetailLotActiveCardByLot },
@@ -1577,7 +1579,7 @@ class ValoboisApp {
     }
 
     formatTauxSimilarite(val) {
-        if (val === null || val === undefined) return '';
+        if (val === null || val === undefined) return 'Inconnue';
         return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
             maximumFractionDigits: 0,
         }) + '\u00a0%';
@@ -1710,6 +1712,149 @@ class ValoboisApp {
         ];
         if (types95.some(t => normalize(t) === typeProduit)) return '95';
         return '100';
+    }
+
+    getLotBoisDetailSummary(lot) {
+        const formatBois = (numValue) => this.formatAllotissementNumericDisplay(String(numValue));
+        if (!lot || !lot.allotissement) {
+            return {
+                display: formatBois(100),
+                isVariable: false,
+                values: [],
+            };
+        }
+
+        const parseExplicitBois = (rawValue) => {
+            const normalized = this.normalizeAllotissementNumericInput(rawValue);
+            if (!normalized) return null;
+            const parsed = parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const explicitValues = [];
+
+        const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+        detailedPieces.forEach((piece) => {
+            const parsed = parseExplicitBois(piece && piece.bois);
+            if (parsed != null) explicitValues.push(parsed);
+        });
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((defaultPiece) => {
+            const parsed = parseExplicitBois(defaultPiece && defaultPiece.bois);
+            if (parsed != null) explicitValues.push(parsed);
+        });
+
+        const distinctValues = Array.from(new Set(explicitValues.map((v) => String(v))))
+            .map((raw) => parseFloat(raw))
+            .filter((v) => Number.isFinite(v))
+            .sort((a, b) => b - a);
+
+        if (distinctValues.length > 1) {
+            return {
+                display: 'Variable',
+                isVariable: true,
+                values: distinctValues.map((v) => formatBois(v)),
+            };
+        }
+
+        if (distinctValues.length === 1) {
+            return {
+                display: formatBois(distinctValues[0]),
+                isVariable: false,
+                values: distinctValues.map((v) => formatBois(v)),
+            };
+        }
+
+        const normalizedLotBois = this.normalizeAllotissementNumericInput(lot.allotissement.bois);
+        const lotBoisNum = parseFloat(normalizedLotBois);
+        const fallback = Number.isFinite(lotBoisNum) ? lotBoisNum : 100;
+        return {
+            display: formatBois(fallback),
+            isVariable: false,
+            values: [],
+        };
+    }
+
+    getLotBoisDisplayFromDetail(lot) {
+        return this.getLotBoisDetailSummary(lot).display;
+    }
+
+    getLotFractionCDetailSummary(lot) {
+        return this.getLotNumericDetailSummary(lot, 'fractionCarbonee', 50);
+    }
+
+    getLotHumiditeDetailSummary(lot) {
+        return this.getLotNumericDetailSummary(lot, 'humidite', 12);
+    }
+
+    getLotNumericDetailSummary(lot, fieldName, fallbackValue) {
+        const formatNumeric = (numValue) => this.formatAllotissementNumericDisplay(String(numValue));
+        if (!lot || !lot.allotissement) {
+            return {
+                display: formatNumeric(fallbackValue),
+                isVariable: false,
+                values: [],
+            };
+        }
+
+        const parseExplicit = (rawValue) => {
+            const normalized = this.normalizeAllotissementNumericInput(rawValue);
+            if (!normalized) return null;
+            const parsed = parseFloat(normalized);
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const explicitValues = [];
+        const lotFallbackRaw = lot.allotissement[fieldName];
+
+        const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+        detailedPieces.forEach((piece) => {
+            const raw = piece && (piece[fieldName] !== '' && piece[fieldName] != null
+                ? piece[fieldName]
+                : lotFallbackRaw);
+            const parsed = parseExplicit(raw);
+            if (parsed != null) explicitValues.push(parsed);
+        });
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((defaultPiece) => {
+            const raw = defaultPiece && (defaultPiece[fieldName] !== '' && defaultPiece[fieldName] != null
+                ? defaultPiece[fieldName]
+                : lotFallbackRaw);
+            const parsed = parseExplicit(raw);
+            if (parsed != null) explicitValues.push(parsed);
+        });
+
+        const distinctValues = Array.from(new Set(explicitValues.map((v) => String(v))))
+            .map((raw) => parseFloat(raw))
+            .filter((v) => Number.isFinite(v))
+            .sort((a, b) => b - a);
+
+        if (distinctValues.length > 1) {
+            return {
+                display: 'Variable',
+                isVariable: true,
+                values: distinctValues.map((v) => formatNumeric(v)),
+            };
+        }
+
+        if (distinctValues.length === 1) {
+            return {
+                display: formatNumeric(distinctValues[0]),
+                isVariable: false,
+                values: distinctValues.map((v) => formatNumeric(v)),
+            };
+        }
+
+        const normalizedLotValue = this.normalizeAllotissementNumericInput(lot.allotissement[fieldName]);
+        const lotNumericValue = parseFloat(normalizedLotValue);
+        const fallback = Number.isFinite(lotNumericValue) ? lotNumericValue : fallbackValue;
+        return {
+            display: formatNumeric(fallback),
+            isVariable: false,
+            values: [],
+        };
     }
 
     /**
@@ -2260,7 +2405,7 @@ class ValoboisApp {
         });
 
         if (!hasAnyMeasuredValue || totalWeight <= 0) return { value: '…', unit: '', status: 'none' };
-        if (hasMissingMeasuredValue) return { value: 'Partielle', unit: '', status: 'partial' };
+        if (hasMissingMeasuredValue) return { value: 'Incomplète', unit: '', status: 'partial' };
 
         return {
             value: this.formatDensityDisplay(weightedDensitySum / totalWeight),
@@ -2314,7 +2459,7 @@ class ValoboisApp {
         });
 
         if (!hasAnyMeasuredValue) return { value: '…', unit: '', status: 'none' };
-        if (hasMissingMeasuredValue) return { value: 'Partielle', unit: '', status: 'partial' };
+        if (hasMissingMeasuredValue) return { value: 'Incomplète', unit: '', status: 'partial' };
 
         const display = this.formatMasseDisplay(measuredMassKg);
         return { value: display.value, unit: display.unit, status: 'full' };
@@ -2715,9 +2860,9 @@ class ValoboisApp {
                 : '—';
         const scoreMinEl = el('[data-display="scoreMinPiece"]');
         if (scoreMinEl) {
-            const val = lot.allotissement.scoreMinPiece;
+            const val = lot.allotissement.scoreMinDelta;
             scoreMinEl.textContent = val !== null
-                ? Math.round(val) + '\u00a0%'
+                ? 'Δ\u00a0' + Math.round(val) + '\u00a0%'
                 : '—';
         }
         const scoreMinLblEl = el('[data-display="scoreMinPieceLabel"]');
@@ -2796,6 +2941,9 @@ class ValoboisApp {
         if (lotEssenceScientificInput) {
             lotEssenceScientificInput.value = essenceScientificDisplay;
         }
+        this.syncLotBoisInput(card, lot);
+        this.syncLotFractionCInput(card, lot);
+        this.syncLotHumiditeInput(card, lot);
 
         const typeButton = el('[data-lot-details-btn="typePiece"]');
         const typeProduitButton = el('[data-lot-details-btn="typeProduit"]');
@@ -2834,6 +2982,102 @@ class ValoboisApp {
         }
 
         // Ne pas remplacer le DOM du détail ici : cela casse l'état actif/passif des cartes.
+    }
+
+    syncLotBoisInput(card, lot, options = {}) {
+        if (!card || !lot) return;
+
+        const { respectActiveElement = true } = options;
+        const lotBoisInput = card.querySelector('input[data-lot-input="bois"]');
+        if (!lotBoisInput) return;
+        const lotBoisUnit = card.querySelector('[data-lot-bois-unit]');
+        const lotBoisWrap = lotBoisInput.closest('.lot-input-with-unit');
+
+        const lotBoisSummary = this.getLotBoisDetailSummary(lot);
+        const isFocused = document.activeElement === lotBoisInput;
+        if (!respectActiveElement || !isFocused) {
+            lotBoisInput.value = lotBoisSummary.display;
+        }
+        if (lotBoisUnit) {
+            lotBoisUnit.textContent = lotBoisSummary.isVariable ? '' : '%';
+        }
+        if (lotBoisWrap) {
+            lotBoisWrap.setAttribute('data-lot-bois-state', lotBoisSummary.isVariable ? 'variable' : 'fixed');
+        }
+        lotBoisInput.setAttribute('readonly', '');
+
+        if (lotBoisSummary.isVariable) {
+            lotBoisInput.setAttribute('data-lot-bois-variable', 'true');
+            lotBoisInput.setAttribute('title', 'Cliquer pour voir les valeurs');
+            return;
+        }
+
+        lotBoisInput.removeAttribute('data-lot-bois-variable');
+        lotBoisInput.removeAttribute('title');
+    }
+
+    syncLotFractionCInput(card, lot, options = {}) {
+        if (!card || !lot) return;
+
+        const { respectActiveElement = true } = options;
+        const fractionCInput = card.querySelector('input[data-lot-input="fractionCarbonee"]');
+        if (!fractionCInput) return;
+        const fractionCUnit = card.querySelector('[data-lot-fraction-c-unit]');
+        const fractionCWrap = fractionCInput.closest('.lot-input-with-unit');
+
+        const summary = this.getLotFractionCDetailSummary(lot);
+        const isFocused = document.activeElement === fractionCInput;
+        if (!respectActiveElement || !isFocused) {
+            fractionCInput.value = summary.display;
+        }
+        if (fractionCUnit) {
+            fractionCUnit.textContent = summary.isVariable ? '' : '%';
+        }
+        if (fractionCWrap) {
+            fractionCWrap.setAttribute('data-lot-fraction-c-state', summary.isVariable ? 'variable' : 'fixed');
+        }
+        fractionCInput.setAttribute('readonly', '');
+
+        if (summary.isVariable) {
+            fractionCInput.setAttribute('data-lot-fraction-c-variable', 'true');
+            fractionCInput.setAttribute('title', 'Cliquer pour voir les valeurs');
+            return;
+        }
+
+        fractionCInput.removeAttribute('data-lot-fraction-c-variable');
+        fractionCInput.removeAttribute('title');
+    }
+
+    syncLotHumiditeInput(card, lot, options = {}) {
+        if (!card || !lot) return;
+
+        const { respectActiveElement = true } = options;
+        const humiditeInput = card.querySelector('input[data-lot-input="humidite"]');
+        if (!humiditeInput) return;
+        const humiditeUnit = card.querySelector('[data-lot-humidite-unit]');
+        const humiditeWrap = humiditeInput.closest('.lot-input-with-unit');
+
+        const summary = this.getLotHumiditeDetailSummary(lot);
+        const isFocused = document.activeElement === humiditeInput;
+        if (!respectActiveElement || !isFocused) {
+            humiditeInput.value = summary.display;
+        }
+        if (humiditeUnit) {
+            humiditeUnit.textContent = summary.isVariable ? '' : '%';
+        }
+        if (humiditeWrap) {
+            humiditeWrap.setAttribute('data-lot-humidite-state', summary.isVariable ? 'variable' : 'fixed');
+        }
+        humiditeInput.setAttribute('readonly', '');
+
+        if (summary.isVariable) {
+            humiditeInput.setAttribute('data-lot-humidite-variable', 'true');
+            humiditeInput.setAttribute('title', 'Cliquer pour voir les valeurs');
+            return;
+        }
+
+        humiditeInput.removeAttribute('data-lot-humidite-variable');
+        humiditeInput.removeAttribute('title');
     }
 
     isAllotissementNumericField(field) {
@@ -3165,7 +3409,10 @@ class ValoboisApp {
                 sumPrix += p.prixPiece || 0;
                 sumPrixAjuste += p.prixPieceAjusteIntegrite || 0;
                 sumMasse += p.massePiece || 0;
-                sumCO2 += parseFloat(p.carboneBiogeniqueEstime) || 0;
+                const pieceExactCO2 = parseFloat(p.carboneBiogeniqueEstimeExact);
+                sumCO2 += Number.isFinite(pieceExactCO2)
+                    ? pieceExactCO2
+                    : (parseFloat(p.carboneBiogeniqueEstime) || 0);
             });
 
             const defaultPieceSamples = [];
@@ -3365,6 +3612,7 @@ class ValoboisApp {
                     lot.allotissement.madDiametre = null;
                     lot.allotissement.seuilSuggest = null;
                     lot.allotissement.scoreMinPiece = null;
+                    lot.allotissement.scoreMinDelta = null;
                     lot.allotissement.scoreMinPieceLabel = null;
                     lot.allotissement.dispersionScores = null;
                 }
@@ -3738,7 +3986,9 @@ class ValoboisApp {
         const pco2Kg = moistureDenominator > 0
             ? (44 / 12) * carbonFractionFixed * rho * piece.volumePiece * (safeWoodPct / 100) / moistureDenominator
             : 0;
-        piece.carboneBiogeniqueEstime = String(Math.max(0, Math.round(pco2Kg)));
+        const exactPco2Kg = Math.max(0, pco2Kg);
+        piece.carboneBiogeniqueEstimeExact = String(exactPco2Kg);
+        piece.carboneBiogeniqueEstime = String(Math.round(exactPco2Kg));
     }
 
     setCurrentLotIndex(index) {
@@ -4847,6 +5097,58 @@ deleteLot(index) {
             });
         }
 
+        // Modale info pièce extrême
+        const extremePieceBackdrop = document.getElementById('extremePieceModalBackdrop');
+        const extremePieceClose = document.getElementById('btnCloseExtremePieceModal');
+        const extremePieceCloseFooter = document.getElementById('btnCloseExtremePieceModalFooter');
+
+        if (extremePieceBackdrop && extremePieceClose && extremePieceCloseFooter) {
+            extremePieceClose.addEventListener('click', () => this.closeExtremePieceModal());
+            extremePieceCloseFooter.addEventListener('click', () => this.closeExtremePieceModal());
+            extremePieceBackdrop.addEventListener('click', (e) => {
+                if (e.target === extremePieceBackdrop) this.closeExtremePieceModal();
+            });
+        }
+
+        // Modale valeurs bois (détail du lot)
+        const boisValuesBackdrop = document.getElementById('boisValuesModalBackdrop');
+        const boisValuesClose = document.getElementById('btnCloseBoisValuesModal');
+        const boisValuesCloseFooter = document.getElementById('btnCloseBoisValuesModalFooter');
+
+        if (boisValuesBackdrop && boisValuesClose && boisValuesCloseFooter) {
+            boisValuesClose.addEventListener('click', () => this.closeBoisValuesModal());
+            boisValuesCloseFooter.addEventListener('click', () => this.closeBoisValuesModal());
+            boisValuesBackdrop.addEventListener('click', (e) => {
+                if (e.target === boisValuesBackdrop) this.closeBoisValuesModal();
+            });
+        }
+
+        // Modale valeurs Fraction C (détail du lot)
+        const fractionCValuesBackdrop = document.getElementById('fractionCValuesModalBackdrop');
+        const fractionCValuesClose = document.getElementById('btnCloseFractionCValuesModal');
+        const fractionCValuesCloseFooter = document.getElementById('btnCloseFractionCValuesModalFooter');
+
+        if (fractionCValuesBackdrop && fractionCValuesClose && fractionCValuesCloseFooter) {
+            fractionCValuesClose.addEventListener('click', () => this.closeFractionCValuesModal());
+            fractionCValuesCloseFooter.addEventListener('click', () => this.closeFractionCValuesModal());
+            fractionCValuesBackdrop.addEventListener('click', (e) => {
+                if (e.target === fractionCValuesBackdrop) this.closeFractionCValuesModal();
+            });
+        }
+
+        // Modale valeurs Humidité (détail du lot)
+        const humiditeValuesBackdrop = document.getElementById('humiditeValuesModalBackdrop');
+        const humiditeValuesClose = document.getElementById('btnCloseHumiditeValuesModal');
+        const humiditeValuesCloseFooter = document.getElementById('btnCloseHumiditeValuesModalFooter');
+
+        if (humiditeValuesBackdrop && humiditeValuesClose && humiditeValuesCloseFooter) {
+            humiditeValuesClose.addEventListener('click', () => this.closeHumiditeValuesModal());
+            humiditeValuesCloseFooter.addEventListener('click', () => this.closeHumiditeValuesModal());
+            humiditeValuesBackdrop.addEventListener('click', (e) => {
+                if (e.target === humiditeValuesBackdrop) this.closeHumiditeValuesModal();
+            });
+        }
+
         // Modale import documents (placeholder)
         const importButtons = document.querySelectorAll('[data-import-target]');
         const documentsImportBackdrop = document.getElementById('documentsImportModalBackdrop');
@@ -5512,6 +5814,142 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
     closeTauxLogicModal() {
         const b = document.getElementById('tauxLogicModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openExtremePieceModal() {
+        const contentEl = document.getElementById('extremePieceModalValue');
+        if (contentEl) {
+            const lot = this.getCurrentLot();
+            const label = lot?.allotissement?.scoreMinPieceLabel ?? '';
+            contentEl.textContent = label || '—';
+        }
+        const b = document.getElementById('extremePieceModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeExtremePieceModal() {
+        const b = document.getElementById('extremePieceModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openBoisValuesModal(lot = null) {
+        const targetLot = lot || this.getCurrentLot();
+        const summary = this.getLotBoisDetailSummary(targetLot);
+        const listEl = document.getElementById('boisValuesModalList');
+        const emptyEl = document.getElementById('boisValuesModalEmpty');
+
+        if (listEl) {
+            listEl.innerHTML = '';
+            if (summary.values.length > 0) {
+                summary.values.forEach((value) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${value} %`;
+                    listEl.appendChild(li);
+                });
+            }
+        }
+
+        if (emptyEl) {
+            emptyEl.textContent = summary.values.length > 0
+                ? ''
+                : 'Aucune valeur différente renseignée dans le détail du lot.';
+        }
+
+        const b = document.getElementById('boisValuesModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeBoisValuesModal() {
+        const b = document.getElementById('boisValuesModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openFractionCValuesModal(lot = null) {
+        const targetLot = lot || this.getCurrentLot();
+        const summary = this.getLotFractionCDetailSummary(targetLot);
+        const listEl = document.getElementById('fractionCValuesModalList');
+        const emptyEl = document.getElementById('fractionCValuesModalEmpty');
+
+        if (listEl) {
+            listEl.innerHTML = '';
+            if (summary.values.length > 0) {
+                summary.values.forEach((value) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${value} %`;
+                    listEl.appendChild(li);
+                });
+            }
+        }
+
+        if (emptyEl) {
+            emptyEl.textContent = summary.values.length > 0
+                ? ''
+                : 'Aucune valeur différente renseignée dans le détail du lot.';
+        }
+
+        const b = document.getElementById('fractionCValuesModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeFractionCValuesModal() {
+        const b = document.getElementById('fractionCValuesModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openHumiditeValuesModal(lot = null) {
+        const targetLot = lot || this.getCurrentLot();
+        const summary = this.getLotHumiditeDetailSummary(targetLot);
+        const listEl = document.getElementById('humiditeValuesModalList');
+        const emptyEl = document.getElementById('humiditeValuesModalEmpty');
+
+        if (listEl) {
+            listEl.innerHTML = '';
+            if (summary.values.length > 0) {
+                summary.values.forEach((value) => {
+                    const li = document.createElement('li');
+                    li.textContent = `${value} %`;
+                    listEl.appendChild(li);
+                });
+            }
+        }
+
+        if (emptyEl) {
+            emptyEl.textContent = summary.values.length > 0
+                ? ''
+                : 'Aucune valeur différente renseignée dans le détail du lot.';
+        }
+
+        const b = document.getElementById('humiditeValuesModalBackdrop');
+        if (b) {
+            b.classList.remove('hidden');
+            b.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeHumiditeValuesModal() {
+        const b = document.getElementById('humiditeValuesModalBackdrop');
         if (b) {
             b.classList.add('hidden');
             b.setAttribute('aria-hidden', 'true');
@@ -7946,6 +8384,9 @@ closeEvalOpModal() {
         const hasDisplayLongueur = displayLongueur !== '' && displayLongueur != null;
         const hasDisplayLargeur = displayLargeur !== '' && displayLargeur != null;
         const hasDisplayEpaisseur = displayEpaisseur !== '' && displayEpaisseur != null;
+        const boisDetailSummary = this.getLotBoisDetailSummary(lot);
+        const fractionCarboneeDetailSummary = this.getLotFractionCDetailSummary(lot);
+        const humiditeDetailSummary = this.getLotHumiditeDetailSummary(lot);
 
         card.innerHTML = `
             <div class="lot-card-header">
@@ -7962,34 +8403,39 @@ closeEvalOpModal() {
             </div>
             <div class="lot-form-grid mt-16">
                 <div class="lot-field-block lot-field-block--full">
-                    <div class="lot-group" style="margin-bottom: 6px;">
-                        <div class="lot-location-group-nav" data-lot-location-groups data-group-count="${locationSituationGroups.length}">
-                            <div class="lot-location-grid">
-                                <div class="lot-field-block">
-                                    <label class="lot-field-label" data-lot-location-label="localisation">${localisationTitle}</label>
-                                    <div class="lot-location-field-row">
-                                        <input type="text" class="lot-input" value="" readonly data-lot-location-field="localisation">
-                                        <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-next ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison suivante"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l8 6-8 6V6z"/></svg></button>
+                    <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination" ${this.data?.ui?.collapsibles?.['lot-location-combination'] === true ? 'open' : ''}>
+                        <summary class="lot-group-summary">
+                            <span>Localisation - Situation</span>
+                        </summary>
+                        <div class="lot-group-content">
+                            <div class="lot-location-group-nav" data-lot-location-groups data-group-count="${locationSituationGroups.length}">
+                                <div class="lot-location-grid">
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" data-lot-location-label="localisation">${localisationTitle}</label>
+                                        <div class="lot-location-field-row">
+                                            <input type="text" class="lot-input" value="" readonly data-lot-location-field="localisation">
+                                            <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-next ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison suivante"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l8 6-8 6V6z"/></svg></button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="lot-field-block">
-                                    <label class="lot-field-label" data-lot-location-label="situation">${situationTitle}</label>
-                                    <div class="lot-location-field-row">
-                                        <input type="text" class="lot-input" value="" readonly data-lot-location-field="situation">
-                                        <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-prev ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison précédente"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-8 6 8 6V6z"/></svg></button>
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" data-lot-location-label="situation">${situationTitle}</label>
+                                        <div class="lot-location-field-row">
+                                            <input type="text" class="lot-input" value="" readonly data-lot-location-field="situation">
+                                            <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-prev ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison précédente"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-8 6 8 6V6z"/></svg></button>
+                                        </div>
                                     </div>
-                                </div>
-                                <div class="lot-field-block">
-                                    <label class="lot-field-label" data-lot-location-label="pieces">Pièce dans cette combinaison</label>
-                                    <div class="lot-location-pieces-row">
-                                        <input type="text" class="lot-input" value="" readonly data-lot-location-field="pieceNames">
-                                        <button type="button" class="btn btn-secondary lot-detail-btn lot-location-open-btn" data-lot-location-open-pieces ${hasLocationGroups ? '' : 'disabled'}>Détail</button>
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" data-lot-location-label="pieces">Pièce dans cette combinaison</label>
+                                        <div class="lot-location-pieces-row">
+                                            <input type="text" class="lot-input" value="" readonly data-lot-location-field="pieceNames">
+                                            <button type="button" class="btn btn-secondary lot-detail-btn lot-location-open-btn" data-lot-location-open-pieces ${hasLocationGroups ? '' : 'disabled'}>Détail</button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
                         </div>
-                    </div>
+                    </details>
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : type de pièce, type de produit, quantité, essence</p>
                         <div class="lot-type-qty-grid">
@@ -8114,7 +8560,7 @@ closeEvalOpModal() {
                     <div class="lot-group">
                         <div class="lot-piece-type-summary-inline">
                             <div class="lot-taux-piecetype-header">
-                                <h3 class="lot-taux-piecetype-title">Pièce type</h3>
+                                <h3 class="lot-taux-piecetype-title">Pièce type du lot</h3>
                                 <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type">info</button>
                             </div>
                             <div class="lot-taux-piecetype-wrapper">
@@ -8130,6 +8576,37 @@ closeEvalOpModal() {
                                                     const rawLabel = lot.allotissement.medoideLabel || '';
                                                     return rawLabel || 'Non calculé (2 pièces requises)';
                                                 })()}
+                                            </div>
+                                        </div>
+
+                                        <div class="lot-inline-grid lot-inline-grid--4" style="grid-column: 1 / -1;" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}" data-variabilite-grid="pieceType">
+                                            <div class="lot-field-block" data-variabilite-dim="longueur">
+                                                <label class="lot-field-label">L type</label>
+                                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="longueur" data-has-value="${lot.allotissement.medoideDims?.longueur != null ? 'true' : 'false'}">
+                                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.longueur != null ? Math.round(lot.allotissement.medoideDims.longueur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLongueur">
+                                                    <span class="lot-dimension-unit">mm</span>
+                                                </div>
+                                            </div>
+                                            <div class="lot-field-block" data-variabilite-dim="largeur">
+                                                <label class="lot-field-label">l type</label>
+                                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="largeur" data-has-value="${lot.allotissement.medoideDims?.largeur != null ? 'true' : 'false'}">
+                                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.largeur != null ? Math.round(lot.allotissement.medoideDims.largeur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLargeur">
+                                                    <span class="lot-dimension-unit">mm</span>
+                                                </div>
+                                            </div>
+                                            <div class="lot-field-block" data-variabilite-dim="epaisseur">
+                                                <label class="lot-field-label">e type</label>
+                                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="epaisseur" data-has-value="${lot.allotissement.medoideDims?.epaisseur != null ? 'true' : 'false'}">
+                                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.epaisseur != null ? Math.round(lot.allotissement.medoideDims.epaisseur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeEpaisseur">
+                                                    <span class="lot-dimension-unit">mm</span>
+                                                </div>
+                                            </div>
+                                            <div class="lot-field-block" data-variabilite-dim="diametre">
+                                                <label class="lot-field-label">d type</label>
+                                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="diametre" data-has-value="${lot.allotissement.medoideDims?.diametre != null ? 'true' : 'false'}">
+                                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.diametre != null ? Math.round(lot.allotissement.medoideDims.diametre).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeDiametre">
+                                                    <span class="lot-dimension-unit">mm</span>
+                                                </div>
                                             </div>
                                         </div>
 
@@ -8161,17 +8638,20 @@ closeEvalOpModal() {
                                             <div class="lot-piece-type-quadrant lot-piece-type-quadrant--hetero">
                                                 <p class="lot-piece-type-quadrant-title">Hétérogénéité</p>
                                                 <div class="lot-piece-type-kv">
-                                                    <span class="lot-piece-type-kv-label">Score min lot</span>
-                                                    <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux"
-                                                          data-display="scoreMinPiece">
-                                                        ${lot.allotissement.scoreMinPiece !== null
-                                                            ? Math.round(lot.allotissement.scoreMinPiece) + '\u00a0%'
-                                                            : '—'}
-                                                    </span>
-                                                </div>
-                                                <div class="lot-piece-type-kv-sub"
-                                                     data-display="scoreMinPieceLabel">
-                                                    ${lot.allotissement.scoreMinPieceLabel ?? ''}
+                                                    <span class="lot-piece-type-kv-label">Écart pièce extrême</span>
+                                                    <div class="lot-piece-type-kv-value-row">
+                                                        <span class="lot-piece-type-kv-value lot-dest-medoide-label--taux"
+                                                              data-display="scoreMinPiece">
+                                                            ${lot.allotissement.scoreMinDelta !== null
+                                                                ? 'Δ\u00a0' + Math.round(lot.allotissement.scoreMinDelta) + '\u00a0%'
+                                                                : '—'}
+                                                        </span>
+                                                        <button
+                                                            type="button"
+                                                            class="lot-extreme-piece-info-btn"
+                                                            data-lot-extreme-piece-info-btn
+                                                            aria-label="Afficher le nom de la pièce extrême">i</button>
+                                                    </div>
                                                 </div>
                                                 <div class="lot-piece-type-kv">
                                                     <span class="lot-piece-type-kv-label">Variation</span>
@@ -8186,36 +8666,6 @@ closeEvalOpModal() {
                                         </div>
 
                                     </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="lot-inline-grid lot-inline-grid--4" data-variabilite-mode="${hasDiametre ? 'cylindrical' : 'rectangular'}" data-variabilite-grid="pieceType">
-                            <div class="lot-field-block" data-variabilite-dim="longueur">
-                                <label class="lot-field-label">L type</label>
-                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="longueur" data-has-value="${lot.allotissement.medoideDims?.longueur != null ? 'true' : 'false'}">
-                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.longueur != null ? Math.round(lot.allotissement.medoideDims.longueur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLongueur">
-                                    <span class="lot-dimension-unit">mm</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block" data-variabilite-dim="largeur">
-                                <label class="lot-field-label">l type</label>
-                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="largeur" data-has-value="${lot.allotissement.medoideDims?.largeur != null ? 'true' : 'false'}">
-                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.largeur != null ? Math.round(lot.allotissement.medoideDims.largeur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeLargeur">
-                                    <span class="lot-dimension-unit">mm</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block" data-variabilite-dim="epaisseur">
-                                <label class="lot-field-label">e type</label>
-                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="epaisseur" data-has-value="${lot.allotissement.medoideDims?.epaisseur != null ? 'true' : 'false'}">
-                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.epaisseur != null ? Math.round(lot.allotissement.medoideDims.epaisseur).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeEpaisseur">
-                                    <span class="lot-dimension-unit">mm</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block" data-variabilite-dim="diametre">
-                                <label class="lot-field-label">d type</label>
-                                <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="diametre" data-has-value="${lot.allotissement.medoideDims?.diametre != null ? 'true' : 'false'}">
-                                    <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.diametre != null ? Math.round(lot.allotissement.medoideDims.diametre).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeDiametre">
-                                    <span class="lot-dimension-unit">mm</span>
                                 </div>
                             </div>
                         </div>
@@ -8438,23 +8888,44 @@ closeEvalOpModal() {
                             <div class="lot-carbon-other-row">
                                 <div class="lot-field-block">
                                     <label class="lot-field-label">Fraction C</label>
-                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.fractionCarbonee ?? 50)}" data-lot-input="fractionCarbonee">
-                                        <span class="lot-input-unit">%</span>
+                                    <div class="lot-input-with-unit lot-input-with-unit--compact" data-lot-fraction-c-state="${fractionCarboneeDetailSummary.isVariable ? 'variable' : 'fixed'}">
+                                        <input
+                                            type="text"
+                                            inputmode="decimal"
+                                            class="lot-input"
+                                            value="${fractionCarboneeDetailSummary.display}"
+                                            data-lot-input="fractionCarbonee"
+                                            readonly
+                                            ${fractionCarboneeDetailSummary.isVariable ? 'data-lot-fraction-c-variable="true" title="Cliquer pour voir les valeurs"' : ''}>
+                                        <span class="lot-input-unit" data-lot-fraction-c-unit>${fractionCarboneeDetailSummary.isVariable ? '' : '%'}</span>
                                     </div>
                                 </div>
                                 <div class="lot-field-block">
                                     <label class="lot-field-label">Humidité</label>
-                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.humidite ?? 12)}" data-lot-input="humidite">
-                                        <span class="lot-input-unit">%</span>
+                                    <div class="lot-input-with-unit lot-input-with-unit--compact" data-lot-humidite-state="${humiditeDetailSummary.isVariable ? 'variable' : 'fixed'}">
+                                        <input
+                                            type="text"
+                                            inputmode="decimal"
+                                            class="lot-input"
+                                            value="${humiditeDetailSummary.display}"
+                                            data-lot-input="humidite"
+                                            readonly
+                                            ${humiditeDetailSummary.isVariable ? 'data-lot-humidite-variable="true" title="Cliquer pour voir les valeurs"' : ''}>
+                                        <span class="lot-input-unit" data-lot-humidite-unit>${humiditeDetailSummary.isVariable ? '' : '%'}</span>
                                     </div>
                                 </div>
                                 <div class="lot-field-block">
                                     <label class="lot-field-label">Bois</label>
-                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.bois ?? 100)}" data-lot-input="bois">
-                                        <span class="lot-input-unit">%</span>
+                                    <div class="lot-input-with-unit lot-input-with-unit--compact" data-lot-bois-state="${boisDetailSummary.isVariable ? 'variable' : 'fixed'}">
+                                        <input
+                                            type="text"
+                                            inputmode="decimal"
+                                            class="lot-input"
+                                            value="${boisDetailSummary.display}"
+                                            data-lot-input="bois"
+                                            readonly
+                                            ${boisDetailSummary.isVariable ? 'data-lot-bois-variable="true" title="Cliquer pour voir les valeurs"' : ''}>
+                                        <span class="lot-input-unit" data-lot-bois-unit>${boisDetailSummary.isVariable ? '' : '%'}</span>
                                     </div>
                                 </div>
                             </div>
@@ -8611,6 +9082,9 @@ closeEvalOpModal() {
                 const hasMissingPrixMarche = !lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot);
                 prixAlertBtnUpd.dataset.alertActive = hasMissingPrixMarche ? 'true' : 'false';
             }
+            this.syncLotBoisInput(card, lot);
+            this.syncLotFractionCInput(card, lot);
+            this.syncLotHumiditeInput(card, lot);
 
             const qtyInput = card.querySelector('input[data-lot-input="quantite"]');
             if (qtyInput) {
@@ -8923,6 +9397,9 @@ closeEvalOpModal() {
                 input.readOnly = true;
             }
         });
+        this.syncLotBoisInput(card, lot, { respectActiveElement: false });
+        this.syncLotFractionCInput(card, lot, { respectActiveElement: false });
+        this.syncLotHumiditeInput(card, lot, { respectActiveElement: false });
 
         // Bouton alerte pièces non détaillées
         const alertBtn = card.querySelector('[data-lot-alert-btn]');
@@ -8995,6 +9472,14 @@ closeEvalOpModal() {
             tauxInfoBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 this.openTauxLogicModal();
+            });
+        }
+
+        const extremePieceInfoBtn = card.querySelector('[data-lot-extreme-piece-info-btn]');
+        if (extremePieceInfoBtn) {
+            extremePieceInfoBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openExtremePieceModal();
             });
         }
 
@@ -9162,7 +9647,34 @@ closeEvalOpModal() {
                 ].filter(Boolean).join(' - ');
                 updateCalculs();
             };
-            input.addEventListener('click', (e) => e.stopPropagation());
+            input.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const field = e.target.dataset.lotInput;
+                if (field === 'bois') {
+                    const boisSummary = this.getLotBoisDetailSummary(lot);
+                    if (!boisSummary.isVariable) return;
+                    e.preventDefault();
+                    e.target.blur();
+                    this.openBoisValuesModal(lot);
+                    return;
+                }
+                if (field === 'fractionCarbonee') {
+                    const fractionCSummary = this.getLotFractionCDetailSummary(lot);
+                    if (!fractionCSummary.isVariable) return;
+                    e.preventDefault();
+                    e.target.blur();
+                    this.openFractionCValuesModal(lot);
+                    return;
+                }
+                if (field === 'humidite') {
+                    const humiditeSummary = this.getLotHumiditeDetailSummary(lot);
+                    if (!humiditeSummary.isVariable) return;
+                    e.preventDefault();
+                    e.target.blur();
+                    this.openHumiditeValuesModal(lot);
+                    return;
+                }
+            });
             input.addEventListener('focus', (e) => {
                 const field = e.target.dataset.lotInput;
 
@@ -9179,6 +9691,31 @@ closeEvalOpModal() {
                 }
 
                 if (!field || !this.isAllotissementNumericField(field)) return;
+                if (field === 'bois') {
+                    const boisSummary = this.getLotBoisDetailSummary(lot);
+                    if (boisSummary.isVariable) {
+                        e.target.blur();
+                        this.openBoisValuesModal(lot);
+                        return;
+                    }
+                    return;
+                }
+                if (field === 'fractionCarbonee') {
+                    const fractionCSummary = this.getLotFractionCDetailSummary(lot);
+                    if (fractionCSummary.isVariable) {
+                        e.target.blur();
+                        this.openFractionCValuesModal(lot);
+                    }
+                    return;
+                }
+                if (field === 'humidite') {
+                    const humiditeSummary = this.getLotHumiditeDetailSummary(lot);
+                    if (humiditeSummary.isVariable) {
+                        e.target.blur();
+                        this.openHumiditeValuesModal(lot);
+                    }
+                    return;
+                }
                 e.target.value = this.normalizeAllotissementNumericInput(e.target.value);
 
                 // Démutage automatique au clic : vider le mode opposé et lever le grisage
@@ -9351,6 +9888,7 @@ closeEvalOpModal() {
             }
             const qAmortDefault = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="amortissementBiologique"]`);
             if (qAmortDefault) qAmortDefault.value = isDisabled ? '' : this.computeAmortissementBiologique(dp.ageArbre, dp.dateMiseEnService);
+            this.updateActiveLotCardDisplays(lot);
             this.refreshNaturaliteAlertButton(lot);
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
@@ -9433,10 +9971,10 @@ closeEvalOpModal() {
                 const updateDefaultPieceField = (e) => {
                     const field = e.target.dataset.defaultPieceInput;
                     if (!field) return;
-                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    if (!this.isDetailLotCardActive(lot, cardKey) && field !== 'bois') return;
                     const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
                     const isDefaultDisabled = (Math.max(0, parseFloat(dp.quantite || 0) || 0) <= 0);
-                    if (field !== 'quantite' && isDefaultDisabled) return;
+                    if (field !== 'quantite' && field !== 'bois' && isDefaultDisabled) return;
 
                     if (field === 'quantite') {
                         const normalized = this.normalizeAllotissementNumericInput(e.target.value);
@@ -9678,7 +10216,7 @@ closeEvalOpModal() {
                 const updatePieceField = (e) => {
                     const field = e.target.dataset.pieceInput;
                     if (!field) return;
-                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`) && field !== 'bois') return;
 
                     if (this.isAllotissementNumericField(field)) {
                         const normalized = this.normalizeAllotissementNumericInput(e.target.value);
