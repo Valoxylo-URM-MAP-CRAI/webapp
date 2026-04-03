@@ -3254,21 +3254,19 @@ class ValoboisApp {
             scored[0]
         );
 
-        // dispersionScores : écart-type des scores pairwise entre atoms
-        // (pondéré par count de chaque paire)
-        let pairScoreSum = 0, pairScoreSum2 = 0, pairCount = 0;
-        for (let i = 0; i < atoms.length; i++) {
-            for (let j = i + 1; j < atoms.length; j++) {
-                const s = pairScore(atoms[i].dims, atoms[j].dims);
-                if (s === null) continue;
-                const w = Math.max(1, atoms[i].count) * Math.max(1, atoms[j].count);
-                pairScoreSum  += s * w;
-                pairScoreSum2 += s * s * w;
-                pairCount     += w;
-            }
-        }
-        const dispersion = pairCount > 0
-            ? Math.sqrt(Math.max(0, pairScoreSum2 / pairCount - (pairScoreSum / pairCount) ** 2)) * 100
+        // Écart-type pondéré des scores de chaque atom vs le médoïde
+        let wSum = 0, wSumS = 0, wSumS2 = 0;
+        scored.forEach(a => {
+            const s = pairScore(a.dims, medoide.dims);
+            if (s === null) return;
+            const atomEntry = atoms.find(at => at.key === a.key);
+            const w = Math.max(1, atomEntry ? atomEntry.count : 1);
+            wSum += w;
+            wSumS += w * s;
+            wSumS2 += w * s * s;
+        });
+        const dispersion = wSum > 0
+            ? Math.sqrt(Math.max(0, wSumS2 / wSum - (wSumS / wSum) ** 2)) * 100
             : null;
 
         // MAD par dimension depuis le medoide
