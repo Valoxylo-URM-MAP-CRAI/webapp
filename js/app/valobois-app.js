@@ -2708,231 +2708,328 @@ class ValoboisApp {
         backdrop.setAttribute('aria-hidden', 'true');
     }
 
-    // --- Modale Mesures multiples ---
+    // --- Widget inline Mesures multiples ---
+
+    /** Positions de mesure, dans l'ordre canonique. */
+    _getMesuresWidgetPositions() {
+        return [
+            { key: 'extremite1', ratio: 0.0,  shortLabel: 'Extr.\u00a01',  longLabel: 'Extrémité 1 (0\u00a0%)',    alwaysActive: true  },
+            { key: 'quart1',     ratio: 0.25, shortLabel: 'Quart\u00a01',   longLabel: 'Quart 1 (25\u00a0%)',        alwaysActive: false },
+            { key: 'milieu',     ratio: 0.5,  shortLabel: 'Milieu',          longLabel: 'Mi-longueur (50\u00a0%)',   alwaysActive: false },
+            { key: 'quart3',     ratio: 0.75, shortLabel: 'Quart\u00a03',   longLabel: 'Quart 3 (75\u00a0%)',        alwaysActive: false },
+            { key: 'extremite2', ratio: 1.0,  shortLabel: 'Extr.\u00a02',  longLabel: 'Extrémité 2 (100\u00a0%)',   alwaysActive: true  },
+        ];
+    }
 
     /**
-     * Ouvre la modale Mesures multiples pour la pièce (par défaut ou détaillée) identifiée par context.
-     * @param {object} lot
-     * @param {number} lotIndex
-     * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
+     * Retourne un tableau des clés de position présentes dans les sections existantes.
+     * extremite1 et extremite2 sont toujours incluses.
+     * @param {Array} sections
+     * @returns {string[]}
      */
-    openMesuresMultiplesModal(lot, lotIndex, context) {
-        const backdrop = document.getElementById('mesuresMultiplesModalBackdrop');
-        if (!backdrop) return;
-
-        this._mesuresMultiplesContext = { lot, lotIndex, ...context };
-
-        const piece = context.isDefault
-            ? this.getDefaultPieceById(lot, context.defaultPieceId)
-            : (lot.pieces && lot.pieces[context.pieceIndex]);
-        if (!piece) return;
-
-        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
-        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
-        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepA(piece);
-        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepA();
-
-        backdrop.classList.remove('hidden');
-        backdrop.setAttribute('aria-hidden', 'false');
+    getActivePositionsFromSections(sections) {
+        if (!Array.isArray(sections) || !sections.length) return ['extremite1', 'extremite2'];
+        const keys = sections.map(s => s.position);
+        if (!keys.includes('extremite1')) keys.unshift('extremite1');
+        if (!keys.includes('extremite2')) keys.push('extremite2');
+        return keys;
     }
 
-    closeMesuresMultiplesModal() {
-        const backdrop = document.getElementById('mesuresMultiplesModalBackdrop');
-        if (!backdrop) return;
-        backdrop.classList.add('hidden');
-        backdrop.setAttribute('aria-hidden', 'true');
-        this._mesuresMultiplesContext = null;
+    /**
+     * Déduit le niveaux (1–4) depuis un tableau de clés de positions actives.
+     * Retourne null si la combinaison n'est pas standard.
+     * @param {string[]} activePositions
+     * @returns {number|null}
+     */
+    niveauxFromActivePositions(activePositions) {
+        const keys = Array.isArray(activePositions) ? activePositions : [];
+        const has = (k) => keys.includes(k);
+        if (has('quart1') && has('milieu') && has('quart3')) return 4;
+        if (has('quart1') && has('quart3') && !has('milieu')) return 3;
+        if (has('milieu') && !has('quart1') && !has('quart3')) return 2;
+        if (!has('quart1') && !has('milieu') && !has('quart3')) return 1;
+        return null;
     }
 
-    _renderMesuresMultiplesStepA(piece) {
+    /**
+     * Met à jour dynamiquement les libellés de position et l'indicateur stale dans le widget.
+     * À appeler lors d'un événement `input` sur le champ longueur, avant le full-rerender.
+     * @param {Element} widgetEl
+     * @param {string|number|null} longueur - longueur courante de la pièce (valeur modèle normalisée)
+     * @param {object} piece
+     */
+    _updateMesuresPositionLabels(widgetEl, longueur, piece) {
+        const longueurRaw = longueur != null && longueur !== ''
+            ? parseFloat(this.normalizeAllotissementNumericInput(String(longueur)))
+            : null;
         const mm = piece && piece.mesuresMultiples;
-        const currentNiveaux = (mm && mm.niveaux) ? mm.niveaux : 1;
-        const options = [
-            { v: 1, label: '1 — extrémités seulement' },
-            { v: 2, label: '2 — extrémités + mi-longueur' },
-            { v: 3, label: '3 — extrémités + mi-longueur + quart 3/4' },
-            { v: 4, label: '4 — extrémités + 1/4 + 1/2 + 3/4' },
-        ];
-        const optionsHtml = options.map(o =>
-            `<option value="${o.v}"${o.v === currentNiveaux ? ' selected' : ''}>${o.label}</option>`
-        ).join('');
-        return `<div class="mesures-step-a">
-            <p class="mesures-step-desc">Saisissez les dimensions de section à plusieurs positions le long de la pièce. Ces données enrichissent l'analyse sans modifier le volume calculé actuellement.</p>
-            <div class="lot-field-block" style="margin-top:12px;">
-                <label class="lot-field-label" for="mmNiveauxSelect">Nombre de positions à mesurer</label>
-                <select id="mmNiveauxSelect" class="lot-input" style="max-width:320px;">${optionsHtml}</select>
-            </div>
-            <p class="mesures-step-note" style="margin-top:10px; font-size:0.85em; opacity:0.7;">Chaque position peut avoir une section rectangulaire (L × E) ou circulaire (⌀). Les types peuvent varier d'une section à l'autre.</p>
-        </div>`;
-    }
-
-    _renderMesuresMultiplesFooterStepA() {
-        return `<button class="btn btn-secondary" type="button" data-mm-action="annuler">Annuler</button>
-                <button class="btn btn-primary" type="button" data-mm-action="confirmer">Confirmer &#x2192;</button>`;
-    }
-
-    _mesuresMultiplesConfirmerStep() {
-        const ctx = this._mesuresMultiplesContext;
-        if (!ctx) return;
-        const selectEl = document.getElementById('mmNiveauxSelect');
-        const niveaux = selectEl ? (parseInt(selectEl.value, 10) || 1) : 1;
-        const piece = ctx.isDefault
-            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
-            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
-        if (!piece) return;
-        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
-        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
-        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepB(piece, niveaux);
-        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepB();
-    }
-
-    _renderMesuresMultiplesStepB(piece, niveaux) {
-        const posLabels = {
-            extremite1: 'Extrémité 1 (0\u00a0%)',
-            quart1:     'Quart 1 (25\u00a0%)',
-            milieu:     'Mi-longueur (50\u00a0%)',
-            quart3:     'Quart 3 (75\u00a0%)',
-            extremite2: 'Extrémité 2 (100\u00a0%)',
-        };
-        const template = this.createEmptyMesuresMultiples(niveaux);
-        const existingMm = piece.mesuresMultiples;
-        // Fusionner les données existantes si même niveaux
-        const sections = template.sections.map(templateSection => {
-            if (existingMm && Array.isArray(existingMm.sections)) {
-                const existing = existingMm.sections.find(s => s.position === templateSection.position);
-                if (existing) return { ...templateSection, ...existing };
+        const isStale = !!(mm && mm.active && mm.longueur != null && mm.longueur !== ''
+            && String(mm.longueur) !== String(longueur != null ? longueur : ''));
+        const RATIO_MAP = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+        widgetEl.querySelectorAll('.mesures-pos-label').forEach(label => {
+            const posKey = label.dataset.pos;
+            if (!posKey || !(posKey in RATIO_MAP)) return;
+            let val = '\u2014';
+            if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
+                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0mm`;
             }
-            return templateSection;
+            label.textContent = val;
+            label.classList.toggle('mesures-pos-label--stale', isStale);
         });
+        widgetEl.querySelectorAll('input[data-mm-pos]').forEach(input => {
+            input.classList.toggle('mesures-input--stale', isStale);
+        });
+    }
 
-        const blocksHtml = sections.map((s, i) => {
-            const label = posLabels[s.position] || s.position;
-            const isRect = s.typeSection === 'rect';
-            const isCirc = s.typeSection === 'circ';
-            const dimDisplay = s.typeSection === null ? 'none' : 'block';
-            const rectDisplay = isRect ? 'block' : 'none';
-            const circDisplay = isCirc ? 'block' : 'none';
+    /**
+     * Génère le HTML du widget inline Mesures multiples (Partie A + Partie B).
+     * @param {object} piece - pièce par défaut ou pièce détaillée
+     * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
+     * @returns {string} HTML
+     */
+    _renderMesuresInlineWidget(piece, context) {
+        const POSITIONS = this._getMesuresWidgetPositions();
+        const mm = piece && piece.mesuresMultiples;
+        const existingSections = (mm && mm.active && Array.isArray(mm.sections)) ? mm.sections : [];
 
-            const largeurVal = s.largeur != null ? String(s.largeur) : '';
-            const epaisseurVal = s.epaisseur != null ? String(s.epaisseur) : '';
-            const diametreVal = s.diametre != null ? String(s.diametre) : '';
+        const sectionByPos = {};
+        existingSections.forEach(s => { sectionByPos[s.position] = s; });
 
-            return `<div class="mesures-section-bloc" data-section-index="${i}">
-                <p class="mesures-section-title">Section\u00a0: <strong>${label}</strong></p>
-                <div class="mesures-section-type-toggle" role="group" aria-label="Type de section position ${i + 1}">
-                    <label class="mesures-type-label"><input type="radio" name="mm-typeSection-${i}" value="rect" data-section-index="${i}"${isRect ? ' checked' : ''}> Rectangulaire (L\u00a0\u00d7\u00a0E)</label>
-                    <label class="mesures-type-label"><input type="radio" name="mm-typeSection-${i}" value="circ" data-section-index="${i}"${isCirc ? ' checked' : ''}> Circulaire (\u2300)</label>
-                </div>
-                <div class="mesures-section-dims" data-section-index="${i}" style="margin-top:8px; display:${s.typeSection !== null ? 'block' : 'none'};">
-                    <div class="mesures-dims-rect" data-section-index="${i}" style="display:${rectDisplay};">
-                        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">Largeur</label>
-                                <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${largeurVal}" data-mm-input="largeur" data-section-index="${i}" style="width:80px;">
-                                    <span class="lot-input-unit">mm</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">Épaisseur</label>
-                                <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${epaisseurVal}" data-mm-input="epaisseur" data-section-index="${i}" style="width:80px;">
-                                    <span class="lot-input-unit">mm</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mesures-dims-circ" data-section-index="${i}" style="display:${circDisplay};">
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Diamètre</label>
-                            <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${diametreVal}" data-mm-input="diametre" data-section-index="${i}" style="width:80px;">
-                                <span class="lot-input-unit">mm</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>`;
+        const isActivePos = (posKey) => {
+            const pos = POSITIONS.find(p => p.key === posKey);
+            return !!(pos && (pos.alwaysActive || sectionByPos[posKey] !== undefined));
+        };
+        const posHasData = (posKey) => {
+            const s = sectionByPos[posKey];
+            if (!s || !s.typeSection) return false;
+            if (s.typeSection === 'rect') return s.largeur != null && s.epaisseur != null;
+            if (s.typeSection === 'circ') return s.diametre != null;
+            return false;
+        };
+
+        // Partie A — Flèches
+        const arrowsHtml = POSITIONS.map(pos => {
+            const active = isActivePos(pos.key);
+            const hd = posHasData(pos.key);
+            return `<button type="button" class="mesures-arrow${active ? ' mesures-arrow--active' : ''}" ` +
+                `data-pos="${pos.key}" data-active="${active}" ` +
+                `data-always-active="${pos.alwaysActive}" ` +
+                `data-has-data="${hd}" ` +
+                `title="${pos.longLabel}" aria-label="${pos.longLabel}" aria-pressed="${active}"` +
+                `${!pos.alwaysActive ? '' : ' disabled'}>▼</button>`;
         }).join('');
 
-        return `<div class="mesures-step-b">${blocksHtml}</div>`;
+        // Partie A — Labels (positions calculées depuis la longueur de la pièce)
+        const longueurRaw = piece && piece.longueur != null && piece.longueur !== ''
+            ? parseFloat(this.normalizeAllotissementNumericInput(String(piece.longueur)))
+            : null;
+        const isMesuresStale = !!(mm && mm.active && mm.longueur != null && mm.longueur !== ''
+            && String(mm.longueur) !== String(piece && piece.longueur != null ? piece.longueur : ''));
+        const RATIO_MAP = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+        const labelsHtml = ['quart1', 'milieu', 'quart3'].map(posKey => {
+            const active = isActivePos(posKey);
+            let val = '\u2014';
+            if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
+                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0mm`;
+            }
+            const staleClass = isMesuresStale ? ' mesures-pos-label--stale' : '';
+            return `<span class="mesures-pos-label${staleClass}" data-pos="${posKey}" data-active="${active}">${val}</span>`;
+        }).join('');
+
+        // Partie B — Champs (tous présents, inactifs masqués)
+        const fieldsHtml = POSITIONS.map(pos => {
+            const active = isActivePos(pos.key);
+            const s = sectionByPos[pos.key];
+            const typeSection = (s && s.typeSection) ? s.typeSection : 'rect';
+            const isCirc = typeSection === 'circ';
+            // En mode Ø, L et E affichent tous les deux la valeur du diamètre
+            const sharedVal    = isCirc ? ((s && s.diametre  != null) ? String(s.diametre)  : '') : '';
+            const largeurVal   = isCirc ? sharedVal : ((s && s.largeur   != null) ? String(s.largeur)   : '');
+            const epaisseurVal = isCirc ? sharedVal : ((s && s.epaisseur != null) ? String(s.epaisseur) : '');
+            const tToggleCirc = t('editor.mesures.multiples.toggleCirc') || 'Passer en mode circulaire';
+            const tToggleRect = t('editor.mesures.multiples.toggleRect') || 'Passer en mode rectangulaire';
+            const toggleTitle = isCirc ? tToggleRect : tToggleCirc;
+            const staleInput = isMesuresStale ? ' mesures-input--stale' : '';
+            return `<div class="mesures-field-row" data-pos="${pos.key}"${active ? '' : ' style="display:none;"'}>` +
+                `<span class="mesures-field-label">${pos.shortLabel}</span>` +
+                `<div class="mesures-field-dims" data-pos="${pos.key}" style="display:flex;gap:6px;">` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${largeurVal}" data-mm-pos="${pos.key}" data-mm-dim="largeur" placeholder="L" style="width:60px;"><span class="lot-input-unit">mm</span></div>` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${epaisseurVal}" data-mm-pos="${pos.key}" data-mm-dim="epaisseur" placeholder="E" style="width:60px;"><span class="lot-input-unit">mm</span></div>` +
+                `</div>` +
+                `<button type="button" class="btn btn-sm mesures-type-toggle-btn${isCirc ? ' mesures-type-toggle-btn--active' : ''}" data-mm-pos="${pos.key}" data-mm-type="${typeSection}" title="${toggleTitle}" aria-label="${toggleTitle}" aria-pressed="${isCirc}">${'\u2300'}</button>` +
+            `</div>`;
+        }).join('');
+
+        const inlineTitle  = t('editor.mesures.multiples.inlineTitle')  || 'Sections transversales';
+        const resetAllLabel = t('editor.mesures.multiples.resetAll') || 'Réinitialiser les mesures';
+
+        return `<p class="mesures-inline-title">${inlineTitle}</p>` +
+            `<div class="mesures-beam-container">` +
+                `<div class="mesures-arrow-row">${arrowsHtml}</div>` +
+                `<div class="mesures-beam-bar"></div>` +
+                `<div class="mesures-labels-row">${labelsHtml}</div>` +
+            `</div>` +
+            `<div class="mesures-fields-list">${fieldsHtml}</div>` +
+            `<div class="mesures-widget-actions">` +
+                `<button type="button" class="btn btn-sm btn-secondary mesures-reset-btn">${resetAllLabel}</button>` +
+            `</div>`;
     }
 
-    _renderMesuresMultiplesFooterStepB() {
-        return `<button class="btn btn-secondary btn-sm" type="button" data-mm-action="reinitialiser" style="margin-right:auto;">Réinitialiser</button>
-                <button class="btn btn-secondary" type="button" data-mm-action="annuler">Annuler</button>
-                <button class="btn btn-primary" type="button" data-mm-action="enregistrer">Enregistrer</button>`;
+    /**
+     * Branche tous les événements du widget inline Mesures multiples.
+     * @param {Element} containerEl - le div.mesures-inline-widget
+     * @param {object} piece
+     * @param {object} lot
+     * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
+     */
+    _bindMesuresInlineWidget(containerEl, piece, lot, context) {
+        // Clic sur les flèches (positions non obligatoires uniquement)
+        containerEl.querySelectorAll('.mesures-arrow[data-always-active="false"]').forEach(arrowBtn => {
+            arrowBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pos = arrowBtn.dataset.pos;
+                const nowActive = arrowBtn.dataset.active !== 'true';
+                arrowBtn.dataset.active = String(nowActive);
+                arrowBtn.setAttribute('aria-pressed', String(nowActive));
+                arrowBtn.classList.toggle('mesures-arrow--active', nowActive);
+                // Mise à jour du label
+                const labelEl = containerEl.querySelector(`.mesures-pos-label[data-pos="${pos}"]`);
+                if (labelEl) labelEl.dataset.active = String(nowActive);
+                // Afficher / masquer la ligne de champs
+                const fieldRow = containerEl.querySelector(`.mesures-field-row[data-pos="${pos}"]`);
+                if (fieldRow) fieldRow.style.display = nowActive ? '' : 'none';
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+        });
+
+        // Bouton bascule type section (toggle Ø ON/OFF)
+        containerEl.querySelectorAll('.mesures-type-toggle-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const pos       = btn.dataset.mmPos;
+                const curType   = btn.dataset.mmType;
+                const newType   = curType === 'rect' ? 'circ' : 'rect';
+                const isNowCirc = newType === 'circ';
+                btn.dataset.mmType = newType;
+                btn.classList.toggle('mesures-type-toggle-btn--active', isNowCirc);
+                btn.setAttribute('aria-pressed', String(isNowCirc));
+                const tToggleCirc = t('editor.mesures.multiples.toggleCirc') || 'Passer en mode circulaire';
+                const tToggleRect = t('editor.mesures.multiples.toggleRect') || 'Passer en mode rectangulaire';
+                const newTitle = isNowCirc ? tToggleRect : tToggleCirc;
+                btn.title = newTitle;
+                btn.setAttribute('aria-label', newTitle);
+                // En mode Ø : synchroniser L = E (utilise la valeur de L, sinon E)
+                const lInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="largeur"]`);
+                const eInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="epaisseur"]`);
+                if (isNowCirc && lInput && eInput) {
+                    const base = lInput.value || eInput.value;
+                    lInput.value = base;
+                    eInput.value = base;
+                }
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+        });
+
+        // Auto-save sur change / blur des inputs + sync L=E en mode Ø
+        containerEl.querySelectorAll('input[data-mm-pos][data-mm-dim]').forEach(input => {
+            input.addEventListener('input', () => {
+                const pos = input.dataset.mmPos;
+                const dim = input.dataset.mmDim;
+                const toggleBtn = containerEl.querySelector(`.mesures-type-toggle-btn[data-mm-pos="${pos}"]`);
+                if (toggleBtn && toggleBtn.dataset.mmType === 'circ') {
+                    const lInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="largeur"]`);
+                    const eInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="epaisseur"]`);
+                    if (lInput && eInput) {
+                        if (dim === 'largeur') eInput.value = input.value;
+                        else if (dim === 'epaisseur') lInput.value = input.value;
+                    }
+                }
+            });
+            input.addEventListener('change', () => {
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+            input.addEventListener('blur', (e) => {
+                const normalized = this.normalizeAllotissementNumericInput(e.target.value);
+                e.target.value = normalized !== '' ? this.formatAllotissementNumericDisplay(normalized) : '';
+                // Re-sync en mode Ø après formatage
+                const pos = e.target.dataset.mmPos;
+                const toggleBtn = containerEl.querySelector(`.mesures-type-toggle-btn[data-mm-pos="${pos}"]`);
+                if (toggleBtn && toggleBtn.dataset.mmType === 'circ') {
+                    const lInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="largeur"]`);
+                    const eInput = containerEl.querySelector(`input[data-mm-pos="${pos}"][data-mm-dim="epaisseur"]`);
+                    if (lInput && eInput) {
+                        if (e.target.dataset.mmDim === 'largeur') eInput.value = e.target.value;
+                        else if (e.target.dataset.mmDim === 'epaisseur') lInput.value = e.target.value;
+                    }
+                }
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+        });
+
+        // Bouton Réinitialiser
+        const resetBtn = containerEl.querySelector('.mesures-reset-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                delete piece.mesuresMultiples;
+                delete piece.volumePieceEnrichi;
+                this.saveData();
+                containerEl.innerHTML = this._renderMesuresInlineWidget(piece, context);
+                this._bindMesuresInlineWidget(containerEl, piece, lot, context);
+            });
+        }
     }
 
-    _mesuresMultiplesUpdateSectionType(sectionIndex, typeSection) {
-        const body = document.getElementById('mesuresMultiplesModalBody');
-        if (!body) return;
-        const dimsEl = body.querySelector(`.mesures-section-dims[data-section-index="${sectionIndex}"]`);
-        const rectEl = body.querySelector(`.mesures-dims-rect[data-section-index="${sectionIndex}"]`);
-        const circEl = body.querySelector(`.mesures-dims-circ[data-section-index="${sectionIndex}"]`);
-        if (dimsEl) dimsEl.style.display = 'block';
-        if (rectEl) rectEl.style.display = typeSection === 'rect' ? 'block' : 'none';
-        if (circEl) circEl.style.display = typeSection === 'circ' ? 'block' : 'none';
-    }
+    /**
+     * Lit l'état du widget inline, construit mesuresMultiples, l'écrit sur piece, sauvegarde.
+     * @param {Element} containerEl
+     * @param {object} piece
+     * @param {object} lot
+     * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
+     */
+    _saveMesuresMultiplesInline(containerEl, piece, lot, context) {
+        const POSITIONS = this._getMesuresWidgetPositions();
 
-    saveMesuresMultiples() {
-        const ctx = this._mesuresMultiplesContext;
-        if (!ctx) return;
-        const piece = ctx.isDefault
-            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
-            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
-        if (!piece) return;
+        // Positions actives lues depuis les flèches
+        const activeSet = new Set();
+        containerEl.querySelectorAll('.mesures-arrow[data-active="true"]').forEach(btn => activeSet.add(btn.dataset.pos));
 
-        const body = document.getElementById('mesuresMultiplesModalBody');
-        if (!body) return;
-
-        // Lire le niveaux depuis les blocs rendus (nombre de blocs = sections)
-        const sectionBlocs = body.querySelectorAll('.mesures-section-bloc');
-        if (!sectionBlocs.length) return;
-
-        const niveauxMap = { 2: 1, 3: 2, 4: 3, 5: 4 };
-        const niveaux = niveauxMap[sectionBlocs.length] || 1;
-        const template = this.createEmptyMesuresMultiples(niveaux);
-
-        const sections = template.sections.map((templateSection, i) => {
-            const bloc = body.querySelector(`.mesures-section-bloc[data-section-index="${i}"]`);
-            if (!bloc) return { ...templateSection };
-
-            const checkedRadio = bloc.querySelector(`input[name="mm-typeSection-${i}"]:checked`);
-            const typeSection = checkedRadio ? checkedRadio.value : null;
+        const sections = [];
+        POSITIONS.forEach(posInfo => {
+            if (!activeSet.has(posInfo.key)) return;
+            const toggleBtn = containerEl.querySelector(`.mesures-type-toggle-btn[data-mm-pos="${posInfo.key}"]`);
+            const typeSection = toggleBtn ? toggleBtn.dataset.mmType : 'rect';
 
             let largeur = null, epaisseur = null, diametre = null;
             if (typeSection === 'rect') {
-                const lInput = bloc.querySelector(`input[data-mm-input="largeur"][data-section-index="${i}"]`);
-                const eInput = bloc.querySelector(`input[data-mm-input="epaisseur"][data-section-index="${i}"]`);
+                const lInput = containerEl.querySelector(`input[data-mm-pos="${posInfo.key}"][data-mm-dim="largeur"]`);
+                const eInput = containerEl.querySelector(`input[data-mm-pos="${posInfo.key}"][data-mm-dim="epaisseur"]`);
                 const lVal = this.normalizeAllotissementNumericInput(lInput ? lInput.value : '');
                 const eVal = this.normalizeAllotissementNumericInput(eInput ? eInput.value : '');
-                largeur = lVal !== '' ? parseFloat(lVal) : null;
+                largeur   = lVal !== '' ? parseFloat(lVal) : null;
                 epaisseur = eVal !== '' ? parseFloat(eVal) : null;
             } else if (typeSection === 'circ') {
-                const dInput = bloc.querySelector(`input[data-mm-input="diametre"][data-section-index="${i}"]`);
-                const dVal = this.normalizeAllotissementNumericInput(dInput ? dInput.value : '');
+                // L et E ont la même valeur (= le diamètre) ; on lit depuis L
+                const lInput = containerEl.querySelector(`input[data-mm-pos="${posInfo.key}"][data-mm-dim="largeur"]`);
+                const dVal = this.normalizeAllotissementNumericInput(lInput ? lInput.value : '');
                 diametre = dVal !== '' ? parseFloat(dVal) : null;
             }
-
-            return {
-                position: templateSection.position,
-                positionRatio: templateSection.positionRatio,
-                typeSection,
-                largeur,
-                epaisseur,
-                diametre,
-            };
+            sections.push({ position: posInfo.key, positionRatio: posInfo.ratio, typeSection, largeur, epaisseur, diametre });
         });
 
-        const hasAnyData = sections.some(s => s.typeSection !== null);
+        const activeKeys = sections.map(s => s.position);
+        const niveaux    = this.niveauxFromActivePositions(activeKeys);
 
-        if (!hasAnyData) {
-            // Tout vide : nettoyer plutôt que d'écrire un objet vide
+        const hasAnyDim = sections.some(s =>
+            (s.typeSection === 'rect' && (s.largeur !== null || s.epaisseur !== null)) ||
+            (s.typeSection === 'circ' && s.diametre !== null)
+        );
+
+        if (!hasAnyDim) {
             delete piece.mesuresMultiples;
             delete piece.volumePieceEnrichi;
         } else {
-            piece.mesuresMultiples = { active: true, niveaux, sections };
+            piece.mesuresMultiples = { active: true, niveaux, sections, longueur: piece.longueur != null ? piece.longueur : null };
             const volumeEnrichi = this.computeVolumeEnrichi(piece);
             if (volumeEnrichi !== null) {
                 piece.volumePieceEnrichi = volumeEnrichi;
@@ -2942,28 +3039,35 @@ class ValoboisApp {
         }
 
         this.saveData();
-        this._updateMesuresBadgeAndResume(piece, ctx);
-        this.closeMesuresMultiplesModal();
-    }
 
-    resetMesuresMultiples() {
-        const ctx = this._mesuresMultiplesContext;
-        if (!ctx) return;
-        const piece = ctx.isDefault
-            ? this.getDefaultPieceById(ctx.lot, ctx.defaultPieceId)
-            : (ctx.lot.pieces && ctx.lot.pieces[ctx.pieceIndex]);
-        if (!piece) return;
+        // Mise à jour des labels sous la barre (positions intermédiaires)
+        const sectionByPos = {};
+        sections.forEach(s => { sectionByPos[s.position] = s; });
+        ['quart1', 'milieu', 'quart3'].forEach(posKey => {
+            const labelEl = containerEl.querySelector(`.mesures-pos-label[data-pos="${posKey}"]`);
+            if (!labelEl) return;
+            const s = sectionByPos[posKey];
+            let val = '\u2014';
+            if (s && s.typeSection) {
+                if (s.typeSection === 'rect' && s.largeur != null) val = `${s.largeur}\u00a0mm`;
+                else if (s.typeSection === 'circ' && s.diametre != null) val = `\u2300${s.diametre}\u00a0mm`;
+            }
+            labelEl.textContent = val;
+        });
 
-        delete piece.mesuresMultiples;
-        delete piece.volumePieceEnrichi;
-        this.saveData();
-        this._updateMesuresBadgeAndResume(piece, ctx);
+        // Mise à jour des attributs data-has-data sur les flèches
+        POSITIONS.forEach(posInfo => {
+            const arrowBtn = containerEl.querySelector(`.mesures-arrow[data-pos="${posInfo.key}"]`);
+            if (!arrowBtn) return;
+            const s = sectionByPos[posInfo.key];
+            const hd = !!(s && s.typeSection && (
+                (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
+                (s.typeSection === 'circ' && s.diametre != null)
+            ));
+            arrowBtn.dataset.hasData = String(hd);
+        });
 
-        // Re-render Step A dans la modale
-        const bodyEl = document.getElementById('mesuresMultiplesModalBody');
-        const footerEl = document.getElementById('mesuresMultiplesModalFooter');
-        if (bodyEl) bodyEl.innerHTML = this._renderMesuresMultiplesStepA(piece);
-        if (footerEl) footerEl.innerHTML = this._renderMesuresMultiplesFooterStepA();
+        this._updateMesuresBadgeAndResume(piece, context);
     }
 
     /**
@@ -2978,18 +3082,23 @@ class ValoboisApp {
         const badgeHtml = isActive ? ` <span class="badge-mesures">${mm.sections.length} sections</span>` : '';
         const resumeHtml = this.renderMesuresMultiplesResume(piece);
 
-        let btn, resumeEl;
+        let btn, resumeEl, summaryEl;
         if (ctx.isDefault) {
             btn = pieceRail.querySelector(`.btn-mesures-multiples[data-default-piece-id="${ctx.defaultPieceId}"]`);
             resumeEl = pieceRail.querySelector(`[data-default-piece-mesures-resume][data-default-piece-id="${ctx.defaultPieceId}"]`);
+            summaryEl = pieceRail.querySelector(`[data-mesures-multiples-summary][data-default-piece-id="${ctx.defaultPieceId}"]`);
         } else {
             btn = pieceRail.querySelector(`.btn-mesures-multiples[data-piece-index="${ctx.pieceIndex}"]`);
             resumeEl = pieceRail.querySelector(`[data-piece-mesures-resume][data-piece-index="${ctx.pieceIndex}"]`);
+            summaryEl = pieceRail.querySelector(`[data-mesures-multiples-summary][data-piece-index="${ctx.pieceIndex}"]`);
         }
 
         if (btn) {
             btn.dataset.mesuresActif = isActive ? 'true' : 'false';
-            btn.innerHTML = `&#x1F4D0; Mesures multiples${badgeHtml}`;
+        }
+        if (summaryEl) {
+            const detailsEl = summaryEl.closest('details');
+            if (detailsEl && isActive) detailsEl.open = true;
         }
         if (resumeEl) {
             resumeEl.innerHTML = resumeHtml;
@@ -3627,7 +3736,7 @@ class ValoboisApp {
         let chosen;
         if (nv === 1) chosen = [allPositions[0], allPositions[4]];
         else if (nv === 2) chosen = [allPositions[0], allPositions[2], allPositions[4]];
-        else if (nv === 3) chosen = [allPositions[0], allPositions[2], allPositions[3], allPositions[4]];
+        else if (nv === 3) chosen = [allPositions[0], allPositions[1], allPositions[3], allPositions[4]];
         else chosen = [allPositions[0], allPositions[1], allPositions[2], allPositions[3], allPositions[4]];
 
         return {
@@ -3705,27 +3814,27 @@ class ValoboisApp {
             quart3:     'Quart\u00a03',
             extremite2: 'Extr.\u00a02',
         };
-        const sectionLines = mm.sections.map(s => {
+        const rows = mm.sections.map(s => {
             const lbl = posLabels[s.position] || s.position;
+            let dimsHtml;
             if (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) {
-                return `<span class="mesures-resume-line"><em>[${lbl}]</em> L\u00a0: ${s.largeur}\u00a0mm\u00a0\u00a0E\u00a0: ${s.epaisseur}\u00a0mm</span>`;
+                dimsHtml = `<div class="mesures-resume-dim"><span class="mesures-resume-dim-label">L</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.largeur}" readonly><span class="lot-dimension-unit">mm</span></div></div><div class="mesures-resume-dim"><span class="mesures-resume-dim-label">E</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.epaisseur}" readonly><span class="lot-dimension-unit">mm</span></div></div>`;
+            } else if (s.typeSection === 'circ' && s.diametre != null) {
+                dimsHtml = `<div class="mesures-resume-dim"><span class="mesures-resume-dim-label">\u2300</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.diametre}" readonly><span class="lot-dimension-unit">mm</span></div></div>`;
+            } else {
+                dimsHtml = `<span class="mesures-resume-empty">\u2014</span>`;
             }
-            if (s.typeSection === 'circ' && s.diametre != null) {
-                return `<span class="mesures-resume-line"><em>[${lbl}]</em> \u2300\u00a0: ${s.diametre}\u00a0mm</span>`;
-            }
-            return `<span class="mesures-resume-line mesures-resume-line--empty"><em>[${lbl}]</em> —</span>`;
+            return `<div class="mesures-resume-field-row"><span class="mesures-resume-pos-label">${lbl}</span><div class="mesures-resume-dims-group">${dimsHtml}</div></div>`;
         });
 
-        const filledCount = mm.sections.filter(s => s.typeSection !== null).length;
-        const totalCount = mm.sections.length;
         let extra = '';
         if (piece.volumePieceEnrichi != null) {
             const vol = parseFloat(piece.volumePieceEnrichi);
             if (!isNaN(vol)) {
-                extra = `<span class="mesures-resume-volume">\u2248\u00a0${vol.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 4, maximumFractionDigits: 4 })}\u00a0m\u00b3 (enrichi)</span>`;
+                extra = `<div class="mesures-resume-volume">\u2248\u00a0${vol.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 4, maximumFractionDigits: 4 })}\u00a0m\u00b3 (enrichi)</div>`;
             }
         }
-        return `<div class="mesures-resume-content"><span class="mesures-resume-header">\ud83d\udcd0\u00a0Sections\u00a0: ${filledCount}\u00a0/\u00a0${totalCount}</span>${sectionLines.join('')}${extra}</div>`;
+        return `<div class="mesures-resume-fields">${rows.join('')}${extra}</div>`;
     }
 
     // --- Fin Mesures multiples ---
@@ -5358,41 +5467,6 @@ deleteLot(index) {
             });
         }
 
-        // Modale Mesures multiples — listeners one-time
-        const mesuresMultiplesBackdrop = document.getElementById('mesuresMultiplesModalBackdrop');
-        const btnCloseMesuresMultiples = document.getElementById('btnCloseMesuresMultiplesModal');
-        if (mesuresMultiplesBackdrop) {
-            if (btnCloseMesuresMultiples) {
-                btnCloseMesuresMultiples.addEventListener('click', () => this.closeMesuresMultiplesModal());
-            }
-            mesuresMultiplesBackdrop.addEventListener('click', (e) => {
-                if (e.target === mesuresMultiplesBackdrop) this.closeMesuresMultiplesModal();
-            });
-            // Délégation sur le footer pour les boutons d'action
-            const mesuresFooter = document.getElementById('mesuresMultiplesModalFooter');
-            if (mesuresFooter) {
-                mesuresFooter.addEventListener('click', (e) => {
-                    const btn = e.target.closest('button[data-mm-action]');
-                    if (!btn) return;
-                    const action = btn.dataset.mmAction;
-                    if (action === 'annuler') this.closeMesuresMultiplesModal();
-                    else if (action === 'confirmer') this._mesuresMultiplesConfirmerStep();
-                    else if (action === 'enregistrer') this.saveMesuresMultiples();
-                    else if (action === 'reinitialiser') this.resetMesuresMultiples();
-                });
-            }
-            // Délégation sur le body pour les radios typeSection
-            const mesuresBody = document.getElementById('mesuresMultiplesModalBody');
-            if (mesuresBody) {
-                mesuresBody.addEventListener('change', (e) => {
-                    if (e.target.name && e.target.name.startsWith('mm-typeSection-')) {
-                        const sectionIndex = parseInt(e.target.dataset.sectionIndex, 10);
-                        const typeSection = e.target.value;
-                        this._mesuresMultiplesUpdateSectionType(sectionIndex, typeSection);
-                    }
-                });
-            }
-        }
 
         // Modale confirmation suppression de pièce
         this._pendingDeletePiece = null;
@@ -8350,16 +8424,8 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="lot-group lot-group--mesures-multiples">
-                    <button type="button" class="btn btn-outline btn-sm btn-mesures-multiples"
-                        data-default-piece-id="${defaultPieceId}"
-                        data-mesures-actif="${(defaultPiece.mesuresMultiples && defaultPiece.mesuresMultiples.active) ? 'true' : 'false'}"
-                        aria-label="Préciser les sections de la pièce">
-                        &#x1F4D0; Mesures multiples${(defaultPiece.mesuresMultiples && defaultPiece.mesuresMultiples.active) ? ' <span class="badge-mesures">' + defaultPiece.mesuresMultiples.sections.length + ' sections</span>' : ''}
-                    </button>
-                    <div class="mesures-multiples-resume" data-default-piece-mesures-resume data-default-piece-id="${defaultPieceId}">
-                        ${this.renderMesuresMultiplesResume(defaultPiece)}
+                    <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
+                        ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
                     </div>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
@@ -8615,16 +8681,8 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                </div>
-                <div class="lot-group lot-group--mesures-multiples">
-                    <button type="button" class="btn btn-outline btn-sm btn-mesures-multiples"
-                        data-piece-index="${pieceIndex}"
-                        data-mesures-actif="${(piece.mesuresMultiples && piece.mesuresMultiples.active) ? 'true' : 'false'}"
-                        aria-label="Préciser les sections de la pièce">
-                        &#x1F4D0; Mesures multiples${(piece.mesuresMultiples && piece.mesuresMultiples.active) ? ' <span class="badge-mesures">' + piece.mesuresMultiples.sections.length + ' sections</span>' : ''}
-                    </button>
-                    <div class="mesures-multiples-resume" data-piece-mesures-resume data-piece-index="${pieceIndex}">
-                        ${this.renderMesuresMultiplesResume(piece)}
+                    <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
+                        ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
                     </div>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
@@ -10420,15 +10478,11 @@ closeEvalOpModal() {
                 });
             }
 
-            // Bouton Mesures multiples (pièce par défaut)
-            const defaultMesuresBtn = defaultPieceCard.querySelector(`.btn-mesures-multiples[data-default-piece-id="${defaultPieceId}"]`);
-            if (defaultMesuresBtn) {
-                defaultMesuresBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
-                    const lotIndex = this.data.lots.indexOf(lot);
-                    this.openMesuresMultiplesModal(lot, lotIndex, { isDefault: true, defaultPieceId, pieceIndex: null });
-                });
+            // Widget inline Mesures multiples (pièce par défaut)
+            const defaultMesuresWidget = defaultPieceCard.querySelector(`.mesures-inline-widget[data-default-piece-id="${defaultPieceId}"]`);
+            if (defaultMesuresWidget) {
+                const _dp = this.getDefaultPieceById(lot, defaultPieceId);
+                if (_dp) this._bindMesuresInlineWidget(defaultMesuresWidget, _dp, lot, { isDefault: true, defaultPieceId, pieceIndex: null });
             }
 
             defaultPieceCard.querySelectorAll(`button[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((btn) => {
@@ -10539,6 +10593,12 @@ closeEvalOpModal() {
                         (dp.essenceNomCommun || '').toString().trim(),
                         (dp.essenceNomScientifique || '').toString().trim()
                     ].filter(Boolean).join(' - ');
+
+                    // Mise à jour dynamique des libellés de position (longueur → positions de mesure)
+                    if (field === 'longueur') {
+                        const widget = defaultPieceCard.querySelector(`.mesures-inline-widget[data-default-piece-id="${defaultPieceId}"]`);
+                        if (widget) this._updateMesuresPositionLabels(widget, dp.longueur, dp);
+                    }
 
                     lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
                     updateDefaultPieceDisplays(defaultPieceId);
@@ -10674,15 +10734,10 @@ closeEvalOpModal() {
                 this.refreshIndustrialiteAlertButton(lot);
             };
 
-            // Bouton Mesures multiples (pièce détaillée)
-            const pieceMesuresBtn = pieceCard.querySelector(`.btn-mesures-multiples[data-piece-index="${pi}"]`);
-            if (pieceMesuresBtn) {
-                pieceMesuresBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
-                    const lotIndex = this.data.lots.indexOf(lot);
-                    this.openMesuresMultiplesModal(lot, lotIndex, { isDefault: false, defaultPieceId: null, pieceIndex: pi });
-                });
+            // Widget inline Mesures multiples (pièce détaillée)
+            const pieceMesuresWidget = pieceCard.querySelector(`.mesures-inline-widget[data-piece-index="${pi}"]`);
+            if (pieceMesuresWidget) {
+                this._bindMesuresInlineWidget(pieceMesuresWidget, piece, lot, { isDefault: false, defaultPieceId: null, pieceIndex: pi });
             }
 
             // Boutons unité de prix pièce
@@ -10802,6 +10857,12 @@ closeEvalOpModal() {
                         (piece.essenceNomCommun || '').toString().trim(),
                         (piece.essenceNomScientifique || '').toString().trim()
                     ].filter(Boolean).join(' - ');
+
+                    // Mise à jour dynamique des libellés de position (longueur → positions de mesure)
+                    if (field === 'longueur') {
+                        const widget = pieceCard.querySelector(`.mesures-inline-widget[data-piece-index="${pi}"]`);
+                        if (widget) this._updateMesuresPositionLabels(widget, piece.longueur, piece);
+                    }
 
                     updatePieceDisplays();
                 };
