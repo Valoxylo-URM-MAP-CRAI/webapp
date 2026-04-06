@@ -3040,22 +3040,12 @@ class ValoboisApp {
 
         this.saveData();
 
-        // Mise à jour des labels sous la barre (positions intermédiaires)
-        const sectionByPos = {};
-        sections.forEach(s => { sectionByPos[s.position] = s; });
-        ['quart1', 'milieu', 'quart3'].forEach(posKey => {
-            const labelEl = containerEl.querySelector(`.mesures-pos-label[data-pos="${posKey}"]`);
-            if (!labelEl) return;
-            const s = sectionByPos[posKey];
-            let val = '\u2014';
-            if (s && s.typeSection) {
-                if (s.typeSection === 'rect' && s.largeur != null) val = `${s.largeur}\u00a0mm`;
-                else if (s.typeSection === 'circ' && s.diametre != null) val = `\u2300${s.diametre}\u00a0mm`;
-            }
-            labelEl.textContent = val;
-        });
+        // Mise à jour des labels de position (longueur × ratio) + stale
+        this._updateMesuresPositionLabels(containerEl, piece.longueur, piece);
 
         // Mise à jour des attributs data-has-data sur les flèches
+        const sectionByPos = {};
+        sections.forEach(s => { sectionByPos[s.position] = s; });
         POSITIONS.forEach(posInfo => {
             const arrowBtn = containerEl.querySelector(`.mesures-arrow[data-pos="${posInfo.key}"]`);
             if (!arrowBtn) return;
