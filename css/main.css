@@ -1293,7 +1293,7 @@ body.day-mode .accueil-collapsible-summary:hover {
 .lot-group {
     display: grid;
     gap: 8px;
-    padding: 10px;
+    padding: 5px;
     border: 1px solid #D4D4D4;
     border-radius: var(--radius-sm);
     background-color: rgba(255, 255, 255, 0.45);
@@ -1574,7 +1574,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-inline-grid--lot-dimensions {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 7fr 6fr 6fr;
     gap: 8px;
 }
 
@@ -1603,7 +1603,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-dimension-input-wrap .lot-input {
-    padding-right: 28px;
+    padding-right: 24px;
 }
 
 .lot-dimension-input-wrap:not([data-has-value="true"]) .lot-input {
@@ -2126,7 +2126,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-input-with-unit .lot-input {
-    padding-right: 28px;
+    padding-right: 22px;
 }
 
 .lot-input-with-unit--compact .lot-input {
@@ -2969,7 +2969,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 /* Centrer le texte des champs de dimension */
 .lot-inline-grid--lot-dimensions .lot-input {
-  text-align: center;
+  text-align: left;
 }
 
 .lot-inline-grid[data-variabilite-grid="pieceType"] .lot-input {
@@ -8539,6 +8539,25 @@ body:not(.day-mode) .lot-group--collapsible .lot-group-content {
     color: var(--color-text);
 }
 
+body:not(.day-mode) .mesures-accordion > summary {
+    background-color: #2a3038;
+    border-color: var(--color-border);
+    color: #b4c4ff;
+}
+
+body:not(.day-mode) .mesures-accordion > summary::after {
+    color: #b4c4ff;
+}
+
+body:not(.day-mode) .mesures-accordion > summary:hover {
+    background-color: #323842;
+}
+
+body:not(.day-mode) .mesures-accordion[open] > .mesures-inline-widget {
+    background-color: #252a32;
+    border-color: var(--color-border);
+}
+
 /* ===== MODE JOUR ===== */
 
 .theme-toggle-btn {
@@ -11195,17 +11214,82 @@ body.day-mode .inspection-ignore-box {
    ============================================================ */
 
 .mesures-inline-widget {
-    margin-top: 10px;
-    padding: 10px 0 4px;
+    padding: 8px 12px 4px;
 }
 
-.mesures-inline-title {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-text-secondary, #888);
-    margin: 0 0 8px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+.mesures-accordion {
+    margin-top: 10px;
+    border: none;
+    display: block;
+}
+
+.mesures-accordion > summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    list-style: none;
+    cursor: pointer;
+    font-size: 0.8rem;
+    font-weight: var(--font-weight-semibold, 600);
+    color: var(--bleu-crai, #2563eb);
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background-color: #F4F4F4;
+    user-select: none;
+    transition: background-color 0.15s;
+}
+
+.mesures-accordion-title-text {
+    flex: 1;
+}
+
+.mesures-accordion > summary:hover {
+    background-color: #e6e8eb;
+}
+
+.mesures-accordion > summary::-webkit-details-marker {
+    display: none;
+}
+
+.mesures-accordion > summary::after {
+    content: '\25B6';
+    font-size: 0.7rem;
+    color: var(--bleu-crai, #2563eb);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.mesures-accordion[open] > summary {
+    border-radius: var(--radius-base) var(--radius-base) 0 0;
+}
+
+.mesures-accordion[open] > summary::after {
+    transform: rotate(90deg);
+}
+
+.mesures-accordion[open] > .mesures-inline-widget {
+    border: 1px solid var(--color-border);
+    border-top: none;
+    border-radius: 0 0 var(--radius-base) var(--radius-base);
+    padding: 10px 12px;
+    background-color: #FFFFFF;
+}
+
+.mesures-accordion-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-primary-faint, rgba(37, 99, 235, 0.1));
+    color: var(--color-primary, #2563eb);
+    font-size: 0.68rem;
+    font-weight: 700;
+    border-radius: 10px;
+    padding: 0 6px;
+    min-width: 18px;
+    height: 16px;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
 .mesures-beam-container {
@@ -11214,8 +11298,8 @@ body.day-mode .inspection-ignore-box {
 }
 
 .mesures-arrow-row {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     margin-bottom: 4px;
 }
 
@@ -11229,6 +11313,7 @@ body.day-mode .inspection-ignore-box {
     transition: transform 0.15s, color 0.15s, opacity 0.15s;
     line-height: 1;
     border-radius: 3px;
+    justify-self: center;
 }
 
 .mesures-arrow:hover:not(:disabled) {
@@ -11254,14 +11339,15 @@ body.day-mode .inspection-ignore-box {
 
 .mesures-beam-bar {
     height: 12px;
-    border-radius: 6px;
+    border-radius: 0;
     background: #e5e7eb;
-    width: 100%;
+    margin-left: 5%;
+    margin-right: 5%;
 }
 
 .mesures-labels-row {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
     margin-top: 5px;
 }
 
@@ -11269,9 +11355,11 @@ body.day-mode .inspection-ignore-box {
     font-size: 0.7rem;
     color: #6b7280;
     text-align: center;
-    min-width: 40px;
     transition: color 0.15s;
 }
+.mesures-pos-label[data-pos="quart1"] { grid-column: 2; }
+.mesures-pos-label[data-pos="milieu"] { grid-column: 3; }
+.mesures-pos-label[data-pos="quart3"] { grid-column: 4; }
 
 .mesures-pos-label[data-active="true"] {
     color: var(--color-primary, #2563eb);
@@ -11288,28 +11376,29 @@ body.day-mode .inspection-ignore-box {
 .mesures-field-row {
     display: flex;
     align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
+    gap: 6px;
+    flex-wrap: nowrap;
 }
 
 .mesures-field-label {
-    min-width: 52px;
+    width: 40px;
+    flex-shrink: 0;
     font-size: 0.8rem;
     color: #374151;
-    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .mesures-field-dims {
     display: flex;
-    gap: 6px;
+    gap: 4px;
     align-items: center;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .mesures-type-toggle-btn {
     font-size: 0.85rem;
     padding: 2px 7px;
-    min-width: 28px;
+    min-width: 20px;
     flex-shrink: 0;
     line-height: 1.2;
     color: var(--color-text-muted, #9ca3af);
@@ -11334,8 +11423,24 @@ body.day-mode .inspection-ignore-box {
     border-color: #E69F00 !important;
 }
 
-.mesures-widget-actions {
-    margin-top: 8px;
+.mesures-accordion-reset-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    background-color: var(--bleu-crai);
+    border: none;
+    border-radius: var(--radius-base);
+    color: var(--blanc-pur);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.mesures-accordion-reset-btn:hover {
+    background-color: #162e72;
 }
 
 /* ============================================================

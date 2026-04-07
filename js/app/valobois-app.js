@@ -2714,9 +2714,9 @@ class ValoboisApp {
     _getMesuresWidgetPositions() {
         return [
             { key: 'extremite1', ratio: 0.0,  shortLabel: 'Extr.\u00a01',  longLabel: 'Extrémité 1 (0\u00a0%)',    alwaysActive: true  },
-            { key: 'quart1',     ratio: 0.25, shortLabel: 'Quart\u00a01',   longLabel: 'Quart 1 (25\u00a0%)',        alwaysActive: false },
+            { key: 'quart1',     ratio: 0.25, shortLabel: 'Quar.\u00a01',   longLabel: 'Quar. 1 (25\u00a0%)',        alwaysActive: false },
             { key: 'milieu',     ratio: 0.5,  shortLabel: 'Milieu',          longLabel: 'Mi-longueur (50\u00a0%)',   alwaysActive: false },
-            { key: 'quart3',     ratio: 0.75, shortLabel: 'Quart\u00a03',   longLabel: 'Quart 3 (75\u00a0%)',        alwaysActive: false },
+            { key: 'quart3',     ratio: 0.75, shortLabel: 'Quar.\u00a03',   longLabel: 'Quar. 3 (75\u00a0%)',        alwaysActive: false },
             { key: 'extremite2', ratio: 1.0,  shortLabel: 'Extr.\u00a02',  longLabel: 'Extrémité 2 (100\u00a0%)',   alwaysActive: true  },
         ];
     }
@@ -2771,7 +2771,7 @@ class ValoboisApp {
             if (!posKey || !(posKey in RATIO_MAP)) return;
             let val = '\u2014';
             if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
-                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0mm`;
+                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0`;
             }
             label.textContent = val;
             label.classList.toggle('mesures-pos-label--stale', isStale);
@@ -2830,7 +2830,7 @@ class ValoboisApp {
             const active = isActivePos(posKey);
             let val = '\u2014';
             if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
-                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0mm`;
+                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0`;
             }
             const staleClass = isMesuresStale ? ' mesures-pos-label--stale' : '';
             return `<span class="mesures-pos-label${staleClass}" data-pos="${posKey}" data-active="${active}">${val}</span>`;
@@ -2853,26 +2853,19 @@ class ValoboisApp {
             return `<div class="mesures-field-row" data-pos="${pos.key}"${active ? '' : ' style="display:none;"'}>` +
                 `<span class="mesures-field-label">${pos.shortLabel}</span>` +
                 `<div class="mesures-field-dims" data-pos="${pos.key}" style="display:flex;gap:6px;">` +
-                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${largeurVal}" data-mm-pos="${pos.key}" data-mm-dim="largeur" placeholder="L" style="width:60px;"><span class="lot-input-unit">mm</span></div>` +
-                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${epaisseurVal}" data-mm-pos="${pos.key}" data-mm-dim="epaisseur" placeholder="E" style="width:60px;"><span class="lot-input-unit">mm</span></div>` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${largeurVal}" data-mm-pos="${pos.key}" data-mm-dim="largeur" placeholder="Larg." style="width:65px;"><span class="lot-input-unit">mm</span></div>` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${epaisseurVal}" data-mm-pos="${pos.key}" data-mm-dim="epaisseur" placeholder="Épai." style="width:65px;"><span class="lot-input-unit">mm</span></div>` +
                 `</div>` +
                 `<button type="button" class="btn btn-sm mesures-type-toggle-btn${isCirc ? ' mesures-type-toggle-btn--active' : ''}" data-mm-pos="${pos.key}" data-mm-type="${typeSection}" title="${toggleTitle}" aria-label="${toggleTitle}" aria-pressed="${isCirc}">${'\u2300'}</button>` +
             `</div>`;
         }).join('');
 
-        const inlineTitle  = t('editor.mesures.multiples.inlineTitle')  || 'Sections transversales';
-        const resetAllLabel = t('editor.mesures.multiples.resetAll') || 'Réinitialiser les mesures';
-
-        return `<p class="mesures-inline-title">${inlineTitle}</p>` +
-            `<div class="mesures-beam-container">` +
+        return `<div class="mesures-beam-container">` +
                 `<div class="mesures-arrow-row">${arrowsHtml}</div>` +
                 `<div class="mesures-beam-bar"></div>` +
                 `<div class="mesures-labels-row">${labelsHtml}</div>` +
             `</div>` +
-            `<div class="mesures-fields-list">${fieldsHtml}</div>` +
-            `<div class="mesures-widget-actions">` +
-                `<button type="button" class="btn btn-sm btn-secondary mesures-reset-btn">${resetAllLabel}</button>` +
-            `</div>`;
+            `<div class="mesures-fields-list">${fieldsHtml}</div>`;
     }
 
     /**
@@ -2966,8 +2959,8 @@ class ValoboisApp {
             });
         });
 
-        // Bouton Réinitialiser
-        const resetBtn = containerEl.querySelector('.mesures-reset-btn');
+        // Bouton Réinitialiser (dans le summary de l'accordéon parent)
+        const resetBtn = containerEl.closest('.mesures-accordion')?.querySelector('.mesures-reset-btn');
         if (resetBtn) {
             resetBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
@@ -3089,6 +3082,18 @@ class ValoboisApp {
         if (summaryEl) {
             const detailsEl = summaryEl.closest('details');
             if (detailsEl && isActive) detailsEl.open = true;
+            let badgeEl = summaryEl.querySelector('.mesures-accordion-badge');
+            if (isActive) {
+                const n = mm.sections.length;
+                if (badgeEl) {
+                    badgeEl.textContent = String(n);
+                    badgeEl.style.display = '';
+                } else {
+                    summaryEl.insertAdjacentHTML('beforeend', `<span class="mesures-accordion-badge">${n}</span>`);
+                }
+            } else if (badgeEl) {
+                badgeEl.style.display = 'none';
+            }
         }
         if (resumeEl) {
             resumeEl.innerHTML = resumeHtml;
@@ -3799,9 +3804,9 @@ class ValoboisApp {
 
         const posLabels = {
             extremite1: 'Extr.\u00a01',
-            quart1:     'Quart\u00a01',
+            quart1:     'Quar.\u00a01',
             milieu:     'Milieu',
-            quart3:     'Quart\u00a03',
+            quart3:     'Quar.\u00a03',
             extremite2: 'Extr.\u00a02',
         };
         const rows = mm.sections.map(s => {
@@ -8315,6 +8320,13 @@ closeEvalOpModal() {
         const showAsDisabled = isDisabled && !isActive;
         const viewValue = (value) => (showAsDisabled ? '' : value);
 
+        const _mmDp = defaultPiece.mesuresMultiples;
+        const hasMmDp = !!(_mmDp && _mmDp.active);
+        const nMmDp = hasMmDp && Array.isArray(_mmDp.sections) ? _mmDp.sections.length : 0;
+        const mesuresTitleDp = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
+        const mesuresBadgeDp = hasMmDp ? `<span class="mesures-accordion-badge">${nMmDp}</span>` : '';
+        const mesuresResetBtnDp = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+
         const resetIconMarkup = `
             <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
@@ -8414,9 +8426,12 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
-                        ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
-                    </div>
+                    <details class="mesures-accordion"${hasMmDp ? ' open' : ''}>
+                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresBadgeDp}${mesuresResetBtnDp}</summary>
+                        <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
+                            ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
+                        </div>
+                    </details>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
@@ -8588,6 +8603,13 @@ closeEvalOpModal() {
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
 
+        const _mmP = piece.mesuresMultiples;
+        const hasMmP = !!(_mmP && _mmP.active);
+        const nMmP = hasMmP && Array.isArray(_mmP.sections) ? _mmP.sections.length : 0;
+        const mesuresTitleP = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
+        const mesuresBadgeP = hasMmP ? `<span class="mesures-accordion-badge">${nMmP}</span>` : '';
+        const mesuresResetBtnP = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+
         return `
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
             <div class="piece-card-header">
@@ -8671,9 +8693,12 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
-                        ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
-                    </div>
+                    <details class="mesures-accordion"${hasMmP ? ' open' : ''}>
+                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresBadgeP}${mesuresResetBtnP}</summary>
+                        <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
+                            ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
+                        </div>
+                    </details>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
