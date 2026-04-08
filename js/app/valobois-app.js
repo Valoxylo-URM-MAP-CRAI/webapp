@@ -105,6 +105,8 @@ class ValoboisApp {
         this.seuilsCharts = {};
         this.radarChart = null;
         this.scatterDimsChart = null;
+        /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
+        this._accordionOpenStates = new Map();
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -545,6 +547,8 @@ class ValoboisApp {
         piece.humidite = source.humidite !== '' && source.humidite != null ? String(source.humidite) : (a.humidite !== undefined ? String(a.humidite) : '');
         piece.fractionCarbonee = source.fractionCarbonee !== '' && source.fractionCarbonee != null ? String(source.fractionCarbonee) : (a.fractionCarbonee !== undefined ? String(a.fractionCarbonee) : '');
         piece.bois = source.bois !== '' && source.bois != null ? String(source.bois) : (a.bois !== undefined ? String(a.bois) : '');
+        if (source.volumePieceEnrichi != null) piece.volumePieceEnrichi = source.volumePieceEnrichi;
+        if (source.mesuresMultiples != null) piece.mesuresMultiples = source.mesuresMultiples;
         return piece;
     }
 
@@ -2722,6 +2726,21 @@ class ValoboisApp {
     }
 
     /**
+     * Retourne le libellé court d'une position selon qu'elle est libre (isCustom) ou canonique.
+     * @param {string} positionKey
+     * @param {boolean} isCustom
+     * @returns {string}
+     */
+    _getPositionDisplayLabel(positionKey, isCustom) {
+        if (positionKey === 'extremite1') return 'Extr.\u00a01';
+        if (positionKey === 'extremite2') return 'Extr.\u00a02';
+        if (positionKey === 'quart1')  return isCustom ? 'Libr.\u00a01' : 'Quar.\u00a01';
+        if (positionKey === 'milieu')  return isCustom ? 'Libr.\u00a02' : 'Milieu';
+        if (positionKey === 'quart3')  return isCustom ? 'Libr.\u00a03' : 'Quar.\u00a03';
+        return positionKey;
+    }
+
+    /**
      * Retourne un tableau des clés de position présentes dans les sections existantes.
      * extremite1 et extremite2 sont toujours incluses.
      * @param {Array} sections
@@ -2762,19 +2781,23 @@ class ValoboisApp {
         const longueurRaw = longueur != null && longueur !== ''
             ? parseFloat(this.normalizeAllotissementNumericInput(String(longueur)))
             : null;
-        const mm = piece && piece.mesuresMultiples;
-        const isStale = !!(mm && mm.active && mm.longueur != null && mm.longueur !== ''
-            && String(mm.longueur) !== String(longueur != null ? longueur : ''));
-        const RATIO_MAP = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
-        widgetEl.querySelectorAll('.mesures-pos-label').forEach(label => {
-            const posKey = label.dataset.pos;
-            if (!posKey || !(posKey in RATIO_MAP)) return;
-            let val = '\u2014';
-            if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
-                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0`;
+        const mesuresData = piece && piece.mesuresMultiples;
+        const isStale = !!(mesuresData && mesuresData.active && mesuresData.longueur != null && mesuresData.longueur !== ''
+            && String(mesuresData.longueur) !== String(longueur != null ? longueur : ''));
+        const CANONICAL_RATIO = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+        widgetEl.querySelectorAll('input[data-pos-input]').forEach(input => {
+            const posKey = input.dataset.posInput;
+            if (!posKey || !(posKey in CANONICAL_RATIO)) return;
+            const section = mesuresData?.sections?.find(s => s.position === posKey);
+            const isCustom = section?.isCustom === true;
+            if (!isCustom) {
+                const mmVal = longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0
+                    ? Math.round(longueurRaw * CANONICAL_RATIO[posKey])
+                    : null;
+                input.placeholder = mmVal !== null ? String(mmVal) : 'mm';
+                input.value = '';
             }
-            label.textContent = val;
-            label.classList.toggle('mesures-pos-label--stale', isStale);
+            input.classList.toggle('mesures-input--stale', isStale);
         });
         widgetEl.querySelectorAll('input[data-mm-pos]').forEach(input => {
             input.classList.toggle('mesures-input--stale', isStale);
@@ -2807,33 +2830,52 @@ class ValoboisApp {
             return false;
         };
 
-        // Partie A — Flèches
-        const arrowsHtml = POSITIONS.map(pos => {
-            const active = isActivePos(pos.key);
-            const hd = posHasData(pos.key);
-            return `<button type="button" class="mesures-arrow${active ? ' mesures-arrow--active' : ''}" ` +
-                `data-pos="${pos.key}" data-active="${active}" ` +
-                `data-always-active="${pos.alwaysActive}" ` +
-                `data-has-data="${hd}" ` +
-                `title="${pos.longLabel}" aria-label="${pos.longLabel}" aria-pressed="${active}"` +
-                `${!pos.alwaysActive ? '' : ' disabled'}>▼</button>`;
-        }).join('');
-
-        // Partie A — Labels (positions calculées depuis la longueur de la pièce)
+        // Partie A — Longueur et stale (commun aux flèches et aux inputs de position)
         const longueurRaw = piece && piece.longueur != null && piece.longueur !== ''
             ? parseFloat(this.normalizeAllotissementNumericInput(String(piece.longueur)))
             : null;
         const isMesuresStale = !!(mm && mm.active && mm.longueur != null && mm.longueur !== ''
             && String(mm.longueur) !== String(piece && piece.longueur != null ? piece.longueur : ''));
         const RATIO_MAP = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+
+        // Partie A — Flèches
+        const arrowsHtml = POSITIONS.map(pos => {
+            const active = isActivePos(pos.key);
+            const hd = posHasData(pos.key);
+            const sPos = sectionByPos[pos.key];
+            const isCustomPos = sPos?.isCustom === true;
+            let arrowTitle = pos.longLabel;
+            let arrowCustomClass = '';
+            if (!pos.alwaysActive && isCustomPos && sPos?.positionRatio != null && longueurRaw != null && longueurRaw > 0) {
+                const positionMm = Math.round(sPos.positionRatio * longueurRaw);
+                const pct = Math.round(sPos.positionRatio * 100);
+                arrowTitle = `Position libre \u2014 ${positionMm}\u00a0mm (${pct}\u00a0%)`;
+                arrowCustomClass = ' mesures-arrow--custom';
+            }
+            return `<button type="button" class="mesures-arrow${active ? ' mesures-arrow--active' : ''}${arrowCustomClass}" ` +
+                `data-pos="${pos.key}" data-active="${active}" ` +
+                `data-always-active="${pos.alwaysActive}" ` +
+                `data-has-data="${hd}" ` +
+                `title="${arrowTitle}" aria-label="${arrowTitle}" aria-pressed="${active}"` +
+                `${!pos.alwaysActive ? '' : ' disabled'}>▼</button>`;
+        }).join('');
+
+        // Partie A — Inputs de position (remplacent les labels mm statiques)
         const labelsHtml = ['quart1', 'milieu', 'quart3'].map(posKey => {
             const active = isActivePos(posKey);
-            let val = '\u2014';
-            if (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0) {
-                val = `${Math.round(longueurRaw * RATIO_MAP[posKey])}\u00a0`;
+            const sPos = sectionByPos[posKey];
+            const isCustomPos = sPos?.isCustom === true;
+            let inputValue = '';
+            if (isCustomPos && sPos?.positionRatio != null && longueurRaw != null && longueurRaw > 0) {
+                inputValue = String(Math.round(sPos.positionRatio * longueurRaw));
             }
-            const staleClass = isMesuresStale ? ' mesures-pos-label--stale' : '';
-            return `<span class="mesures-pos-label${staleClass}" data-pos="${posKey}" data-active="${active}">${val}</span>`;
+            const canonicalMm = (longueurRaw != null && !isNaN(longueurRaw) && longueurRaw > 0)
+                ? Math.round(longueurRaw * RATIO_MAP[posKey])
+                : null;
+            const placeholder = canonicalMm !== null ? String(canonicalMm) : 'mm';
+            const staleClass = isMesuresStale ? ' mesures-input--stale' : '';
+            const customCls = isCustomPos ? ' mesures-pos-input--custom' : '';
+            return `<input type="text" inputmode="decimal" class="mesures-pos-input${customCls}${staleClass}" data-pos-input="${posKey}" value="${inputValue}" placeholder="${placeholder}" aria-label="Position de mesure en mm" data-active="${active}"${active ? '' : ' disabled'} />`;
         }).join('');
 
         // Partie B — Champs (tous présents, inactifs masqués)
@@ -2851,19 +2893,41 @@ class ValoboisApp {
             const toggleTitle = isCirc ? tToggleRect : tToggleCirc;
             const staleInput = isMesuresStale ? ' mesures-input--stale' : '';
             return `<div class="mesures-field-row" data-pos="${pos.key}"${active ? '' : ' style="display:none;"'}>` +
-                `<span class="mesures-field-label">${pos.shortLabel}</span>` +
+                `<span class="mesures-field-label">${this._getPositionDisplayLabel(pos.key, (sectionByPos[pos.key]?.isCustom === true))}</span>` +
                 `<div class="mesures-field-dims" data-pos="${pos.key}" style="display:flex;gap:6px;">` +
-                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${largeurVal}" data-mm-pos="${pos.key}" data-mm-dim="largeur" placeholder="Larg." style="width:65px;"><span class="lot-input-unit">mm</span></div>` +
-                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${epaisseurVal}" data-mm-pos="${pos.key}" data-mm-dim="epaisseur" placeholder="Épai." style="width:65px;"><span class="lot-input-unit">mm</span></div>` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${largeurVal}" data-mm-pos="${pos.key}" data-mm-dim="largeur" placeholder="Larg." style="width:70px;"><span class="lot-input-unit">mm</span></div>` +
+                    `<div class="lot-input-with-unit"><input type="text" inputmode="decimal" class="lot-input${staleInput}" value="${epaisseurVal}" data-mm-pos="${pos.key}" data-mm-dim="epaisseur" placeholder="Épai." style="width:70px;"><span class="lot-input-unit">mm</span></div>` +
                 `</div>` +
                 `<button type="button" class="btn btn-sm mesures-type-toggle-btn${isCirc ? ' mesures-type-toggle-btn--active' : ''}" data-mm-pos="${pos.key}" data-mm-type="${typeSection}" title="${toggleTitle}" aria-label="${toggleTitle}" aria-pressed="${isCirc}">${'\u2300'}</button>` +
             `</div>`;
         }).join('');
 
+        // Indicateurs verticaux sur la barre (un trait par position — activé quand périmètre saisi)
+        const indicatorsHtml = POSITIONS.map(pos =>
+            `<div class="mesures-beam-indicator" data-pos="${pos.key}"></div>`
+        ).join('');
+
+        // Ligne Périmètre — 5 cellules, une par position canonique
+        const perimetreHtml = POSITIONS.map(pos => {
+            const active = pos.alwaysActive || isActivePos(pos.key);
+            const staleInput = isMesuresStale ? ' mesures-input--stale' : '';
+            const existingPerim = sectionByPos[pos.key]?.perimetre ?? null;
+            const perimVal = existingPerim !== null
+                ? this.formatAllotissementNumericDisplay(existingPerim)
+                : '';
+            const perimPlaceholder = this._getPositionDisplayLabel(pos.key, sectionByPos[pos.key]?.isCustom === true);
+            return `<div class="mesures-perimetre-cell" data-pos="${pos.key}">` +
+                `<input type="text" inputmode="decimal" class="mesures-perimetre-input${staleInput}" data-perim-pos="${pos.key}" placeholder="${perimPlaceholder}" value="${perimVal}"${active ? '' : ' disabled'} />` +
+            `</div>`;
+        }).join('');
+
         return `<div class="mesures-beam-container">` +
                 `<div class="mesures-arrow-row">${arrowsHtml}</div>` +
-                `<div class="mesures-beam-bar"></div>` +
+                `<div class="mesures-beam-bar">${indicatorsHtml}</div>` +
+                `<span class="mesures-positions-section-label">Positions des mesures</span>` +
                 `<div class="mesures-labels-row">${labelsHtml}</div>` +
+                `<span class="mesures-perimetre-section-label">Périmètres</span>` +
+                `<div class="mesures-perimetre-row">${perimetreHtml}</div>` +
             `</div>` +
             `<div class="mesures-fields-list">${fieldsHtml}</div>`;
     }
@@ -2876,6 +2940,51 @@ class ValoboisApp {
      * @param {{ isDefault: boolean, defaultPieceId: string|null, pieceIndex: number|null }} context
      */
     _bindMesuresInlineWidget(containerEl, piece, lot, context) {
+        // Toggle accordéon uniquement via le chevron — bindé une seule fois sur le <details>
+        const accordionDetails = containerEl.closest('.mesures-accordion');
+        if (accordionDetails && !accordionDetails.dataset.chevronBound) {
+            accordionDetails.dataset.chevronBound = '1';
+            // Mémoriser l'état ouvert/fermé pour survivre aux re-renders
+            const _accStateKey = context.isDefault
+                ? `default:${context.defaultPieceId}`
+                : `piece:${context.pieceIndex}`;
+            accordionDetails.addEventListener('toggle', () => {
+                this._accordionOpenStates.set(_accStateKey, accordionDetails.open);
+            });
+            const accordionSummary = accordionDetails.querySelector('summary');
+            if (accordionSummary) {
+                // Laisser le comportement natif uniquement si le clic vient du chevron
+                accordionSummary.addEventListener('click', e => {
+                    if (!e.target.closest('.mesures-accordion-chevron')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+            // Bouton Réinitialiser (dans le summary, hors containerEl — bindé une seule fois)
+            const resetBtn = accordionDetails.querySelector('.mesures-reset-btn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openMesuresResetConfirmModal(() => {
+                        delete piece.mesuresMultiples;
+                        delete piece.volumePieceEnrichi;
+                        this.saveData();
+                        containerEl.innerHTML = this._renderMesuresInlineWidget(piece, context);
+                        this._bindMesuresInlineWidget(containerEl, piece, lot, context);
+                        this._updateMesuresBadgeAndResume(piece, context);
+                    });
+                });
+            }
+            // Bouton Info mesures (dans le summary, hors containerEl — bindé une seule fois)
+            const infoBtn = accordionDetails.querySelector('.mesures-info-btn');
+            if (infoBtn) {
+                infoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.openMesuresInfoModal();
+                });
+            }
+        }
+
         // Clic sur les flèches (positions non obligatoires uniquement)
         containerEl.querySelectorAll('.mesures-arrow[data-always-active="false"]').forEach(arrowBtn => {
             arrowBtn.addEventListener('click', (e) => {
@@ -2885,9 +2994,18 @@ class ValoboisApp {
                 arrowBtn.dataset.active = String(nowActive);
                 arrowBtn.setAttribute('aria-pressed', String(nowActive));
                 arrowBtn.classList.toggle('mesures-arrow--active', nowActive);
-                // Mise à jour du label
-                const labelEl = containerEl.querySelector(`.mesures-pos-label[data-pos="${pos}"]`);
-                if (labelEl) labelEl.dataset.active = String(nowActive);
+                // Mise à jour de l'input de position
+                const posInputEl = containerEl.querySelector(`input[data-pos-input="${pos}"]`);
+                if (posInputEl) {
+                    posInputEl.dataset.active = String(nowActive);
+                    posInputEl.disabled = !nowActive;
+                    if (!nowActive) {
+                        posInputEl.value = '';
+                        posInputEl.classList.remove('mesures-pos-input--custom', 'mesures-pos-input--error');
+                        posInputEl.title = '';
+                        arrowBtn.classList.remove('mesures-arrow--custom');
+                    }
+                }
                 // Afficher / masquer la ligne de champs
                 const fieldRow = containerEl.querySelector(`.mesures-field-row[data-pos="${pos}"]`);
                 if (fieldRow) fieldRow.style.display = nowActive ? '' : 'none';
@@ -2959,18 +3077,358 @@ class ValoboisApp {
             });
         });
 
-        // Bouton Réinitialiser (dans le summary de l'accordéon parent)
-        const resetBtn = containerEl.closest('.mesures-accordion')?.querySelector('.mesures-reset-btn');
-        if (resetBtn) {
-            resetBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                delete piece.mesuresMultiples;
-                delete piece.volumePieceEnrichi;
-                this.saveData();
-                containerEl.innerHTML = this._renderMesuresInlineWidget(piece, context);
-                this._bindMesuresInlineWidget(containerEl, piece, lot, context);
+        // Focus sur inputs de position → vérifier longueur disponible
+        // input event → validation d'ordre + styles custom/error + sauvegarde
+        const CANONICAL_RATIO_BIND = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+        containerEl.querySelectorAll('input[data-pos-input]').forEach(posInput => {
+            posInput.addEventListener('focus', (e) => {
+                const longueur = parseFloat(piece.longueur) || parseFloat(lot.allotissement?.longueur) || 0;
+                if (!longueur) {
+                    e.target.blur();
+                    this.openLongueurRequiredModal();
+                }
+            });
+            posInput.addEventListener('input', () => {
+                const longueur = parseFloat(piece.longueur) || parseFloat(lot.allotissement?.longueur) || 0;
+                // Positions effectives de tous les intermédiaires actifs (valeur saisie ou canonique)
+                const positions = { quart1: null, milieu: null, quart3: null };
+                ['quart1', 'milieu', 'quart3'].forEach(k => {
+                    const arrowEl = containerEl.querySelector(`.mesures-arrow[data-pos="${k}"]`);
+                    if (!(arrowEl && arrowEl.dataset.active === 'true')) return;
+                    const inp = containerEl.querySelector(`input[data-pos-input="${k}"]`);
+                    const raw = this.normalizeAllotissementNumericInput(inp?.value || '');
+                    if (raw !== '') {
+                        positions[k] = parseFloat(raw);
+                    } else if (longueur > 0) {
+                        positions[k] = Math.round(longueur * CANONICAL_RATIO_BIND[k]);
+                    }
+                });
+                const errors = longueur > 0
+                    ? this._validateMesuresPositionsMm(positions, longueur)
+                    : { quart1: null, milieu: null, quart3: null };
+                let hasErrors = false;
+                ['quart1', 'milieu', 'quart3'].forEach(k => {
+                    const inp = containerEl.querySelector(`input[data-pos-input="${k}"]`);
+                    if (!inp) return;
+                    const raw = this.normalizeAllotissementNumericInput(inp.value || '');
+                    const hasVal = raw !== '';
+                    if (hasVal && errors[k]) {
+                        inp.classList.add('mesures-pos-input--error');
+                        inp.title = errors[k];
+                        hasErrors = true;
+                    } else {
+                        inp.classList.remove('mesures-pos-input--error');
+                        inp.title = '';
+                    }
+                    // État custom : valeur différente du canonique ±1mm
+                    const parsedMm = hasVal ? parseFloat(raw) : null;
+                    const canonicalMm = longueur > 0 ? Math.round(longueur * CANONICAL_RATIO_BIND[k]) : null;
+                    const isCustom = parsedMm !== null && canonicalMm !== null && Math.abs(parsedMm - canonicalMm) > 1;
+                    inp.classList.toggle('mesures-pos-input--custom', isCustom);
+                    const arrowEl = containerEl.querySelector(`.mesures-arrow[data-pos="${k}"]`);
+                    if (arrowEl) {
+                        arrowEl.classList.toggle('mesures-arrow--custom', isCustom);
+                        if (isCustom && parsedMm !== null) {
+                            const pct = Math.round((parsedMm / longueur) * 100);
+                            arrowEl.title = `Position libre \u2014 ${parsedMm}\u00a0mm (${pct}\u00a0%)`;
+                            arrowEl.setAttribute('aria-label', arrowEl.title);
+                        } else {
+                            const posInfo = this._getMesuresWidgetPositions().find(p => p.key === k);
+                            if (posInfo) {
+                                arrowEl.title = posInfo.longLabel;
+                                arrowEl.setAttribute('aria-label', posInfo.longLabel);
+                            }
+                        }
+                    }
+                });
+                if (!hasErrors) {
+                    this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+                }
+            });
+        });
+
+        // Rendu SVG de la barre (grain bois)
+        const beamBarEl = containerEl.querySelector('.mesures-beam-bar');
+        if (beamBarEl) this._renderBeamBarSvg(beamBarEl, piece);
+
+        // Re-hydrater les inputs périmètre depuis le modèle existant
+        if (piece.mesuresMultiples?.active && Array.isArray(piece.mesuresMultiples.sections)) {
+            piece.mesuresMultiples.sections.forEach(s => {
+                const perimInput = containerEl.querySelector(`input[data-perim-pos="${s.position}"]`);
+                if (perimInput && (s.perimetre ?? null) !== null) {
+                    perimInput.value = this.formatAllotissementNumericDisplay(s.perimetre);
+                }
             });
         }
+
+        // Indicateurs Périmètre sur la barre — mise à jour en live + sauvegarde
+        containerEl.querySelectorAll('input[data-perim-pos]').forEach(perimInput => {
+            perimInput.addEventListener('input', () => {
+                this._updateMesuresBeamIndicators(containerEl);
+            });
+            perimInput.addEventListener('change', () => {
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+            perimInput.addEventListener('blur', (e) => {
+                const normalized = this.normalizeAllotissementNumericInput(e.target.value);
+                e.target.value = normalized !== '' ? this.formatAllotissementNumericDisplay(normalized) : '';
+                this._saveMesuresMultiplesInline(containerEl, piece, lot, context);
+            });
+        });
+        // État initial (re-render avec valeurs existantes)
+        this._updateMesuresBeamIndicators(containerEl);
+
+    }
+
+    /**
+     * Injecte un SVG de grain bois réaliste dans la barre .mesures-beam-bar.
+     * Les nœuds sont générés de façon déterministe à partir de piece.longueur.
+     * @param {HTMLElement} barEl - L'élément .mesures-beam-bar
+     * @param {object} piece
+     */
+    _renderBeamBarSvg(barEl, piece) {
+        const W = 800, H = 60;
+        const NUM_LINES = 11;
+
+        const longueur = piece && piece.longueur ? parseFloat(piece.longueur) : 0;
+        const h = (longueur * 7919 + 1234) | 0;
+        const frac = i => (((h * (i + 3) * 2654435761) >>> 0) / 0xFFFFFFFF);
+
+        const zones = [
+            { min: 0.05, max: 0.28 },
+            { min: 0.36, max: 0.64 },
+            { min: 0.72, max: 0.95 },
+        ];
+        const truncatedIdx = Math.floor(frac(9) * 3);
+        const knots = zones.map((zone, i) => {
+            const xRatio = zone.min + frac(i) * (zone.max - zone.min);
+            const x = Math.round(xRatio * W);
+            const r = 15 + Math.round(frac(i + 3) * 18);
+            let y;
+            if (i === truncatedIdx) {
+                y = frac(i + 6) > 0.5 ? 0 : H;
+            } else {
+                y = H / 2 + (frac(i + 6) - 0.5) * H * 0.25;
+            }
+            return { x, y, r };
+        });
+
+        // Contribution elliptique de chaque nœud à la fonction de courant ψ_k(x,y)
+        // Dénominateur = distance elliptique (aspect 0.27) → iso-courbes suivent le profil plat du nœud
+        function psiKnots(x, y) {
+            let s = 0;
+            for (const k of knots) {
+                const dx = x - k.x, dy0 = y - k.y;
+                // Dilate y pour rendre le nœud circulaire dans l'espace normalisé
+                const stretch = dy0 / 0.27;
+                const d2 = Math.max(dx * dx + stretch * stretch, k.r * k.r * 2.5);
+                s -= k.r * k.r * dy0 / d2;
+            }
+            return s;
+        }
+
+        // ∂(y + ψ_k)/∂y pour Newton-Raphson
+        // ∂d2/∂dy0 = 2 × stretch / 0.27 = 2dy0/0.27²
+        function dpsiDy(x, y) {
+            let s = 1;
+            for (const k of knots) {
+                const dx = x - k.x, dy0 = y - k.y;
+                const stretch = dy0 / 0.27;
+                const d2 = Math.max(dx * dx + stretch * stretch, k.r * k.r * 2.5);
+                s -= k.r * k.r * (d2 - 2 * dy0 * stretch / 0.27) / (d2 * d2);
+            }
+            return s;
+        }
+
+        // Ondulation globale réduite → lignes presque droites loin des nœuds
+        function globalWave(x) {
+            return Math.sin(x * 0.0085) * 1.1 + Math.sin(x * 0.021) * 0.45;
+        }
+
+        // Newton-Raphson (warm-start) — 18 itérations pour robustesse avec le modèle elliptique
+        function solveY(x, target, y0) {
+            let y = y0;
+            for (let n = 0; n < 18; n++) {
+                const f = y + psiKnots(x, y) - target;
+                const df = dpsiDy(x, y);
+                const step = f / Math.max(df, 0.01);
+                y -= Math.max(-8, Math.min(8, step));
+                if (Math.abs(step) < 0.04) break;
+            }
+            return y;
+        }
+
+        const yPositions = Array.from({ length: NUM_LINES }, (_, i) => {
+            const t = i / (NUM_LINES - 1);
+            return 2 + (H - 4) * (0.5 - 0.5 * Math.cos(Math.PI * t));
+        });
+
+        const STEPS = 64;
+
+        // Catmull-Rom → Bézier cubique : tangentes issues des voisins → courbes vraiment lisses
+        function buildPath(pts) {
+            const n = pts.length;
+            let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+            for (let i = 0; i < n - 1; i++) {
+                const p0 = pts[Math.max(i - 1, 0)];
+                const p1 = pts[i];
+                const p2 = pts[i + 1];
+                const p3 = pts[Math.min(i + 2, n - 1)];
+                const cp1x = (p1.x + (p2.x - p0.x) / 6).toFixed(1);
+                const cp1y = (p1.y + (p2.y - p0.y) / 6).toFixed(1);
+                const cp2x = (p2.x - (p3.x - p1.x) / 6).toFixed(1);
+                const cp2y = (p2.y - (p3.y - p1.y) / 6).toFixed(1);
+                d += ` C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+            }
+            return d;
+        }
+
+        // Retourne true si le point (px,py) est à l'intérieur de l'ellipse d'un nœud
+        // Ellipse expansée ×1.3 pour absorber la déformation blob (±20%)
+        function isInsideAnyKnot(px, py) {
+            for (const k of knots) {
+                const dx = px - k.x, dy = py - k.y;
+                if ((dx / (k.r * 1.3)) ** 2 + (dy / (k.r * 0.27 * 1.3)) ** 2 < 1) return true;
+            }
+            return false;
+        }
+
+        const grainPaths = yPositions.map((baseY, lineIdx) => {
+            // Valeur cible de la fonction de courant pour cette ligne (wave(0)=0)
+            const target0 = baseY + psiKnots(0, baseY);
+
+            // Intégration point par point avec warm-start
+            const pts = [];
+            let prevY = baseY;
+            for (let i = 0; i <= STEPS; i++) {
+                const x = (i / STEPS) * W;
+                const y = solveY(x, target0 + globalWave(x), prevY);
+                const cy = Math.max(1.5, Math.min(H - 1.5, y));
+                prevY = cy;
+                pts.push({ x, y: cy });
+            }
+
+            // Masque de visibilité : hidden = dans un nœud OU dans un gap d'interruption
+            const visible = pts.map(p => !isInsideAnyKnot(p.x, p.y));
+
+            const isInterrupted = lineIdx > 0 && lineIdx < NUM_LINES - 1 && frac(lineIdx + 12) > 0.75;
+            if (isInterrupted) {
+                const gapCX    = 120 + frac(lineIdx + 20) * 560;
+                const gapHalfW = 35  + frac(lineIdx + 25) * 55;
+                pts.forEach((p, i) => {
+                    if (p.x >= gapCX - gapHalfW && p.x <= gapCX + gapHalfW) visible[i] = false;
+                });
+            }
+
+            // Construit les segments SVG à partir des runs de points visibles contigus
+            const pathParts = [];
+            let segStart = null;
+            for (let i = 0; i <= pts.length; i++) {
+                if (i < pts.length && visible[i]) {
+                    if (segStart === null) segStart = i;
+                } else {
+                    if (segStart !== null && i - segStart >= 2) {
+                        pathParts.push(`<path d="${buildPath(pts.slice(segStart, i))}" />`);
+                    }
+                    segStart = null;
+                }
+            }
+            return pathParts.join('');
+        }).join('\n        ');
+
+        // Génère un contour irrégulier (blob) via N points polaires perturbés + Catmull-Rom fermé
+        function blobPath(cx, cy, rx, ry, ki, ri) {
+            const N = 9;
+            const pts = Array.from({ length: N }, (_, j) => {
+                const angle = (j / N) * 2 * Math.PI;
+                // Perturbation déterministe ±20% en x et en y, indépendante par axe
+                const nx = 1 + (frac(ki * 53 + ri * 11 + j * 2    ) - 0.5) * 0.40;
+                const ny = 1 + (frac(ki * 53 + ri * 11 + j * 2 + 1) - 0.5) * 0.40;
+                return {
+                    x: cx + Math.cos(angle) * rx * nx,
+                    y: cy + Math.sin(angle) * ry * ny,
+                };
+            });
+            // Catmull-Rom → Bézier cubique fermé
+            let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+            for (let j = 0; j < N; j++) {
+                const p0 = pts[(j - 1 + N) % N];
+                const p1 = pts[j];
+                const p2 = pts[(j + 1) % N];
+                const p3 = pts[(j + 2) % N];
+                const cp1x = p1.x + (p2.x - p0.x) / 6;
+                const cp1y = p1.y + (p2.y - p0.y) / 6;
+                const cp2x = p2.x - (p3.x - p1.x) / 6;
+                const cp2y = p2.y - (p3.y - p1.y) / 6;
+                d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+            }
+            return d + ' Z';
+        }
+
+        const knotsSvg = knots.map(({ x, y: cy, r }, ki) => {
+            const numRings = 3;
+            const aspect = 0.27;
+            return Array.from({ length: numRings }, (_, i) => {
+                const ratio = 1 - i / numRings;
+                const rx = r * ratio;
+                const ry = Math.max(0.7, r * ratio * aspect);
+                const isCore = i === numRings - 1;
+                const fill = isCore ? `fill="#686868"` : `fill="none"`;
+                const sw = isCore ? 0 : 1.3;
+                const d = blobPath(x, cy, rx, ry, ki, i);
+                return `<path d="${d}" stroke-width="${sw}" ${fill} />`;
+            }).join('\n        ');
+        }).join('\n        ');
+
+        const svgContent = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg" style="position:absolute;inset:0;width:100%;height:100%;z-index:0">
+    <g fill="none" stroke="#646464" stroke-width="1.3" opacity="0.72">
+        ${grainPaths}
+    </g>
+    <g stroke="#646464" stroke-width="0.55" opacity="0.88">
+        ${knotsSvg}
+    </g>
+</svg>`;
+
+        const existingSvg = barEl.querySelector('svg');
+        if (existingSvg) existingSvg.remove();
+        barEl.insertAdjacentHTML('afterbegin', svgContent);
+    }
+
+    /**
+     * Met à jour la visibilité des indicateurs verticaux sur la barre
+     * selon qu'un périmètre est saisi pour chaque position.
+     * @param {Element} containerEl
+     */
+    _updateMesuresBeamIndicators(containerEl) {
+        containerEl.querySelectorAll('.mesures-beam-indicator[data-pos]').forEach(indicator => {
+            const pos = indicator.dataset.pos;
+            const perimInput = containerEl.querySelector(`input[data-perim-pos="${pos}"]`);
+            const hasValue = perimInput && perimInput.value.trim() !== '';
+            indicator.classList.toggle('mesures-beam-indicator--visible', hasValue);
+        });
+    }
+
+    /**
+     * Valide l'ordre des positions personnalisées des mesures intermédiaires.
+     * @param {{ quart1: number|null, milieu: number|null, quart3: number|null }} positions
+     *   Valeur en mm pour chaque position active (non-null), null si inactive.
+     * @param {number} longueur - longueur totale de la pièce en mm
+     * @returns {{ quart1: string|null, milieu: string|null, quart3: string|null }}
+     */
+    _validateMesuresPositionsMm(positions, longueur) {
+        const CANONICAL_ORDER = ['quart1', 'milieu', 'quart3'];
+        const active = CANONICAL_ORDER
+            .filter(k => positions[k] !== null && positions[k] !== undefined)
+            .map(k => ({ key: k, val: positions[k] }));
+        const result = { quart1: null, milieu: null, quart3: null };
+        active.forEach((item, i) => {
+            const lower = i === 0 ? 0 : active[i - 1].val;
+            const upper = i === active.length - 1 ? longueur : active[i + 1].val;
+            if (item.val <= 0 || item.val >= longueur || item.val <= lower || item.val >= upper) {
+                result[item.key] = `Doit \u00eatre entre ${lower} et ${upper}\u00a0mm`;
+            }
+        });
+        return result;
     }
 
     /**
@@ -2982,10 +3440,27 @@ class ValoboisApp {
      */
     _saveMesuresMultiplesInline(containerEl, piece, lot, context) {
         const POSITIONS = this._getMesuresWidgetPositions();
+        const CANONICAL_RATIO_SAVE = { quart1: 0.25, milieu: 0.5, quart3: 0.75 };
+        const intermediateKeys = new Set(['quart1', 'milieu', 'quart3']);
+        const longueurPiece = parseFloat(piece.longueur) || parseFloat(lot.allotissement?.longueur) || 0;
 
         // Positions actives lues depuis les flèches
         const activeSet = new Set();
         containerEl.querySelectorAll('.mesures-arrow[data-active="true"]').forEach(btn => activeSet.add(btn.dataset.pos));
+
+        // Validation des positions libres avant sauvegarde
+        if (longueurPiece > 0) {
+            const positionsToValidate = { quart1: null, milieu: null, quart3: null };
+            ['quart1', 'milieu', 'quart3'].forEach(k => {
+                if (!activeSet.has(k)) return;
+                const posInputEl = containerEl.querySelector(`input[data-pos-input="${k}"]`);
+                const raw = this.normalizeAllotissementNumericInput(posInputEl?.value || '');
+                const parsedMm = raw !== '' ? parseFloat(raw) : null;
+                positionsToValidate[k] = parsedMm !== null ? parsedMm : Math.round(CANONICAL_RATIO_SAVE[k] * longueurPiece);
+            });
+            const validationErrors = this._validateMesuresPositionsMm(positionsToValidate, longueurPiece);
+            if (Object.values(validationErrors).some(err => err !== null)) return;
+        }
 
         const sections = [];
         POSITIONS.forEach(posInfo => {
@@ -3007,16 +3482,41 @@ class ValoboisApp {
                 const dVal = this.normalizeAllotissementNumericInput(lInput ? lInput.value : '');
                 diametre = dVal !== '' ? parseFloat(dVal) : null;
             }
-            sections.push({ position: posInfo.key, positionRatio: posInfo.ratio, typeSection, largeur, epaisseur, diametre });
+            // Position ratio — libre ou canonique selon saisie
+            let positionRatio = posInfo.ratio;
+            let isCustomPos = false;
+            if (intermediateKeys.has(posInfo.key) && longueurPiece > 0) {
+                const posInputEl = containerEl.querySelector(`input[data-pos-input="${posInfo.key}"]`);
+                const rawMm = this.normalizeAllotissementNumericInput(posInputEl?.value || '');
+                const parsedMm = rawMm !== '' ? parseFloat(rawMm) : null;
+                const canonicalMm = CANONICAL_RATIO_SAVE[posInfo.key] * longueurPiece;
+                isCustomPos = parsedMm !== null && Math.abs(parsedMm - canonicalMm) > 1;
+                positionRatio = isCustomPos ? parsedMm / longueurPiece : CANONICAL_RATIO_SAVE[posInfo.key];
+            }
+            // Périmètre mesuré
+            const perimInputEl = containerEl.querySelector(`input[data-perim-pos="${posInfo.key}"]`);
+            const perimRaw = this.normalizeAllotissementNumericInput(perimInputEl ? perimInputEl.value : '');
+            const perimetre = (perimRaw !== '') ? parseFloat(perimRaw) : null;
+
+            sections.push({ position: posInfo.key, positionRatio, isCustom: isCustomPos, typeSection, largeur, epaisseur, diametre, perimetre });
         });
 
         const activeKeys = sections.map(s => s.position);
         const niveaux    = this.niveauxFromActivePositions(activeKeys);
 
-        const hasAnyDim = sections.some(s =>
-            (s.typeSection === 'rect' && (s.largeur !== null || s.epaisseur !== null)) ||
-            (s.typeSection === 'circ' && s.diametre !== null)
-        );
+        const hasAnyDim = sections.some(s => {
+            if (!s.typeSection) return false;
+            const hasP = (s.perimetre ?? null) !== null && parseFloat(s.perimetre) > 0;
+            if (s.typeSection === 'rect') {
+                const hasL = s.largeur !== null;
+                const hasE = s.epaisseur !== null;
+                return (hasL && hasE) || (hasL && hasP) || (hasE && hasP);
+            }
+            if (s.typeSection === 'circ') {
+                return s.diametre !== null || hasP;
+            }
+            return false;
+        });
 
         if (!hasAnyDim) {
             delete piece.mesuresMultiples;
@@ -3043,14 +3543,79 @@ class ValoboisApp {
             const arrowBtn = containerEl.querySelector(`.mesures-arrow[data-pos="${posInfo.key}"]`);
             if (!arrowBtn) return;
             const s = sectionByPos[posInfo.key];
+            const _hasP = (s?.perimetre ?? null) !== null && parseFloat(s.perimetre) > 0;
             const hd = !!(s && s.typeSection && (
-                (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
-                (s.typeSection === 'circ' && s.diametre != null)
+                (s.typeSection === 'rect' && (
+                    (s.largeur != null && s.epaisseur != null) ||
+                    (s.largeur != null && _hasP) ||
+                    (s.epaisseur != null && _hasP)
+                )) ||
+                (s.typeSection === 'circ' && (s.diametre != null || _hasP))
             ));
             arrowBtn.dataset.hasData = String(hd);
         });
 
+        // Désactiver Largeur + Épaisseur directement via traversée DOM (fiable)
+        const pieceCardDirect = containerEl.closest('.piece-card');
+        if (pieceCardDirect) {
+            const completeSections = sections.filter(s =>
+                (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
+                (s.typeSection === 'circ' && s.diametre != null)
+            );
+            const mmDisable = completeSections.length >= 2;
+            const selectorL = context.isDefault ? 'input[data-default-piece-input="largeur"]' : 'input[data-piece-input="largeur"]';
+            const selectorE = context.isDefault ? 'input[data-default-piece-input="epaisseur"]' : 'input[data-piece-input="epaisseur"]';
+            [pieceCardDirect.querySelector(selectorL), pieceCardDirect.querySelector(selectorE)].forEach(inp => {
+                if (!inp) return;
+                inp.disabled = mmDisable;
+                inp.closest('.lot-dimension-field')?.toggleAttribute('data-mm-disabled', mmDisable);
+            });
+        }
+
         this._updateMesuresBadgeAndResume(piece, context);
+
+        // Recalcul et mise à jour du champ volumePiece affiché dans la carte
+        this.recalculateLotAllotissement(lot);
+        this.updateActiveLotCardDisplays(lot);
+        const _fmt3 = (v) => (parseFloat(v) || 0).toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+        const _fmt1 = (v) => (parseFloat(v) || 0).toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+        const _pr = document.getElementById('pieceRail');
+        if (_pr) {
+            if (context.isDefault && context.defaultPieceId != null) {
+                const _preview = this.buildPieceFromDefault(lot, -1, context.defaultPieceId);
+                this.recalculatePiece(_preview, lot);
+                const _qVP = _pr.querySelector(`[data-default-piece-id="${context.defaultPieceId}"][data-default-piece-display="volumePiece"]`);
+                if (_qVP) _qVP.value = _fmt3(_preview.volumePiece);
+                // Mise à jour Surface unitaire (valeur + muting)
+                const _dpL = parseFloat(_preview.largeur) || 0;
+                const _dpH = parseFloat(_preview.epaisseur) || 0;
+                const _dpSurfMuted = (_preview.diametre !== '' && _preview.diametre != null) ||
+                    _dpH > 55 || (_dpL > 0 && _dpH > 0 && _dpL / _dpH <= 4);
+                const _qSPdp = _pr.querySelector(`[data-default-piece-id="${context.defaultPieceId}"][data-default-piece-display="surfacePiece"]`);
+                if (_qSPdp) {
+                    _qSPdp.value = _dpSurfMuted ? '' : _fmt1(_preview.surfacePiece);
+                    const _spCompDp = _qSPdp.closest('.lot-dimension-computed');
+                    if (_spCompDp) _spCompDp.dataset.muted = _dpSurfMuted ? 'true' : 'false';
+                }
+            } else if (!context.isDefault && context.pieceIndex != null) {
+                const _pc = _pr.querySelector(`.piece-card[data-piece-index="${context.pieceIndex}"]`);
+                if (_pc) {
+                    const _qVP = _pc.querySelector('[data-piece-display="volumePiece"]');
+                    if (_qVP) _qVP.value = _fmt3(piece.volumePiece);
+                    // Mise à jour Surface unitaire (valeur + muting)
+                    const _pL = parseFloat(piece.largeur) || 0;
+                    const _pH = parseFloat(piece.epaisseur) || 0;
+                    const _pSurfMuted = (piece.diametre !== '' && piece.diametre != null) ||
+                        _pH > 55 || (_pL > 0 && _pH > 0 && _pL / _pH <= 4);
+                    const _qSPp = _pc.querySelector('[data-piece-display="surfacePiece"]');
+                    if (_qSPp) {
+                        _qSPp.value = _pSurfMuted ? '' : _fmt1(piece.surfacePiece);
+                        const _spCompP = _qSPp.closest('.lot-dimension-computed');
+                        if (_spCompP) _spCompP.dataset.muted = _pSurfMuted ? 'true' : 'false';
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -3062,7 +3627,12 @@ class ValoboisApp {
         if (!pieceRail) return;
         const mm = piece.mesuresMultiples;
         const isActive = !!(mm && mm.active);
-        const badgeHtml = isActive ? ` <span class="badge-mesures">${mm.sections.length} sections</span>` : '';
+        const hasIncomplete = isActive && mm.sections.some(s =>
+            (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) ||
+            (s.typeSection === 'circ' && s.diametre == null) ||
+            (!s.typeSection)
+        );
+        const badgeHtml = isActive ? ` <span class="badge-mesures${hasIncomplete ? ' badge-mesures--incomplete' : ''}">${mm.sections.length} sections</span>` : '';
         const resumeHtml = this.renderMesuresMultiplesResume(piece);
 
         let btn, resumeEl, summaryEl;
@@ -3081,22 +3651,53 @@ class ValoboisApp {
         }
         if (summaryEl) {
             const detailsEl = summaryEl.closest('details');
-            if (detailsEl && isActive) detailsEl.open = true;
+            // Ouvrir l'accordéon automatiquement uniquement quand les mesures deviennent
+            // nouvellement actives (l'accordéon était fermé et aucun badge ne préexistait).
+            if (detailsEl && isActive && !detailsEl.open) {
+                const hadBadge = !!(summaryEl.querySelector('.mesures-accordion-badge'));
+                if (!hadBadge) detailsEl.open = true;
+            }
             let badgeEl = summaryEl.querySelector('.mesures-accordion-badge');
-            if (isActive) {
-                const n = mm.sections.length;
-                if (badgeEl) {
-                    badgeEl.textContent = String(n);
-                    badgeEl.style.display = '';
+            const n = isActive ? mm.sections.length : 0;
+            const isIncomplete = isActive && mm.sections.some(s =>
+                (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) ||
+                (s.typeSection === 'circ' && s.diametre == null) ||
+                (!s.typeSection)
+            );
+            if (badgeEl) {
+                badgeEl.textContent = String(n);
+                badgeEl.classList.toggle('mesures-accordion-badge--incomplete', isIncomplete);
+            } else {
+                const resetBtnEl = summaryEl.querySelector('.mesures-accordion-reset-btn');
+                const badge = document.createElement('span');
+                badge.className = 'mesures-accordion-badge';
+                badge.textContent = String(n);
+                if (isIncomplete) badge.classList.add('mesures-accordion-badge--incomplete');
+                if (resetBtnEl) {
+                    resetBtnEl.after(badge);
                 } else {
-                    summaryEl.insertAdjacentHTML('beforeend', `<span class="mesures-accordion-badge">${n}</span>`);
+                    summaryEl.appendChild(badge);
                 }
-            } else if (badgeEl) {
-                badgeEl.style.display = 'none';
             }
         }
         if (resumeEl) {
             resumeEl.innerHTML = resumeHtml;
+        }
+
+        // Désactiver Largeur + Épaisseur si ≥ 2 positions de mesures renseignées
+        const pieceCardEl = summaryEl ? summaryEl.closest('.piece-card') : null;
+        if (pieceCardEl) {
+            const mmDisable = isActive ? (mm.sections || []).filter(s =>
+                (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
+                (s.typeSection === 'circ' && s.diametre != null)
+            ).length >= 2 : false;
+            const selectorL = ctx.isDefault ? 'input[data-default-piece-input="largeur"]' : 'input[data-piece-input="largeur"]';
+            const selectorE = ctx.isDefault ? 'input[data-default-piece-input="epaisseur"]' : 'input[data-piece-input="epaisseur"]';
+            [pieceCardEl.querySelector(selectorL), pieceCardEl.querySelector(selectorE)].forEach(inp => {
+                if (!inp) return;
+                inp.disabled = mmDisable;
+                inp.closest('.lot-dimension-field')?.toggleAttribute('data-mm-disabled', mmDisable);
+            });
         }
     }
 
@@ -3198,8 +3799,17 @@ class ValoboisApp {
 
         setVal('[data-display="volumePiece"]', formatGrouped(lot.allotissement.volumePiece, 3));
         setVal('[data-display="volumeLot"]', formatOneDecimal(lot.allotissement.volumeLot));
-        setVal('[data-display="surfacePiece"]', formatOneDecimal(lot.allotissement.surfacePiece));
-        setVal('[data-display="surfaceLot"]', formatOneDecimal(lot.allotissement.surfaceLot));
+        // Recalcul du muting surface (diamètre actif ou section non-plate)
+        const _lv = parseFloat(lot.allotissement.largeur) || parseFloat(lot.allotissement._avgLargeur) || 0;
+        const _hv = parseFloat(lot.allotissement.epaisseur) || parseFloat(lot.allotissement._avgEpaisseur) || 0;
+        const _diametreActif = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (lot.allotissement._avgDiametre || 0) > 0;
+        const _surfaceMuted = _diametreActif || _hv > 55 || (_lv > 0 && _hv > 0 && _lv / _hv <= 4);
+        setVal('[data-display="surfacePiece"]', _surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfacePiece));
+        setVal('[data-display="surfaceLot"]', _surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfaceLot));
+        const _spMutEl = el('[data-display="surfacePiece"]')?.closest('.lot-dimension-computed');
+        const _slMutEl = el('[data-display="surfaceLot"]')?.closest('.lot-dimension-computed');
+        if (_spMutEl) _spMutEl.dataset.muted = _surfaceMuted ? 'true' : 'false';
+        if (_slMutEl) _slMutEl.dataset.muted = _surfaceMuted ? 'true' : 'false';
         setVal('[data-display="prixLot"]', formatGrouped(Math.round(lot.allotissement.prixLot), 0));
         const isIgnored = !!(((lot.inspection || {}).integrite || {}).ignore);
         setVal('[data-display="prixLotAjusteIntegrite"]', isIgnored ? '' : formatGrouped(Math.round(lot.allotissement.prixLotAjusteIntegrite || 0), 0));
@@ -3744,6 +4354,7 @@ class ValoboisApp {
                 largeur: null,
                 epaisseur: null,
                 diametre: null,
+                perimetre: null,
             })),
         };
     }
@@ -3763,18 +4374,40 @@ class ValoboisApp {
         const longueur = parseFloat(piece.longueur);
         if (!longueur || longueur <= 0) return null;
 
+        // Facteur de forme périmétrique : k_P = clamp(P / P_théo, 0.5, 1.0)
+        // Validé sur cas SketchUp (4000 mm, 5 sections) : erreur volume ≈ +1.6 % vs +19.7 % (L×E brut) et −13.3 % (quadratique)
         const getSectionArea = (s) => {
             if (!s || !s.typeSection) return null;
+            const l = parseFloat(s.largeur);
+            const e = parseFloat(s.epaisseur);
+            const d = parseFloat(s.diametre);
+            const P = parseFloat(s.perimetre ?? null);
+            const hasL = s.largeur !== null && l > 0;
+            const hasE = s.epaisseur !== null && e > 0;
+            const hasD = s.diametre !== null && d > 0;
+            const hasP = (s.perimetre ?? null) !== null && P > 0;
+
             if (s.typeSection === 'rect') {
-                const l = parseFloat(s.largeur);
-                const e = parseFloat(s.epaisseur);
-                if (!l || !e || l <= 0 || e <= 0) return null;
-                return (l * e) / 1e6; // m²
+                if (hasL && hasE) {
+                    const A_LE = (l * e) / 1e6;
+                    if (hasP) {
+                        const P_theo = 2 * (l + e);
+                        let kP = P_theo > 0 ? P / P_theo : 1;
+                        kP = Math.max(0.5, Math.min(1, kP));
+                        console.log('getSectionArea rect L×E', { position: s.position, largeur: s.largeur, epaisseur: s.epaisseur, perimetre: s.perimetre, facteurPerimetre: kP });
+                        return A_LE * kP;
+                    }
+                    console.log('getSectionArea rect L×E', { position: s.position, largeur: s.largeur, epaisseur: s.epaisseur, perimetre: s.perimetre, facteurPerimetre: null });
+                    return A_LE;
+                }
+                if (hasL && hasP) { const eDeduced = P / 2 - l; console.log('getSectionArea rect L+P', { position: s.position }); return eDeduced > 0 ? (l * eDeduced) / 1e6 : null; }
+                if (hasE && hasP) { const lDeduced = P / 2 - e; console.log('getSectionArea rect E+P', { position: s.position }); return lDeduced > 0 ? (lDeduced * e) / 1e6 : null; }
+                return null;
             }
             if (s.typeSection === 'circ') {
-                const d = parseFloat(s.diametre);
-                if (!d || d <= 0) return null;
-                return Math.PI * Math.pow(d / 2000, 2); // m²
+                if (hasD) return Math.PI * Math.pow(d / 2000, 2);
+                if (hasP) return (P * P) / (4 * Math.PI * 1e6);
+                return null;
             }
             return null;
         };
@@ -3802,15 +4435,8 @@ class ValoboisApp {
         const mm = piece && piece.mesuresMultiples;
         if (!mm || !mm.active || !Array.isArray(mm.sections) || !mm.sections.length) return '';
 
-        const posLabels = {
-            extremite1: 'Extr.\u00a01',
-            quart1:     'Quar.\u00a01',
-            milieu:     'Milieu',
-            quart3:     'Quar.\u00a03',
-            extremite2: 'Extr.\u00a02',
-        };
         const rows = mm.sections.map(s => {
-            const lbl = posLabels[s.position] || s.position;
+            const lbl = this._getPositionDisplayLabel(s.position, s.isCustom === true);
             let dimsHtml;
             if (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) {
                 dimsHtml = `<div class="mesures-resume-dim"><span class="mesures-resume-dim-label">L</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.largeur}" readonly><span class="lot-dimension-unit">mm</span></div></div><div class="mesures-resume-dim"><span class="mesures-resume-dim-label">E</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.epaisseur}" readonly><span class="lot-dimension-unit">mm</span></div></div>`;
@@ -3818,6 +4444,9 @@ class ValoboisApp {
                 dimsHtml = `<div class="mesures-resume-dim"><span class="mesures-resume-dim-label">\u2300</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.diametre}" readonly><span class="lot-dimension-unit">mm</span></div></div>`;
             } else {
                 dimsHtml = `<span class="mesures-resume-empty">\u2014</span>`;
+            }
+            if ((s.perimetre ?? null) !== null) {
+                dimsHtml += `<div class="mesures-resume-dim"><span class="mesures-resume-dim-label">P</span><div class="lot-dimension-input-wrap" data-has-value="true"><input type="text" class="lot-input" value="${s.perimetre}" readonly><span class="lot-dimension-unit">mm</span></div></div>`;
             }
             return `<div class="mesures-resume-field-row"><span class="mesures-resume-pos-label">${lbl}</span><div class="mesures-resume-dims-group">${dimsHtml}</div></div>`;
         });
@@ -3949,9 +4578,12 @@ class ValoboisApp {
                 const dMoistureDenominator = 1 + (dSafeMc / 100);
 
                 const defaultSurfPerPiece = (dL * dl) / 1000000;
-                const defaultVolPerPiece = dd > 0
+                let defaultVolPerPiece = dd > 0
                     ? (Math.PI * (dd / 2) * (dd / 2) * dL) / 1000000000
                     : (dL * dl * de) / 1000000000;
+                // Si mesures multiples actives sur la pièce par défaut → volume enrichi prioritaire
+                const _dpVe = parseFloat(defaultPiece.volumePieceEnrichi);
+                if (Number.isFinite(_dpVe) && _dpVe > 0) defaultVolPerPiece = _dpVe;
                 const defaultLinPerPiece = dL / 1000;
                 const defaultPricingBase =
                     dPriceUnit === 'ml' ? defaultLinPerPiece :
@@ -4479,6 +5111,11 @@ class ValoboisApp {
         } else {
             piece.volumePiece = (L * l * e) / 1000000000;
         }
+        // Si mesures multiples actives (≥2 positions) → volume enrichi prioritaire
+        if (piece.volumePieceEnrichi != null) {
+            const ve = parseFloat(piece.volumePieceEnrichi);
+            if (Number.isFinite(ve) && ve > 0) piece.volumePiece = ve;
+        }
 
         const lineairePiece = L / 1000;
         const pricingBase =
@@ -4574,6 +5211,56 @@ class ValoboisApp {
         }
         this.pendingPieceCreationDecision = null;
         this.pendingPieceCreationModalOptions = null;
+    }
+
+    openMesuresResetConfirmModal(onConfirm) {
+        const backdrop = document.getElementById('mesuresResetConfirmBackdrop');
+        if (backdrop) {
+            this._pendingMesuresResetConfirm = onConfirm;
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeMesuresResetConfirmModal() {
+        const backdrop = document.getElementById('mesuresResetConfirmBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+        this._pendingMesuresResetConfirm = null;
+    }
+
+    openLongueurRequiredModal() {
+        const backdrop = document.getElementById('longueurRequiredModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeLongueurRequiredModal() {
+        const backdrop = document.getElementById('longueurRequiredModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openMesuresInfoModal() {
+        const backdrop = document.getElementById('mesuresInfoModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeMesuresInfoModal() {
+        const backdrop = document.getElementById('mesuresInfoModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
     }
 
     getCreatePieceDuplicationMode() {
@@ -5554,6 +6241,41 @@ deleteLot(index) {
                     modeDefaultRadio.addEventListener('change', () => this.updateCreatePieceDeductionModalByMode());
                 }
             }
+        }
+
+        // Modale confirmation réinitialisation mesures multiples
+        const mesuresResetBackdrop = document.getElementById('mesuresResetConfirmBackdrop');
+        if (mesuresResetBackdrop) {
+            document.getElementById('btnCloseMesuresResetConfirm')?.addEventListener('click', () => this.closeMesuresResetConfirmModal());
+            document.getElementById('btnCancelMesuresReset')?.addEventListener('click', () => this.closeMesuresResetConfirmModal());
+            document.getElementById('btnConfirmMesuresReset')?.addEventListener('click', () => {
+                const cb = this._pendingMesuresResetConfirm;
+                this.closeMesuresResetConfirmModal();
+                if (typeof cb === 'function') cb();
+            });
+            mesuresResetBackdrop.addEventListener('click', (e) => {
+                if (e.target === mesuresResetBackdrop) this.closeMesuresResetConfirmModal();
+            });
+        }
+
+        // Modale longueur requise pour positions libres des mesures
+        const longueurRequiredBackdrop = document.getElementById('longueurRequiredModalBackdrop');
+        if (longueurRequiredBackdrop) {
+            document.getElementById('btnCloseLongueurRequiredModal')?.addEventListener('click', () => this.closeLongueurRequiredModal());
+            document.getElementById('btnOkLongueurRequired')?.addEventListener('click', () => this.closeLongueurRequiredModal());
+            longueurRequiredBackdrop.addEventListener('click', (e) => {
+                if (e.target === longueurRequiredBackdrop) this.closeLongueurRequiredModal();
+            });
+        }
+
+        // Modale aide mesures multiples
+        const mesuresInfoBackdrop = document.getElementById('mesuresInfoModalBackdrop');
+        if (mesuresInfoBackdrop) {
+            document.getElementById('btnCloseMesuresInfoModal')?.addEventListener('click', () => this.closeMesuresInfoModal());
+            document.getElementById('btnOkMesuresInfoModal')?.addEventListener('click', () => this.closeMesuresInfoModal());
+            mesuresInfoBackdrop.addEventListener('click', (e) => {
+                if (e.target === mesuresInfoBackdrop) this.closeMesuresInfoModal();
+            });
         }
 
         // Modale allotissement
@@ -8323,9 +9045,16 @@ closeEvalOpModal() {
         const _mmDp = defaultPiece.mesuresMultiples;
         const hasMmDp = !!(_mmDp && _mmDp.active);
         const nMmDp = hasMmDp && Array.isArray(_mmDp.sections) ? _mmDp.sections.length : 0;
+        const _accKeyDp = `default:${defaultPieceId}`;
+        const _accOpenDp = this._accordionOpenStates.has(_accKeyDp) ? this._accordionOpenStates.get(_accKeyDp) : hasMmDp;
         const mesuresTitleDp = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
-        const mesuresBadgeDp = hasMmDp ? `<span class="mesures-accordion-badge">${nMmDp}</span>` : '';
-        const mesuresResetBtnDp = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+        const mesuresBadgeDp = `<span class="mesures-accordion-badge${hasMmDp && (_mmDp.sections || []).some(s => (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) || (s.typeSection === 'circ' && s.diametre == null) || (!s.typeSection)) ? ' mesures-accordion-badge--incomplete' : ''}">${nMmDp}</span>`;
+        const mmDpDisable = hasMmDp ? (_mmDp.sections || []).filter(s =>
+            (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
+            (s.typeSection === 'circ' && s.diametre != null)
+        ).length >= 2 : false;
+        const mesuresResetBtnDp = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+        const mesuresInfoBtnDp = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
 
         const resetIconMarkup = `
             <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -8334,6 +9063,9 @@ closeEvalOpModal() {
             </svg>
             <span class="sr-only">Réinitialiser</span>
         `;
+
+        const _locSitKeyDp = `loc-sit:${lot.id}:default:${defaultPieceId}`;
+        const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : !!(defaultPiece.localisation || defaultPiece.situation);
 
         return `
         <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
@@ -8349,9 +9081,10 @@ closeEvalOpModal() {
                 </div>
             </div>
             <div class="piece-form-grid">
-                <div class="lot-group" style="margin-bottom: 6px;">
-                    <div class="lot-inline-grid lot-inline-grid--2">
-                        <div class="lot-field-block">
+                <details class="lot-group lot-group--collapsible" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyDp}" ${_locSitOpenDp ? 'open' : ''}>
+                    <summary class="lot-group-summary"><span>Localisation - Situation</span></summary>
+                    <div class="lot-group-content">
+                        <div class="lot-field-block" style="margin-bottom: 4px;">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${viewValue(defaultPiece.localisation || '')}" placeholder="Bâtiment, zone, espace…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="localisation">
                         </div>
@@ -8360,16 +9093,18 @@ closeEvalOpModal() {
                             <input type="text" class="lot-input" value="${viewValue(defaultPiece.situation || '')}" placeholder="Situation du lot" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                     </div>
-                    <div class="lot-field-block" style="margin-top: 6px;">
-                        <label class="lot-field-label lot-field-label--hidden">Quantité pièce par défaut</label>
-                        <input type="text" inputmode="numeric" class="lot-input" value="${this.formatAllotissementNumericDisplay(defaultPiece.quantite)}" placeholder="Quantité pièce par défaut" data-default-piece-id="${defaultPieceId}" data-default-piece-input="quantite">
-                    </div>
-                </div>
+                </details>
                 <div class="lot-group" style="margin-bottom: 4px;">
                     <p class="lot-group-title">Type de pièce, essence</p>
-                    <div class="lot-field-block">
-                        <div class="lot-essence-picker">
-                            <input type="text" class="lot-input" value="${viewValue(pEffTypePiece)}" placeholder="Type de pièce" data-default-piece-id="${defaultPieceId}" data-default-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
+                    <div style="display: flex; gap: 6px; margin-bottom: 6px;">
+                        <div class="lot-field-block" style="flex: 2; min-width: 0;">
+                            <label class="lot-field-label lot-field-label--hidden">Quantité</label>
+                            <input type="text" inputmode="numeric" class="lot-input" value="${this.formatAllotissementNumericDisplay(defaultPiece.quantite)}" placeholder="Qté" data-default-piece-id="${defaultPieceId}" data-default-piece-input="quantite">
+                        </div>
+                        <div class="lot-field-block" style="flex: 7; min-width: 0;">
+                            <div class="lot-essence-picker">
+                                <input type="text" class="lot-input" value="${viewValue(pEffTypePiece)}" placeholder="Type de pièce" data-default-piece-id="${defaultPieceId}" data-default-piece-input="typePiece" list="liste-termes-bois" autocomplete="off">
+                            </div>
                         </div>
                     </div>
                     <div class="lot-field-block">
@@ -8397,10 +9132,10 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
+                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmDpDisable ? ' data-mm-disabled="true"' : ''}>
                             <label class="lot-field-label">Largeur</label>
                             <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.largeur !== '' && defaultPiece.largeur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.largeur))}" placeholder="Face, Plat…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.largeur))}" placeholder="Face, Plat…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${isSurfaceMuted ? ' data-muted="true"' : ''}>
@@ -8411,10 +9146,10 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
+                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmDpDisable ? ' data-mm-disabled="true"' : ''}>
                             <label class="lot-field-label">Épaisseur</label>
                             <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.epaisseur !== '' && defaultPiece.epaisseur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
@@ -8426,8 +9161,8 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <details class="mesures-accordion"${hasMmDp ? ' open' : ''}>
-                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresBadgeDp}${mesuresResetBtnDp}</summary>
+                    <details class="mesures-accordion"${_accOpenDp ? ' open' : ''}>
+                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresInfoBtnDp}${mesuresResetBtnDp}${mesuresBadgeDp}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
                         <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
                             ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
                         </div>
@@ -8606,9 +9341,19 @@ closeEvalOpModal() {
         const _mmP = piece.mesuresMultiples;
         const hasMmP = !!(_mmP && _mmP.active);
         const nMmP = hasMmP && Array.isArray(_mmP.sections) ? _mmP.sections.length : 0;
+        const _accKeyP = `piece:${pieceIndex}`;
+        const _accOpenP = this._accordionOpenStates.has(_accKeyP) ? this._accordionOpenStates.get(_accKeyP) : hasMmP;
         const mesuresTitleP = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
-        const mesuresBadgeP = hasMmP ? `<span class="mesures-accordion-badge">${nMmP}</span>` : '';
-        const mesuresResetBtnP = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+        const mesuresBadgeP = `<span class="mesures-accordion-badge${hasMmP && (_mmP.sections || []).some(s => (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) || (s.typeSection === 'circ' && s.diametre == null) || (!s.typeSection)) ? ' mesures-accordion-badge--incomplete' : ''}">${nMmP}</span>`;
+        const mmPDisable = hasMmP ? (_mmP.sections || []).filter(s =>
+            (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
+            (s.typeSection === 'circ' && s.diametre != null)
+        ).length >= 2 : false;
+        const mesuresResetBtnP = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
+        const mesuresInfoBtnP = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
+
+        const _locSitKeyP = `loc-sit:${lot.id}:piece:${pieceIndex}`;
+        const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation);
 
         return `
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
@@ -8620,9 +9365,10 @@ closeEvalOpModal() {
                 </div>
             </div>
             <div class="piece-form-grid">
-                <div class="lot-group" style="margin-bottom: 6px;">
-                    <div class="lot-inline-grid lot-inline-grid--2">
-                        <div class="lot-field-block">
+                <details class="lot-group lot-group--collapsible" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyP}" ${_locSitOpenP ? 'open' : ''}>
+                    <summary class="lot-group-summary"><span>Localisation - Situation</span></summary>
+                    <div class="lot-group-content">
+                        <div class="lot-field-block" style="margin-bottom: 4px;">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${piece.localisation || ''}" placeholder="Bâtiment, zone, espace…" data-piece-input="localisation">
                         </div>
@@ -8631,7 +9377,7 @@ closeEvalOpModal() {
                             <input type="text" class="lot-input" value="${piece.situation || ''}" placeholder="Situation du lot" data-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                     </div>
-                </div>
+                </details>
                 <div class="lot-group" style="margin-bottom: 4px;">
                     <p class="lot-group-title">Type de pièce, essence</p>
                     <div class="lot-field-block">
@@ -8664,10 +9410,10 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
+                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmPDisable ? ' data-mm-disabled="true"' : ''}>
                             <label class="lot-field-label">Largeur</label>
                             <div class="lot-dimension-input-wrap" data-has-value="${piece.largeur !== '' && piece.largeur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.largeur)}" placeholder="Face, Plat…" data-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.largeur)}" placeholder="Face, Plat…" data-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${isSurfaceMuted ? ' data-muted="true"' : ''}>
@@ -8678,10 +9424,10 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}>
+                        <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmPDisable ? ' data-mm-disabled="true"' : ''}>
                             <label class="lot-field-label">Épaisseur</label>
                             <div class="lot-dimension-input-wrap" data-has-value="${piece.epaisseur !== '' && piece.epaisseur != null ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.epaisseur)}" placeholder="Chant, Rive…" data-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.epaisseur)}" placeholder="Chant, Rive…" data-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
@@ -8693,8 +9439,8 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <details class="mesures-accordion"${hasMmP ? ' open' : ''}>
-                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresBadgeP}${mesuresResetBtnP}</summary>
+                    <details class="mesures-accordion"${_accOpenP ? ' open' : ''}>
+                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresInfoBtnP}${mesuresResetBtnP}${mesuresBadgeP}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
                         <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
                             ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
                         </div>
@@ -10369,6 +11115,15 @@ closeEvalOpModal() {
         }).join('')
             + lot.pieces.map((p, pi) => this.renderPieceCardHTML(p, pi, lot, activeCardKey === `piece:${pi}`)).join('');
         this.applyDetailLotCardActivation(pieceRail, lot);
+
+        // Mémoriser l'état ouvert/fermé des accordéons Localisation-Situation
+        pieceRail.querySelectorAll('details[data-acc-loc-sit]').forEach((detailsEl) => {
+            const key = detailsEl.dataset.accLocSit;
+            if (!key) return;
+            detailsEl.addEventListener('toggle', () => {
+                this._accordionOpenStates.set(key, detailsEl.open);
+            });
+        });
 
         pieceRail.querySelectorAll('.piece-card[data-detail-card-key]').forEach((card) => {
             card.addEventListener('click', (e) => {

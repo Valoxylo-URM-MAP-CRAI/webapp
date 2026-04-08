@@ -933,6 +933,54 @@
                 </div>
             </div>
 
+            <!-- Modale longueur requise pour positions libres des mesures -->
+            <div class="modal-backdrop hidden" id="longueurRequiredModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="longueurRequiredModalTitle">
+                    <header class="modal-header">
+                        <h2 id="longueurRequiredModalTitle">Longueur requise</h2>
+                        <button class="modal-close" type="button" id="btnCloseLongueurRequiredModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p>Veuillez d'abord renseigner la longueur de la pièce pour pouvoir positionner librement les sections de mesure.</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkLongueurRequired">OK</button>
+                    </footer>
+                </div>
+            </div>
+
+            <!-- Modale aide mesures multiples -->
+            <div class="modal-backdrop hidden" id="mesuresInfoModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mesuresInfoModalTitle">
+                    <header class="modal-header">
+                        <h2 id="mesuresInfoModalTitle">Mesures multiples</h2>
+                        <button class="modal-close" type="button" id="btnCloseMesuresInfoModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p>Les <strong>mesures multiples</strong> permettent de mesurer les sections transversales de la pièce en plusieurs points de sa longueur, pour un calcul de volume plus précis.</p>
+
+                        <p><strong>Activation des points de mesure</strong><br>
+                        Cliquez sur les flèches (▼) au-dessus de la barre pour activer ou désactiver chaque point. Les deux extrémités sont toujours actives. Les points intermédiaires (quart 1, milieu, quart 3) sont optionnels. Chaque point est accompagné d'une aide à la mesure en indiquant la distance à laquelle mesurer.</p>
+
+                        <p><strong>Positionnement libre</strong><br>
+                        Par défaut les points intermédiaires sont positionnés à 25 %, 50 % et 75 % de la longueur. Vous pouvez les déplacer librement en saisissant une distance en mm depuis l'extrémité 1 (la longueur de la pièce doit être renseignée).</p>
+
+                        <p><strong>Type de section</strong><br>
+                        Chaque point peut être mesuré en section rectangulaire (largeur × épaisseur) ou circulaire (diamètre ø). Utilisez le bouton <strong>ø</strong> pour basculer.</p>
+
+                        <p><strong>Calcul du volume</strong><br>
+                        Le volume est calculé par intégration trapézoïdale entre chaque paire de sections consécutives actives :</p>
+                        <p style="text-align:center; font-family:serif; margin: 6px 0;">
+                            V = &sum;<sub>i</sub> (S<sub>i</sub> + S<sub>i+1</sub>) / 2 &times; (x<sub>i+1</sub> &minus; x<sub>i</sub>)
+                        </p>
+                        <p>où S<sub>i</sub> est l'aire de la section au point <em>i</em> (en mm²) et x<sub>i</sub> sa distance depuis l'extrémité 1 (en mm). Le résultat est converti en dm³ (litres).</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkMesuresInfoModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale alerte contacts de l'opération -->
             <div class="modal-backdrop hidden" id="alertContactsModalBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertContactsModalTitle">
@@ -1095,6 +1143,23 @@
                     </footer>
                 </div>
             </div>
+
+                <!-- Modale confirmation réinitialisation mesures multiples -->
+                <div class="modal-backdrop hidden" id="mesuresResetConfirmBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mesuresResetConfirmTitle">
+                        <header class="modal-header">
+                            <h2 id="mesuresResetConfirmTitle" class="text-center">Réinitialiser les mesures</h2>
+                            <button class="modal-close" type="button" id="btnCloseMesuresResetConfirm">&times;</button>
+                        </header>
+                        <div class="modal-body">
+                            <p style="text-align:center;">Toutes les mesures multiples saisies seront supprimées.<br>Confirmer la réinitialisation&nbsp;?</p>
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-secondary" type="button" id="btnCancelMesuresReset">Annuler</button>
+                            <button class="btn btn-primary" type="button" id="btnConfirmMesuresReset">Réinitialiser</button>
+                        </footer>
+                    </div>
+                </div>
 
                 <!-- Modale alerte prix de marché manquant sur les pièces -->
                 <div class="modal-backdrop hidden" id="prixPieceMissingBackdrop" aria-hidden="true">
