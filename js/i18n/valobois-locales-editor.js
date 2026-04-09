@@ -111,6 +111,7 @@
                 etiqueterLotsHeading: 'Lots à étiqueter',
                 etiqueterHint: "Sélectionner un ou plusieurs lots puis lancer l'export.",
                 exportIntro: 'Choisissez le contenu et le format à exporter.',
+                exportGlb: '3D GLB',
                 footerReset: 'Réinitialiser',
                 footerImport: 'Importer',
                 footerTag: 'Étiqueter',
@@ -292,6 +293,7 @@
                 selectLotExport: 'Sélectionne au moins un lot à exporter.',
                 selectLotTags: 'Sélectionne au moins un lot pour exporter les étiquettes.',
                 pdfError: 'Une erreur est survenue pendant la génération du PDF.',
+                glbError: 'Erreur lors de la génération du fichier 3D.',
             },
             mesures: {
                 multiples: {
@@ -427,6 +429,7 @@
                 etiqueterLotsHeading: 'Lots to label',
                 etiqueterHint: 'Choose one or more lots then run export.',
                 exportIntro: 'Choose content and export format.',
+                exportGlb: '3D GLB',
                 footerReset: 'Reset',
                 footerImport: 'Import',
                 footerTag: 'Labels',
@@ -600,6 +603,7 @@
                 selectLotExport: 'Select at least one lot to export.',
                 selectLotTags: 'Select at least one lot to export labels.',
                 pdfError: 'An error occurred while generating the PDF.',
+                glbError: 'Error generating 3D file.',
             },
             mesures: {
                 multiples: {

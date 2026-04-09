@@ -950,36 +950,84 @@
             </div>
 
             <!-- Modale aide mesures multiples -->
-            <div class="modal-backdrop hidden" id="mesuresInfoModalBackdrop" aria-hidden="true">
-                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mesuresInfoModalTitle">
-                    <header class="modal-header">
-                        <h2 id="mesuresInfoModalTitle">Mesures multiples</h2>
-                        <button class="modal-close" type="button" id="btnCloseMesuresInfoModal">&times;</button>
-                    </header>
-                    <div class="modal-body">
-                        <p>Les <strong>mesures multiples</strong> permettent de mesurer les sections transversales de la pièce en plusieurs points de sa longueur, pour un calcul de volume plus précis.</p>
+<div class="modal-backdrop hidden" id="mesuresInfoModalBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mesuresInfoModalTitle" style="max-width:640px;">
+        <header class="modal-header">
+            <h2 id="mesuresInfoModalTitle">Mesures multiples — Méthode et fondements</h2>
+            <button class="modal-close" type="button" id="btnCloseMesuresInfoModal">&times;</button>
+        </header>
+        <div class="modal-body" style="font-size:0.88rem; line-height:1.55;">
 
-                        <p><strong>Activation des points de mesure</strong><br>
-                        Cliquez sur les flèches (▼) au-dessus de la barre pour activer ou désactiver chaque point. Les deux extrémités sont toujours actives. Les points intermédiaires (quart 1, milieu, quart 3) sont optionnels. Chaque point est accompagné d'une aide à la mesure en indiquant la distance à laquelle mesurer.</p>
+            <!-- 1. Principe -->
+            <h3 style="margin-top:0; margin-bottom:4px; font-size:0.95rem;">Principe général</h3>
+            <p>Les <strong>mesures multiples</strong> permettent de relever les sections transversales de la pièce en plusieurs points le long de sa longueur, afin d'obtenir un calcul de volume plus précis qu'avec une section unique. Cette approche est directement inspirée des méthodes de cubature des billons de bois utilisées en mensuration forestière.</p>
 
-                        <p><strong>Positionnement libre</strong><br>
-                        Par défaut les points intermédiaires sont positionnés à 25 %, 50 % et 75 % de la longueur. Vous pouvez les déplacer librement en saisissant une distance en mm depuis l'extrémité 1 (la longueur de la pièce doit être renseignée).</p>
+            <!-- 2. Activation -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Activation des points de mesure</h3>
+            <p>Cliquez sur les flèches (▼) au-dessus de la barre pour activer ou désactiver chaque point de mesure. Les deux extrémités sont toujours actives. Les points intermédiaires (quart 1, milieu, quart 3) sont optionnels. Chaque point actif indique la distance à laquelle mesurer depuis l'extrémité 1.</p>
 
-                        <p><strong>Type de section</strong><br>
-                        Chaque point peut être mesuré en section rectangulaire (largeur × épaisseur) ou circulaire (diamètre ø). Utilisez le bouton <strong>ø</strong> pour basculer.</p>
+            <!-- 3. Positionnement -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Positionnement libre</h3>
+            <p>Par défaut, les points intermédiaires sont positionnés à 25 %, 50 % et 75 % de la longueur totale. Vous pouvez les déplacer librement en saisissant une distance en mm (la longueur de la pièce doit être renseignée au préalable).</p>
 
-                        <p><strong>Calcul du volume</strong><br>
-                        Le volume est calculé par intégration trapézoïdale entre chaque paire de sections consécutives actives :</p>
-                        <p style="text-align:center; font-family:serif; margin: 6px 0;">
-                            V = &sum;<sub>i</sub> (S<sub>i</sub> + S<sub>i+1</sub>) / 2 &times; (x<sub>i+1</sub> &minus; x<sub>i</sub>)
-                        </p>
-                        <p>où S<sub>i</sub> est l'aire de la section au point <em>i</em> (en mm²) et x<sub>i</sub> sa distance depuis l'extrémité 1 (en mm). Le résultat est converti en dm³ (litres).</p>
-                    </div>
-                    <footer class="modal-footer">
-                        <button class="btn btn-primary" type="button" id="btnOkMesuresInfoModal">OK</button>
-                    </footer>
-                </div>
+            <!-- 4. Type de section -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Type de section</h3>
+            <p>Chaque point peut être mesuré en section rectangulaire (largeur <em>L</em> × épaisseur <em>E</em>) ou circulaire (diamètre <em>ø</em>). Utilisez le bouton <strong>ø</strong> pour basculer entre les deux modes.</p>
+
+            <!-- 5. Périmètre -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Mesure du périmètre (optionnelle)</h3>
+            <p>Pour les sections rectangulaires, il est possible de relever le <strong>périmètre réel</strong> <em>P</em> à l'aide d'un mètre ruban enroulé autour de la pièce. Ce relevé est optionnel et complémentaire à <em>L</em> et <em>E</em> : il capture les arrondis, chanfreins et irrégularités de surface qui réduisent la section effective par rapport à un rectangle théorique plein. Lorsqu'il est renseigné, un <strong>facteur de forme périmétrique</strong> <em>k<sub>P</sub></em> est appliqué :</p>
+            <p style="text-align:center; font-family:serif; margin:6px 0;">
+                <em>k<sub>P</sub></em> = <em>P</em> / <em>P</em><sub>théo</sub> &nbsp;&nbsp; avec &nbsp;&nbsp; <em>P</em><sub>théo</sub> = 2(<em>L</em> + <em>E</em>)
+            </p>
+            <p>Ce facteur linéaire est cohérent avec la géométrie du <strong>rectangle à coins arrondis</strong> (Lemonis, 2020), où la perte d'aire est due aux quatre angles, pas à une réduction homothétique de l'ensemble de la section. Sur des cas de validation (modèles SketchUp), il réduit l'erreur de volume de ±15 % à moins de 2 % par rapport à la surface L×E brute.</p>
+
+            <!-- 6. Calcul du volume -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Calcul du volume — Formule des trapèzes</h3>
+            <p>Le volume est calculé par <strong>intégration trapézoïdale</strong> (règle des trapèzes) entre chaque paire de sections consécutives actives :</p>
+            <p style="text-align:center; font-family:serif; margin:6px 0;">
+                V = &sum;<sub>i</sub> (S<sub>i</sub> + S<sub>i+1</sub>) / 2 &times; (x<sub>i+1</sub> &minus; x<sub>i</sub>)
+            </p>
+            <p>où <em>S<sub>i</sub></em> est la surface de la section au point <em>i</em> (en m²) et <em>x<sub>i</sub></em> sa position en mm depuis l'extrémité 1. Il s'agit de l'équivalent discret de la <strong>formule de Smalian généralisée</strong> : chaque tronçon est assimilé à un prisme tronqué entre deux sections consécutives (Briggs, 1994 ; Ângelo et al., 2000).</p>
+            <p>Lorsque les cinq points sont actifs (deux extrémités + trois intermédiaires), la prise en compte du point médian correspond à la <strong>formule de Newton–Simpson</strong> :</p>
+            <p style="text-align:center; font-family:serif; margin:6px 0;">
+                V = L &times; (S<sub>1</sub> + 4 S<sub>m</sub> + S<sub>2</sub>) / 6
+            </p>
+            <p>reconnue comme la plus précise des formules classiques de cubature (Ângelo et al., 2000 ; Mohd-Jamil et al., 2019). Dans VALOBOIS, les cinq points sont traités par intégration continue, ce qui généralise cette règle à des positions libres.</p>
+
+            <!-- 7. Biais de forme et non-circularité -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Biais de forme et sections non idéales</h3>
+            <p>L'hypothèse d'une section géométriquement parfaite (rectangle plein ou cercle parfait) surestime systématiquement l'aire et donc le volume réel. Ce biais est documenté tant pour les sections circulaires (Pulkkinen, 2012 ; Nogueira et al., 2006) que pour les sections rectangulaires à arêtes émoussées. Pour les arbres tropicaux à grandes sections, la surestimation du volume peut atteindre 11 % en moyenne et jusqu'à 30 % pour les grandes tiges (Nogueira et al., 2006). La mesure du périmètre permet de corriger ce biais en capturant la forme effective de la section, sans recourir à un modèle géométrique complexe.</p>
+
+            <!-- 8. Bibliographie -->
+            <h3 style="margin-bottom:4px; font-size:0.95rem;">Références bibliographiques</h3>
+            <div style="font-size:0.82rem; line-height:1.6; color: var(--color-text-secondary, #555);">
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Ângelo, H., Hosokawa, R. T., &amp; Nogueira, J. C. B. (2000). Testing accuracy of log volume calculation procedures against water displacement techniques (xylometer). <em>Canadian Journal of Forest Research</em>, <em>30</em>(6), 990–997. <a href="https://doi.org/10.1139/x00-006" target="_blank" rel="noopener">https://doi.org/10.1139/x00-006</a>
+                </p>
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Briggs, D. G. (1994). <em>Forest products measurements and conversion factors with special emphasis on the U.S. Pacific Northwest</em>. University of Washington. <a href="https://www.ruraltech.org/projects/conversions/briggs_conversions/" target="_blank" rel="noopener">https://www.ruraltech.org/projects/conversions/</a>
+                </p>
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Lemonis, M. E. (2020). <em>Properties of rounded rectangle cross-section</em>. CalcResource. <a href="https://calcresource.com/cross-section-rectround.html" target="_blank" rel="noopener">https://calcresource.com/cross-section-rectround.html</a>
+                </p>
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Mohd-Jamil, A. W., Faridah, A. A., Nor-Marzuina, F. K. N., &amp; Zafirah, Z. F. (2019). Accuracy of volumetric computation of small diameter logs based on mathematical formulae. <em>Journal of Tropical Forest Science</em>, <em>31</em>(1), 125–133. <a href="https://doi.org/10.26525/jtfs2019.31.1.125133" target="_blank" rel="noopener">https://doi.org/10.26525/jtfs2019.31.1.125133</a>
+                </p>
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Nogueira, E. M., Nelson, B. W., &amp; Fearnside, P. M. (2006). Volume and biomass of trees in central Amazonia: Influence of irregularly shaped and hollow trunks. <em>Forest Ecology and Management</em>, <em>227</em>(1–2), 14–21. <a href="https://doi.org/10.1016/j.foreco.2006.02.004" target="_blank" rel="noopener">https://doi.org/10.1016/j.foreco.2006.02.004</a>
+                </p>
+                <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
+                    Pulkkinen, M. (2012). On non-circularity of tree stem cross-sections: Effect of diameter selection on cross-section area estimation, Bitterlich sampling and stem volume estimation in Scots pine. <em>Silva Fennica</em>, <em>46</em>(5B), article 924. <a href="https://doi.org/10.14214/sf.924" target="_blank" rel="noopener">https://doi.org/10.14214/sf.924</a>
+                </p>
             </div>
+
+        </div>
+        <footer class="modal-footer">
+            <button class="btn btn-primary" type="button" id="btnOkMesuresInfoModal">OK</button>
+        </footer>
+    </div>
+</div>
 
             <!-- Modale alerte contacts de l'opération -->
             <div class="modal-backdrop hidden" id="alertContactsModalBackdrop" aria-hidden="true">
@@ -3817,6 +3865,7 @@
                                 <option value="pdf">PDF</option>
                                 <option value="csv">CSV</option>
                                 <option value="json">JSON</option>
+                                <option value="glb">3D GLB</option>
                             </select>
                         </label>
                         <div id="exportModalDetailSection">
@@ -3886,6 +3935,7 @@
     <script defer src="js/lib/valobois-firestore-sync.js"></script>
     <script defer src="js/app/auth-header.js"></script>
     <script defer src="js/app/valobois-app.js"></script>
+    <script defer src="js/lib/build-glb.js"></script>
     <script defer src="js/ui/version-input-width.js"></script>
 </body>
 

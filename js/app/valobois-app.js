@@ -3521,6 +3521,7 @@ class ValoboisApp {
         if (!hasAnyDim) {
             delete piece.mesuresMultiples;
             delete piece.volumePieceEnrichi;
+            delete piece.surfacePieceEnrichi;
         } else {
             piece.mesuresMultiples = { active: true, niveaux, sections, longueur: piece.longueur != null ? piece.longueur : null };
             const volumeEnrichi = this.computeVolumeEnrichi(piece);
@@ -3528,6 +3529,12 @@ class ValoboisApp {
                 piece.volumePieceEnrichi = volumeEnrichi;
             } else {
                 delete piece.volumePieceEnrichi;
+            }
+            const surfaceEnrichi = this.computeSurfaceEnrichi(piece);
+            if (surfaceEnrichi !== null) {
+                piece.surfacePieceEnrichi = surfaceEnrichi;
+            } else {
+                delete piece.surfacePieceEnrichi;
             }
         }
 
@@ -3587,8 +3594,9 @@ class ValoboisApp {
                 const _qVP = _pr.querySelector(`[data-default-piece-id="${context.defaultPieceId}"][data-default-piece-display="volumePiece"]`);
                 if (_qVP) _qVP.value = _fmt3(_preview.volumePiece);
                 // Mise à jour Surface unitaire (valeur + muting)
-                const _dpL = parseFloat(_preview.largeur) || 0;
-                const _dpH = parseFloat(_preview.epaisseur) || 0;
+                const _effDpDims = this._getPieceEffectiveLHDims(_preview);
+                const _dpL = _effDpDims.largeur;
+                const _dpH = _effDpDims.epaisseur;
                 const _dpSurfMuted = (_preview.diametre !== '' && _preview.diametre != null) ||
                     _dpH > 55 || (_dpL > 0 && _dpH > 0 && _dpL / _dpH <= 4);
                 const _qSPdp = _pr.querySelector(`[data-default-piece-id="${context.defaultPieceId}"][data-default-piece-display="surfacePiece"]`);
@@ -3603,8 +3611,9 @@ class ValoboisApp {
                     const _qVP = _pc.querySelector('[data-piece-display="volumePiece"]');
                     if (_qVP) _qVP.value = _fmt3(piece.volumePiece);
                     // Mise à jour Surface unitaire (valeur + muting)
-                    const _pL = parseFloat(piece.largeur) || 0;
-                    const _pH = parseFloat(piece.epaisseur) || 0;
+                    const _effPDims = this._getPieceEffectiveLHDims(piece);
+                    const _pL = _effPDims.largeur;
+                    const _pH = _effPDims.epaisseur;
                     const _pSurfMuted = (piece.diametre !== '' && piece.diametre != null) ||
                         _pH > 55 || (_pL > 0 && _pH > 0 && _pL / _pH <= 4);
                     const _qSPp = _pc.querySelector('[data-piece-display="surfacePiece"]');
@@ -4427,6 +4436,47 @@ class ValoboisApp {
     }
 
     /**
+     * Calcule la surface (m²) enrichie depuis les sections rect des mesures multiples.
+     * Retourne null si non applicable (sections circ, incomplètes, ou < 2 sections).
+     */
+    computeSurfaceEnrichi(piece) {
+        const mm = piece && piece.mesuresMultiples;
+        if (!mm || !mm.active || !Array.isArray(mm.sections) || mm.sections.length < 2) return null;
+        const L = parseFloat(piece.longueur);
+        if (!L || L <= 0) return null;
+        // Uniquement pour sections 100 % rectangulaires
+        const allRect = mm.sections.every(s => s.typeSection === 'rect');
+        if (!allRect) return null;
+        const withL = mm.sections.filter(s => s.largeur != null);
+        if (!withL.length) return null;
+        const avgLargeur = withL.reduce((sum, s) => sum + parseFloat(s.largeur), 0) / withL.length;
+        return (L * avgLargeur) / 1e6; // m²
+    }
+
+    /**
+     * Retourne les dimensions effectives { largeur, epaisseur } d'une pièce pour le calcul
+     * de l'indicateur isSurfaceMuted. En cas de mesures multiples rect avec champs directs vides,
+     * utilise la moyenne des sections.
+     */
+    _getPieceEffectiveLHDims(piece) {
+        const l = parseFloat(piece.largeur) || 0;
+        const e = parseFloat(piece.epaisseur) || 0;
+        if (l > 0 || e > 0) return { largeur: l, epaisseur: e };
+        const mm = piece && piece.mesuresMultiples;
+        if (mm && mm.active && Array.isArray(mm.sections)) {
+            const rectSects = mm.sections.filter(s => s.typeSection === 'rect');
+            if (rectSects.length > 0) {
+                const withL = rectSects.filter(s => s.largeur != null);
+                const withE = rectSects.filter(s => s.epaisseur != null);
+                const avgL = withL.length ? withL.reduce((a, s) => a + parseFloat(s.largeur), 0) / withL.length : 0;
+                const avgE = withE.length ? withE.reduce((a, s) => a + parseFloat(s.epaisseur), 0) / withE.length : 0;
+                return { largeur: avgL, epaisseur: avgE };
+            }
+        }
+        return { largeur: 0, epaisseur: 0 };
+    }
+
+    /**
      * Génère le HTML du résumé compact des mesures multiples d'une pièce (lecture seule).
      * @param {object} piece - objet pièce ou pièce par défaut
      * @returns {string} HTML
@@ -5115,6 +5165,11 @@ class ValoboisApp {
         if (piece.volumePieceEnrichi != null) {
             const ve = parseFloat(piece.volumePieceEnrichi);
             if (Number.isFinite(ve) && ve > 0) piece.volumePiece = ve;
+        }
+        // Si mesures multiples actives avec sections rect → surface enrichie prioritaire
+        if (piece.surfacePieceEnrichi != null) {
+            const se = parseFloat(piece.surfacePieceEnrichi);
+            if (Number.isFinite(se) && se > 0) piece.surfacePiece = se;
         }
 
         const lineairePiece = L / 1000;
@@ -6903,23 +6958,29 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             };
 
             const updateExportModalFormatState = () => {
-                const isJson = exportFileFormatSelect.value === 'json';
+                const fmt = exportFileFormatSelect.value;
+                const isJson = fmt === 'json';
+                const isGlb  = fmt === 'glb';
+                const isJsonOrGlb = isJson || isGlb;
                 if (exportModalLotsSection) {
                     exportModalLotsSection.classList.toggle('hidden', isJson);
                     exportModalLotsSection.toggleAttribute('hidden', isJson);
                 }
                 if (exportModalDetailSection) {
-                    exportModalDetailSection.classList.toggle('hidden', isJson);
-                    exportModalDetailSection.toggleAttribute('hidden', isJson);
+                    exportModalDetailSection.classList.toggle('hidden', isJsonOrGlb);
+                    exportModalDetailSection.toggleAttribute('hidden', isJsonOrGlb);
                 }
                 if (exportModalIntro) {
                     exportModalIntro.textContent = isJson
                         ? 'Export JSON : données d’évaluation (même structure que l’enregistrement nuage).'
-                        : 'Choisissez le contenu et le format à exporter.';
+                        : isGlb
+                            ? 'Export 3D — Génère un fichier .glb par lot sélectionné (un fichier par lot).'
+                            : 'Choisissez le contenu et le format à exporter.';
                 }
                 if (isJson) {
                     exportPdfLotsList.style.opacity = '1';
                 } else {
+                    if (isGlb) exportContentModeSelect.value = 'lots-selectionnes';
                     updateExportLotsState();
                 }
             };
@@ -6935,6 +6996,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
             btnRunExport.addEventListener('click', () => {
                 const formatVal = exportFileFormatSelect.value;
+                if (formatVal === 'glb') {
+                    const selectedLotIndices = this.getSelectedExportPdfLotIndices();
+                    closeExportPdf();
+                    this.exportToGLB(selectedLotIndices);
+                    return;
+                }
                 if (formatVal === 'json') {
                     closeExportPdf();
                     this.exportEvaluationJson();
@@ -9034,8 +9101,9 @@ closeEvalOpModal() {
 
         const hasDiametre = dpPreview.diametre !== '' && dpPreview.diametre != null;
         const hasLH = (dpPreview.largeur !== '' && dpPreview.largeur != null) || (dpPreview.epaisseur !== '' && dpPreview.epaisseur != null);
-        const _lDim = parseFloat(dpPreview.largeur) || 0;
-        const _hDim = parseFloat(dpPreview.epaisseur) || 0;
+        const _effDimsDp = this._getPieceEffectiveLHDims(dpPreview);
+        const _lDim = _effDimsDp.largeur;
+        const _hDim = _effDimsDp.epaisseur;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
 
@@ -9333,8 +9401,9 @@ closeEvalOpModal() {
 
         const hasDiametre = piece.diametre !== '' && piece.diametre != null;
         const hasLH = (piece.largeur !== '' && piece.largeur != null) || (piece.epaisseur !== '' && piece.epaisseur != null);
-        const _lDim = parseFloat(piece.largeur) || 0;
-        const _hDim = parseFloat(piece.epaisseur) || 0;
+        const _effDimsP = this._getPieceEffectiveLHDims(piece);
+        const _lDim = _effDimsP.largeur;
+        const _hDim = _effDimsP.epaisseur;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
 
@@ -17719,6 +17788,88 @@ renderRadar() {
         this.downloadCsvFile(`valobois_evaluation_${suffix}_${stamp}.csv`, headers, rows);
     }
 
+
+    /**
+     * Export GLB (3D) : génère un fichier .glb par pièce pour chaque lot sélectionné.
+     * Itère sur les pièces par défaut expansées (quantite) + les pièces individuelles.
+     * Utilise window.buildGLB (js/lib/build-glb.js).
+     */
+    exportToGLB(selectedLotIndices = []) {
+        if (typeof window.buildGLB !== 'function') {
+            alert(window.t('editor.alerts.glbError'));
+            return;
+        }
+
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+
+        let downloadCount = 0;
+
+        targetLotIndices.forEach((lotIdx) => {
+            const lot = lots[lotIdx];
+            const lotSlug = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+
+            // Construire la liste complète des pièces à exporter :
+            // 1. Pièces par défaut expansées selon leur quantité
+            const allPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((defaultPiece) => {
+                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < qty; q++) {
+                    allPieces.push(defaultPiece);
+                }
+            });
+            // 2. Pièces individuelles
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => {
+                    if (piece && typeof piece === 'object') allPieces.push(piece);
+                });
+            }
+
+            allPieces.forEach((piece, pieceIndex) => {
+                const metadata = {
+                    lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
+                    essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
+                    typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
+                    longueur_mm:    piece.longueur,
+                    volumePiece_m3: piece.volumePiece,
+                    orientation:    lot.orientationLabel || '',
+                };
+
+                const delay = downloadCount * 200;
+                downloadCount++;
+
+                setTimeout(() => {
+                    try {
+                        const uint8 = window.buildGLB(piece, metadata);
+                        const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
+                        const url   = URL.createObjectURL(blob);
+                        const a     = document.createElement('a');
+                        a.href     = url;
+                        a.download = 'VALOBOIS_' + lotSlug + '_piece_' + (pieceIndex + 1) + '.glb';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } catch (err) {
+                        console.error('exportToGLB :', window.t('editor.alerts.glbError'), err);
+                    }
+                }, delay);
+            });
+        });
+    }
 
     exportToPdf(mode = 'synthese', lotIndices = []) {
         if (typeof pdfMake === 'undefined') {
