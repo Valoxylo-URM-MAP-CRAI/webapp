@@ -287,51 +287,31 @@
         }
 
         // ── Cap de départ (extrémité z_0, face vue de -Z) ──────────────────────
-        // Profil : rectProfilePolar (N_CIRC pts) si cap rect adjacent à circ — arêtes
-        //          alignées 1:1 avec le loft. ring.pts sinon (circ pur ou rect pur).
-        // Fan depuis centroïde → N triangles, winding [c, next, j] → normales vers -Z.
+        // Profil naturel ring.pts : 4 coins exacts pour rect (L×H garanti, 2 triangles),
+        // N_CIRC pts pour circ. Les T-joints entre les 16 arêtes du loft et les 4 bords
+        // du cap rect sont normaux — la face reste planaire avec ses 4 coins nets.
+        // Fan depuis vertex 0, winding [0, j+1, j] → normales vers -Z.
         {
-            const rStart = rings[0];
-            const rNext  = rings[1];
-            let ptsStart = rStart.pts;
-            if (rStart.sec.typeSection === 'rect' && rNext && rNext.sec.typeSection === 'circ') {
-                ptsStart = rectProfilePolar(
-                    rStart.sec.largeur   > 0 ? rStart.sec.largeur   : 1,
-                    rStart.sec.epaisseur > 0 ? rStart.sec.epaisseur : 1,
-                    N_CIRC
-                );
-            }
-            const N = ptsStart.length;
-            const centroidIdx = addVertex(0, 0, rStart.z);
+            const rStart   = rings[0];
+            const ptsStart = rStart.pts;
+            const N        = ptsStart.length;
             const ringBase = posArr.length / 3;
             for (let j = 0; j < N; j++) addVertex(ptsStart[j].x, ptsStart[j].y, rStart.z);
-            for (let j = 0; j < N; j++) {
-                const next = (j + 1) % N;
-                addTriangle(centroidIdx, ringBase + next, ringBase + j);
+            for (let j = 1; j < N - 1; j++) {
+                addTriangle(ringBase, ringBase + j + 1, ringBase + j);
             }
         }
 
         // ── Cap de fin (extrémité z_last, face vue de +Z) ──────────────────────
-        // Même logique que le cap de départ.
-        // Fan depuis centroïde → N triangles, winding [c, j, next] → normales vers +Z.
+        // Même logique. Fan depuis vertex 0, winding [0, j, j+1] → normales vers +Z.
         {
-            const rEnd  = rings[rings.length - 1];
-            const rPrev = rings[rings.length - 2];
-            let ptsEnd = rEnd.pts;
-            if (rEnd.sec.typeSection === 'rect' && rPrev && rPrev.sec.typeSection === 'circ') {
-                ptsEnd = rectProfilePolar(
-                    rEnd.sec.largeur   > 0 ? rEnd.sec.largeur   : 1,
-                    rEnd.sec.epaisseur > 0 ? rEnd.sec.epaisseur : 1,
-                    N_CIRC
-                );
-            }
-            const N = ptsEnd.length;
-            const centroidIdx = addVertex(0, 0, rEnd.z);
+            const rEnd   = rings[rings.length - 1];
+            const ptsEnd = rEnd.pts;
+            const N      = ptsEnd.length;
             const ringBase = posArr.length / 3;
             for (let j = 0; j < N; j++) addVertex(ptsEnd[j].x, ptsEnd[j].y, rEnd.z);
-            for (let j = 0; j < N; j++) {
-                const next = (j + 1) % N;
-                addTriangle(centroidIdx, ringBase + j, ringBase + next);
+            for (let j = 1; j < N - 1; j++) {
+                addTriangle(ringBase, ringBase + j, ringBase + j + 1);
             }
         }
 
