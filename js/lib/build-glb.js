@@ -212,6 +212,40 @@
         return pts; // N points, coins aux index 0, s, 2s, 3s
     }
 
+    /**
+     * Profil rectangulaire uniforme CCW, en phase avec buildCircProfile.
+     *
+     * buildCircProfile : CCW, k=0 = (0, +R) «12h», k↑ → vers la gauche (-X).
+     * rectProfileUniform : CW (parcourt le haut de gauche → droite) → sens opposé → twist.
+     *
+     * Cette fonction construit le profil en sens strictement CCW (angles polaires
+     * croissants : gauche→bas→droite→haut), puis décale de 7N/8 pour que index 0
+     * tombe sur (0, +b), en phase exacte avec circ k=0 = (0, +R) → zéro twist.
+     *   index  0 : ( 0,  +b)  top-mid        ← en phase avec circ k=0
+     *   index  2 : (-a,  +b)  top-left  coin
+     *   index  6 : (-a,  -b)  bot-left  coin
+     *   index 10 : (+a,  -b)  bot-right coin
+     *   index 14 : (+a,  +b)  top-right coin
+     */
+    function rectProfileUniformPhased(largeur_mm, epaisseur_mm, N) {
+        const a = largeur_mm   / 2000;
+        const b = epaisseur_mm / 2000;
+        const s = N / 4; // points par côté (N divisible par 4)
+        const pts = [];
+        // Ordre CCW — angles polaires croissants, identique à buildCircProfile :
+        // Côté gauche   : (-a, +b) → (-a, -b)  — 135° → 225°
+        for (let i = 0; i < s; i++) { const t = i / s; pts.push({ x: -a, y:  b - t * 2 * b }); }
+        // Côté inférieur : (-a, -b) → (+a, -b) — 225° → 315°
+        for (let i = 0; i < s; i++) { const t = i / s; pts.push({ x: -a + t * 2 * a, y: -b }); }
+        // Côté droit    : (+a, -b) → (+a, +b)  — 315° → 405°
+        for (let i = 0; i < s; i++) { const t = i / s; pts.push({ x:  a, y: -b + t * 2 * b }); }
+        // Côté supérieur : (+a, +b) → (-a, +b) — 45° → 135°
+        for (let i = 0; i < s; i++) { const t = i / s; pts.push({ x:  a - t * 2 * a, y:  b }); }
+        // Décalage 7N/8 : (0, +b) passe à l'index 0, en phase avec circ k=0 = (0, +R)
+        const shift = (7 * N) / 8; // = 14 pour N=16
+        return [...pts.slice(shift), ...pts.slice(0, shift)];
+    }
+
     // ─── Bloc 3 : Construction du maillage (loft + caps) ────────────────────────────────────────────
 
     /**
@@ -274,11 +308,12 @@
                     return ring.pts; // buildCircProfile, N_CIRC pts, angles θ_i
                 }
                 if (isMixed) {
-                    // rect adjacent à circ → projection polaire avec coins snappés
-                    // (mêmes θ_i que le cercle, mais les 4 coins sont exacts → pas de roggage)
+                    // rect adjacent à circ → uniforme en phase avec buildCircProfile
+                    // index 0 = (0, +b) = même phase que (0, +R) → zéro twist, arêtes droites
+                    // espacement uniforme N/4 pts/côté → arêtes longitudinales équidistantes
                     const L = ring.sec.largeur   > 0 ? ring.sec.largeur   : 1;
                     const H = ring.sec.epaisseur > 0 ? ring.sec.epaisseur : 1;
-                    return rectProfilePolarSnapped(L, H, N_CIRC);
+                    return rectProfileUniformPhased(L, H, N_CIRC);
                 }
                 // rect adjacent à rect → 4 coins purs (volume exact, pas de coins coupés)
                 return ring.pts; // buildRectProfile, N_RECT=4 pts
