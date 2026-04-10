@@ -158,11 +158,34 @@
         return pts;
     }
 
-    // @deprecated — remplacé par rectProfileUniform
-    // rectProfilePolar place les points aux angles θ_i = π/2 + 2πi/N, identiques
-    // au cercle. Pour tout rectangle non carré, ces angles ne coïncident jamais
-    // exactement avec les 4 coins → les coins sont écrêtés → aire du polygone < L×E
-    // → volume GLB < computeVolumeEnrichi (~4-5 %).
+    /**
+     * Profil rectangulaire polaire avec snapping des 4 coins exacts.
+     * Identique à rectProfilePolar mais les 4 indices les plus proches des angles
+     * de coin sont forcés aux coordonnées exactes du rectangle → les coins ne sont
+     * plus écrêtés sur les faces latérales du loft mixte rect↔circ.
+     */
+    function rectProfilePolarSnapped(largeur_mm, epaisseur_mm, N) {
+        const a = largeur_mm   / 2000;
+        const b = epaisseur_mm / 2000;
+        const pts = rectProfilePolar(largeur_mm, epaisseur_mm, N).slice();
+        const base = Math.PI / 2;
+        // Angles polaires et coordonnées exactes des 4 coins (ordre CCW)
+        const cornerDefs = [
+            { angle: Math.atan2( b, -a), pt: { x: -a, y:  b } }, // haut-gauche (~135°)
+            { angle: Math.atan2(-b, -a), pt: { x: -a, y: -b } }, // bas-gauche  (~225°)
+            { angle: Math.atan2(-b,  a), pt: { x:  a, y: -b } }, // bas-droite  (~315°)
+            { angle: Math.atan2( b,  a), pt: { x:  a, y:  b } }, // haut-droite (~45°)
+        ];
+        const snapped = new Set();
+        for (const { angle, pt } of cornerDefs) {
+            let ca = angle;
+            while (ca < base)                ca += 2 * Math.PI;
+            while (ca >= base + 2 * Math.PI) ca -= 2 * Math.PI;
+            const k = Math.round((ca - base) / (2 * Math.PI / N)) % N;
+            if (!snapped.has(k)) { pts[k] = pt; snapped.add(k); }
+        }
+        return pts;
+    }
 
     // rectProfilePolar place les points aux angles θ_i = π/2 + 2πi/N,
     // identiques au cercle. Pour tout rectangle non carré, ces angles ne
@@ -251,11 +274,11 @@
                     return ring.pts; // buildCircProfile, N_CIRC pts, angles θ_i
                 }
                 if (isMixed) {
-                    // rect adjacent à circ → projection polaire (mêmes θ_i que le cercle)
-                    // chaque sommet du cercle se connecte au point le plus proche du rect
+                    // rect adjacent à circ → projection polaire avec coins snappés
+                    // (mêmes θ_i que le cercle, mais les 4 coins sont exacts → pas de roggage)
                     const L = ring.sec.largeur   > 0 ? ring.sec.largeur   : 1;
                     const H = ring.sec.epaisseur > 0 ? ring.sec.epaisseur : 1;
-                    return rectProfilePolar(L, H, N_CIRC);
+                    return rectProfilePolarSnapped(L, H, N_CIRC);
                 }
                 // rect adjacent à rect → 4 coins purs (volume exact, pas de coins coupés)
                 return ring.pts; // buildRectProfile, N_RECT=4 pts
@@ -286,32 +309,46 @@
             }
         }
 
+        // ── Helper cap : profil uniforme depuis les dimensions de la section ──────
+        // circ  → buildCircProfile  (N_CIRC pts, contour exact)
+        // rect  → rectProfileUniform (N_CIRC pts, coins + points intermédiaires, aire = L×H exacte)
+        function getCapProfile(ring) {
+            if (ring.sec.typeSection === 'circ') {
+                const D = ring.sec.diametre > 0 ? ring.sec.diametre : 1;
+                return buildCircProfile(D);
+            }
+            const L = ring.sec.largeur   > 0 ? ring.sec.largeur   : 1;
+            const H = ring.sec.epaisseur > 0 ? ring.sec.epaisseur : 1;
+            return rectProfileUniform(L, H, N_CIRC); // 4 pts par côté, coins exacts
+        }
+
         // ── Cap de départ (extrémité z_0, face vue de -Z) ──────────────────────
-        // Profil naturel ring.pts : 4 coins exacts pour rect (L×H garanti, 2 triangles),
-        // N_CIRC pts pour circ. Les T-joints entre les 16 arêtes du loft et les 4 bords
-        // du cap rect sont normaux — la face reste planaire avec ses 4 coins nets.
-        // Fan depuis vertex 0, winding [0, j+1, j] → normales vers -Z.
+        // Fan depuis un vertex central (centroïde), winding [centre, j+1, j] → normales vers -Z.
         {
-            const rStart   = rings[0];
-            const ptsStart = rStart.pts;
-            const N        = ptsStart.length;
-            const ringBase = posArr.length / 3;
+            const rStart    = rings[0];
+            const ptsStart  = getCapProfile(rStart);
+            const N         = ptsStart.length;
+            const centreIdx = addVertex(0, 0, rStart.z);
+            const ringBase  = posArr.length / 3;
             for (let j = 0; j < N; j++) addVertex(ptsStart[j].x, ptsStart[j].y, rStart.z);
-            for (let j = 1; j < N - 1; j++) {
-                addTriangle(ringBase, ringBase + j + 1, ringBase + j);
+            for (let j = 0; j < N; j++) {
+                const next = (j + 1) % N;
+                addTriangle(centreIdx, ringBase + next, ringBase + j);
             }
         }
 
         // ── Cap de fin (extrémité z_last, face vue de +Z) ──────────────────────
-        // Même logique. Fan depuis vertex 0, winding [0, j, j+1] → normales vers +Z.
+        // Fan depuis un vertex central (centroïde), winding [centre, j, j+1] → normales vers +Z.
         {
-            const rEnd   = rings[rings.length - 1];
-            const ptsEnd = rEnd.pts;
-            const N      = ptsEnd.length;
-            const ringBase = posArr.length / 3;
+            const rEnd      = rings[rings.length - 1];
+            const ptsEnd    = getCapProfile(rEnd);
+            const N         = ptsEnd.length;
+            const centreIdx = addVertex(0, 0, rEnd.z);
+            const ringBase  = posArr.length / 3;
             for (let j = 0; j < N; j++) addVertex(ptsEnd[j].x, ptsEnd[j].y, rEnd.z);
-            for (let j = 1; j < N - 1; j++) {
-                addTriangle(ringBase, ringBase + j, ringBase + j + 1);
+            for (let j = 0; j < N; j++) {
+                const next = (j + 1) % N;
+                addTriangle(centreIdx, ringBase + j, ringBase + next);
             }
         }
 
