@@ -3866,6 +3866,7 @@
                                 <option value="csv">CSV</option>
                                 <option value="json">JSON</option>
                                 <option value="glb">3D GLB</option>
+                                <option value="dae">3D Collada .dae (SketchUp groupes)</option>
                             </select>
                         </label>
                         <div id="exportModalDetailSection">
@@ -3876,6 +3877,20 @@
                                     <option value="lots-selectionnes">Revue complète des informations relatives au(x) lot(s)
                                     </option>
                                 </select>
+                            </label>
+                        </div>
+                        <div id="exportGlbPrecisionSection" hidden style="display:none;">
+                            <label style="display: grid; gap: 6px;">
+                                <span style="font-size: 13px; font-weight: 600;">Précision 3D (segments circulaires)</span>
+                                <select id="exportGlbPrecisionSelect" class="export-modal-select">
+                                    <option value="16">Basse (16 — fichier léger)</option>
+                                    <option value="32" selected>Normale (32)</option>
+                                    <option value="64">Haute (64 — plus précis)</option>
+                                </select>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-top: 10px;">
+                                <input type="checkbox" id="exportGlbGroupCheck">
+                                <span style="font-size: 13px;">Regrouper toutes les pièces en un seul fichier par lot</span>
                             </label>
                         </div>
                     </div>
@@ -3936,6 +3951,7 @@
     <script defer src="js/app/auth-header.js"></script>
     <script defer src="js/app/valobois-app.js"></script>
     <script defer src="js/lib/build-glb.js"></script>
+    <script defer src="js/lib/build-dae.js"></script>
     <script defer src="js/ui/version-input-width.js"></script>
 </body>
 

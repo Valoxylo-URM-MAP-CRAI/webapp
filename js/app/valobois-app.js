@@ -6958,29 +6958,36 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             };
 
             const updateExportModalFormatState = () => {
-                const fmt = exportFileFormatSelect.value;
+                const fmt    = exportFileFormatSelect.value;
                 const isJson = fmt === 'json';
                 const isGlb  = fmt === 'glb';
-                const isJsonOrGlb = isJson || isGlb;
+                const isDae  = fmt === 'dae';
+                const is3d   = isGlb || isDae;
+                const isJsonOr3d = isJson || is3d;
                 if (exportModalLotsSection) {
                     exportModalLotsSection.classList.toggle('hidden', isJson);
                     exportModalLotsSection.toggleAttribute('hidden', isJson);
                 }
                 if (exportModalDetailSection) {
-                    exportModalDetailSection.classList.toggle('hidden', isJsonOrGlb);
-                    exportModalDetailSection.toggleAttribute('hidden', isJsonOrGlb);
+                    exportModalDetailSection.classList.toggle('hidden', isJsonOr3d);
+                    exportModalDetailSection.toggleAttribute('hidden', isJsonOr3d);
+                }
+                const exportGlbPrecisionSection = document.getElementById('exportGlbPrecisionSection');
+                if (exportGlbPrecisionSection) {
+                    exportGlbPrecisionSection.hidden = !is3d;
+                    exportGlbPrecisionSection.style.display = is3d ? '' : 'none';
                 }
                 if (exportModalIntro) {
                     exportModalIntro.textContent = isJson
                         ? 'Export JSON : données d’évaluation (même structure que l’enregistrement nuage).'
-                        : isGlb
-                            ? 'Export 3D — Génère un fichier .glb par lot sélectionné (un fichier par lot).'
+                        : is3d
+                            ? 'Export 3D — Génère un fichier par lot sélectionné (un fichier par lot).'
                             : 'Choisissez le contenu et le format à exporter.';
                 }
                 if (isJson) {
                     exportPdfLotsList.style.opacity = '1';
                 } else {
-                    if (isGlb) exportContentModeSelect.value = 'lots-selectionnes';
+                    if (is3d) exportContentModeSelect.value = 'lots-selectionnes';
                     updateExportLotsState();
                 }
             };
@@ -7000,6 +7007,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     const selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     closeExportPdf();
                     this.exportToGLB(selectedLotIndices);
+                    return;
+                }
+                if (formatVal === 'dae') {
+                    const selectedLotIndices = this.getSelectedExportPdfLotIndices();
+                    closeExportPdf();
+                    this.exportToDAE(selectedLotIndices);
                     return;
                 }
                 if (formatVal === 'json') {
@@ -17805,6 +17818,9 @@ renderRadar() {
             return;
         }
 
+        const nCircRaw = parseInt(document.getElementById('exportGlbPrecisionSelect')?.value || '16', 10);
+        const nCirc    = (nCircRaw % 8 === 0 && nCircRaw >= 8) ? nCircRaw : 16;
+
         const lots = this.data.lots || [];
         const targetLotIndices = selectedLotIndices.filter(
             (i) => Number.isInteger(i) && lots[i]
@@ -17815,59 +17831,162 @@ renderRadar() {
             return;
         }
 
-        let downloadCount = 0;
+        const grouped = document.getElementById('exportGlbGroupCheck')?.checked ?? false;
 
-        targetLotIndices.forEach((lotIdx) => {
-            const lot = lots[lotIdx];
-            const lotSlug = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
-
-            // Construire la liste complète des pièces à exporter :
-            // 1. Pièces par défaut expansées selon leur quantité
+        /**
+         * Construit la liste complète des pièces d'un lot
+         * (pièces par défaut × quantité + pièces individuelles).
+         */
+        const buildAllPieces = (lot) => {
             const allPieces = [];
             const defaultPieces = this.ensureDefaultPiecesData(lot);
             defaultPieces.forEach((defaultPiece) => {
                 const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
-                for (let q = 0; q < qty; q++) {
-                    allPieces.push(defaultPiece);
-                }
+                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
             });
-            // 2. Pièces individuelles
             if (Array.isArray(lot.pieces)) {
-                lot.pieces.forEach((piece) => {
-                    if (piece && typeof piece === 'object') allPieces.push(piece);
-                });
+                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
             }
+            return allPieces;
+        };
 
-            allPieces.forEach((piece, pieceIndex) => {
-                const metadata = {
-                    lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
-                    essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
-                    typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
-                    longueur_mm:    piece.longueur,
-                    volumePiece_m3: piece.volumePiece,
-                    orientation:    lot.orientationLabel || '',
-                };
+        const buildMetadata = (lot, lotIdx, piece) => ({
+            lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
+            essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
+            typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
+            longueur_mm:    piece.longueur,
+            volumePiece_m3: piece.volumePiece,
+            orientation:    lot.orientationLabel || '',
+        });
 
-                const delay = downloadCount * 200;
-                downloadCount++;
+        if (grouped) {
+            // ── Mode regroupé : un .glb par lot, toutes pièces dedans ──────────
+            targetLotIndices.forEach((lotIdx, lotPos) => {
+                const lot       = lots[lotIdx];
+                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+                const allPieces = buildAllPieces(lot);
+                if (!allPieces.length) return;
+
+                const piecesData = allPieces.map((piece) => ({
+                    piece,
+                    metadata: buildMetadata(lot, lotIdx, piece),
+                }));
 
                 setTimeout(() => {
                     try {
-                        const uint8 = window.buildGLB(piece, metadata);
+                        const uint8 = window.buildMultiGLB(piecesData, { nCirc });
                         const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
                         const url   = URL.createObjectURL(blob);
                         const a     = document.createElement('a');
                         a.href     = url;
-                        a.download = 'VALOBOIS_' + lotSlug + '_piece_' + (pieceIndex + 1) + '.glb';
+                        a.download = 'VALOBOIS_' + lotSlug + '.glb';
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
                         URL.revokeObjectURL(url);
                     } catch (err) {
-                        console.error('exportToGLB :', window.t('editor.alerts.glbError'), err);
+                        console.error('exportToGLB (grouped):', err);
                     }
-                }, delay);
+                }, lotPos * 300);
             });
+        } else {
+            // ── Mode individuel : un .glb par pièce (comportement d'origine) ───
+            let downloadCount = 0;
+
+            targetLotIndices.forEach((lotIdx) => {
+                const lot       = lots[lotIdx];
+                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+                const allPieces = buildAllPieces(lot);
+
+                allPieces.forEach((piece, pieceIndex) => {
+                    const metadata = buildMetadata(lot, lotIdx, piece);
+                    const delay    = downloadCount * 200;
+                    downloadCount++;
+
+                    setTimeout(() => {
+                        try {
+                            const uint8 = window.buildGLB(piece, metadata, { nCirc });
+                            const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
+                            const url   = URL.createObjectURL(blob);
+                            const a     = document.createElement('a');
+                            a.href     = url;
+                            a.download = 'VALOBOIS_' + lotSlug + '_piece_' + (pieceIndex + 1) + '.glb';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        } catch (err) {
+                            console.error('exportToGLB :', window.t('editor.alerts.glbError'), err);
+                        }
+                    }, delay);
+                });
+            });
+        }
+    }
+
+    exportToDAE(selectedLotIndices = []) {
+        if (typeof window.buildMultiDAE !== 'function') {
+            alert('Export DAE indisponible.');
+            return;
+        }
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const nCircRaw = parseInt(document.getElementById('exportGlbPrecisionSelect')?.value || '16', 10);
+        const nCirc    = (nCircRaw % 8 === 0 && nCircRaw >= 8) ? nCircRaw : 16;
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const buildAllPieces = (lot) => {
+            const allPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((defaultPiece) => {
+                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
+            });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
+            }
+            return allPieces;
+        };
+        const buildMetadata = (lot, lotIdx, piece) => ({
+            lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
+            essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
+            typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
+            longueur_mm:    piece.longueur,
+            volumePiece_m3: piece.volumePiece,
+            orientation:    lot.orientationLabel || '',
+        });
+        targetLotIndices.forEach((lotIdx, lotPos) => {
+            const lot       = lots[lotIdx];
+            const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+            const allPieces = buildAllPieces(lot);
+            if (!allPieces.length) return;
+            const piecesData = allPieces.map((piece) => ({
+                piece,
+                metadata: buildMetadata(lot, lotIdx, piece),
+            }));
+            setTimeout(() => {
+                try {
+                    const blob = window.buildMultiDAE(piecesData, { nCirc });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href     = url;
+                    a.download = 'VALOBOIS_' + lotSlug + '.dae';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error('exportToDAE:', err);
+                }
+            }, lotPos * 300);
         });
     }
 

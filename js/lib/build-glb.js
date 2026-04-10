@@ -112,11 +112,11 @@
      *
      * Cohérent avec buildRectProfile : index 0 = sommet, k↑ → sens CCW.
      */
-    function buildCircProfile(diametre_mm) {
+    function buildCircProfile(diametre_mm, N) {
         const r = diametre_mm / 2000; // rayon en mètres
         const pts = [];
-        for (let k = 0; k < N_CIRC; k++) {
-            const angle = Math.PI / 2 + (2 * Math.PI * k) / N_CIRC;
+        for (let k = 0; k < N; k++) {
+            const angle = Math.PI / 2 + (2 * Math.PI * k) / N;
             pts.push({ x: r * Math.cos(angle), y: r * Math.sin(angle) });
         }
         return pts;
@@ -255,12 +255,13 @@
      * @param {Array} sections - Sections triées par positionRatio croissant
      * @param {number} longueur_mm - Longueur totale de la pièce en mm
      */
-    function buildMesh(sections, longueur_mm) {
+    function buildMesh(sections, longueur_mm, nCirc) {
+        nCirc = (nCirc && nCirc % 8 === 0 && nCirc >= 8) ? nCirc : N_CIRC;
         const posArr = []; // stockage temporaire des triplets XYZ
         const idxArr = []; // stockage temporaire des indices de triangles
 
         // Génère les profils 3D (rings) pour chaque section.
-        // pts = profil « naturel » (4 coins CCW pour rect, N_CIRC points pour circ) — utilisé par les caps.
+        // pts = profil « naturel » (4 coins CCW pour rect, nCirc points pour circ) — utilisé par les caps.
         // sec est conservé pour recalculer le profil polaire dans les lofts mixtes.
         const rings = sections.map(sec => {
             const z   = (sec.positionRatio * longueur_mm) / 1000; // mm → mètres
@@ -268,7 +269,7 @@
             const H   = sec.epaisseur > 0 ? sec.epaisseur : 1;
             const D   = sec.diametre  > 0 ? sec.diametre  : 1;
             const pts = sec.typeSection === 'circ'
-                ? buildCircProfile(D)
+                ? buildCircProfile(D, nCirc)
                 : buildRectProfile(L, H);
             return { z, sec, pts };
         });
@@ -313,7 +314,7 @@
                     // espacement uniforme N/4 pts/côté → arêtes longitudinales équidistantes
                     const L = ring.sec.largeur   > 0 ? ring.sec.largeur   : 1;
                     const H = ring.sec.epaisseur > 0 ? ring.sec.epaisseur : 1;
-                    return rectProfileUniformPhased(L, H, N_CIRC);
+                    return rectProfileUniformPhased(L, H, nCirc);
                 }
                 // rect adjacent à rect → 4 coins purs (volume exact, pas de coins coupés)
                 return ring.pts; // buildRectProfile, N_RECT=4 pts
@@ -345,16 +346,28 @@
         }
 
         // ── Helper cap : profil uniforme depuis les dimensions de la section ──────
-        // circ  → buildCircProfile  (N_CIRC pts, contour exact)
-        // rect  → rectProfileUniform (N_CIRC pts, coins + points intermédiaires, aire = L×H exacte)
+        // circ  → buildCircProfile  (nCirc pts, contour exact)
+        // rect pur (aucune section circ dans la pièce) → buildRectProfile (4 coins, 2 triangles)
+        // rect mixte (pièce contient au moins une section circ) → rectProfileUniform (nCirc pts)
+        const hasCircSection = sections.some(s => s.typeSection === 'circ');
         function getCapProfile(ring) {
             if (ring.sec.typeSection === 'circ') {
                 const D = ring.sec.diametre > 0 ? ring.sec.diametre : 1;
-                return buildCircProfile(D);
+                return buildCircProfile(D, nCirc);
             }
             const L = ring.sec.largeur   > 0 ? ring.sec.largeur   : 1;
             const H = ring.sec.epaisseur > 0 ? ring.sec.epaisseur : 1;
-            return rectProfileUniform(L, H, N_CIRC); // 4 pts par côté, coins exacts
+            // Subdivision N-faces uniquement si la pièce contient des sections circ
+            // (nécessaire pour la cohérence visuelle de la transition) ;
+            // sinon 4 coins purs suffisent (volume exact, rendu propre).
+            //
+            // rectProfileUniform produit un profil CW (sens horaire en XY).
+            // Le fan de cap attend CCW (même convention que buildRectProfile et buildCircProfile).
+            // .reverse() corrige le sens UNIQUEMENT pour les caps mixtes rect+circ ;
+            // les faces latérales (getProfileForSegment) et les caps purs sont inchangés.
+            return hasCircSection
+                ? rectProfileUniform(L, H, nCirc).reverse()
+                : buildRectProfile(L, H);
         }
 
         // ── Cap de départ (extrémité z_0, face vue de -Z) ──────────────────────
@@ -587,10 +600,15 @@
      * @param {Object} metadata - Métadonnées Valobois (lotNom, essence, typePiece, longueur_mm, volumePiece_m3, orientation)
      * @returns {Uint8Array}    - Contenu GLB, prêt pour Blob('model/gltf-binary')
      */
-    function buildGLB(piece, metadata) {
+    function buildGLB(piece, metadata, options) {
         if (!piece || typeof piece !== 'object') {
             throw new Error('buildGLB : argument "piece" invalide');
         }
+
+        // Précision polygonale : multiple de 8 entre 8 et 128, défaut N_CIRC=16
+        const nCirc = (options && options.nCirc && options.nCirc % 8 === 0 && options.nCirc >= 8)
+            ? options.nCirc
+            : N_CIRC;
 
         // Résoudre les sections
         const sections = resolveSections(piece);
@@ -602,14 +620,214 @@
             : (parseFloat(piece.longueur) || 1000);
 
         // Construire le maillage 3D
-        const { positions, indices } = buildMesh(sections, longueur_mm);
+        const { positions, indices } = buildMesh(sections, longueur_mm, nCirc);
 
         // Assembler et retourner le GLB
         return assembleGLB(positions, indices, metadata || {});
     }
 
+    // ─── Assemblage GLB multi-mesh (un lot → un fichier) ─────────────────────────
+
+    /**
+     * Assemble un GLB glTF 2.0 contenant plusieurs meshes (un par pièce).
+     * Chaque mesh est un nœud indépendant dans la scène, positionné à l'origine.
+     *
+     * @param {Array<{positions:Float32Array, indices:Uint16Array|Uint32Array, metadata:Object}>} meshDatas
+     * @returns {Uint8Array}
+     */
+    function assembleMultiGLB(meshDatas) {
+        if (!meshDatas || !meshDatas.length) {
+            throw new Error('assembleMultiGLB : aucun mesh fourni');
+        }
+
+        // ── Layout BIN : [pos0][idx0+pad][pos1][idx1+pad]… ──────────────────────
+        const segments = [];
+        let totalBinLength = 0;
+
+        for (const { positions, indices } of meshDatas) {
+            const posLen = positions.byteLength;
+            const idxLen = indices.byteLength;
+            const idxPad = (4 - (idxLen % 4)) % 4;
+            const posOffset = totalBinLength;
+            totalBinLength += posLen;
+            const idxOffset = totalBinLength;
+            totalBinLength += idxLen + idxPad;
+            segments.push({
+                posOffset, posLen,
+                idxOffset, idxLen,
+                vertexCount:      positions.length / 3,
+                indexCount:       indices.length,
+                idxComponentType: (indices instanceof Uint16Array) ? 5123 : 5125,
+            });
+        }
+
+        const binBuffer = new ArrayBuffer(totalBinLength);
+        const u8bin = new Uint8Array(binBuffer);
+        for (let i = 0; i < meshDatas.length; i++) {
+            const { positions, indices } = meshDatas[i];
+            const seg = segments[i];
+            u8bin.set(new Uint8Array(positions.buffer, positions.byteOffset, positions.byteLength), seg.posOffset);
+            u8bin.set(new Uint8Array(indices.buffer,   indices.byteOffset,   indices.byteLength),   seg.idxOffset);
+        }
+
+        // ── glTF JSON ────────────────────────────────────────────────────────────
+        const bufferViews    = [];
+        const accessors      = [];
+        const meshes         = [];
+        const nodes          = [];
+        // Un nœud racine par pièce, portant à la fois le mesh, la translation et les extras.
+        // Structure plate : scene.nodes = [0, 1, 2, …] → SketchUp crée un composant/groupe par nœud.
+        const sceneRootNodes = [];
+
+        // ── Pré-calcul des bounding-boxes pour les translations ─────────────────
+        // bounds[i] = { min, max } en mètres, calculé une seule fois
+        const bounds = meshDatas.map(({ positions }) => computeBounds(positions));
+
+        // ── Disposition linéaire sur X, centrée en Z ────────────────────────────
+        // Pièce 0 : centroïde X = 0, centroïde Z = 0 (translation Z = −longueur/2)
+        // Pièce i : X cumulatif, pas = 1,5 × largeur de la pièce i−1
+        //   largeur_i = bounds[i].max[0] − bounds[i].min[0]  (étendue X, = largeur rect ou diamètre circ)
+        //   centre_z_i = (bounds[i].min[2] + bounds[i].max[2]) / 2
+        const translations = [];
+        let currentX = 0;
+        for (let i = 0; i < meshDatas.length; i++) {
+            const b       = bounds[i];
+            const centreZ = (b.min[2] + b.max[2]) / 2;
+            translations.push([currentX, 0, -centreZ]);
+            // Pas pour la pièce suivante : 1,5 × largeur de la pièce courante
+            const widthCurrent = b.max[0] - b.min[0];
+            currentX += 1.5 * widthCurrent;
+        }
+
+        for (let i = 0; i < meshDatas.length; i++) {
+            const { metadata } = meshDatas[i];
+            const seg = segments[i];
+            const { min, max } = bounds[i];
+
+            const posViewIdx = bufferViews.length;
+            bufferViews.push({ buffer: 0, byteOffset: seg.posOffset, byteLength: seg.posLen, target: 34962 });
+            const idxViewIdx = bufferViews.length;
+            bufferViews.push({ buffer: 0, byteOffset: seg.idxOffset, byteLength: seg.idxLen, target: 34963 });
+
+            const posAccIdx = accessors.length;
+            accessors.push({
+                bufferView: posViewIdx, byteOffset: 0,
+                componentType: 5126, count: seg.vertexCount, type: 'VEC3', min, max,
+            });
+            const idxAccIdx = accessors.length;
+            accessors.push({
+                bufferView: idxViewIdx, byteOffset: 0,
+                componentType: seg.idxComponentType, count: seg.indexCount, type: 'SCALAR',
+            });
+
+            const extras = {
+                lotNom:         (metadata && metadata.lotNom)         || '',
+                essence:        (metadata && metadata.essence)        || '',
+                typePiece:      (metadata && metadata.typePiece)      || '',
+                longueur_mm:    (metadata && metadata.longueur_mm)    || 0,
+                volumePiece_m3: (metadata && metadata.volumePiece_m3) || 0,
+                orientation:    (metadata && metadata.orientation)    || '',
+            };
+            meshes.push({
+                name: 'piece_' + (i + 1),
+                primitives: [{ attributes: { POSITION: posAccIdx }, indices: idxAccIdx, mode: 4 }],
+            });
+
+            // Nœud racine unique : porte le mesh, la translation et les métadonnées (extras).
+            // Structure plate — un nœud par pièce dans scene.nodes.
+            const nodeIdx = nodes.length;
+            nodes.push({
+                mesh:        i,
+                name:        'piece_' + (i + 1),
+                translation: translations[i],
+                extras,
+            });
+
+            sceneRootNodes.push(nodeIdx);
+        }
+
+        const gltf = {
+            asset:   { version: '2.0', generator: 'Valobois buildMultiGLB v1.0' },
+            scene:   0,
+            scenes:  [{ nodes: sceneRootNodes }],
+            nodes, meshes, accessors, bufferViews,
+            buffers: [{ byteLength: totalBinLength }],
+        };
+
+        const jsonStr  = JSON.stringify(gltf);
+        const jsonData = new TextEncoder().encode(jsonStr);
+        const jsonPad  = (4 - (jsonData.byteLength % 4)) % 4;
+        const jsonChunkDataLen = jsonData.byteLength + jsonPad;
+        const totalLength = 12 + 8 + jsonChunkDataLen + 8 + totalBinLength;
+
+        const glbBuffer = new ArrayBuffer(totalLength);
+        const dv = new DataView(glbBuffer);
+        const u8 = new Uint8Array(glbBuffer);
+        let offset = 0;
+
+        dv.setUint32(offset, 0x46546C67, true); offset += 4; // 'glTF'
+        dv.setUint32(offset, 2,           true); offset += 4; // version
+        dv.setUint32(offset, totalLength, true); offset += 4;
+
+        dv.setUint32(offset, jsonChunkDataLen, true); offset += 4;
+        dv.setUint32(offset, 0x4E4F534A,       true); offset += 4; // 'JSON'
+        u8.set(jsonData, offset);
+        for (let p = 0; p < jsonPad; p++) u8[offset + jsonData.byteLength + p] = 0x20;
+        offset += jsonChunkDataLen;
+
+        dv.setUint32(offset, totalBinLength, true); offset += 4;
+        dv.setUint32(offset, 0x004E4942,    true); offset += 4; // 'BIN\0'
+        u8.set(new Uint8Array(binBuffer), offset);
+
+        return new Uint8Array(glbBuffer);
+    }
+
+    /**
+     * Construit un .glb contenant toutes les pièces d'un lot (multi-mesh).
+     *
+     * @param {Array<{piece:Object, metadata:Object}>} piecesData
+     * @param {Object} options - { nCirc }
+     * @returns {Uint8Array}
+     */
+    function buildMultiGLB(piecesData, options) {
+        if (!Array.isArray(piecesData) || !piecesData.length) {
+            throw new Error('buildMultiGLB : tableau piecesData vide ou invalide');
+        }
+        const nCirc = (options && options.nCirc && options.nCirc % 8 === 0 && options.nCirc >= 8)
+            ? options.nCirc
+            : N_CIRC;
+
+        const meshDatas = piecesData.map(({ piece, metadata }) => {
+            if (!piece || typeof piece !== 'object') throw new Error('buildMultiGLB : pièce invalide');
+            const sections    = resolveSections(piece);
+            const mm          = piece.mesuresMultiples;
+            const longueur_mm = (mm && mm.active && mm.longueur > 0)
+                ? parseFloat(mm.longueur)
+                : (parseFloat(piece.longueur) || 1000);
+            const { positions, indices } = buildMesh(sections, longueur_mm, nCirc);
+            return { positions, indices, metadata: metadata || {} };
+        });
+
+        return assembleMultiGLB(meshDatas);
+    }
+
+    // ── buildMeshData : expose la géométrie brute d'une pièce (pour build-dae.js) ──
+    function buildMeshData(piece, nCirc) {
+        if (!piece || typeof piece !== 'object') throw new Error('buildMeshData : argument "piece" invalide');
+        const sections    = resolveSections(piece);
+        const mm          = piece.mesuresMultiples;
+        const longueur_mm = (mm && mm.active && mm.longueur > 0)
+            ? parseFloat(mm.longueur)
+            : (parseFloat(piece.longueur) || 1000);
+        const n = (nCirc && nCirc % 8 === 0 && nCirc >= 8) ? nCirc : N_CIRC;
+        return buildMesh(sections, longueur_mm, n);
+    }
+
     // Exposition globale
-    window.buildGLB = buildGLB;
+    window.buildGLB              = buildGLB;
+    window.buildMultiGLB         = buildMultiGLB;
+    window.buildMeshData         = buildMeshData;
+    window.computePositionBounds = computeBounds;
 
 })();
 
