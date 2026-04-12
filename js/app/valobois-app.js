@@ -91,6 +91,91 @@ const vbMAD = (vals, ref) => {
         : diffs[mid];
 };
 
+// ── Configuration par défaut des Property Sets IFC4 ──
+// Chaque Pset regroupe des propriétés VALOBOIS à inclure dans le fichier .ifc.
+// enabled (Pset ou propriété) peut être basculé par l'UI sans modifier cette constante.
+const DEFAULT_PSET_CONFIG = {
+    identification: {
+        enabled: true,
+        label: 'Identification',
+        psetName: 'Pset_Valobois_Identification',
+        properties: {
+            lotNom:           { enabled: true,  label: 'Nom du lot',              getValue: (piece, lot) => (lot && (lot.nomLot || lot.nom)) || null },
+            refGisement:      { enabled: true,  label: 'Réf. gisement',           getValue: (piece, lot) => (lot && lot.refGisement) || null },
+            essenceNomCommun: { enabled: true,  label: 'Essence (nom commun)',    getValue: (piece) => piece.essence || piece.essenceNomCommun || null },
+            essenceNomSci:    { enabled: false, label: 'Essence (nom scient.)',   getValue: (piece) => piece.essenceSci || piece.essenceNomSci || null },
+            typePiece:        { enabled: true,  label: 'Type de pièce',           getValue: (piece) => piece.typePiece || null },
+            typeProduit:      { enabled: false, label: 'Type de produit',         getValue: (piece) => piece.typeProduit || null },
+        },
+    },
+    dimensions: {
+        enabled: true,
+        label: 'Dimensions',
+        psetName: 'Pset_Valobois_Dimensions',
+        properties: {
+            longueur_mm:  { enabled: true,  label: 'Longueur (mm)',  getValue: (piece) => parseFloat(piece.longueur)   || null },
+            largeur_mm:   { enabled: true,  label: 'Largeur (mm)',   getValue: (piece) => {
+                const v = parseFloat(piece.largeur); if (v) return v;
+                if (typeof window.resolveSections === 'function') {
+                    let max = 0;
+                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.largeur); if (d > max) max = d; });
+                    if (max) return max;
+                }
+                return null;
+            }},
+            epaisseur_mm: { enabled: true,  label: 'Épaisseur (mm)', getValue: (piece) => {
+                const v = parseFloat(piece.epaisseur); if (v) return v;
+                if (typeof window.resolveSections === 'function') {
+                    let max = 0;
+                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.epaisseur); if (d > max) max = d; });
+                    if (max) return max;
+                }
+                return null;
+            }},
+            diametre_mm:  { enabled: true,  label: 'Diamètre (mm)',  getValue: (piece) => {
+                const v = parseFloat(piece.diametre); if (v) return v;
+                if (typeof window.resolveSections === 'function') {
+                    let max = 0;
+                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.diametre); if (d > max) max = d; });
+                    if (max) return max;
+                }
+                return null;
+            }},
+            volume_m3:    { enabled: true,  label: 'Volume (m³)',    getValue: (piece) => parseFloat(piece.volumePiecem3 || piece.volumePiece) || null },
+            surface_m2:   { enabled: false, label: 'Surface (m²)',   getValue: (piece) => parseFloat(piece.surfacePiecem2) || null },
+            quantite:     { enabled: true,  label: 'Quantité',       getValue: (piece) => parseInt(piece.quantite) || 1 },
+        },
+    },
+    destination: {
+        enabled: true,
+        label: 'Destination & Prix',
+        psetName: 'Pset_Valobois_Destination',
+        properties: {
+            orientation:   { enabled: true,  label: 'Orientation',         getValue: (piece) => piece.orientation || null },
+            scoreReemploi: { enabled: true,  label: 'Score réemploi',      getValue: (piece) => parseFloat(piece.scoreReemploi) || null },
+            prixMarche:    { enabled: false, label: 'Prix marché (€/m³)',  getValue: (piece) => parseFloat(piece.prixMarche) || null },
+            prixLot:       { enabled: false, label: 'Prix lot (€)',        getValue: (piece) => parseFloat(piece.prixLot) || null },
+        },
+    },
+    evaluation: {
+        enabled: false,
+        label: 'Scores critères',
+        psetName: 'Pset_Valobois_Evaluation',
+        properties: {
+            scoreBio:        { enabled: true, label: 'Biologie',     getValue: (piece) => parseFloat(piece.scoreBio)        || null },
+            scoreMech:       { enabled: true, label: 'Mécanique',    getValue: (piece) => parseFloat(piece.scoreMech)       || null },
+            scoreUsage:      { enabled: true, label: 'Usage',        getValue: (piece) => parseFloat(piece.scoreUsage)      || null },
+            scoreDenat:      { enabled: true, label: 'Dénaturation', getValue: (piece) => parseFloat(piece.scoreDenat)      || null },
+            scoreDebit:      { enabled: true, label: 'Débit',        getValue: (piece) => parseFloat(piece.scoreDebit)      || null },
+            scoreGeo:        { enabled: true, label: 'Géométrie',    getValue: (piece) => parseFloat(piece.scoreGeo)        || null },
+            scoreEssence:    { enabled: true, label: 'Essence',      getValue: (piece) => parseFloat(piece.scoreEssence)    || null },
+            scoreAncien:     { enabled: true, label: 'Ancienneté',   getValue: (piece) => parseFloat(piece.scoreAncien)     || null },
+            scoreTraces:     { enabled: true, label: 'Traces',       getValue: (piece) => parseFloat(piece.scoreTraces)     || null },
+            scoreProvenance: { enabled: true, label: 'Provenance',   getValue: (piece) => parseFloat(piece.scoreProvenance) || null },
+        },
+    },
+};
+
 class ValoboisApp {
     constructor() {
         this.storageKey = 'valobois_v1';
@@ -1627,20 +1712,16 @@ class ValoboisApp {
         }
     }
 
-    openAncienAmortissementAlertModal(alertState) {
+    openAncienAmortissementAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('ancienDetailModalBackdrop');
         const titleEl = document.getElementById('ancienDetailModalTitle');
         const contentEl = document.getElementById('ancienDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Fort.',
-            medium: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Moyen.',
-            low: 'D\'après les données renseignées dans le Détail du lot, il est recommandé de noter un Amortissement Faible.',
-            none: 'Renseigner ou compléter les données relatives à l\'âge de l\'arbre et à la date de mise en service de la ou des pièces de bois du lot. Vérifier qu\'une date soit correctement renseignée pour cette opération.'
-        };
+        const details = this.collectAmortissementAlertContributors(lot);
+        const message = this.buildAmortissementAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Amortissement';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -1668,20 +1749,16 @@ class ValoboisApp {
         return 'low';
     }
 
-    openGeoMassiviteAlertModal(alertState) {
+    openGeoMassiviteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('geoDetailModalBackdrop');
         const titleEl = document.getElementById('geoDetailModalTitle');
         const contentEl = document.getElementById('geoDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après les données renseignées la massivité devrait être Forte. Vérifier les règles suivantes : Une massivité « forte » vaut pour les pièces de bois massif et de Bois Massif Abouté (BMA) d\'une épaisseur (e ou b) strictement supérieure à 75 mm, pour les pièces en bois lamellé-collé (BLC) d\'une épaisseur de lamelles strictement supérieure à 35 mm et d\'une épaisseur de chant strictement supérieure à 150 mm, ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm d\'une épaisseur de chant strictement supérieure à 210 mm.',
-            medium: 'D\'après les données renseignées la massivité devrait être Moyenne. Vérifier les règles suivantes : Une massivité « moyenne » vaut pour les pièces : de bois massif et de BMA d\'une épaisseur strictement supérieure à 28 mm et inférieure ou égale à 75 mm, pour les pièces de BLC avec épaisseur de lamelles strictement supérieure à 35 mm d\'une épaisseur de chant inférieure ou égale à 150 mm, ou pour les pièces de BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant strictement supérieure à 28 mm et inférieure ou égale à 210 mm.',
-            low: 'D\'après les données renseignées la massivité devrait être Faible. Vérifier les règles suivantes : Une massivité « faible » vaut pour les pièces de bois massif et BMA d\'une épaisseur inférieure ou égale à 28 mm ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant inférieure ou égale à 28 mm.',
-            none: 'Vérifier l\'Épaisseur renseignée dans le Détail du lot.'
-        };
+        const details = this.collectMassiviteAlertContributors(lot);
+        const message = this.buildMassiviteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Massivité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -1907,20 +1984,16 @@ class ValoboisApp {
         return 'none';
     }
 
-    openGeoIndustrialiteAlertModal(alertState) {
+    openGeoIndustrialiteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('geoDetailModalBackdrop');
         const titleEl = document.getElementById('geoDetailModalTitle');
         const contentEl = document.getElementById('geoDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après le type de produit renseigné l\'industrialité devrait être Forte.',
-            medium: 'D\'après le type de produit renseigné l\'industrialité devrait être Moyenne.',
-            low: 'D\'après le type de produit renseigné l\'industrialité devrait être Faible.',
-            none: 'Vérifier le Type de produit renseigné dans le Détail du lot.'
-        };
+        const details = this.collectIndustrialiteAlertContributors(lot);
+        const message = this.buildIndustrialiteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Industrialité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -1948,20 +2021,16 @@ class ValoboisApp {
         return 'low';
     }
 
-    openDebitVolumetrieAlertModal(alertState) {
+    openDebitVolumetrieAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('debitDetailModalBackdrop');
         const titleEl = document.getElementById('debitDetailModalTitle');
         const contentEl = document.getElementById('debitDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après les dimensions renseignées la volumétrie devrait être Forte.',
-            medium: 'D\'après les dimensions renseignées la volumétrie devrait être Moyenne.',
-            low: 'D\'après les dimensions renseignées la volumétrie devrait être Faible.',
-            none: 'Vérifier les dimensions renseignées dans le Détail du lot.'
-        };
+        const details = this.collectVolumetrieAlertContributors(lot);
+        const message = this.buildVolumetrieAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Volumétrie';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -1969,14 +2038,751 @@ class ValoboisApp {
         }
     }
 
+    getRegulariteSectionPositionLabel(section, sectionIndex) {
+        const key = String(section && section.position != null ? section.position : '').trim();
+        const labelsByKey = {
+            extremite1: 'Extrémité 1',
+            quart1: 'Quart 1',
+            milieu: 'Milieu',
+            quart3: 'Quart 3',
+            extremite2: 'Extrémité 2'
+        };
+
+        if (labelsByKey[key]) return labelsByKey[key];
+        if (key) return `Position ${key}`;
+
+        const ratio = section ? Number(section.positionRatio) : NaN;
+        if (Number.isFinite(ratio)) {
+            return `Position ${Math.round(ratio * 100)}%`;
+        }
+
+        return `Section ${sectionIndex + 1}`;
+    }
+
+    formatRegulariteAlertMm(value) {
+        if (!Number.isFinite(Number(value))) return '—';
+        return Number(value).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 1
+        }) + ' mm';
+    }
+
+    formatAlertMm(value) {
+        if (!Number.isFinite(Number(value))) return '— mm';
+        return Math.round(Number(value)) + ' mm';
+    }
+
+    formatAlertVolume(value) {
+        if (!Number.isFinite(Number(value))) return '— m³';
+        const num = Number(value);
+        return num.toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 3
+        }) + ' m³';
+    }
+
+    formatAlertRatio(value) {
+        if (!Number.isFinite(Number(value))) return '—';
+        return Number(value).toFixed(2);
+    }
+
+    formatAlertAnnees(value) {
+        if (!Number.isFinite(Number(value))) return '—';
+        const num = Number(value);
+        return Math.round(num * 10) / 10 + ' ans';
+    }
+
+    formatAlertDiametre(value) {
+        if (!value || String(value).trim() === '') return '— mm';
+        const num = parseFloat(String(value).replace(/,/, '.'));
+        if (!Number.isFinite(num)) return '— mm';
+        return Math.round(num) + ' mm';
+    }
+
+    collectRegulariteAlertContributors(lot, toleranceMm = 10) {
+        const targetLot = lot || this.getCurrentLot();
+        const empty = {
+            detailedDiametres: [],
+            defaultDiametres: [],
+            sectionMismatches: [],
+            toleranceMm,
+            hasAlert: false
+        };
+
+        if (!targetLot) return empty;
+
+        const detailedPieces = Array.isArray(targetLot.pieces) ? targetLot.pieces : [];
+        const defaultPieces = this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false });
+
+        const parseSectionMismatch = (piece, pieceLabel) => {
+            const mm = piece && piece.mesuresMultiples;
+            if (!mm || mm.active !== true || !Array.isArray(mm.sections)) return [];
+
+            return mm.sections.reduce((acc, section, sectionIndex) => {
+                if (!section || section.typeSection !== 'rect') return acc;
+
+                const largeur = this.parsePositiveAlertDimensionValue(section.largeur);
+                const epaisseur = this.parsePositiveAlertDimensionValue(section.epaisseur);
+                const perimetre = this.parsePositiveAlertDimensionValue(section.perimetre);
+
+                if (largeur == null || epaisseur == null || perimetre == null) return acc;
+
+                const perimetreTheo = 2 * (largeur + epaisseur);
+                const ecart = Math.abs(perimetre - perimetreTheo);
+                if (ecart <= toleranceMm) return acc;
+
+                acc.push({
+                    pieceLabel,
+                    sectionLabel: this.getRegulariteSectionPositionLabel(section, sectionIndex),
+                    largeur,
+                    epaisseur,
+                    perimetre,
+                    perimetreTheo,
+                    ecart
+                });
+                return acc;
+            }, []);
+        };
+
+        detailedPieces.forEach((piece, index) => {
+            const pieceLabel = (piece && piece.nom) ? String(piece.nom) : `Pièce ${index + 1}`;
+            const diametre = this.parsePositiveAlertDimensionValue(piece && piece.diametre);
+            if (diametre != null) {
+                empty.detailedDiametres.push({ pieceLabel, diametre });
+            }
+            empty.sectionMismatches.push(...parseSectionMismatch(piece, pieceLabel));
+        });
+
+        defaultPieces.forEach((piece, index) => {
+            const pieceLabel = `Pièce par défaut ${index + 1}`;
+            const diametre = this.parsePositiveAlertDimensionValue(piece && piece.diametre);
+            const quantite = Math.max(0, parseFloat((piece && piece.quantite) || 0) || 0);
+            if (diametre != null) {
+                empty.defaultDiametres.push({ pieceLabel, diametre, quantite });
+            }
+            empty.sectionMismatches.push(...parseSectionMismatch(piece, pieceLabel));
+        });
+
+        empty.hasAlert = empty.detailedDiametres.length > 0
+            || empty.defaultDiametres.length > 0
+            || empty.sectionMismatches.length > 0;
+
+        return empty;
+    }
+
     /**
-     * Détermine l'état d'alerte de Régularité selon l'usage du champ Diamètre.
-     * @param {string|number} diametreValue - Valeur du champ diamètre du lot
-     * @returns {string} 'used' si renseigné, sinon 'none'
+     * Détermine l'état d'alerte de Régularité selon:
+     * - la présence d'un diamètre sur une pièce détaillée,
+     * - la présence d'un diamètre sur une pièce par défaut,
+     * - l'incohérence entre périmètre saisi et 2*(L+E) sur au moins une section rectangulaire.
+     *
+     * Tolérance périmètre: ±10 mm.
+     * @param {object} lot - Lot en cours
+     * @returns {string} 'used' si au moins une condition est vraie, sinon 'none'
      */
-    getRegulariteAlertState(diametreValue) {
-        const hasValue = diametreValue != null && String(diametreValue).trim() !== '';
-        return hasValue ? 'used' : 'none';
+    getRegulariteAlertState(lot) {
+        const details = this.collectRegulariteAlertContributors(lot, 10);
+        return details.hasAlert ? 'used' : 'none';
+    }
+
+    buildRegulariteAlertModalMessage(alertState, details) {
+        if (alertState !== 'used' || !details || !details.hasAlert) {
+            return [
+                'Rien à signaler sur la régularité.',
+                '',
+                'Logique de l\'alerte.',
+                'L\'alerte Régularité s\'active si au moins une pièce (détaillée ou par défaut) a un diamètre renseigné,',
+                `et/ou si une section rectangulaire a un périmètre mesuré incompatible avec 2 x (L + E) au-delà de ±${details && details.toleranceMm != null ? details.toleranceMm : 10} mm.`
+            ].join('\n');
+        }
+
+        const lines = [
+            'Contributeurs détectés pour l\'alerte Régularité :',
+            ''
+        ];
+
+        if (details.detailedDiametres.length > 0) {
+            lines.push('Pièces détaillées avec diamètre renseigné :');
+            details.detailedDiametres.forEach((entry) => {
+                lines.push(`- ${entry.pieceLabel} : diamètre ${this.formatRegulariteAlertMm(entry.diametre)}`);
+            });
+            lines.push('');
+        }
+
+        if (details.defaultDiametres.length > 0) {
+            lines.push('Pièces par défaut avec diamètre renseigné :');
+            details.defaultDiametres.forEach((entry) => {
+                const qtyLabel = Number.isFinite(Number(entry.quantite)) ? `, quantité ${Math.round(Number(entry.quantite))}` : '';
+                lines.push(`- ${entry.pieceLabel}${qtyLabel} : diamètre ${this.formatRegulariteAlertMm(entry.diametre)}`);
+            });
+            lines.push('');
+        }
+
+        if (details.sectionMismatches.length > 0) {
+            lines.push(`Sections rectangulaires avec périmètre incohérent (tolérance ±${details.toleranceMm} mm) :`);
+            details.sectionMismatches.forEach((entry) => {
+                lines.push(`- ${entry.pieceLabel} · ${entry.sectionLabel} : L ${this.formatRegulariteAlertMm(entry.largeur)}, E ${this.formatRegulariteAlertMm(entry.epaisseur)}, P ${this.formatRegulariteAlertMm(entry.perimetre)}, P théorique ${this.formatRegulariteAlertMm(entry.perimetreTheo)}, écart ${this.formatRegulariteAlertMm(entry.ecart)}`);
+            });
+            lines.push('');
+        }
+
+        lines.push('Logique de l\'alerte Régularité.');
+        lines.push('L\'alerte Régularité s\'active si au moins une pièce (détaillée ou par défaut) a un diamètre renseigné.');
+        lines.push(`Elle s\'active aussi si une section rectangulaire a un périmètre mesuré tel que |P - 2 x (L + E)| > ${Math.round(details.toleranceMm)} mm.`);
+
+        return lines.join('\n');
+    }
+
+    collectVolumetrieAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot || !targetLot.allotissement) {
+            return { volumetrieValue: null, hasData: false };
+        }
+
+        const volumetrieValue = String(targetLot.allotissement.volumePiece || '').trim();
+        return {
+            volumetrieValue: volumetrieValue || null,
+            hasData: volumetrieValue !== ''
+        };
+    }
+
+    buildVolumetrieAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la volumétrie.',
+                '',
+                'Vérifier que le Volume unitaire est renseigné dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        const volumeNum = parseFloat(String(details.volumetrieValue || '').replace(/,/, '.'));
+        const dataBlock = Number.isFinite(volumeNum) ? `Valeur lue : ${this.formatAlertVolume(details.volumetrieValue)}` : 'Volume unitaire : aucune valeur valide';
+
+        const lines = [
+            `Volumétrie : ${alertState === 'strong' ? 'Forte' : alertState === 'medium' ? 'Moyenne' : 'Faible'}`,
+            '',
+            'Données utilisées.',
+            dataBlock,
+            '',
+            'Logique de l\'alerte Volumétrie.',
+            '- Forte : volume unitaire > 0,1 m³',
+            '- Moyenne : volume unitaire ∈ [0,05 ; 0,1] m³',
+            '- Faible : volume unitaire < 0,05 m³'
+        ];
+
+        return lines.join('\n');
+    }
+
+    collectStabiliteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const dimensions = this.getEffectiveStabiliteAlertDimensions(targetLot);
+
+        const longueur = dimensions.longueur;
+        const largeur = dimensions.largeur;
+        const epaisseur = dimensions.epaisseur;
+        const diametre = dimensions.diametre;
+
+        let effectiveEpaisseur = epaisseur;
+        let effectiveLargeur = largeur;
+
+        if (diametre) {
+            effectiveEpaisseur = diametre;
+            effectiveLargeur = diametre;
+        }
+
+        if (!longueur || !effectiveEpaisseur || !effectiveLargeur) {
+            return {
+                longueur,
+                largeur,
+                epaisseur,
+                diametre,
+                ratioLe: null,
+                ratioBe: null,
+                hasData: false,
+                activeBranch: null
+            };
+        }
+
+        let calcEpaisseur = effectiveEpaisseur;
+        let calcLargeur = effectiveLargeur;
+
+        if (calcEpaisseur < calcLargeur) {
+            const temp = calcEpaisseur;
+            calcEpaisseur = calcLargeur;
+            calcLargeur = temp;
+        }
+
+        const ratioLe = longueur / calcEpaisseur;
+        const ratioBe = calcLargeur / calcEpaisseur;
+
+        if (!Number.isFinite(ratioLe) || !Number.isFinite(ratioBe)) {
+            return {
+                longueur,
+                largeur,
+                epaisseur,
+                diametre,
+                ratioLe: null,
+                ratioBe: null,
+                hasData: true,
+                activeBranch: null
+            };
+        }
+
+        let activeBranch = null;
+        if (ratioLe <= 18 && ratioBe >= 0.4) {
+            activeBranch = 'strong';
+        } else if ((ratioLe <= 18 && ratioBe >= 0.25 && ratioBe < 0.4) || (ratioLe > 18 && ratioLe <= 28 && ratioBe >= 0.25)) {
+            activeBranch = 'medium';
+        } else if (ratioLe > 28 || ratioBe < 0.25) {
+            activeBranch = 'low';
+        }
+
+        return {
+            longueur,
+            largeur,
+            epaisseur,
+            diametre,
+            calcEpaisseur,
+            calcLargeur,
+            ratioLe,
+            ratioBe,
+            hasData: true,
+            activeBranch
+        };
+    }
+
+    buildStabiliteAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la stabilité.',
+                '',
+                'Vérifier que les dimensions (Longueur, Largeur, Épaisseur ou Diamètre) sont renseignées',
+                'dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        if (!details.ratioLe || !details.ratioBe) {
+            return [
+                'Données de stabilité incomplètes.',
+                '',
+                'Les ratios ne peuvent pas être calculés avec les dimensions fournies.'
+            ].join('\n');
+        }
+
+        const formatDim = (val) => val ? `${val.toFixed(1)} mm` : 'non défini';
+        const formatRatio = (val) => val ? val.toFixed(2) : '—';
+
+        const dataLines = [
+            'Données utilisées.',
+            `- Longueur (ou moyenne) : ${formatDim(details.longueur)}`,
+            `- Largeur (ou moyenne) : ${formatDim(details.largeur)}`,
+            `- Épaisseur (ou moyenne) : ${formatDim(details.epaisseur)}`
+        ];
+
+        if (details.diametre) {
+            dataLines.push(`- Diamètre : ${formatDim(details.diametre)} (utilisé pour largeur et épaisseur)`);
+        }
+
+        dataLines.push('');
+        dataLines.push('Calcul des ratios.');
+        dataLines.push(`- L/E = ${formatDim(details.longueur)} / ${formatDim(details.calcEpaisseur)} = ${formatRatio(details.ratioLe)}`);
+        dataLines.push(`- l/E = ${formatDim(details.calcLargeur)} / ${formatDim(details.calcEpaisseur)} = ${formatRatio(details.ratioBe)}`);
+        dataLines.push('');
+
+        const thresholdLines = [
+            'Seuils appliqués.',
+            '- Stabilité forte : L/E ≤ 18 ET l/E ≥ 0,4',
+            '- Stabilité moyenne : (L/E ≤ 18 ET l/E ∈ [0,25 ; 0,4[) OU (18 < L/E ≤ 28 ET l/E ≥ 0,25)',
+            '- Stabilité faible : L/E > 28 OU l/E < 0,25'
+        ];
+
+        if (details.activeBranch) {
+            const branchDesc = {
+                strong: 'Les deux conditions de stabilité forte sont satisfaites',
+                medium: 'Les conditions de stabilité moyenne sont réunies',
+                low: 'L\'un des critères de faiblesse est franchi'
+            };
+            dataLines.push(`Résultat : stabilité ${details.activeBranch === 'strong' ? 'Forte' : details.activeBranch === 'medium' ? 'Moyenne' : 'Faible'}`);
+            dataLines.push(`(${branchDesc[details.activeBranch]})`);
+        }
+
+        return [...dataLines, '', ...thresholdLines].join('\n');
+    }
+
+    collectArtisanaliteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+
+        return {
+            typeProduit: typeProduitValue || null,
+            hasData: !!typeProduitValue
+        };
+    }
+
+    buildArtisanaliteAlertModalMessage(alertState, details) {
+        const typeCategories = {
+            'BLC': ['Bois Lamellé-Collé (BLC)', 'strong'],
+            'CLT': ['Bois Lamellé-Croisé (CLT)', 'strong'],
+            'BMA': ['Bois Massif Abouté (BMA)', 'strong'],
+            'BMR': ['Bois Massif Reconstitué (BMR)', 'strong'],
+            'CC': ['Bois Contre-Collé (CC)', 'strong'],
+            'BF': ['Bois Fermette (BF)', 'strong'],
+            'BRS': ['Bois Raboté Séché (BRS)', 'medium'],
+            'BO': ['Bois Ossature (BO)', 'medium'],
+            'BBS': ['Bois Brut Sec (BBS)', 'low'],
+            'BNT': ['Bois Non Taillé (BNT)', 'low'],
+            'BA': ['Bois Avivé (BA)', 'low'],
+            'BENS': ['Bois Équarri Non Scié (BENS)', 'low']
+        };
+
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer l\'artisanalité.',
+                '',
+                'Vérifier que le Type de produit est renseigné dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const normalizedType = normalize(details.typeProduit);
+
+        // Find the category for this type
+        let foundCategory = null;
+        for (const [key, [label, category]] of Object.entries(typeCategories)) {
+            if (normalize(label) === normalizedType) {
+                foundCategory = category;
+                break;
+            }
+        }
+
+        if (!foundCategory) {
+            foundCategory = 'none';
+        }
+
+        const lines = [
+            `Artisanalité : ${foundCategory === 'strong' ? 'Forte' : foundCategory === 'medium' ? 'Moyenne' : 'Faible'}`,
+            '',
+            'Données utilisées.',
+            `Type de produit : ${details.typeProduit}`,
+            '',
+            'Logique de l\'alerte Artisanalité.',
+            '- Catégories fortes : BLC, CLT, BMA, BMR, CC, BF',
+            '- Catégories moyennes : BRS, BO',
+            '- Catégories faibles : BBS, BNT, BA, BENS'
+        ];
+
+        return lines.join('\n');
+    }
+
+    collectMassiviteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot || !targetLot.allotissement) {
+            return { epaisseurValue: null, hasData: false };
+        }
+
+        const epaisseurValue = String(
+            targetLot.allotissement._avgEpaisseur != null && targetLot.allotissement._avgEpaisseur !== ''
+                ? targetLot.allotissement._avgEpaisseur
+                : targetLot.allotissement.epaisseur || ''
+        ).trim();
+
+        return {
+            epaisseurValue: epaisseurValue || null,
+            hasData: epaisseurValue !== ''
+        };
+    }
+
+    buildMassiviteAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la massivité.',
+                '',
+                'Vérifier que l\'Épaisseur est renseignée dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        const epaisseurNum = parseFloat(String(details.epaisseurValue || '').replace(/,/, '.'));
+        const dataBlock = Number.isFinite(epaisseurNum) ? `Valeur lue : ${this.formatAlertMm(details.epaisseurValue)}` : 'Épaisseur : aucune valeur valide';
+
+        const lines = [
+            'Massivité.',
+            '',
+            'Noter l\'importance de la massivité des bois évalués.',
+            '',
+            'Données utilisées.',
+            dataBlock,
+            ''
+        ];
+
+        if (alertState === 'strong') {
+            lines.push('Une massivité « forte » vaut pour les pièces de bois massif et de Bois Massif Abouté (BMA) d\'une épaisseur (e ou b) strictement supérieure à 75 mm, pour les pièces en bois lamellé-collé (BLC) d\'une épaisseur de lamelles strictement supérieure à 35 mm et d\'une épaisseur de chant strictement supérieure à 150 mm, ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm d\'une épaisseur de chant strictement supérieure à 210 mm [+3].');
+        } else if (alertState === 'medium') {
+            lines.push('Une massivité « moyenne » vaut pour les pièces : de bois massif et de BMA d\'une épaisseur strictement supérieure à 28 mm et inférieure ou égale à 75 mm, pour les pièces de BLC avec épaisseur de lamelles strictement supérieure à 35 mm d\'une épaisseur de chant inférieure ou égale à 150 mm, ou pour les pièces de BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant strictement supérieure à 28 mm et inférieure ou égale à 210 mm [+2].');
+        } else {
+            lines.push('Une massivité « faible » vaut pour les pièces de bois massif et BMA d\'une épaisseur inférieure ou égale à 28 mm ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant inférieure ou égale à 28 mm [+1].');
+        }
+
+        lines.push('');
+        lines.push('Références et Ressources : Catégorisation conforme à la FD P20-651.');
+
+        return lines.join('\n');
+    }
+
+    collectIndustrialiteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+
+        return {
+            typeProduit: typeProduitValue || null,
+            hasData: !!typeProduitValue
+        };
+    }
+
+    buildIndustrialiteAlertModalMessage(alertState, details) {
+        const typeCategories = {
+            'BLC': ['Bois Lamellé-Collé (BLC)', 'strong'],
+            'BMA': ['Bois Massif Abouté (BMA)', 'strong'],
+            'CC': ['Bois Contre-Collé (CC)', 'strong'],
+            'CLT': ['Bois Lamellé-Croisé (CLT)', 'strong'],
+            'BO': ['Bois Ossature (BO)', 'strong'],
+            'BF': ['Bois Fermette (BF)', 'strong'],
+            'BMR': ['Bois Massif Reconstitué (BMR)', 'strong'],
+            'BRS': ['Bois Raboté Séché (BRS)', 'medium'],
+            'BBS': ['Bois Brut Sec (BBS)', 'medium'],
+            'BA': ['Bois Avivé (BA)', 'medium'],
+            'BNT': ['Bois Non Taillé (BNT)', 'low'],
+            'BENS': ['Bois Équarri Non Scié (BENS)', 'low']
+        };
+
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer l\'industrialité.',
+                '',
+                'Vérifier que le Type de produit est renseigné dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const normalizedType = normalize(details.typeProduit);
+
+        let foundCategory = null;
+        for (const [key, [label, category]] of Object.entries(typeCategories)) {
+            if (normalize(label) === normalizedType) {
+                foundCategory = category;
+                break;
+            }
+        }
+
+        if (!foundCategory) {
+            foundCategory = 'none';
+        }
+
+        const levelLabel = foundCategory === 'strong' ? 'Forte' : foundCategory === 'medium' ? 'Moyenne' : 'Faible';
+
+        const lines = [
+            `Industrialité : ${levelLabel}`,
+            '',
+            'Données utilisées.',
+            `Type de produit : ${details.typeProduit}`,
+            '',
+            'Logique de l\'alerte Industrialité.',
+            '- Catégories fortes : BLC, BMA, CC, CLT, BO, BF, BMR',
+            '- Catégories moyennes : BRS, BBS, BA',
+            '- Catégories faibles : BNT, BENS'
+        ];
+
+        return lines.join('\n');
+    }
+
+    collectNaturaliteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) {
+            return {
+                typeProduit: null,
+                lotDiametre: null,
+                detailedPiecesDiametres: [],
+                defaultPiecesDiametres: [],
+                hasDiametre: false,
+                hasData: false
+            };
+        }
+
+        const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
+        const lotDiametre = targetLot && targetLot.allotissement
+            ? String(targetLot.allotissement.diametre || '').trim()
+            : '';
+
+        const detailedPiecesDiametres = [];
+        if (Array.isArray(targetLot.pieces)) {
+            targetLot.pieces.forEach((piece) => {
+                const diametre = String((piece && piece.diametre) || '').trim();
+                if (diametre) {
+                    const pieceLabel = this.normalizeDetailTitle(piece && piece.nom) || 'Pièce';
+                    detailedPiecesDiametres.push({ pieceLabel, diametre });
+                }
+            });
+        }
+
+        const defaultPiecesDiametres = [];
+        const defaultPieces = this.ensureDefaultPiecesData(targetLot);
+        defaultPieces.forEach((defaultPiece) => {
+            const diametre = String((defaultPiece && defaultPiece.diametre) || '').trim();
+            const qty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (diametre && qty > 0) {
+                const pieceLabel = this.normalizeDetailTitle(defaultPiece && defaultPiece.nom) || 'Pièce par défaut';
+                defaultPiecesDiametres.push({ pieceLabel, diametre, quantite: qty });
+            }
+        });
+
+        const hasDiametre = lotDiametre !== '' || detailedPiecesDiametres.length > 0 || defaultPiecesDiametres.length > 0;
+
+        return {
+            typeProduit: typeProduitValue || null,
+            lotDiametre: lotDiametre || null,
+            detailedPiecesDiametres,
+            defaultPiecesDiametres,
+            hasDiametre,
+            hasData: !!typeProduitValue
+        };
+    }
+
+    buildNaturaliteAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la naturalité.',
+                '',
+                'Vérifier que le Type de produit est renseigné dans le Détail du lot.'
+            ].join('\n');
+        }
+
+        const lines = [
+            `Naturalité : ${alertState === 'strong' ? 'Potentiellement Forte' : 'Moyenne à Faible'}`,
+            '',
+            'Données utilisées.',
+            `Type de produit : ${details.typeProduit}`,
+            `Présence de diamètre : ${details.hasDiametre ? 'Oui' : 'Non'}`
+        ];
+
+        if (details.lotDiametre || details.detailedPiecesDiametres.length > 0 || details.defaultPiecesDiametres.length > 0) {
+            lines.push('Sources de diamètre :');
+            if (details.lotDiametre) lines.push(`- Lot : ${this.formatAlertDiametre(details.lotDiametre)}`);
+            details.detailedPiecesDiametres.forEach((entry) => {
+                lines.push(`- ${entry.pieceLabel} : ${this.formatAlertDiametre(entry.diametre)}`);
+            });
+            details.defaultPiecesDiametres.forEach((entry) => {
+                lines.push(`- ${entry.pieceLabel} (x${Math.round(entry.quantite)}) : ${this.formatAlertDiametre(entry.diametre)}`);
+            });
+        }
+
+        lines.push('', 'Logique de l\'alerte Naturalité.');
+        lines.push('- Potentiellement forte : type BBS, BNT ou BENS ET diamètre renseigné');
+        lines.push('- Moyenne à faible : autres types de produit ou absence de diamètre');
+        lines.push('', 'Note : une naturalité forte suppose aussi que le bois soit libre de finition.');
+
+        return lines.join('\n');
+    }
+
+    collectAmortissementAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot || !targetLot.allotissement) {
+            return {
+                ageArbre: null,
+                dateMiseEnService: null,
+                evalYear: null,
+                serviceYear: null,
+                calculatedAmortissement: null,
+                hasData: false
+            };
+        }
+
+        const ageArbreValue = targetLot.allotissement._avgAgeArbre != null
+            ? String(targetLot.allotissement._avgAgeArbre)
+            : '';
+        const dateMiseEnServiceValue = targetLot.allotissement._avgServiceYear != null
+            ? String(targetLot.allotissement._avgServiceYear)
+            : '';
+
+        const extractYear = (str) => {
+            if (!str) return null;
+            const m = String(str).match(/\b(\d{4})\b/);
+            return m ? parseInt(m[1], 10) : null;
+        };
+
+        const evalYear = extractYear(this.data.meta && this.data.meta.date);
+        const serviceYear = extractYear(dateMiseEnServiceValue);
+
+        const age = parseFloat(ageArbreValue);
+        const calculatedAmortissement = this.computeAmortissementBiologique(ageArbreValue, dateMiseEnServiceValue);
+
+        return {
+            ageArbre: ageArbreValue || null,
+            dateMiseEnService: dateMiseEnServiceValue || null,
+            evalYear,
+            serviceYear,
+            calculatedAmortissement,
+            hasData: ageArbreValue !== '' && dateMiseEnServiceValue !== '' && Number.isFinite(age) && age > 0
+        };
+    }
+
+    buildAmortissementAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            const missingParts = [];
+            if (!details || !details.ageArbre) missingParts.push('l\'âge de l\'arbre');
+            if (!details || !details.dateMiseEnService) missingParts.push('la date de mise en service');
+            if (details && details.evalYear == null) missingParts.push('la date d\'évaluation');
+
+            const lines = [
+                'Impossible d\'évaluer l\'amortissement biologique.',
+                ''
+            ];
+
+            if (missingParts.length > 0) {
+                lines.push('Données manquantes :');
+                missingParts.forEach((part) => lines.push(`- ${part}`));
+                lines.push('');
+            }
+
+            lines.push('Renseigner dans le Détail du lot :');
+            lines.push('- L\'âge de l\'arbre (en années)');
+            lines.push('- La date de mise en service de la pièce de bois');
+            lines.push('- La date d\'évaluation du lot (toutes les pièces)');
+
+            return lines.join('\n');
+        }
+
+        const levelLabel = alertState === 'strong' ? 'Fort' : alertState === 'medium' ? 'Moyen' : 'Faible';
+
+        const lines = [
+            `Amortissement biologique : ${levelLabel}`,
+            '',
+            'Données utilisées.',
+            `- Âge de l\'arbre : ${this.formatAlertAnnees(details.ageArbre)}`,
+            `- Date de mise en service : ${details.dateMiseEnService ? details.dateMiseEnService : 'non renseignée'}`,
+            `- Date d\'évaluation : ${details.evalYear ? details.evalYear : 'non déterminée'}`,
+            '',
+            'Calcul de l\'amortissement biologique.',
+            `Formule : Amortissement = (Année évaluation - Année mise en service) / Âge arbre`,
+            `Résultat : (${details.evalYear || '?'} - ${details.serviceYear || '?'}) / ${this.formatAlertAnnees(details.ageArbre) || '?'} = ${this.formatAlertRatio(details.calculatedAmortissement) || '—'}`,
+            '',
+            'Seuils appliqués.',
+            '- Amortissement fort : ≥ 1',
+            '- Amortissement moyen : > 0,5 et < 1',
+            '- Amortissement faible : ≤ 0,5'
+        ];
+
+        return lines.join('\n');
     }
 
     parsePositiveAlertDimensionValue(value) {
@@ -2060,20 +2866,16 @@ class ValoboisApp {
         return 'none';
     }
 
-    openDebitStabiliteAlertModal(alertState) {
+    openDebitStabiliteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('debitDetailModalBackdrop');
         const titleEl = document.getElementById('debitDetailModalTitle');
         const contentEl = document.getElementById('debitDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après les dimensions renseignées, la stabilité devrait être Forte.',
-            medium: 'D\'après les dimensions renseignées, la stabilité devrait être Moyenne.',
-            low: 'D\'après les dimensions renseignées, la stabilité devrait être Faible.',
-            none: 'Vérifier les dimensions renseignées dans le Détail du lot.'
-        };
+        const details = this.collectStabiliteAlertContributors(lot);
+        const message = this.buildStabiliteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Stabilité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -2081,18 +2883,16 @@ class ValoboisApp {
         }
     }
 
-    openDebitRegulariteAlertModal(alertState) {
+    openDebitRegulariteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('debitDetailModalBackdrop');
         const titleEl = document.getElementById('debitDetailModalTitle');
         const contentEl = document.getElementById('debitDetailModalContent');
 
-        const messagesByState = {
-            used: 'D\'après les dimensions renseignées la régularité est faible compte tenu de la présence de bois ronds.',
-            none: 'Rien à signaler'
-        };
+        const details = this.collectRegulariteAlertContributors(lot, 10);
+        const message = this.buildRegulariteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Régularité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -2146,19 +2946,16 @@ class ValoboisApp {
         return 'none';
     }
 
-    openDenatNaturaliteAlertModal(alertState) {
+    openDenatNaturaliteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('denatDetailModalBackdrop');
         const titleEl = document.getElementById('denatDetailModalTitle');
         const contentEl = document.getElementById('denatDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après les champs renseignés la naturalité pourrait être Forte, sauf si le bois évalué n\'est pas libre de finition.',
-            medium: 'D\'après les champs renseignés la naturalité devrait être Moyenne à Faible',
-            none: 'Vérifier le type de produit renseigné.'
-        };
+        const details = this.collectNaturaliteAlertContributors(lot);
+        const message = this.buildNaturaliteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Naturalité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -2277,20 +3074,16 @@ class ValoboisApp {
         return 'none';
     }
 
-    openDebitArtisanaliteAlertModal(alertState) {
+    openDebitArtisanaliteAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('debitDetailModalBackdrop');
         const titleEl = document.getElementById('debitDetailModalTitle');
         const contentEl = document.getElementById('debitDetailModalContent');
 
-        const messagesByState = {
-            strong: 'D\'après le type de produit renseigné l\'artisanalité devrait être Forte.',
-            medium: 'D\'après le type de produit renseigné l\'artisanalité devrait être Moyenne.',
-            low: 'D\'après le type de produit renseigné l\'artisanalité devrait être Faible.',
-            none: 'Vérifier le Type de produit renseigné dans le Détail du lot.'
-        };
+        const details = this.collectArtisanaliteAlertContributors(lot);
+        const message = this.buildArtisanaliteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Artisanalité';
-        this.renderDetailModalContent(contentEl, messagesByState[alertState] || messagesByState.none);
+        this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -6942,6 +7735,70 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         if (exportPdfBackdrop && btnCloseExportPdf && btnCancelExportPdf && btnRunExport && exportFileFormatSelect && exportContentModeSelect && exportPdfLotsList) {
             const closeExportPdf = () => this.closeExportPdfModal();
+
+            // ── Config Pset IFC : deep-copy avec conservation des fonctions getValue ──
+            const deepCopyPsetConfig = (config) => {
+                const copy = {};
+                Object.keys(config).forEach((psetKey) => {
+                    const pset = config[psetKey];
+                    copy[psetKey] = { enabled: pset.enabled, label: pset.label, psetName: pset.psetName, properties: {} };
+                    Object.keys(pset.properties).forEach((propKey) => {
+                        const prop = pset.properties[propKey];
+                        copy[psetKey].properties[propKey] = { enabled: prop.enabled, label: prop.label, getValue: prop.getValue };
+                    });
+                });
+                return copy;
+            };
+            let activePsetConfig = deepCopyPsetConfig(DEFAULT_PSET_CONFIG);
+
+            // ── Rendu dynamique des checkboxes Pset IFC ──
+            const renderIfcPsetUI = (psetConfig, containerId) => {
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                container.innerHTML = '';
+                Object.keys(psetConfig).forEach((psetKey) => {
+                    const psetDef = psetConfig[psetKey];
+                    const item = document.createElement('div');
+                    item.style.cssText = 'padding:6px 0;';
+
+                    // Checkbox principale du Pset
+                    const mainLabel = document.createElement('label');
+                    mainLabel.style.cssText = 'display:flex;align-items:center;gap:6px;font-weight:600;cursor:pointer;';
+                    const mainCb = document.createElement('input');
+                    mainCb.type    = 'checkbox';
+                    mainCb.checked = psetDef.enabled;
+                    mainCb.addEventListener('change', () => { psetDef.enabled = mainCb.checked; });
+                    mainLabel.appendChild(mainCb);
+                    mainLabel.appendChild(document.createTextNode(' ' + psetDef.label));
+                    item.appendChild(mainLabel);
+
+                    // <details> avec les propriétés individuelles
+                    const details = document.createElement('details');
+                    details.style.cssText = 'margin-top:4px;margin-left:20px;';
+                    const summary = document.createElement('summary');
+                    summary.style.cssText = 'font-size:12px;color:#555;cursor:pointer;';
+                    summary.textContent = 'Propriétés incluses';
+                    details.appendChild(summary);
+                    const propsDiv = document.createElement('div');
+                    propsDiv.style.cssText = 'display:grid;gap:4px;margin-top:6px;';
+                    Object.keys(psetDef.properties).forEach((propKey) => {
+                        const propDef = psetDef.properties[propKey];
+                        const propLabel = document.createElement('label');
+                        propLabel.style.cssText = 'display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;';
+                        const propCb = document.createElement('input');
+                        propCb.type    = 'checkbox';
+                        propCb.checked = propDef.enabled;
+                        propCb.addEventListener('change', () => { propDef.enabled = propCb.checked; });
+                        propLabel.appendChild(propCb);
+                        propLabel.appendChild(document.createTextNode(' ' + propDef.label));
+                        propsDiv.appendChild(propLabel);
+                    });
+                    details.appendChild(propsDiv);
+                    item.appendChild(details);
+                    container.appendChild(item);
+                });
+            };
+
             const updateExportLotsState = () => {
                 if (exportFileFormatSelect.value === 'json') return;
                 const requiresLotSelection = exportContentModeSelect.value === 'lots-selectionnes';
@@ -6962,8 +7819,11 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 const isJson = fmt === 'json';
                 const isGlb  = fmt === 'glb';
                 const isDae  = fmt === 'dae';
+                const isGh   = fmt === 'json-gh';
+                const isIfc  = fmt === 'ifc';
                 const is3d   = isGlb || isDae;
-                const isJsonOr3d = isJson || is3d;
+                const is3dOrGh = is3d || isGh;
+                const isJsonOr3d = isJson || is3dOrGh || isIfc;
                 if (exportModalLotsSection) {
                     exportModalLotsSection.classList.toggle('hidden', isJson);
                     exportModalLotsSection.toggleAttribute('hidden', isJson);
@@ -6977,18 +7837,28 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     exportGlbPrecisionSection.hidden = !is3d;
                     exportGlbPrecisionSection.style.display = is3d ? '' : 'none';
                 }
+                const exportIfcPsetSection = document.getElementById('exportIfcPsetSection');
+                if (exportIfcPsetSection) {
+                    exportIfcPsetSection.hidden = !isIfc;
+                    exportIfcPsetSection.style.display = isIfc ? '' : 'none';
+                }
                 if (exportModalIntro) {
                     exportModalIntro.textContent = isJson
                         ? 'Export JSON : données d’évaluation (même structure que l’enregistrement nuage).'
-                        : is3d
-                            ? 'Export 3D — Génère un fichier par lot sélectionné (un fichier par lot).'
-                            : 'Choisissez le contenu et le format à exporter.';
+                        : isGh
+                            ? '⚠️ En cours de développement — Export JSON Grasshopper : génère un fichier structuré pour GHPython, par lots sélectionnés. Le format peut évoluer.'
+                            : is3d
+                                ? 'Export 3D — Génère un fichier par lot sélectionné (un fichier par lot).'
+                                : isIfc
+                                    ? 'Export IFC4 — Génère un fichier BIM par lot sélectionné.'
+                                    : 'Choisissez le contenu et le format à exporter.';
                 }
                 if (isJson) {
                     exportPdfLotsList.style.opacity = '1';
                 } else {
-                    if (is3d) exportContentModeSelect.value = 'lots-selectionnes';
+                    if (is3d || isGh || isIfc) exportContentModeSelect.value = 'lots-selectionnes';
                     updateExportLotsState();
+                    if (isIfc) renderIfcPsetUI(activePsetConfig, 'exportIfcPsetList');
                 }
             };
 
@@ -7003,6 +7873,16 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
             btnRunExport.addEventListener('click', () => {
                 const formatVal = exportFileFormatSelect.value;
+                if (formatVal === 'ifc') {
+                    const selectedLotIndices = this.getSelectedExportPdfLotIndices();
+                    if (!selectedLotIndices.length) {
+                        alert('Sélectionne au moins un lot à exporter.');
+                        return;
+                    }
+                    closeExportPdf();
+                    this.exportToIFC(selectedLotIndices, activePsetConfig);
+                    return;
+                }
                 if (formatVal === 'glb') {
                     const selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     closeExportPdf();
@@ -7013,6 +7893,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     const selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     closeExportPdf();
                     this.exportToDAE(selectedLotIndices);
+                    return;
+                }
+                if (formatVal === 'json-gh') {
+                    const selectedLotIndices = this.getSelectedExportPdfLotIndices();
+                    closeExportPdf();
+                    this.exportToGrasshopperJson(selectedLotIndices);
                     return;
                 }
                 if (formatVal === 'json') {
@@ -8116,7 +9002,7 @@ Noter le degré de régularité du débit des bois évalués.
 
 Une régularité « forte », ou parallélépipédique forte vaut pour des pièces de bois dont les arêtes sont parallèles et/ou perpendiculaires entre elles et des extrémités anguleuses sur moins de 25 cm [+3].
 Une régularité « moyenne » vaut pour des pièces qui comportent des flaches localisés et des extrémités anguleuses sur plus de 26 cm [+2].
-Une régularité « faible » vaut pour des pièces qui comportent plusieurs flaches étendus toute la longueur de la pièce, demi-rond ou rond [+1].`,
+Une régularité « faible » vaut pour des pièces qui comportent plusieurs flaches étendus sur toute la longueur de la pièce, demi-rond ou rond [+1].`,
         volumetrieDebit: `Volumétrie.
 
 Noter l’importance de la volumétrie des bois évalués.
@@ -12720,7 +13606,7 @@ updateDenatRow(row, key, lot) {
             e.stopPropagation();
             updateNaturaliteAlertBtn();
             const alertState = naturaliteAlertBtn.dataset.alertNaturaliteState || 'none';
-            this.openDenatNaturaliteAlertModal(alertState);
+            this.openDenatNaturaliteAlertModal(alertState, lot);
         };
     }
 
@@ -12899,10 +13785,7 @@ updateDebitRow(row, key, lot) {
         }
 
         if (regulariteAlertBtn) {
-            const diametreValue = lot && lot.allotissement && lot.allotissement.diametre != null
-                ? String(lot.allotissement.diametre)
-                : '';
-            const regulariteState = this.getRegulariteAlertState(diametreValue);
+            const regulariteState = this.getRegulariteAlertState(lot);
             regulariteAlertBtn.dataset.alertRegulariteState = regulariteState;
         }
 
@@ -12921,7 +13804,7 @@ updateDebitRow(row, key, lot) {
         volumetrieAlertBtn.onclick = (e) => {
             e.stopPropagation();
             const alertState = volumetrieAlertBtn.dataset.alertVolumetrieState || 'none';
-            this.openDebitVolumetrieAlertModal(alertState);
+            this.openDebitVolumetrieAlertModal(alertState, lot);
         };
     }
 
@@ -12929,7 +13812,7 @@ updateDebitRow(row, key, lot) {
         regulariteAlertBtn.onclick = (e) => {
             e.stopPropagation();
             const alertState = regulariteAlertBtn.dataset.alertRegulariteState || 'none';
-            this.openDebitRegulariteAlertModal(alertState);
+            this.openDebitRegulariteAlertModal(alertState, lot);
         };
     }
 
@@ -12938,7 +13821,7 @@ updateDebitRow(row, key, lot) {
             e.stopPropagation();
             this.refreshStabiliteAlertButton(lot);
             const alertState = stabiliteAlertBtn.dataset.alertStabiliteState || 'none';
-            this.openDebitStabiliteAlertModal(alertState);
+            this.openDebitStabiliteAlertModal(alertState, lot);
         };
     }
 
@@ -12947,7 +13830,7 @@ updateDebitRow(row, key, lot) {
             e.stopPropagation();
             this.refreshArtisanaliteAlertButton(lot);
             const alertState = artisanaliteAlertBtn.dataset.alertArtisanaliteState || 'none';
-            this.openDebitArtisanaliteAlertModal(alertState);
+            this.openDebitArtisanaliteAlertModal(alertState, lot);
         };
     }
 
@@ -13255,7 +14138,7 @@ updateGeoRow(row, key, lot) {
         massiviteAlertBtn.onclick = (e) => {
             e.stopPropagation();
             const alertState = massiviteAlertBtn.dataset.alertMassiviteState || 'none';
-            this.openGeoMassiviteAlertModal(alertState);
+            this.openGeoMassiviteAlertModal(alertState, lot);
         };
     }
 
@@ -13264,7 +14147,7 @@ updateGeoRow(row, key, lot) {
             e.stopPropagation();
             this.refreshIndustrialiteAlertButton(lot);
             const alertState = industrialiteAlertBtn.dataset.alertIndustrialiteState || 'none';
-            this.openGeoIndustrialiteAlertModal(alertState);
+            this.openGeoIndustrialiteAlertModal(alertState, lot);
         };
     }
 
@@ -13610,7 +14493,7 @@ updateAncienRow(row, key, lot) {
         alertBtn.onclick = (e) => {
             e.stopPropagation();
             const alertState = alertBtn.dataset.alertAmortissementState || 'none';
-            this.openAncienAmortissementAlertModal(alertState);
+            this.openAncienAmortissementAlertModal(alertState, lot);
         };
     }
 
@@ -14453,6 +15336,8 @@ renderRadar() {
 
         if (!section) return;
 
+        try {
+
         const lot = this.getCurrentLot();
         if (!lot) {
             section.style.display = 'none';
@@ -14496,8 +15381,7 @@ renderRadar() {
 
         const grouped = new Map();
         let hasNonZeroLongueur = false;
-        let hasNonZeroLargeur = false;
-        let hasNonZeroEpaisseur = false;
+        let hasNonZeroSection = false;
 
         const normalizeTypePiece = (value) => {
             const raw = typeof value === 'string' ? value.trim() : '';
@@ -14523,14 +15407,25 @@ renderRadar() {
             sourceLargeur,
             sourceEpaisseur,
             sourceDiametre,
+            sourceTypeSection,
+            sourceSectionOverride,
+            sourceHasMesuresMultiples,
+            sourceMesuresMultiplesSummary,
+            sourceMesuresMultiplesDetailLines,
             sourceTypePiece,
             sourceEssenceNomCommun,
             sourcePieceTitle,
             isDefaultPiece,
+            sourceMasseTheorique,
+            sourceMasseMesuree,
+            sourcePrixUnitaire,
             count
         ) => {
             const safeCount = Math.max(0, Math.round(Number(count) || 0));
             if (safeCount <= 0) return;
+            const _safeMasseTheorique = (sourceMasseTheorique != null && Number.isFinite(Number(sourceMasseTheorique)) && Number(sourceMasseTheorique) > 0) ? Number(sourceMasseTheorique) : null;
+            const _safeMasseMesuree = (sourceMasseMesuree != null && Number.isFinite(Number(sourceMasseMesuree)) && Number(sourceMasseMesuree) > 0) ? Number(sourceMasseMesuree) : null;
+            const _safePrixUnitaire = (sourcePrixUnitaire != null && Number.isFinite(Number(sourcePrixUnitaire)) && Number(sourcePrixUnitaire) > 0) ? Number(sourcePrixUnitaire) : null;
 
             const longueur = toRoundedDimension(sourceLongueur, fallbackLongueur);
             const largeur = toRoundedDimension(sourceLargeur, fallbackLargeur);
@@ -14538,14 +15433,20 @@ renderRadar() {
             const diametre = toRoundedDimension(sourceDiametre, fallbackDiametre);
 
             if (longueur > 0) hasNonZeroLongueur = true;
-            if (largeur > 0) hasNonZeroLargeur = true;
-            if (epaisseur > 0) hasNonZeroEpaisseur = true;
+
+            const isCircularSection = sourceTypeSection === 'circ' || (diametre > 0 && (largeur <= 0 || epaisseur <= 0));
+            const sectionOverride = Number(sourceSectionOverride);
+            const section = Number.isFinite(sectionOverride) && sectionOverride > 0
+                ? Math.round(sectionOverride)
+                : (isCircularSection
+                    ? Math.round(Math.PI * Math.pow(diametre / 2, 2))
+                    : Math.round(largeur * epaisseur));
+            if (section > 0) hasNonZeroSection = true;
 
             const typePiece = normalizeTypePiece(sourceTypePiece);
             const essenceNomCommun = normalizeEssenceNomCommun(sourceEssenceNomCommun);
             const pieceTitle = normalizePieceTitle(sourcePieceTitle, isDefaultPiece);
-            const section = Math.round(largeur * epaisseur);
-            const key = section + '|' + longueur + '|' + epaisseur;
+            const key = section + '|' + longueur + '|' + epaisseur + '|' + diametre + '|' + (isCircularSection ? 'circ' : 'rect');
             const existing = grouped.get(key);
             if (existing) {
                 existing.count += safeCount;
@@ -14553,6 +15454,17 @@ renderRadar() {
                 existing.essenceCounts[essenceNomCommun] = (existing.essenceCounts[essenceNomCommun] || 0) + safeCount;
                 existing.titleCounts[pieceTitle] = (existing.titleCounts[pieceTitle] || 0) + safeCount;
                 if (diametre > 0 && existing.diametre <= 0) existing.diametre = diametre;
+                if (sourceHasMesuresMultiples) existing.hasMesuresMultiples = true;
+                if (sourceMesuresMultiplesSummary) {
+                    existing.mesuresMultiplesCounts[sourceMesuresMultiplesSummary] = (existing.mesuresMultiplesCounts[sourceMesuresMultiplesSummary] || 0) + safeCount;
+                }
+                if (Array.isArray(sourceMesuresMultiplesDetailLines) && sourceMesuresMultiplesDetailLines.length) {
+                    const detailKey = sourceMesuresMultiplesDetailLines.join(' || ');
+                    existing.mesuresMultiplesDetailCounts[detailKey] = (existing.mesuresMultiplesDetailCounts[detailKey] || 0) + safeCount;
+                }
+                if (_safeMasseTheorique !== null) { existing.masseTheoriqueSum += _safeMasseTheorique * safeCount; existing.masseTheoriqueCount += safeCount; }
+                if (_safeMasseMesuree !== null) { existing.masseMesureeSum += _safeMasseMesuree * safeCount; existing.masseMesureeCount += safeCount; }
+                if (_safePrixUnitaire !== null) { existing.prixUnitaireSum += _safePrixUnitaire * safeCount; existing.prixUnitaireCount += safeCount; }
             } else {
                 grouped.set(key, {
                     section,
@@ -14560,43 +15472,234 @@ renderRadar() {
                     largeur,
                     epaisseur,
                     diametre,
+                    typeSection: isCircularSection ? 'circ' : 'rect',
                     count: safeCount,
+                    hasMesuresMultiples: !!sourceHasMesuresMultiples,
+                    mesuresMultiplesCounts: sourceMesuresMultiplesSummary ? { [sourceMesuresMultiplesSummary]: safeCount } : {},
+                    mesuresMultiplesDetailCounts: (Array.isArray(sourceMesuresMultiplesDetailLines) && sourceMesuresMultiplesDetailLines.length)
+                        ? { [sourceMesuresMultiplesDetailLines.join(' || ')]: safeCount }
+                        : {},
                     typeCounts: { [typePiece]: safeCount },
                     essenceCounts: { [essenceNomCommun]: safeCount },
-                    titleCounts: { [pieceTitle]: safeCount }
+                    titleCounts: { [pieceTitle]: safeCount },
+                    masseTheoriqueSum: _safeMasseTheorique !== null ? _safeMasseTheorique * safeCount : 0,
+                    masseTheoriqueCount: _safeMasseTheorique !== null ? safeCount : 0,
+                    masseMesureeSum: _safeMasseMesuree !== null ? _safeMasseMesuree * safeCount : 0,
+                    masseMesureeCount: _safeMasseMesuree !== null ? safeCount : 0,
+                    prixUnitaireSum: _safePrixUnitaire !== null ? _safePrixUnitaire * safeCount : 0,
+                    prixUnitaireCount: _safePrixUnitaire !== null ? safeCount : 0
                 });
             }
         };
 
-        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece, defaultIndex) => {
+        const registerPieceSections = (piece, { isDefaultPiece, fallbackTitle, fallbackTypePieceValue, fallbackEssenceValue, count }) => {
+            const safeCount = Math.max(0, Math.round(Number(count) || 0));
+            if (safeCount <= 0) return;
+
+            const pieceLongueur = piece ? piece.longueur : '';
+            const pieceTypePiece = piece ? piece.typePiece : fallbackTypePieceValue;
+            const pieceEssence = piece ? piece.essenceNomCommun : fallbackEssenceValue;
+            const pieceTitle = piece ? piece.nom : fallbackTitle;
+
+            let sectionCandidates = [];
+            if (piece && typeof window.resolveSections === 'function') {
+                const resolved = window.resolveSections(piece);
+                if (Array.isArray(resolved)) sectionCandidates = resolved;
+            }
+
+            const rawMesuresMultiples = piece && piece.mesuresMultiples && piece.mesuresMultiples.active === true && Array.isArray(piece.mesuresMultiples.sections)
+                ? piece.mesuresMultiples.sections
+                : [];
+            const hasMesuresMultiples = rawMesuresMultiples.length > 0;
+
+            if (!sectionCandidates.length) {
+                sectionCandidates = [{
+                    typeSection: (parseFloat(piece ? piece.diametre : '') > 0 && parseFloat(piece ? piece.largeur : '') <= 0) ? 'circ' : 'rect',
+                    largeur: piece ? piece.largeur : '',
+                    epaisseur: piece ? piece.epaisseur : '',
+                    diametre: piece ? piece.diametre : ''
+                }];
+            }
+
+            const uniqueSections = new Map();
+            sectionCandidates.forEach((sectionData) => {
+                const largeur = toRoundedDimension(sectionData ? sectionData.largeur : '', piece ? piece.largeur : fallbackLargeur);
+                const epaisseur = toRoundedDimension(sectionData ? sectionData.epaisseur : '', piece ? piece.epaisseur : fallbackEpaisseur);
+                const diametre = toRoundedDimension(sectionData ? sectionData.diametre : '', piece ? piece.diametre : fallbackDiametre);
+                const typeSection = sectionData && sectionData.typeSection === 'circ' ? 'circ' : (diametre > 0 && (largeur <= 0 || epaisseur <= 0) ? 'circ' : 'rect');
+                const signature = `${typeSection}|${largeur}|${epaisseur}|${diametre}`;
+                if (!uniqueSections.has(signature)) {
+                    uniqueSections.set(signature, { typeSection, largeur, epaisseur, diametre });
+                }
+            });
+
+            const computeSectionAreaMm2 = (sectionData) => {
+                if (!sectionData) return 0;
+                const largeur = Number(sectionData.largeur) || 0;
+                const epaisseur = Number(sectionData.epaisseur) || 0;
+                const diametre = Number(sectionData.diametre) || 0;
+                const isCirc = sectionData.typeSection === 'circ' || (diametre > 0 && (largeur <= 0 || epaisseur <= 0));
+                return isCirc
+                    ? Math.PI * Math.pow(diametre / 2, 2)
+                    : (largeur * epaisseur);
+            };
+
+            const longueur = toRoundedDimension(pieceLongueur, fallbackLongueur);
+            let equivalentSectionMm2 = null;
+            if (hasMesuresMultiples && longueur > 0) {
+                const volumeEnrichi = typeof this.computeVolumeEnrichi === 'function' ? this.computeVolumeEnrichi(piece) : null;
+                if (Number.isFinite(volumeEnrichi) && volumeEnrichi > 0) {
+                    equivalentSectionMm2 = (volumeEnrichi * 1e9) / longueur;
+                } else {
+                    const integratedSections = [...rawMesuresMultiples]
+                        .filter((sectionData) => sectionData != null && Number.isFinite(Number(sectionData.positionRatio)))
+                        .map((sectionData) => {
+                            const largeur = toRoundedDimension(sectionData.largeur, piece ? piece.largeur : fallbackLargeur);
+                            const epaisseur = toRoundedDimension(sectionData.epaisseur, piece ? piece.epaisseur : fallbackEpaisseur);
+                            const diametre = toRoundedDimension(sectionData.diametre, piece ? piece.diametre : fallbackDiametre);
+                            const typeSection = sectionData.typeSection === 'circ' ? 'circ' : (diametre > 0 && (largeur <= 0 || epaisseur <= 0) ? 'circ' : 'rect');
+                            return {
+                                positionRatio: Number(sectionData.positionRatio),
+                                largeur,
+                                epaisseur,
+                                diametre,
+                                typeSection,
+                                areaMm2: computeSectionAreaMm2({ largeur, epaisseur, diametre, typeSection })
+                            };
+                        })
+                        .sort((a, b) => a.positionRatio - b.positionRatio);
+
+                    if (integratedSections.length >= 2) {
+                        let areaIntegral = 0;
+                        for (let idx = 0; idx < integratedSections.length - 1; idx += 1) {
+                            const left = integratedSections[idx];
+                            const right = integratedSections[idx + 1];
+                            const deltaRatio = Math.max(0, right.positionRatio - left.positionRatio);
+                            if (deltaRatio <= 0) continue;
+                            areaIntegral += ((left.areaMm2 + right.areaMm2) / 2) * deltaRatio;
+                        }
+                        if (areaIntegral > 0) equivalentSectionMm2 = areaIntegral;
+                    }
+                }
+            }
+
+            const mesuresPositions = rawMesuresMultiples
+                .map((sectionData) => Math.round(Number(sectionData.position)))
+                .filter((value) => Number.isFinite(value));
+            const mesuresSummary = hasMesuresMultiples
+                ? `Mesures multiples : ${rawMesuresMultiples.length} sections${mesuresPositions.length ? `, positions ${Math.min(...mesuresPositions)}-${Math.max(...mesuresPositions)} mm` : ''}`
+                : '';
+
+            const mesuresDetailLines = hasMesuresMultiples
+                ? [...rawMesuresMultiples]
+                    .map((sectionData) => {
+                        const ratio = Number(sectionData && sectionData.positionRatio);
+                        const positionMmFromRatio = Number.isFinite(ratio) && longueur > 0 ? Math.round(ratio * longueur) : null;
+                        const positionMm = Number.isFinite(Number(sectionData && sectionData.position))
+                            ? Math.round(Number(sectionData.position))
+                            : positionMmFromRatio;
+                        const largeur = toRoundedDimension(sectionData ? sectionData.largeur : '', piece ? piece.largeur : fallbackLargeur);
+                        const epaisseur = toRoundedDimension(sectionData ? sectionData.epaisseur : '', piece ? piece.epaisseur : fallbackEpaisseur);
+                        const diametre = toRoundedDimension(sectionData ? sectionData.diametre : '', piece ? piece.diametre : fallbackDiametre);
+                        const typeSection = sectionData && sectionData.typeSection === 'circ'
+                            ? 'circ'
+                            : (diametre > 0 && (largeur <= 0 || epaisseur <= 0) ? 'circ' : 'rect');
+                        const shapeLabel = typeSection === 'circ'
+                            ? `Ø ${Math.round(diametre)} mm`
+                            : `${Math.round(largeur)} x ${Math.round(epaisseur)} mm`;
+                        const isExtremite1 = Number.isFinite(ratio) && Math.abs(ratio) <= 1e-6;
+                        const isExtremite2 = Number.isFinite(ratio) && Math.abs(ratio - 1) <= 1e-6;
+                        let posLabel = '';
+                        if (isExtremite1) posLabel = "à l'extrémité 1";
+                        else if (isExtremite2) posLabel = "à l'extrémité 2";
+                        else if (Number.isFinite(positionMm)) posLabel = `à ${positionMm} mm`;
+                        else if (Number.isFinite(ratio)) posLabel = `à ${Math.round(ratio * 100)}%`;
+                        else posLabel = 'position inconnue';
+                        return {
+                            sortKey: Number.isFinite(positionMm) ? positionMm : (Number.isFinite(ratio) ? ratio * 1000000 : Number.MAX_SAFE_INTEGER),
+                            line: `${posLabel} : ${shapeLabel}`
+                        };
+                    })
+                    .sort((a, b) => a.sortKey - b.sortKey)
+                    .map((entry) => entry.line)
+                : [];
+
+            const representative = uniqueSections.values().next().value || {
+                typeSection: (toRoundedDimension(piece ? piece.diametre : '', fallbackDiametre) > 0 && toRoundedDimension(piece ? piece.largeur : '', fallbackLargeur) <= 0) ? 'circ' : 'rect',
+                largeur: toRoundedDimension(piece ? piece.largeur : '', fallbackLargeur),
+                epaisseur: toRoundedDimension(piece ? piece.epaisseur : '', fallbackEpaisseur),
+                diametre: toRoundedDimension(piece ? piece.diametre : '', fallbackDiametre)
+            };
+
+            // Valeurs économiques par pièce
+            const sectionForVol = (Number.isFinite(equivalentSectionMm2) && equivalentSectionMm2 > 0)
+                ? equivalentSectionMm2
+                : computeSectionAreaMm2(representative);
+            const volumeM3 = (longueur > 0 && sectionForVol > 0) ? sectionForVol * longueur * 1e-9 : null;
+            const rhoRaw = piece && piece.masseVolumique !== '' && piece.masseVolumique != null
+                ? piece.masseVolumique
+                : (allot.masseVolumique || '');
+            const rho = parseFloat(rhoRaw) || 0;
+            const masseTheorique = (rho > 0 && volumeM3 != null) ? rho * volumeM3 : null;
+            const masseMesureeRaw = piece ? parseFloat(piece.massePieceMesuree) : NaN;
+            const masseMesuree = (Number.isFinite(masseMesureeRaw) && masseMesureeRaw > 0) ? masseMesureeRaw : null;
+            let prixUnitaire = null;
+            if (!isDefaultPiece && piece && Number.isFinite(piece.prixPiece) && piece.prixPiece > 0) {
+                prixUnitaire = piece.prixPiece;
+            } else if (piece && volumeM3 != null) {
+                const pmRaw = piece.prixMarche !== '' && piece.prixMarche != null ? piece.prixMarche : (allot.prixMarche || '');
+                const pm = parseFloat(pmRaw) || 0;
+                if (pm > 0) {
+                    const priceUnitRaw = ((piece.prixUnite || allot.prixUnite || 'm3') + '').toLowerCase();
+                    const priceUnit = (['ml', 'm2', 'm3'].indexOf(priceUnitRaw) >= 0) ? priceUnitRaw : 'm3';
+                    if (priceUnit === 'm3') prixUnitaire = pm * volumeM3;
+                    else if (priceUnit === 'ml') prixUnitaire = pm * (longueur / 1000);
+                    else if (priceUnit === 'm2') prixUnitaire = pm * (representative.largeur * longueur / 1e6);
+                }
+            }
+
             registerAtom(
-                defaultPiece ? defaultPiece.longueur : '',
-                defaultPiece ? defaultPiece.largeur : '',
-                defaultPiece ? defaultPiece.epaisseur : '',
-                defaultPiece ? defaultPiece.diametre : '',
-                defaultPiece ? defaultPiece.typePiece : '',
-                defaultPiece ? defaultPiece.essenceNomCommun : '',
-                defaultPiece ? (defaultPiece.nom || `Pièce par défaut ${defaultIndex + 1}`) : '',
-                true,
-                defaultPiece ? defaultPiece.quantite : 0
+                pieceLongueur,
+                representative.largeur,
+                representative.epaisseur,
+                representative.diametre,
+                representative.typeSection,
+                equivalentSectionMm2,
+                hasMesuresMultiples,
+                mesuresSummary,
+                mesuresDetailLines,
+                pieceTypePiece,
+                pieceEssence,
+                pieceTitle,
+                isDefaultPiece,
+                masseTheorique,
+                masseMesuree,
+                prixUnitaire,
+                safeCount
             );
+        };
+
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((defaultPiece, defaultIndex) => {
+            registerPieceSections(defaultPiece, {
+                isDefaultPiece: true,
+                fallbackTitle: defaultPiece ? (defaultPiece.nom || `Pièce par défaut ${defaultIndex + 1}`) : `Pièce par défaut ${defaultIndex + 1}`,
+                fallbackTypePieceValue: fallbackTypePiece,
+                fallbackEssenceValue: fallbackEssenceNomCommun,
+                count: defaultPiece ? defaultPiece.quantite : 0
+            });
         });
 
         (Array.isArray(lot.pieces) ? lot.pieces : []).forEach((piece) => {
-            registerAtom(
-                piece ? piece.longueur : '',
-                piece ? piece.largeur : '',
-                piece ? piece.epaisseur : '',
-                piece ? piece.diametre : '',
-                piece ? piece.typePiece : '',
-                piece ? piece.essenceNomCommun : '',
-                piece ? piece.nom : '',
-                false,
-                1
-            );
+            registerPieceSections(piece, {
+                isDefaultPiece: false,
+                fallbackTitle: piece ? piece.nom : '',
+                fallbackTypePieceValue: fallbackTypePiece,
+                fallbackEssenceValue: fallbackEssenceNomCommun,
+                count: 1
+            });
         });
 
-        const hasAllDimensions = hasNonZeroLongueur && hasNonZeroLargeur && hasNonZeroEpaisseur;
+        const hasAllDimensions = hasNonZeroLongueur && hasNonZeroSection;
         const hasData = grouped.size > 0 && hasAllDimensions;
 
         if (!hasData) {
@@ -14654,8 +15757,37 @@ renderRadar() {
                 .join(' · ');
         };
 
+        const formatMesuresMultiplesLine = (mesuresMultiplesCounts) => {
+            const entries = Object.entries(mesuresMultiplesCounts || {})
+                .filter(([, qty]) => Number(qty) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+            if (!entries.length) return '';
+            return entries
+                .map(([label, qty]) => `${label} (${Math.round(Number(qty) || 0)})`)
+                .join(' · ');
+        };
+
+        const formatMesuresMultiplesDetailsLines = (mesuresMultiplesDetailCounts) => {
+            const entries = Object.entries(mesuresMultiplesDetailCounts || {})
+                .filter(([key, qty]) => key && Number(qty) > 0)
+                .sort((a, b) => Number(b[1]) - Number(a[1]));
+            if (!entries.length) return [];
+
+            const lines = [];
+            entries.forEach(([detailKey, qty], profileIndex) => {
+                const profileLines = String(detailKey).split(' || ').filter(Boolean);
+                const prefix = entries.length > 1
+                    ? `Mesures (profil ${profileIndex + 1}, ${Math.round(Number(qty) || 0)} pièce${Math.round(Number(qty) || 0) > 1 ? 's' : ''}) :`
+                    : 'Mesures :';
+                lines.push(prefix);
+                profileLines.forEach((line) => lines.push(`- ${line}`));
+            });
+            return lines;
+        };
+
         const orientationLabel = (lot.orientationLabel || lot.orientation || '').toString().trim() || 'Non renseignée';
         const lotNumber = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot ?';
+        const locale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : undefined;
 
         const datasetData = Array.from(grouped.values())
             .map((group) => ({
@@ -14666,14 +15798,45 @@ renderRadar() {
                 largeur: group.largeur,
                 diametre: group.diametre,
                 count: group.count,
+                hasMesuresMultiples: !!group.hasMesuresMultiples,
                 typeCounts: Object.assign({}, group.typeCounts),
+                mesuresMultiplesCounts: Object.assign({}, group.mesuresMultiplesCounts || {}),
+                mesuresMultiplesDetailCounts: Object.assign({}, group.mesuresMultiplesDetailCounts || {}),
                 typePiecesLabel: formatTypePiecesLabel(group.typeCounts),
                 tooltipTitle: getTopEntryLabel(group.titleCounts, 'Pièce'),
                 tooltipLotOrientation: `${lotNumber} · ${orientationLabel}`,
                 tooltipTypeLine: formatTypeLine(group.typeCounts),
-                tooltipDimensionsLine: group.diametre > 0
-                    ? `${Math.round(group.longueur)} × ${Math.round(group.diametre)} mm`
-                    : `${Math.round(group.longueur)} × ${Math.round(group.largeur)} × ${Math.round(group.epaisseur)} mm`,
+                tooltipMesuresDetailsLines: formatMesuresMultiplesDetailsLines(group.mesuresMultiplesDetailCounts),
+                tooltipLongueurLine: `Longueur : ${Math.round(group.longueur)} mm`,
+                tooltipSectionsDimsLine: group.hasMesuresMultiples
+                    ? `Section équivalente : ${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²`
+                    : (group.diametre > 0
+                        ? `Section : Ø ${Math.round(group.diametre)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`
+                        : `Section : ${Math.round(group.largeur)} × ${Math.round(group.epaisseur)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`),
+                tooltipVolumeUnitaireLine: (() => {
+                    const volM3 = group.section * group.longueur * 1e-9;
+                    return (Number.isFinite(volM3) && volM3 > 0)
+                        ? `Volume unitaire : ${volM3.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 4 })} m³`
+                        : null;
+                })(),
+                tooltipMasseLine: (() => {
+                    if (group.masseMesureeCount > 0) {
+                        const avg = group.masseMesureeSum / group.masseMesureeCount;
+                        return `Masse mesurée : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
+                    }
+                    if (group.masseTheoriqueCount > 0) {
+                        const avg = group.masseTheoriqueSum / group.masseTheoriqueCount;
+                        return `Masse théorique : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
+                    }
+                    return null;
+                })(),
+                tooltipPrixLine: (() => {
+                    if (group.prixUnitaireCount > 0) {
+                        const avg = group.prixUnitaireSum / group.prixUnitaireCount;
+                        return `Prix unitaire : ${avg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+                    }
+                    return null;
+                })(),
                 tooltipEssenceLine: getTopEntryLabel(group.essenceCounts, 'Inconnue')
             }))
             .sort((a, b) => {
@@ -14728,9 +15891,21 @@ renderRadar() {
             const baseLines = [
                 String(rawPoint?.tooltipLotOrientation || 'Lot ? · Non renseignée').trim(),
                 `Type de pièce : ${String(rawPoint?.tooltipTypeLine || 'Type inconnu').trim()}`,
-                String(rawPoint?.tooltipDimensionsLine || 'Dimensions non renseignées').trim(),
                 `Essence : ${String(rawPoint?.tooltipEssenceLine || 'Inconnue').trim()}`
             ];
+            if (rawPoint && rawPoint.hasMesuresMultiples) {
+                const details = Array.isArray(rawPoint.tooltipMesuresDetailsLines) ? rawPoint.tooltipMesuresDetailsLines : [];
+                details.forEach((line) => baseLines.push(String(line || '').trim()));
+                baseLines.push('Méthode section : équivalente (V/L)');
+            }
+            const dimLines = [
+                rawPoint?.tooltipLongueurLine,
+                rawPoint?.tooltipSectionsDimsLine,
+                rawPoint?.tooltipVolumeUnitaireLine,
+                rawPoint?.tooltipMasseLine,
+                rawPoint?.tooltipPrixLine,
+            ];
+            dimLines.forEach((line) => { if (line) baseLines.push(String(line).trim()); });
             const maxChars = window.matchMedia && window.matchMedia('(max-width: 768px)').matches ? 24 : 42;
             const wrappedLines = [];
             const wrapSingleLine = (line) => {
@@ -15026,6 +16201,32 @@ renderRadar() {
             }
         };
 
+        const scatterMultipleDashedBorderPlugin = {
+            id: 'scatterMultipleDashedBorder',
+            afterDatasetsDraw(chart) {
+                const dataset = chart?.data?.datasets?.[0];
+                const meta = chart.getDatasetMeta(0);
+                if (!dataset || !meta || !Array.isArray(meta.data)) return;
+
+                const chartCtx = chart.ctx;
+                chartCtx.save();
+                chartCtx.strokeStyle = '#000000';
+                chartCtx.lineWidth = 0.75;
+                chartCtx.setLineDash([2, 2]);
+
+                meta.data.forEach((element, index) => {
+                    const raw = dataset.data && dataset.data[index] ? dataset.data[index] : null;
+                    if (!raw || !raw.hasMesuresMultiples || !element) return;
+                    const radius = Number.isFinite(raw.r) ? raw.r : 8;
+                    chartCtx.beginPath();
+                    chartCtx.arc(element.x, element.y, radius + 1, 0, Math.PI * 2);
+                    chartCtx.stroke();
+                });
+
+                chartCtx.restore();
+            }
+        };
+
         const xTitle = tr('editor.scatterDims.axisLength', 'Longueur (mm)');
         const yTitle = tr('editor.scatterDims.axisSection', 'Section (mm²)');
 
@@ -15034,7 +16235,6 @@ renderRadar() {
         const maxLongueur = longueurs.length ? Math.max(...longueurs) : 1;
         const maxSection = sections.length ? Math.max(...sections) : 1;
 
-        const locale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : undefined;
         const formatMm = (value) => `${Math.round(Number(value) || 0).toLocaleString(locale, { maximumFractionDigits: 0 })} mm`;
 
         if (scale) {
@@ -15056,7 +16256,7 @@ renderRadar() {
         if (!this.scatterDimsChart) {
             this.scatterDimsChart = new Chart(ctx, {
                 type: 'bubble',
-                plugins: [scatterTypeLabelsPlugin],
+                plugins: [scatterTypeLabelsPlugin, scatterMultipleDashedBorderPlugin],
                 data: {
                     datasets: [
                         {
@@ -15138,6 +16338,9 @@ renderRadar() {
             if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterTypeLabels')) {
                 this.scatterDimsChart.config.plugins.push(scatterTypeLabelsPlugin);
             }
+            if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterMultipleDashedBorder')) {
+                this.scatterDimsChart.config.plugins.push(scatterMultipleDashedBorderPlugin);
+            }
             this.scatterDimsChart.options.maintainAspectRatio = false;
             this.scatterDimsChart.options.scales.x.title.text = xTitle;
             this.scatterDimsChart.options.scales.x.max = maxLongueur + 1000;
@@ -15167,6 +16370,19 @@ renderRadar() {
                 return tooltipLines(context.raw || {});
             };
             this.scatterDimsChart.update();
+        }
+        } catch (error) {
+            console.error('renderScatterDims error:', error);
+            if (wrapper) wrapper.style.display = 'none';
+            if (canvas) canvas.style.display = 'none';
+            if (scale) {
+                scale.classList.add('hidden');
+                scale.setAttribute('aria-hidden', 'true');
+            }
+            if (emptyEl) {
+                emptyEl.textContent = 'Graphique indisponible pour ce lot (erreur de rendu).';
+                emptyEl.classList.remove('hidden');
+            }
         }
     }
 
@@ -15590,6 +16806,141 @@ renderRadar() {
         } catch (e) {
             console.error(e);
             alert('Export JSON impossible.');
+        }
+    }
+
+    // TODO: fonctionnalité en cours de développement — le schéma JSON peut évoluer
+    exportToGrasshopperJson(selectedLotIndices) {
+        if (!selectedLotIndices || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const allLots = this.data.lots || [];
+        const lots = allLots.filter((_, idx) => selectedLotIndices.includes(idx));
+        const stamp = new Date().toISOString().slice(0, 10);
+        const opSlug = (this.data.meta.operation || 'operation')
+            .replace(/\s+/g, '_').toLowerCase();
+
+        const lotsExport = lots.map((lot) => {
+            const realIdx = allLots.indexOf(lot);
+
+            // buildAllPieces inline
+            const allPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((dp) => {
+                const qty = Math.max(0, Math.floor(parseFloat((dp && dp.quantite) || 0) || 0));
+                for (let q = 0; q < qty; q++) allPieces.push(dp);
+            });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((p) => { if (p && typeof p === 'object') allPieces.push(p); });
+            }
+
+            const all = lot.allotissement || {};
+            const fl = (v, fb) => (v !== undefined && v !== '' && v !== null) ? v : (fb !== undefined && fb !== '' && fb !== null ? fb : null);
+            const toFloat = (v) => (v != null && v !== '') ? (parseFloat(v) || null) : null;
+
+            const scores = typeof this.computeLotScore === 'function'
+                ? this.computeLotScore(lot)
+                : null;
+
+            const pieces = allPieces.map((piece, pieceIdx) => {
+                const mm = piece.mesuresMultiples;
+                const mmActive = mm && mm.active && Array.isArray(mm.sections) && mm.sections.length > 0;
+                const longueur = mmActive && mm.longueur != null && mm.longueur !== '' ? mm.longueur : piece.longueur;
+
+                // Résolution du type de section de début
+                const inferSectionType = (s) => s.typeSection || (parseFloat(s.diametre) > 0 ? 'circ' : 'rect');
+                const parseDim = (v) => (v !== null && v !== undefined && v !== '' && isFinite(parseFloat(v))) ? parseFloat(v) : null;
+                let typeSectionDebut;
+                if (mmActive) {
+                    typeSectionDebut = inferSectionType(mm.sections[0]);
+                } else if (parseFloat(piece.diametre) > 0) {
+                    typeSectionDebut = 'circ';
+                } else if (parseFloat(piece.largeur) > 0 && parseFloat(piece.epaisseur) > 0) {
+                    typeSectionDebut = 'rect';
+                } else {
+                    typeSectionDebut = 'rect';
+                }
+
+                // Dimensions géométriques de la pièce : priorité section[0] si mesures multiples actives
+                const refSection = mmActive ? mm.sections[0] : null;
+                const largeurMm   = parseDim(refSection ? refSection.largeur  : piece.largeur);
+                const epaisseurMm = parseDim(refSection ? refSection.epaisseur : piece.epaisseur);
+                const diametreMm  = parseDim(refSection ? refSection.diametre  : piece.diametre);
+
+                const sectionsMultiples = mmActive
+                    ? mm.sections.map((s) => ({
+                        position: s.position || null,
+                        type_section: inferSectionType(s),
+                        largeur_mm: parseDim(s.largeur),
+                        epaisseur_mm: parseDim(s.epaisseur),
+                        diametre_mm: parseDim(s.diametre),
+                    }))
+                    : null;
+
+                return {
+                    id: piece.id || ('piece-' + pieceIdx),
+                    longueur_mm: toFloat(longueur),
+                    geometrie: {
+                        type_section_debut: typeSectionDebut,
+                        largeur_mm: largeurMm,
+                        epaisseur_mm: epaisseurMm,
+                        diametre_mm: diametreMm,
+                        sections_multiples: sectionsMultiples,
+                    },
+                    volume_m3: toFloat(piece.volumePiece),
+                    type_produit: fl(piece.typePiece, all.typePiece),
+                    essence_nom: fl(piece.essenceNomCommun, all.essenceNomCommun),
+                };
+            });
+
+            return {
+                id: lot.id || ('lot-' + realIdx),
+                nom: lot.nom || ('Lot ' + (realIdx + 1)),
+                orientation: lot.orientationLabel || '',
+                essence_nom: all.essenceNomCommun || null,
+                essence_scientifique: all.essenceNomScientifique || null,
+                type_produit: all.typePiece || null,
+                masse_volumique_kg_m3: toFloat(all.masseVolumique),
+                humidite_pct: toFloat(all.humidite),
+                prix_marche_eur_m3: toFloat(all.prixMarche),
+                scores: {
+                    economique: scores ? (scores.economic ?? null) : null,
+                    ecologique: scores ? (scores.ecological ?? null) : null,
+                    mecanique: scores ? (scores.mechanical ?? null) : null,
+                    historique: scores ? (scores.historical ?? null) : null,
+                    esthetique: scores ? (scores.aesthetic ?? null) : null,
+                },
+                pieces,
+            };
+        });
+
+        const payload = {
+            schema: 'valobois-gh',
+            version: '1.0',
+            exportDate: new Date().toISOString(),
+            operation: {
+                id: this.data.meta.refGisement || '',
+                nom: this.data.meta.operation || '',
+                localisation: this.data.meta.localisation || '',
+                diagDate: this.data.meta.date || '',
+            },
+            lots: lotsExport,
+        };
+
+        try {
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `valobois-gh-${opSlug}-${stamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error(e);
+            alert('Export JSON Grasshopper impossible.');
         }
     }
 
@@ -17985,6 +19336,59 @@ renderRadar() {
                     URL.revokeObjectURL(url);
                 } catch (err) {
                     console.error('exportToDAE:', err);
+                }
+            }, lotPos * 300);
+        });
+    }
+
+    exportToIFC(selectedLotIndices = [], psetConfig) {
+        if (typeof window.buildIFC !== 'function') {
+            alert('Export IFC indisponible.');
+            return;
+        }
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const activePset = psetConfig || DEFAULT_PSET_CONFIG;
+
+        targetLotIndices.forEach((lotIdx, lotPos) => {
+            const lot = lots[lotIdx];
+
+            // Combiner pièces par défaut et pièces détaillées (comme GLB/DAE)
+            const combinedPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((p) => { if (p) combinedPieces.push(p); });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((p) => { if (p && typeof p === 'object') combinedPieces.push(p); });
+            }
+            const lotForIfc = Object.assign({}, lot, { pieces: combinedPieces });
+
+            const lotSlug = ((lot.nomLot || lot.nom || ('lot_' + (lotIdx + 1))) + '')
+                .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '').toLowerCase();
+
+            setTimeout(() => {
+                try {
+                    const ifcText = window.buildIFC(lotForIfc, activePset);
+                    const blob = new Blob([ifcText], { type: 'application/x-step' });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href     = url;
+                    a.download = 'VALOBOIS_' + lotSlug + '.ifc';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                } catch (err) {
+                    console.error('exportToIFC:', err);
                 }
             }, lotPos * 300);
         });

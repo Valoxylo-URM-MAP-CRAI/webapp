@@ -828,6 +828,8 @@
     window.buildMultiGLB         = buildMultiGLB;
     window.buildMeshData         = buildMeshData;
     window.computePositionBounds = computeBounds;
+    window.resolveSections       = resolveSections;
+    window.buildMesh             = buildMesh;
 
 })();
 

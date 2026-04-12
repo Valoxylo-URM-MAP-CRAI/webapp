@@ -3865,8 +3865,10 @@
                                 <option value="pdf">PDF</option>
                                 <option value="csv">CSV</option>
                                 <option value="json">JSON</option>
+                                <option value="json-gh" data-i18n="editor.common.exportGh">JSON Grasshopper (.json) — en cours de développement</option>
                                 <option value="glb">3D GLB</option>
                                 <option value="dae">3D Collada .dae (SketchUp groupes)</option>
+                                <option value="ifc">IFC4 (BIM)</option>
                             </select>
                         </label>
                         <div id="exportModalDetailSection">
@@ -3892,6 +3894,13 @@
                                 <input type="checkbox" id="exportGlbGroupCheck">
                                 <span style="font-size: 13px;">Regrouper toutes les pièces en un seul fichier par lot</span>
                             </label>
+                        </div>
+                        <div id="exportIfcPsetSection" hidden style="display:none;">
+                            <div style="margin-top:16px; border-top:1px solid #E6E6E6; padding-top:16px;">
+                                <span style="font-size:13px; font-weight:600; display:block; margin-bottom:10px;">Données à inclure dans l'IFC</span>
+                                <div id="exportIfcPsetList" style="display:grid; gap:10px;"></div>
+                                <p style="margin-top:8px; font-size:11px; color:#666;">Les Psets désactivés ne seront pas écrits dans le fichier .ifc.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3952,6 +3961,7 @@
     <script defer src="js/app/valobois-app.js"></script>
     <script defer src="js/lib/build-glb.js"></script>
     <script defer src="js/lib/build-dae.js"></script>
+    <script defer src="js/lib/build-ifc.js"></script>
     <script defer src="js/ui/version-input-width.js"></script>
 </body>
 
