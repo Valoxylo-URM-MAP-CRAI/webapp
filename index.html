@@ -1394,17 +1394,25 @@
                                 Le Taux de similarité et la Pièce type sont deux indicateurs complémentaires qui décrivent, respectivement, la conformité des pièces aux bornes de destination et la centralité de la pièce représentative du lot.
                             </div>
 
+                            <section class="info-sheet-section info-sheet-section--strategy">
+                                <h3>Mode actif: <span id="tauxLogicStrategyLabel">Mesure unique</span></h3>
+                                <p id="tauxLogicIntroDynamic">Mode mesure unique: les indicateurs reposent sur les dimensions scalaires saisies (L, l, e, d).</p>
+                                <p class="info-sheet-note" style="margin-top:10px;">Le changement de mode se fait via le bouton du cartouche situé à gauche du bouton Info dans le panneau Pièce type du lot.</p>
+                            </section>
+
                             <div class="info-sheet-grid">
                                 <section class="info-sheet-section">
                                     <h3>Taux de similarité</h3>
                                     <p>Le Taux de similarité mesure à quel point les dimensions des pièces du lot sont conformes aux bornes de destination. Pour chaque pièce et dimension active (longueur + section, ou longueur + diamètre), un score de 0 à 1 est calculé : 1 si la pièce est dans les bornes, décroissant proportionnellement à l'écart hors borne par rapport à la tolérance (demi-amplitude des bornes).</p>
                                     <p>Le taux final est la moyenne pondérée (par quantité) de ces scores sur toutes les pièces et dimensions, exprimée en pourcentage.</p>
+                                    <p id="tauxLogicTauxDescription">Le score de conformité est calculé sur les dimensions directes de chaque pièce.</p>
                                     <p>Une valeur proche de 100 % indique que toutes les pièces sont dans les bornes de destination. Une valeur basse indique que beaucoup de pièces dépassent significativement ces bornes.</p>
                                 </section>
 
                                 <section class="info-sheet-section">
                                     <h3>Pièce type (Médoïde)</h3>
                                     <p>La Pièce type, ou médoïde, est la pièce (ou groupe de pièces identiques) dont les dimensions sont les plus proches de l'ensemble des autres pièces du lot. Elle est déterminée en maximisant le score de similarité pairwise moyen pondéré avec toutes les autres pièces.</p>
+                                    <p id="tauxLogicMedoidDescription">Le médoïde est déterminé uniquement à partir des dimensions scalaires.</p>
                                     <p>Le score du médoïde (%) indique sa centralité dans le lot : 100 % signifie que la pièce type est dimensionnellement identique à toutes les autres pièces.</p>
                                     <p>La similarité pairwise entre deux pièces est calculée par dimension : max(0, 1 − |a − b| / t3), où t3 est le seuil de dispersion configurable par dimension.</p>
                                 </section>
@@ -1421,8 +1429,8 @@
                                     <ul style="margin: 12px 0 0 16px; line-height: 1.6;">
                                         <li><strong>Conforme</strong> : pièce respectant tous les critères dimensionnels des bornes.</li>
                                         <li><strong>Recoupe</strong> : pièce nécessitant une découpe transversale pour se conformer (longueur supérieure à la borne max et dans les bornes Largeur et Épaisseur ou Diamètre).</li>
-                                        <li><strong>Corroyage</strong> : pièce nécessitant un rabotage/corroyage pour se conformer (conforme à des ou à l’une, des bornes max Largeur, Épaisseur ou Diamètre, et dans les bornes de Longueur).</li>
-                                        <li><strong>R&C</strong> : pièce nécessitant à la fois une recoupe et un corroyage (hors de des bornes max de Largeur et d'aisseur ou Diamètre, et hors de la borne max de Longueur).</li>
+                                        <li><strong>Corroyage</strong> : pièce nécessitant un rabotage/corroyage pour se conformer (Largeur, Épaisseur ou Diamètre en dehors des bornes, mais Longueur conforme).</li>
+                                        <li><strong>R&C</strong> : pièce nécessitant à la fois une recoupe et un corroyage (hors des bornes max de Largeur, Épaisseur ou Diamètre, et hors de la borne max de Longueur).</li>
                                         <li><strong>Bois court</strong> : pièce sous la longueur minimale mais dans les bornes Largeur et Épaisseur.</li>
                                         <li><strong>Rejet</strong> : pièce non conforme aux précédentes catégories.</li>
                                     </ul>
@@ -1436,14 +1444,14 @@
                                         s(x, dim) = max(0, 1 − écart(x, dim) / tolérance(dim))<br>
                                         T = Σ s(x<sub>i</sub>, d) × n<sub>i</sub> / Σ n<sub>i</sub> × 100 %
                                     </div>
-                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où écart = dépassement hors borne, tolérance = demi-amplitude des bornes de destination, n<sub>i</sub> = quantité de la pièce i.</p>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où écart = ce qui dépasse des bornes. La tolérance est d'abord calculée à partir de l'intervalle min/max quand les deux bornes sont renseignées. Si une seule borne est renseignée, on utilise la distance entre cette borne et la pièce type. En dernier recours, une tolérance de secours est appliquée pour éviter un calcul bloqué. n<sub>i</sub> = quantité de la pièce i.</p>
 
                                     <p style="margin-top: 12px;"><strong>Score pairwise (Médoïde) :</strong></p>
                                     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
-                                        pairScore(A, B) = moyenne<sub>dim</sub> de max(0, 1 − |a<sub>d</sub> − b<sub>d</sub>| / t3<sub>d</sub>)<br>
+                                        pairScore(A, B) = Σ<sub>dim</sub> w<sub>d</sub>·max(0, 1 − |a<sub>d</sub> − b<sub>d</sub>| / t3<sub>d</sub>) / Σ<sub>dim</sub> w<sub>d</sub><br>
                                         M* = arg max<sub>i</sub> [ Σ<sub>j≠i</sub> pairScore(i, j) × n<sub>j</sub> / Σ<sub>j≠i</sub> n<sub>j</sub> ]
                                     </div>
-                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où t3<sub>d</sub> est le seuil de dispersion configurable par dimension, n<sub>j</sub> la quantité de chaque pièce j.</p>
+                                    <p style="font-size: 13px; margin: 8px 0 0 0;">Où w<sub>d</sub> = 1 / t3<sub>d</sub>, t3<sub>d</sub> est le seuil de dispersion configurable par dimension, et n<sub>j</sub> la quantité de chaque pièce j.</p>
 
                                     <p style="margin-top: 12px;"><strong>Dispersion (± %) :</strong></p>
                                     <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; margin: 8px 0; font-family: 'Courier New', monospace; font-size: 12px; line-height: 1.6;">
@@ -1912,7 +1920,6 @@
                         <!-- Feu (Écologique) -->
                         <div class="mech-row" data-mech-field="feuMech">
                             <div class="mech-value-label-box" data-i18n="editor.axis.ecological">Écologique</div>
-                            <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="mech-label-box" data-i18n="editor.mech.feu">
                                 Feu
                             </div>
@@ -1922,7 +1929,17 @@
                             <div class="mech-intensity-box" data-intensity="feuMech">
                                 ...
                             </div>
-                            <button class="mech-info-small-btn" type="button" data-info="feuMech" data-i18n="editor.common.info">info</button>
+                            <div class="mech-feu-btn-stack">
+                                <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--mech-feu" type="button" data-alert-feu-state="none" data-mech-feu-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="mech-info-small-btn" type="button" data-info="feuMech" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="feuMech">
@@ -2754,7 +2771,6 @@
                         <!-- Inclusivité (Esthétique) -->
                         <div class="geo-row" data-geo-field="inclusiviteGeo">
                             <div class="geo-value-label-box" data-i18n="editor.axis.aesthetic">Esthétique</div>
-                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="geo-label-box" data-i18n="editor.geo.inclusivite">
                                 Inclusivité
                             </div>
@@ -2764,7 +2780,17 @@
                             <div class="geo-intensity-box" data-intensity="inclusiviteGeo">
                                 ...
                             </div>
-                            <button class="geo-info-small-btn" type="button" data-info="inclusiviteGeo" data-i18n="editor.common.info">info</button>
+                            <div class="geo-inclusivite-btn-stack">
+                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--geo-inclusivite" type="button" data-alert-inclusivite-state="none" data-geo-inclusivite-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="geo-info-small-btn" type="button" data-info="inclusiviteGeo" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="inclusiviteGeo">

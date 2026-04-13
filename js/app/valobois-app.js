@@ -481,7 +481,13 @@ class ValoboisApp {
             fractionCarbonee: '',
             bois: '',
             ageArbre: '',
-            dateMiseEnService: ''
+            dateMiseEnService: '',
+            mmLargeurMoyenne: null,
+            mmEpaisseurMoyenne: null,
+            mmCvLargeurIntra: null,
+            mmCvEpaisseurIntra: null,
+            mmDeltaLargeurIntra: null,
+            mmDeltaEpaisseurIntra: null
         };
     }
 
@@ -513,6 +519,12 @@ class ValoboisApp {
         if (target.bois == null) target.bois = '';
         if (target.ageArbre == null) target.ageArbre = '';
         if (target.dateMiseEnService == null) target.dateMiseEnService = '';
+        if (target.mmLargeurMoyenne == null) target.mmLargeurMoyenne = null;
+        if (target.mmEpaisseurMoyenne == null) target.mmEpaisseurMoyenne = null;
+        if (target.mmCvLargeurIntra == null) target.mmCvLargeurIntra = null;
+        if (target.mmCvEpaisseurIntra == null) target.mmCvEpaisseurIntra = null;
+        if (target.mmDeltaLargeurIntra == null) target.mmDeltaLargeurIntra = null;
+        if (target.mmDeltaEpaisseurIntra == null) target.mmDeltaEpaisseurIntra = null;
 
         return target;
     }
@@ -943,6 +955,12 @@ class ValoboisApp {
             if (piece.epaisseur == null) { piece.epaisseur = piece.hauteur != null ? piece.hauteur : ''; }
             delete piece.hauteur;
             this.ensurePieceMasseVolumiqueInitialized(piece);
+            if (piece.mmLargeurMoyenne == null) piece.mmLargeurMoyenne = null;
+            if (piece.mmEpaisseurMoyenne == null) piece.mmEpaisseurMoyenne = null;
+            if (piece.mmCvLargeurIntra == null) piece.mmCvLargeurIntra = null;
+            if (piece.mmCvEpaisseurIntra == null) piece.mmCvEpaisseurIntra = null;
+            if (piece.mmDeltaLargeurIntra == null) piece.mmDeltaLargeurIntra = null;
+            if (piece.mmDeltaEpaisseurIntra == null) piece.mmDeltaEpaisseurIntra = null;
         });
         this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         if (!lot.poidsSimilarite || typeof lot.poidsSimilarite !== 'object') {
@@ -1014,6 +1032,30 @@ class ValoboisApp {
         if (typeof lot.seuilsDestinationOffsetMigrated !== 'boolean') {
             lot.seuilsDestinationOffsetMigrated = false;
         }
+        const normalizeStrategy = (raw) => {
+            const key = ((raw || '') + '').toLowerCase();
+            if (key === 'single' || key === 'multiple') return key;
+            if (key === 'historique' || key === 'hybride') return 'single';
+            if (key === 'enrichi') return 'multiple';
+            return 'single';
+        };
+        if (!allotissement.similarityStrategy) {
+            allotissement.similarityStrategy = normalizeStrategy(this.data?.ui?.similarityStrategy);
+        } else {
+            allotissement.similarityStrategy = normalizeStrategy(allotissement.similarityStrategy);
+        }
+        if (typeof allotissement.similarityStrategyManuallySet !== 'boolean') {
+            allotissement.similarityStrategyManuallySet = !!this.data?.ui?.similarityStrategyManuallySet;
+        }
+        if (typeof allotissement.mmGeometryProfile !== 'string') {
+            allotissement.mmGeometryProfile = 'none';
+        }
+        if (!lot.allotissement.similarityVariants || typeof lot.allotissement.similarityVariants !== 'object') {
+            lot.allotissement.similarityVariants = {
+                single: null,
+                multiple: null,
+            };
+        }
     }
 
     createEmptyLot(index) {
@@ -1034,6 +1076,9 @@ class ValoboisApp {
                 largeur: '',
                 epaisseur: '',
                 diametre: '',
+                similarityStrategy: 'single',
+                similarityStrategyManuallySet: false,
+                mmGeometryProfile: 'none',
                 cvLongueur: null,
                 cvLargeur: null,
                 cvEpaisseur: null,
@@ -1059,6 +1104,10 @@ class ValoboisApp {
                 scoreMinPieceLabel: null,
                 dispersionScores: null,
                 medoideDims: null,
+                similarityVariants: {
+                    single: null,
+                    multiple: null,
+                },
                 madLongueur: null,
                 madLargeur: null,
                 madEpaisseur: null,
@@ -1173,7 +1222,13 @@ class ValoboisApp {
             dateMiseEnService: '',
             massePiece: 0,
             carboneBiogeniqueEstimeExact: '',
-            carboneBiogeniqueEstime: ''
+            carboneBiogeniqueEstime: '',
+            mmLargeurMoyenne: null,
+            mmEpaisseurMoyenne: null,
+            mmCvLargeurIntra: null,
+            mmCvEpaisseurIntra: null,
+            mmDeltaLargeurIntra: null,
+            mmDeltaEpaisseurIntra: null
         };
     }
 
@@ -1188,6 +1243,13 @@ class ValoboisApp {
     getDefaultUi(existingUi = {}) {
         const existingCollapsibles = (existingUi && existingUi.collapsibles) || {};
         const existingDetailLotActiveCardByLot = (existingUi && existingUi.detailLotActiveCardByLot) || {};
+        const normalizeStrategy = (raw) => {
+            const key = ((raw || '') + '').toLowerCase();
+            if (key === 'single' || key === 'multiple') return key;
+            if (key === 'historique' || key === 'hybride') return 'single';
+            if (key === 'enrichi') return 'multiple';
+            return 'single';
+        };
         return {
             collapsibles: {
                 apropos: false,
@@ -1222,7 +1284,9 @@ class ValoboisApp {
                              ...existingUi?.seuilsVariabiliteEiqAbs?.epaisseur },
                 diametre:  { t1: 30,  t2: 80,  t3: 150,
                              ...existingUi?.seuilsVariabiliteEiqAbs?.diametre }
-            }
+            },
+            similarityStrategy: normalizeStrategy(existingUi?.similarityStrategy),
+            similarityStrategyManuallySet: !!existingUi?.similarityStrategyManuallySet,
         };
     }
 
@@ -1674,6 +1738,124 @@ class ValoboisApp {
         }) + '\u00a0%';
     }
 
+    getSimilarityStrategy(lot = null) {
+        const raw = lot?.allotissement?.similarityStrategy;
+        const key = ((raw || '') + '').toLowerCase();
+        if (key === 'single' || key === 'multiple') return key;
+        return 'single';
+    }
+
+    isValidMesuresMultiplesSection(section) {
+        if (!section || typeof section !== 'object') return false;
+        const type = ((section.typeSection || '') + '').toLowerCase();
+        const d = parseFloat(section.diametre);
+        const l = parseFloat(section.largeur);
+        const e = parseFloat(section.epaisseur);
+        if (type === 'circ' || type === 'circle') return Number.isFinite(d) && d > 0;
+        if (type === 'rect' || type === 'rectangle') return Number.isFinite(l) && l > 0 && Number.isFinite(e) && e > 0;
+        if (Number.isFinite(d) && d > 0) return true;
+        return Number.isFinite(l) && l > 0 && Number.isFinite(e) && e > 0;
+    }
+
+    hasValidMultipleMeasurements(lot) {
+        if (!lot) return false;
+        const hasPieceMM = (piece) => {
+            const mm = piece && piece.mesuresMultiples;
+            if (!mm || !mm.active || !Array.isArray(mm.sections)) return false;
+            const validCount = mm.sections.filter((s) => this.isValidMesuresMultiplesSection(s)).length;
+            return validCount >= 2;
+        };
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+        return detailedPieces.some(hasPieceMM) || defaultPieces.some(hasPieceMM);
+    }
+
+    getLotMultipleMeasurementsGeometryProfile(lot) {
+        if (!lot) return 'none';
+
+        let hasCirc = false;
+        let hasRect = false;
+        const inspectPiece = (piece) => {
+            if (hasRect) return;
+            const mm = piece && piece.mesuresMultiples;
+            if (!mm || !mm.active || !Array.isArray(mm.sections)) return;
+            const validSections = mm.sections.filter((s) => this.isValidMesuresMultiplesSection(s));
+            if (validSections.length < 2) return;
+
+            validSections.forEach((section) => {
+                const type = ((section?.typeSection || '') + '').toLowerCase();
+                const d = parseFloat(section?.diametre);
+                const l = parseFloat(section?.largeur);
+                const e = parseFloat(section?.epaisseur);
+                if (type === 'rect' || type === 'rectangle') {
+                    hasRect = true;
+                    return;
+                }
+                if (type === 'circ' || type === 'circle') {
+                    hasCirc = true;
+                    return;
+                }
+                if (Number.isFinite(l) && l > 0 && Number.isFinite(e) && e > 0) {
+                    hasRect = true;
+                    return;
+                }
+                if (Number.isFinite(d) && d > 0) {
+                    hasCirc = true;
+                }
+            });
+        };
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+        detailedPieces.forEach(inspectPiece);
+        defaultPieces.forEach(inspectPiece);
+
+        if (hasRect) return 'rect-present';
+        if (hasCirc) return 'circle-only';
+        return 'none';
+    }
+
+    applySimilarityStrategyToLot(lot) {
+        if (!lot || !lot.allotissement) return;
+        const strategy = this.getSimilarityStrategy(lot);
+        const variants = lot.allotissement.similarityVariants || {};
+        const selected = variants[strategy] || variants.single || variants.multiple || variants.historique || variants.enrichi || null;
+        if (!selected) return;
+
+        lot.allotissement.tauxSimilarite = selected.tauxSimilarite ?? null;
+        lot.allotissement.medoideKey = selected.medoideKey ?? null;
+        lot.allotissement.medoideLabel = selected.medoideLabel ?? null;
+        lot.allotissement.medoideScore = selected.medoideScore ?? null;
+        lot.allotissement.scoreMinPiece = selected.scoreMinPiece ?? null;
+        lot.allotissement.scoreMinDelta = selected.scoreMinDelta ?? null;
+        lot.allotissement.scoreMinPieceLabel = selected.scoreMinPieceLabel ?? null;
+        lot.allotissement.dispersionScores = selected.dispersionScores ?? null;
+        lot.allotissement.medoideDims = selected.medoideDims ?? null;
+        lot.allotissement.madLongueur = selected.madLongueur ?? null;
+        lot.allotissement.madLargeur = selected.madLargeur ?? null;
+        lot.allotissement.madEpaisseur = selected.madEpaisseur ?? null;
+        lot.allotissement.madDiametre = selected.madDiametre ?? null;
+    }
+
+    setSimilarityStrategy(lot, strategy, { rerender = true } = {}) {
+        if (!lot || !lot.allotissement) return;
+        const key = ((strategy || '') + '').toLowerCase();
+        let next = (key === 'single' || key === 'multiple') ? key : 'single';
+        if (next === 'multiple' && !this.hasValidMultipleMeasurements(lot)) {
+            next = 'single';
+        }
+        lot.allotissement.similarityStrategy = next;
+        lot.allotissement.similarityStrategyManuallySet = true;
+
+        this.applySimilarityStrategyToLot(lot);
+        this.saveData();
+
+        if (rerender) {
+            this.renderAllotissement();
+            this.renderDetailLot();
+        }
+    }
+
     computeAmortissementBiologique(ageArbre, dateMiseEnService) {
         const age = parseFloat(ageArbre);
         if (!isFinite(age) || age <= 0) return '—';
@@ -1993,6 +2175,83 @@ class ValoboisApp {
         const message = this.buildIndustrialiteAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Industrialité';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    getInclusiviteAlertState(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return 'none';
+
+        const regularite = String(targetLot.debit?.regulariteDebit?.niveau || '').trim();
+        const rusticite = String(targetLot.debit?.rusticiteDebit?.niveau || '').trim();
+        const deformation = String(targetLot.geo?.deformationGeo?.niveau || '').trim();
+        const rawScore = String(targetLot.allotissement?.medoideScore ?? '').replace(/,/, '.').trim();
+        const score = parseFloat(rawScore);
+
+        if (!regularite || !rusticite || !deformation || !Number.isFinite(score)) {
+            return 'none';
+        }
+
+        if ((regularite === 'Faible' || rusticite === 'Forte' || deformation === 'Forte') && score < 66) {
+            return 'low';
+        }
+
+        if (regularite === 'Forte' && rusticite === 'Faible' && deformation === 'Faible' && score >= 66) {
+            return 'strong';
+        }
+
+        if (
+            (regularite === 'Forte' || regularite === 'Moyenne') &&
+            (rusticite === 'Faible' || rusticite === 'Moyenne') &&
+            (deformation === 'Faible' || deformation === 'Moyenne') &&
+            score < 66
+        ) {
+            return 'medium';
+        }
+
+        return 'none';
+    }
+
+    openGeoInclusiviteAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('geoDetailModalBackdrop');
+        const titleEl = document.getElementById('geoDetailModalTitle');
+        const contentEl = document.getElementById('geoDetailModalContent');
+
+        const details = this.collectInclusiviteAlertContributors(lot);
+        const message = this.buildInclusiviteAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Inclusivité';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    getFeuMechAlertState(lot) {
+        const details = this.collectFeuMechAlertContributors(lot);
+        if (!details.hasMinimumData) return 'none';
+        if (details.blockers.length > 0) return 'low';
+        if (details.availableCount >= 4 && details.score >= 6) return 'strong';
+        if (details.score >= 2) return 'medium';
+        return 'low';
+    }
+
+    openMechFeuAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('mechDetailModalBackdrop');
+        const titleEl = document.getElementById('mechDetailModalTitle');
+        const contentEl = document.getElementById('mechDetailModalContent');
+
+        const details = this.collectFeuMechAlertContributors(lot);
+        const message = this.buildFeuMechAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Feu';
         this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
@@ -2396,6 +2655,14 @@ class ValoboisApp {
             '- Stabilité faible : L/E > 28 OU l/E < 0,25'
         ];
 
+        const referenceLines = [
+            'Références et ressources.',
+            '',
+            'CEN — European Committee for Standardization. (2004). EN 1995-1-1 : Eurocode 5 — Design of timber structures — Part 1-1 : General — Common rules and rules for buildings. CEN.',
+            '',
+            'Hassan, O. A. B. (2019). On the structural stability of timber members to Eurocode. Mechanics Based Design of Structures and Machines, 47(5), 647–657. https://doi.org/10.1080/15397734.2019.1633344'
+        ];
+
         if (details.activeBranch) {
             const branchDesc = {
                 strong: 'Les deux conditions de stabilité forte sont satisfaites',
@@ -2406,7 +2673,7 @@ class ValoboisApp {
             dataLines.push(`(${branchDesc[details.activeBranch]})`);
         }
 
-        return [...dataLines, '', ...thresholdLines].join('\n');
+        return [...dataLines, '', ...thresholdLines, '', ...referenceLines].join('\n');
     }
 
     collectArtisanaliteAlertContributors(lot) {
@@ -2529,7 +2796,7 @@ class ValoboisApp {
         }
 
         lines.push('');
-        lines.push('Références et Ressources : Catégorisation conforme à la FD P20-651.');
+        lines.push('Catégorisation conforme à la FD P20-651.');
 
         return lines.join('\n');
     }
@@ -2602,6 +2869,151 @@ class ValoboisApp {
             '- Catégories moyennes : BRS, BBS, BA',
             '- Catégories faibles : BNT, BENS'
         ];
+
+        return lines.join('\n');
+    }
+
+    collectInclusiviteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const regularite = String(targetLot?.debit?.regulariteDebit?.niveau || '').trim();
+        const rusticite = String(targetLot?.debit?.rusticiteDebit?.niveau || '').trim();
+        const deformation = String(targetLot?.geo?.deformationGeo?.niveau || '').trim();
+        const rawScore = String(targetLot?.allotissement?.medoideScore ?? '').replace(/,/, '.').trim();
+        const score = parseFloat(rawScore);
+
+        return {
+            regularite: regularite || null,
+            rusticite: rusticite || null,
+            deformation: deformation || null,
+            score: Number.isFinite(score) ? score : null,
+            hasData: !!regularite && !!rusticite && !!deformation && Number.isFinite(score)
+        };
+    }
+
+    buildInclusiviteAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Aucune alerte Inclusivité exploitable.',
+                '',
+                'Vérifier que Régularité, Rusticité, Déformation et le score de la pièce type sont renseignés.'
+            ].join('\n');
+        }
+
+        const scoreLabel = details.score.toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 1
+        });
+
+        const lines = [
+            'Inclusivité.',
+            '',
+            'Proposition de notation basée sur les critères disponibles.',
+            '',
+            'Données utilisées.',
+            `Régularité : ${details.regularite}`,
+            `Rusticité : ${details.rusticite}`,
+            `Déformation : ${details.deformation}`,
+            `Score de la pièce type : ${scoreLabel} %`,
+            ''
+        ];
+
+        if (alertState === 'strong') {
+            lines.push('Une inclusivité « forte » est recommandée : régularité forte, rusticité faible, déformation faible et score de la pièce type supérieur ou égal à 66 % [+3].');
+        } else if (alertState === 'medium') {
+            lines.push('Une inclusivité « moyenne » est recommandée : régularité forte à moyenne, rusticité faible à moyenne, déformation faible à moyenne et score de la pièce type strictement inférieur à 66 % [+2].');
+        } else {
+            lines.push('Une inclusivité « faible » est recommandée : régularité faible, ou rusticité forte, ou déformation forte, avec un score de la pièce type strictement inférieur à 66 % [+1].');
+        }
+
+        return lines.join('\n');
+    }
+
+    collectFeuMechAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+
+        const values = {
+            volumetrie: String(targetLot?.debit?.volumetrieDebit?.niveau || '').trim() || null,
+            humidite: String(targetLot?.usage?.humiditeUsage?.niveau || '').trim() || null,
+            massivite: String(targetLot?.geo?.massiviteGeo?.niveau || '').trim() || null,
+            masseVol: String(targetLot?.essence?.masseVolEssence?.niveau || '').trim() || null,
+            expansion: String(targetLot?.bio?.expansion?.niveau || '').trim() || null,
+        };
+
+        const scoreMap = {
+            volumetrie: { Forte: 2, Moyenne: 1, Faible: -2 },
+            humidite: { Forte: 0, Moyenne: 2, Faible: -2 },
+            massivite: { Forte: 2, Moyenne: 1, Faible: -2 },
+            masseVol: { Forte: 2, Moyenne: 1, Faible: -1 },
+            expansion: { Forte: -3, Moyenne: 0, Faible: 2 },
+        };
+
+        let availableCount = 0;
+        let score = 0;
+        Object.entries(values).forEach(([fieldKey, level]) => {
+            if (!level) return;
+            availableCount += 1;
+            const fieldMap = scoreMap[fieldKey] || {};
+            if (fieldMap[level] != null) score += fieldMap[level];
+        });
+
+        const blockers = [];
+        if (values.expansion === 'Forte') {
+            blockers.push('Expansion biologique forte');
+        }
+        if (values.volumetrie === 'Faible' && values.massivite === 'Faible') {
+            blockers.push('Volumétrie faible et massivité faible');
+        }
+        if (values.humidite === 'Faible' && (values.massivite === 'Faible' || values.expansion === 'Forte')) {
+            blockers.push('Humidité faible combinée à un facteur aggravant');
+        }
+
+        return {
+            values,
+            score,
+            availableCount,
+            blockers,
+            hasMinimumData: availableCount >= 2,
+        };
+    }
+
+    buildFeuMechAlertModalMessage(alertState, details) {
+        if (!details || !details.hasMinimumData || alertState === 'none') {
+            return [
+                'Alerte Feu non déterminable.',
+                '',
+                'Au moins 2 critères sont requis : Volumétrie, Humidité, Massivité, Masse volumique, Expansion biologique.',
+            ].join('\n');
+        }
+
+        const labelOrMissing = (value) => value || 'Non renseigné';
+        const lines = [
+            'Feu.',
+            '',
+            'Proposition basée sur une combinaison pondérée des contributeurs du critère Feu.',
+            '',
+            'Données utilisées.',
+            `Volumétrie : ${labelOrMissing(details.values.volumetrie)}`,
+            `Humidité : ${labelOrMissing(details.values.humidite)}`,
+            `Massivité : ${labelOrMissing(details.values.massivite)}`,
+            `Masse volumique : ${labelOrMissing(details.values.masseVol)}`,
+            `Expansion biologique : ${labelOrMissing(details.values.expansion)}`,
+            `Score agrégé : ${details.score}`,
+            ''
+        ];
+
+        if (details.blockers.length > 0) {
+            lines.push('Signaux critiques détectés.');
+            details.blockers.forEach((blocker) => lines.push(`- ${blocker}`));
+            lines.push('');
+        }
+
+        if (alertState === 'strong') {
+            lines.push('Une tenue au feu « forte » est recommandée : combinaison globalement favorable des contributeurs [+3].');
+        } else if (alertState === 'medium') {
+            lines.push('Une tenue au feu « moyenne » est recommandée : configuration intermédiaire des contributeurs [+2].');
+        } else {
+            lines.push('Une tenue au feu « faible » est recommandée : combinaison défavorable ou signal critique détecté [+1].');
+        }
 
         return lines.join('\n');
     }
@@ -3119,6 +3531,34 @@ class ValoboisApp {
         const typeProduitValue = this.getEffectiveTypeProduitAlertValue(targetLot);
         const state = this.getIndustrialiteAlertState(typeProduitValue);
         alertBtn.dataset.alertIndustrialiteState = state;
+    }
+
+    refreshInclusiviteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.geo-row[data-geo-field="inclusiviteGeo"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-geo-inclusivite-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getInclusiviteAlertState(targetLot);
+        alertBtn.dataset.alertInclusiviteState = state;
+    }
+
+    refreshFeuMechAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.mech-row[data-mech-field="feuMech"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-mech-feu-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getFeuMechAlertState(targetLot);
+        alertBtn.dataset.alertFeuState = state;
     }
 
     formatMasseDisplay(valueKgRaw) {
@@ -4604,7 +5044,11 @@ class ValoboisApp {
         // Recalcul du muting surface (diamètre actif ou section non-plate)
         const _lv = parseFloat(lot.allotissement.largeur) || parseFloat(lot.allotissement._avgLargeur) || 0;
         const _hv = parseFloat(lot.allotissement.epaisseur) || parseFloat(lot.allotissement._avgEpaisseur) || 0;
-        const _diametreActif = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (lot.allotissement._avgDiametre || 0) > 0;
+        const _mmGeometryProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
+        const _diametreActifScalar = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (lot.allotissement._avgDiametre || 0) > 0;
+        const _diametreActif = _mmGeometryProfile === 'rect-present'
+            ? false
+            : (_mmGeometryProfile === 'circle-only' || _diametreActifScalar);
         const _surfaceMuted = _diametreActif || _hv > 55 || (_lv > 0 && _hv > 0 && _lv / _hv <= 4);
         setVal('[data-display="surfacePiece"]', _surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfacePiece));
         setVal('[data-display="surfaceLot"]', _surfaceMuted ? '' : formatOneDecimal(lot.allotissement.surfaceLot));
@@ -4634,8 +5078,13 @@ class ValoboisApp {
         if (pco2UnitEl) pco2UnitEl.textContent = pco2D.unit;
 
         // Mise à jour du mode de variabilité (trio / duo)
-        const _varMode = ((lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (lot.allotissement._avgDiametre || 0) > 0) ? 'cylindrical' : 'rectangular';
+        const _varMode = _diametreActif ? 'cylindrical' : 'rectangular';
         card.querySelectorAll('[data-variabilite-grid]').forEach(g => { g.dataset.variabiliteMode = _varMode; });
+        const strategyBadgeEl = el('[data-display="similarityStrategyBadge"]');
+        if (strategyBadgeEl) {
+            const labels = { single: 'Mesure unique', multiple: 'Mesures multiples' };
+            strategyBadgeEl.textContent = labels[this.getSimilarityStrategy(lot)] || labels.single;
+        }
 
         const formatPieceTypeDim = (dim) => {
             const value = lot.allotissement.medoideDims?.[dim];
@@ -4950,7 +5399,103 @@ class ValoboisApp {
         return `${negative ? '-' : ''}${groupedInt}`;
     }
 
-    computeMedoideLot(lot, allDimValues) {
+    computePieceDimensionStats(piece, {
+        fallbackLongueur = null,
+        fallbackLargeur = null,
+        fallbackEpaisseur = null,
+        fallbackDiametre = null,
+    } = {}) {
+        const resolveDim = (pieceVal, lotVal) => {
+            const v = parseFloat(pieceVal);
+            if (Number.isFinite(v) && v > 0) return v;
+            const vl = parseFloat(lotVal);
+            return (Number.isFinite(vl) && vl > 0) ? vl : null;
+        };
+
+        const longueur = resolveDim(piece?.longueur, fallbackLongueur);
+        const largeurScalar = resolveDim(piece?.largeur, fallbackLargeur);
+        const epaisseurScalar = resolveDim(piece?.epaisseur, fallbackEpaisseur);
+        const diametreScalar = resolveDim(piece?.diametre, fallbackDiametre);
+
+        const mm = piece && piece.mesuresMultiples;
+        if (!mm || !mm.active || !Array.isArray(mm.sections) || mm.sections.length < 2) {
+            return {
+                longueur,
+                largeurScalar,
+                epaisseurScalar,
+                diametre: diametreScalar,
+                diametreScalar,
+                diametreEnrichi: diametreScalar,
+                largeurEnrichie: largeurScalar,
+                epaisseurEnrichie: epaisseurScalar,
+                cvLargeurIntra: null,
+                cvEpaisseurIntra: null,
+                deltaLargeurIntra: null,
+                deltaEpaisseurIntra: null,
+                stabilityFactor: 1,
+            };
+        }
+
+        const rectSections = mm.sections.filter((s) => s && s.typeSection === 'rect');
+        const circSections = mm.sections.filter((s) => {
+            const type = ((s && s.typeSection) || '') + '';
+            return type === 'circ' || type === 'circle';
+        });
+        const largeurVals = rectSections
+            .map((s) => parseFloat(s.largeur))
+            .filter((v) => Number.isFinite(v) && v > 0);
+        const epaisseurVals = rectSections
+            .map((s) => parseFloat(s.epaisseur))
+            .filter((v) => Number.isFinite(v) && v > 0);
+        const diametreVals = circSections
+            .map((s) => parseFloat(s.diametre))
+            .filter((v) => Number.isFinite(v) && v > 0);
+
+        const largeurMoy = largeurVals.length
+            ? largeurVals.reduce((sum, v) => sum + v, 0) / largeurVals.length
+            : null;
+        const epaisseurMoy = epaisseurVals.length
+            ? epaisseurVals.reduce((sum, v) => sum + v, 0) / epaisseurVals.length
+            : null;
+        const diametreMoy = diametreVals.length
+            ? diametreVals.reduce((sum, v) => sum + v, 0) / diametreVals.length
+            : null;
+
+        const cvLargeurIntra = _vbCV(largeurVals);
+        const cvEpaisseurIntra = _vbCV(epaisseurVals);
+        const cvDiametreIntra = _vbCV(diametreVals);
+        const deltaLargeurIntra = largeurVals.length >= 2
+            ? Math.max(...largeurVals) - Math.min(...largeurVals)
+            : null;
+        const deltaEpaisseurIntra = epaisseurVals.length >= 2
+            ? Math.max(...epaisseurVals) - Math.min(...epaisseurVals)
+            : null;
+
+        const cvs = [cvLargeurIntra, cvEpaisseurIntra, cvDiametreIntra].filter((v) => Number.isFinite(v) && v >= 0);
+        let stabilityFactor = 1;
+        if (cvs.length > 0) {
+            const cvMean = cvs.reduce((sum, v) => sum + v, 0) / cvs.length;
+            stabilityFactor = Math.max(0.75, Math.min(1, 1 - cvMean * 0.5));
+        }
+
+        return {
+            longueur,
+            largeurScalar,
+            epaisseurScalar,
+            diametre: diametreScalar,
+            diametreScalar,
+            diametreEnrichi: Number.isFinite(diametreMoy) && diametreMoy > 0 ? diametreMoy : diametreScalar,
+            largeurEnrichie: Number.isFinite(largeurMoy) && largeurMoy > 0 ? largeurMoy : largeurScalar,
+            epaisseurEnrichie: Number.isFinite(epaisseurMoy) && epaisseurMoy > 0 ? epaisseurMoy : epaisseurScalar,
+            cvLargeurIntra,
+            cvEpaisseurIntra,
+            deltaLargeurIntra,
+            deltaEpaisseurIntra,
+            stabilityFactor,
+        };
+    }
+
+    computeMedoideLot(lot, allDimValues, { useEnrichedDims = false } = {}) {
         // allDimValues = { longueur: [], largeur: [], epaisseur: [], diametre: [] }
         // construit dans recalculateLotAllotissement (voir etape 5)
 
@@ -4962,7 +5507,23 @@ class ValoboisApp {
         const N = totalDefaultCount + detailedPieces.length;
         if (N < 2) return null;
 
-        const lotHasDiametre = (parseFloat(lot.allotissement?.diametre) || 0) > 0;
+        const lotHasDiametre =
+            (parseFloat(lot.allotissement?.diametre) || 0) > 0 ||
+            defaultPieces.some((defaultPiece) => {
+                const stats = this.computePieceDimensionStats(defaultPiece, {
+                    fallbackLongueur: lot.allotissement?.longueur,
+                    fallbackLargeur: lot.allotissement?.largeur,
+                    fallbackEpaisseur: lot.allotissement?.epaisseur,
+                    fallbackDiametre: lot.allotissement?.diametre,
+                });
+                const d = useEnrichedDims ? stats.diametreEnrichi : stats.diametreScalar;
+                return Number.isFinite(d) && d > 0;
+            }) ||
+            detailedPieces.some((piece) => {
+                const stats = this.computePieceDimensionStats(piece);
+                const d = useEnrichedDims ? stats.diametreEnrichi : stats.diametreScalar;
+                return Number.isFinite(d) && d > 0;
+            });
         const seuils = this.data?.ui?.seuilsVariabiliteEiqAbs ?? {};
         const t3L  = seuils?.longueur?.t3  ?? 300;
         const t3La = seuils?.largeur?.t3   ?? 60;
@@ -4973,41 +5534,43 @@ class ValoboisApp {
             ? ['longueur', 'diametre']
             : ['longueur', 'largeur', 'epaisseur'];
 
-        const resolveDim = (pieceVal, lotVal) => {
-            const v = parseFloat(pieceVal);
-            if (Number.isFinite(v) && v > 0) return v;
-            const vl = parseFloat(lotVal);
-            return (Number.isFinite(vl) && vl > 0) ? vl : null;
-        };
-
         // Construire la liste des "atoms" : {label, count, dims}
         const atoms = [];
         defaultPieces.forEach((defaultPiece, index) => {
             const count = Math.max(0, parseFloat(defaultPiece?.quantite) || 0);
             if (count <= 0) return;
+            const stats = this.computePieceDimensionStats(defaultPiece, {
+                fallbackLongueur: lot.allotissement?.longueur,
+                fallbackLargeur: lot.allotissement?.largeur,
+                fallbackEpaisseur: lot.allotissement?.epaisseur,
+                fallbackDiametre: lot.allotissement?.diametre,
+            });
             atoms.push({
                 key: `default_${defaultPiece.id || index}`,
                 label: `Pièce par défaut ${index + 1} (×${Math.round(count)})`,
                 count,
                 dims: {
-                    longueur:  resolveDim(defaultPiece.longueur, lot.allotissement?.longueur),
-                    largeur:   resolveDim(defaultPiece.largeur, lot.allotissement?.largeur),
-                    epaisseur: resolveDim(defaultPiece.epaisseur, lot.allotissement?.epaisseur),
-                    diametre:  resolveDim(defaultPiece.diametre, lot.allotissement?.diametre),
+                    longueur: stats.longueur,
+                    largeur: useEnrichedDims ? stats.largeurEnrichie : stats.largeurScalar,
+                    epaisseur: useEnrichedDims ? stats.epaisseurEnrichie : stats.epaisseurScalar,
+                    diametre: useEnrichedDims ? stats.diametreEnrichi : stats.diametreScalar,
                 },
+                stabilityFactor: useEnrichedDims ? stats.stabilityFactor : 1,
             });
         });
         detailedPieces.forEach((p, idx) => {
+            const stats = this.computePieceDimensionStats(p);
             atoms.push({
                 key: `piece_${idx}`,
                 label: p.nom || `Pièce ${idx + 1}`,
                 count: 1,
                 dims: {
-                    longueur:  resolveDim(p.longueur, null),
-                    largeur:   resolveDim(p.largeur, null),
-                    epaisseur: resolveDim(p.epaisseur, null),
-                    diametre:  resolveDim(p.diametre, null),
+                    longueur: stats.longueur,
+                    largeur: useEnrichedDims ? stats.largeurEnrichie : stats.largeurScalar,
+                    epaisseur: useEnrichedDims ? stats.epaisseurEnrichie : stats.epaisseurScalar,
+                    diametre: useEnrichedDims ? stats.diametreEnrichi : stats.diametreScalar,
                 },
+                stabilityFactor: useEnrichedDims ? stats.stabilityFactor : 1,
             });
         });
 
@@ -5033,8 +5596,11 @@ class ValoboisApp {
                 if (i === j) return;
                 const s = pairScore(atomI.dims, atomJ.dims);
                 if (s === null) return;
+                const pairStability = useEnrichedDims
+                    ? Math.max(0.75, Math.min(1, (atomI.stabilityFactor + atomJ.stabilityFactor) / 2))
+                    : 1;
                 const w = Math.max(1, atomJ.count);
-                sumS += s * w;
+                sumS += (s * pairStability) * w;
                 totalPairs += w;
             });
             if (atomI.key.startsWith('default_') && atomI.count > 1) {
@@ -5089,6 +5655,7 @@ class ValoboisApp {
             label: medoide.label,
             score: medoide.score,
             dims: medoide.dims,
+            mode: useEnrichedDims ? 'multiple' : 'single',
             scoreMinPiece: scoreMin ? Math.round(scoreMin.score) : null,
             scoreMinPieceLabel: scoreMin ? scoreMin.label : null,
             dispersionScores: dispersion !== null ? Math.round(dispersion) : null,
@@ -5105,9 +5672,13 @@ class ValoboisApp {
         const wE  = Math.max(0, parseFloat(poids.epaisseur) || 0) || 1;
         const wD  = Math.max(0, parseFloat(poids.diametre)  || 0) || 1;
 
-        const hasDiametre = lot?.allotissement?.diametre !== ''
-          && lot?.allotissement?.diametre !== null
-          && lot?.allotissement?.diametre !== undefined;
+                const mmGeometryProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
+                const hasDiametreScalar = lot?.allotissement?.diametre !== ''
+                    && lot?.allotissement?.diametre !== null
+                    && lot?.allotissement?.diametre !== undefined;
+                const hasDiametre = mmGeometryProfile === 'rect-present'
+                    ? false
+                    : (mmGeometryProfile === 'circle-only' || hasDiametreScalar);
 
         const activeDims = hasDiametre
           ? [{ dim: 'longueur', w: wL }, { dim: 'diametre', w: wD }]
@@ -5309,6 +5880,8 @@ class ValoboisApp {
     recalculateLotAllotissement(lot) {
         if (!lot || !lot.allotissement) return;
         const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const mmGeometryProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
+        lot.allotissement.mmGeometryProfile = mmGeometryProfile;
         const q = this.getLotQuantityFromDetail(lot);
         lot.allotissement.quantite = String(q);
         const currentLotMasseVolumique = this.normalizeAllotissementNumericInput(lot.allotissement.masseVolumique);
@@ -5445,12 +6018,28 @@ class ValoboisApp {
                 sumMasse += numDefault * (dRho * defaultVolPerPiece);
                 sumCO2 += numDefault * defaultCO2PerPiece;
 
+                const defaultStats = this.computePieceDimensionStats(defaultPiece, {
+                    fallbackLongueur: lot.allotissement.longueur,
+                    fallbackLargeur: lot.allotissement.largeur,
+                    fallbackEpaisseur: lot.allotissement.epaisseur,
+                    fallbackDiametre: lot.allotissement.diametre,
+                });
+                defaultPiece.mmLargeurMoyenne = defaultStats.largeurEnrichie;
+                defaultPiece.mmEpaisseurMoyenne = defaultStats.epaisseurEnrichie;
+                defaultPiece.mmCvLargeurIntra = defaultStats.cvLargeurIntra;
+                defaultPiece.mmCvEpaisseurIntra = defaultStats.cvEpaisseurIntra;
+                defaultPiece.mmDeltaLargeurIntra = defaultStats.deltaLargeurIntra;
+                defaultPiece.mmDeltaEpaisseurIntra = defaultStats.deltaEpaisseurIntra;
+
                 defaultPieceSamples.push({
                     count: numDefault,
                     longueur: dL,
                     largeur: dl,
                     epaisseur: de,
                     diametre: dd,
+                    largeurEnrichie: defaultStats.largeurEnrichie,
+                    epaisseurEnrichie: defaultStats.epaisseurEnrichie,
+                    diametreEnrichi: defaultStats.diametreEnrichi,
                     ageArbre: defaultPiece.ageArbre,
                     dateMiseEnService: defaultPiece.dateMiseEnService,
                 });
@@ -5518,8 +6107,19 @@ class ValoboisApp {
             const _cvLg = [];
             const _cvE  = [];
             const _cvD  = [];
+            const _cvLgEnrichi = [];
+            const _cvEEnrichi = [];
+            const _cvDEnrichi = [];
 
             lot.pieces.forEach(p => {
+                const pieceStats = this.computePieceDimensionStats(p);
+                p.mmLargeurMoyenne = pieceStats.largeurEnrichie;
+                p.mmEpaisseurMoyenne = pieceStats.epaisseurEnrichie;
+                p.mmCvLargeurIntra = pieceStats.cvLargeurIntra;
+                p.mmCvEpaisseurIntra = pieceStats.cvEpaisseurIntra;
+                p.mmDeltaLargeurIntra = pieceStats.deltaLargeurIntra;
+                p.mmDeltaEpaisseurIntra = pieceStats.deltaEpaisseurIntra;
+
                 const vL = parseFloat(p.longueur);
                 const vLg = parseFloat(p.largeur);
                 const vE = parseFloat(p.epaisseur);
@@ -5528,6 +6128,9 @@ class ValoboisApp {
                 if (Number.isFinite(vLg) && vLg > 0) _cvLg.push(vLg);
                 if (Number.isFinite(vE)  && vE  > 0) _cvE.push(vE);
                 if (Number.isFinite(vD)  && vD  > 0) _cvD.push(vD);
+                if (Number.isFinite(pieceStats.largeurEnrichie) && pieceStats.largeurEnrichie > 0) _cvLgEnrichi.push(pieceStats.largeurEnrichie);
+                if (Number.isFinite(pieceStats.epaisseurEnrichie) && pieceStats.epaisseurEnrichie > 0) _cvEEnrichi.push(pieceStats.epaisseurEnrichie);
+                if (Number.isFinite(pieceStats.diametreEnrichi) && pieceStats.diametreEnrichi > 0) _cvDEnrichi.push(pieceStats.diametreEnrichi);
             });
 
             defaultPieceSamples.forEach((sample) => {
@@ -5536,6 +6139,9 @@ class ValoboisApp {
                     if (Number.isFinite(sample.largeur) && sample.largeur > 0) _cvLg.push(sample.largeur);
                     if (Number.isFinite(sample.epaisseur) && sample.epaisseur > 0) _cvE.push(sample.epaisseur);
                     if (Number.isFinite(sample.diametre) && sample.diametre > 0) _cvD.push(sample.diametre);
+                    if (Number.isFinite(sample.largeurEnrichie) && sample.largeurEnrichie > 0) _cvLgEnrichi.push(sample.largeurEnrichie);
+                    if (Number.isFinite(sample.epaisseurEnrichie) && sample.epaisseurEnrichie > 0) _cvEEnrichi.push(sample.epaisseurEnrichie);
+                    if (Number.isFinite(sample.diametreEnrichi) && sample.diametreEnrichi > 0) _cvDEnrichi.push(sample.diametreEnrichi);
                 }
             });
 
@@ -5545,6 +6151,12 @@ class ValoboisApp {
                 largeur: [..._cvLg],
                 epaisseur: [..._cvE],
                 diametre: [..._cvD],
+            };
+            const allDimValuesEnrichi = {
+                longueur: [..._cvL],
+                largeur: [..._cvLgEnrichi],
+                epaisseur: [..._cvEEnrichi],
+                diametre: [..._cvDEnrichi],
             };
 
             lot.allotissement.cvLongueur  = _vbCV(_cvL);
@@ -5567,9 +6179,17 @@ class ValoboisApp {
             lot.allotissement.eiqAbsEpaisseur = _vbEIqAbs(_cvE);
             lot.allotissement.eiqAbsDiametre  = _vbEIqAbs(_cvD);
 
+            lot.allotissement.cvLargeurEnrichi = _vbCV(_cvLgEnrichi);
+            lot.allotissement.cvEpaisseurEnrichi = _vbCV(_cvEEnrichi);
+            lot.allotissement.eiqLargeurEnrichi = _vbEIq(_cvLgEnrichi);
+            lot.allotissement.eiqEpaisseurEnrichi = _vbEIq(_cvEEnrichi);
+            lot.allotissement.eiqAbsLargeurEnrichi = _vbEIqAbs(_cvLgEnrichi);
+            lot.allotissement.eiqAbsEpaisseurEnrichi = _vbEIqAbs(_cvEEnrichi);
+
             // Medoide et seuils suggeres
             {
-                const medoideResult = this.computeMedoideLot(lot, allDimValues);
+                const medoideResult = this.computeMedoideLot(lot, allDimValues, { useEnrichedDims: false });
+                const medoideResultEnrichi = this.computeMedoideLot(lot, allDimValuesEnrichi, { useEnrichedDims: true });
                 if (medoideResult) {
                     lot.allotissement.medoideKey = medoideResult.key;
                     lot.allotissement.medoideLabel = medoideResult.label;
@@ -5606,19 +6226,53 @@ class ValoboisApp {
                     lot.allotissement.dispersionScores = null;
                 }
 
+                if (medoideResultEnrichi) {
+                    lot.allotissement.medoideKeyEnrichi = medoideResultEnrichi.key;
+                    lot.allotissement.medoideLabelEnrichi = medoideResultEnrichi.label;
+                    lot.allotissement.medoideScoreEnrichi = medoideResultEnrichi.score;
+                    lot.allotissement.medoideDimsEnrichi = medoideResultEnrichi.dims;
+                    lot.allotissement.madLongueurEnrichi = medoideResultEnrichi.mad.longueur;
+                    lot.allotissement.madLargeurEnrichi = medoideResultEnrichi.mad.largeur;
+                    lot.allotissement.madEpaisseurEnrichi = medoideResultEnrichi.mad.epaisseur;
+                    lot.allotissement.madDiametreEnrichi = medoideResultEnrichi.mad.diametre;
+                    lot.allotissement.scoreMinPieceEnrichi = medoideResultEnrichi.scoreMinPiece;
+                    lot.allotissement.scoreMinDeltaEnrichi =
+                        (lot.allotissement.medoideScoreEnrichi !== null &&
+                         lot.allotissement.scoreMinPieceEnrichi !== null)
+                            ? Math.round(lot.allotissement.medoideScoreEnrichi) - Math.round(lot.allotissement.scoreMinPieceEnrichi)
+                            : null;
+                    lot.allotissement.scoreMinPieceLabelEnrichi = medoideResultEnrichi.scoreMinPieceLabel;
+                    lot.allotissement.dispersionScoresEnrichi = medoideResultEnrichi.dispersionScores;
+                } else {
+                    lot.allotissement.medoideKeyEnrichi = null;
+                    lot.allotissement.medoideLabelEnrichi = null;
+                    lot.allotissement.medoideScoreEnrichi = null;
+                    lot.allotissement.medoideDimsEnrichi = null;
+                    lot.allotissement.madLongueurEnrichi = null;
+                    lot.allotissement.madLargeurEnrichi = null;
+                    lot.allotissement.madEpaisseurEnrichi = null;
+                    lot.allotissement.madDiametreEnrichi = null;
+                    lot.allotissement.scoreMinPieceEnrichi = null;
+                    lot.allotissement.scoreMinDeltaEnrichi = null;
+                    lot.allotissement.scoreMinPieceLabelEnrichi = null;
+                    lot.allotissement.dispersionScoresEnrichi = null;
+                }
+
                 // Taux de similarite du lot par rapport a la piece type (medoide),
                 // pilote par les seuils de destination renseignes par l'utilisateur.
                 const sdAbsolute = lot.seuilsDestination ?? {};
                 const sdOffset = lot.seuilsDestinationOffset ?? {};
-                const lotHasDiametreForSimilarity = (parseFloat(lot.allotissement?.diametre) || 0) > 0;
+                const lotHasDiametreForSimilarity = mmGeometryProfile === 'rect-present'
+                    ? false
+                    : (mmGeometryProfile === 'circle-only' || (parseFloat(lot.allotissement?.diametre) || 0) > 0);
                 const activeDimsForSimilarity = lotHasDiametreForSimilarity
                     ? ['longueur', 'diametre']
                     : ['longueur', 'largeur', 'epaisseur'];
 
-                const medoidDims = lot.allotissement.medoideDims || null;
-                if (medoidDims && !lot.seuilsDestinationOffsetMigrated) {
+                const medoidDimsHistorique = lot.allotissement.medoideDims || null;
+                if (medoidDimsHistorique && !lot.seuilsDestinationOffsetMigrated) {
                     ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach((dim) => {
-                        const center = parseFloat(medoidDims?.[dim]);
+                        const center = parseFloat(medoidDimsHistorique?.[dim]);
                         if (!Number.isFinite(center) || center <= 0) return;
                         const absMin = sdAbsolute?.[dim]?.min;
                         const absMax = sdAbsolute?.[dim]?.max;
@@ -5634,61 +6288,55 @@ class ValoboisApp {
                     lot.seuilsDestinationOffsetMigrated = true;
                 }
 
-                const similarityBoundsByDim = {
-                    longueur: {
-                        min: null,
-                        max: null,
-                    },
-                    largeur: {
-                        min: null,
-                        max: null,
-                    },
-                    epaisseur: {
-                        min: null,
-                        max: null,
-                    },
-                    diametre: {
-                        min: null,
-                        max: null,
-                    },
+                const buildSimilarityBoundsForMedoid = (centerDims, { syncAbsolute = false } = {}) => {
+                    const out = {
+                        longueur: { min: null, max: null },
+                        largeur: { min: null, max: null },
+                        epaisseur: { min: null, max: null },
+                        diametre: { min: null, max: null },
+                    };
+
+                    ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach((dim) => {
+                        const center = parseFloat(centerDims?.[dim]);
+                        const offsetMin = sdOffset?.[dim]?.min != null ? parseFloat(sdOffset[dim].min) : null;
+                        const offsetMax = sdOffset?.[dim]?.max != null ? parseFloat(sdOffset[dim].max) : null;
+                        const absMin = sdAbsolute?.[dim]?.min != null ? parseFloat(sdAbsolute[dim].min) : null;
+                        const absMax = sdAbsolute?.[dim]?.max != null ? parseFloat(sdAbsolute[dim].max) : null;
+
+                        if (Number.isFinite(center) && Number.isFinite(offsetMin)) {
+                            out[dim].min = center + offsetMin;
+                        } else if (!lot.seuilsDestinationOffsetMigrated && Number.isFinite(absMin)) {
+                            out[dim].min = absMin;
+                        }
+
+                        if (Number.isFinite(center) && Number.isFinite(offsetMax)) {
+                            out[dim].max = center + offsetMax;
+                        } else if (!lot.seuilsDestinationOffsetMigrated && Number.isFinite(absMax)) {
+                            out[dim].max = absMax;
+                        }
+
+                        if (syncAbsolute && out[dim].min != null) {
+                            sdAbsolute[dim].min = Math.round(out[dim].min * 1000) / 1000;
+                        }
+                        if (syncAbsolute && out[dim].max != null) {
+                            sdAbsolute[dim].max = Math.round(out[dim].max * 1000) / 1000;
+                        }
+                    });
+
+                    return out;
                 };
 
-                ['longueur', 'largeur', 'epaisseur', 'diametre'].forEach((dim) => {
-                    const center = parseFloat(medoidDims?.[dim]);
-                    const offsetMin = sdOffset?.[dim]?.min != null ? parseFloat(sdOffset[dim].min) : null;
-                    const offsetMax = sdOffset?.[dim]?.max != null ? parseFloat(sdOffset[dim].max) : null;
-                    const absMin = sdAbsolute?.[dim]?.min != null ? parseFloat(sdAbsolute[dim].min) : null;
-                    const absMax = sdAbsolute?.[dim]?.max != null ? parseFloat(sdAbsolute[dim].max) : null;
-
-                    if (Number.isFinite(center) && Number.isFinite(offsetMin)) {
-                        similarityBoundsByDim[dim].min = center + offsetMin;
-                    } else if (!lot.seuilsDestinationOffsetMigrated && Number.isFinite(absMin)) {
-                        similarityBoundsByDim[dim].min = absMin;
-                    }
-
-                    if (Number.isFinite(center) && Number.isFinite(offsetMax)) {
-                        similarityBoundsByDim[dim].max = center + offsetMax;
-                    } else if (!lot.seuilsDestinationOffsetMigrated && Number.isFinite(absMax)) {
-                        similarityBoundsByDim[dim].max = absMax;
-                    }
-
-                    if (similarityBoundsByDim[dim].min != null) {
-                        sdAbsolute[dim].min = Math.round(similarityBoundsByDim[dim].min * 1000) / 1000;
-                    }
-                    if (similarityBoundsByDim[dim].max != null) {
-                        sdAbsolute[dim].max = Math.round(similarityBoundsByDim[dim].max * 1000) / 1000;
-                    }
-                });
+                const similarityBoundsByDim = buildSimilarityBoundsForMedoid(medoidDimsHistorique, { syncAbsolute: true });
 
                 const dimsUsedForSimilarity = activeDimsForSimilarity.filter((dim) => {
                     const b = similarityBoundsByDim[dim] || {};
                     return b.min != null || b.max != null;
                 });
-                const scoreDimVsBounds = (value, dim) => {
+                const scoreDimVsBounds = (value, dim, boundsByDim, medoidDimsRef) => {
                     const x = parseFloat(value);
                     if (!Number.isFinite(x) || x <= 0) return null;
 
-                    const bounds = similarityBoundsByDim[dim] || {};
+                    const bounds = boundsByDim[dim] || {};
                     let min = bounds.min;
                     let max = bounds.max;
                     if (min != null && max != null && min > max) {
@@ -5702,7 +6350,7 @@ class ValoboisApp {
                     if (min != null && x < min) distance = min - x;
                     else if (max != null && x > max) distance = x - max;
 
-                    const ref = parseFloat(medoidDims?.[dim]);
+                    const ref = parseFloat(medoidDimsRef?.[dim]);
                     let tolerance = null;
                     if (min != null && max != null) {
                         tolerance = Math.max(1, (max - min) / 2);
@@ -5717,21 +6365,22 @@ class ValoboisApp {
                     return Math.max(0, 1 - (distance / tolerance));
                 };
 
-                if (!medoidDims || dimsUsedForSimilarity.length === 0) {
-                    lot.allotissement.tauxSimilarite = null;
-                } else {
+                const computeTauxFromStrategy = ({ medoidDimsRef = null, useEnrichedSectionDims = false } = {}) => {
+                    if (!medoidDimsRef) return null;
+                    const boundsByDim = buildSimilarityBoundsForMedoid(medoidDimsRef, { syncAbsolute: false });
+                    const dims = activeDimsForSimilarity.filter((dim) => {
+                        const b = boundsByDim[dim] || {};
+                        return b.min != null || b.max != null;
+                    });
+                    if (dims.length === 0) return null;
+
                     let sumScores = 0;
                     let sumWeights = 0;
 
                     const evalPieceSimilarity = (Lx, lax, ex, dx, count) => {
-                        const valuesByDim = {
-                            longueur: Lx,
-                            largeur: lax,
-                            epaisseur: ex,
-                            diametre: dx,
-                        };
-                        dimsUsedForSimilarity.forEach((dim) => {
-                            const s = scoreDimVsBounds(valuesByDim[dim], dim);
+                        const valuesByDim = { longueur: Lx, largeur: lax, epaisseur: ex, diametre: dx };
+                        dims.forEach((dim) => {
+                            const s = scoreDimVsBounds(valuesByDim[dim], dim, boundsByDim, medoidDimsRef);
                             if (s == null) return;
                             sumScores += s * count;
                             sumWeights += count;
@@ -5739,23 +6388,50 @@ class ValoboisApp {
                     };
 
                     lot.pieces.forEach((p) => {
+                        const pStats = this.computePieceDimensionStats(p);
                         const pL = parseFloat(p.longueur) || 0;
-                        const pLa = parseFloat(p.largeur) || 0;
-                        const pE = parseFloat(p.epaisseur) || 0;
-                        const pD = parseFloat(p.diametre) || 0;
-                        evalPieceSimilarity(pL, pLa, pE, pD, 1);
+                        const pLaRaw = parseFloat(p.largeur) || 0;
+                        const pERaw = parseFloat(p.epaisseur) || 0;
+                        const pDRaw = parseFloat(p.diametre) || 0;
+                        const pLaEnriched = parseFloat(p.mmLargeurMoyenne) || pLaRaw;
+                        const pEEnriched = parseFloat(p.mmEpaisseurMoyenne) || pERaw;
+                        const pDEnriched = parseFloat(pStats.diametreEnrichi) || pDRaw;
+                        evalPieceSimilarity(
+                            pL,
+                            useEnrichedSectionDims ? pLaEnriched : pLaRaw,
+                            useEnrichedSectionDims ? pEEnriched : pERaw,
+                            useEnrichedSectionDims ? pDEnriched : pDRaw,
+                            1
+                        );
                     });
 
                     defaultPieceSamples.forEach((sample) => {
-                        if (sample.count > 0) {
-                            evalPieceSimilarity(sample.longueur, sample.largeur, sample.epaisseur, sample.diametre, sample.count);
-                        }
+                        if (sample.count <= 0) return;
+                        evalPieceSimilarity(
+                            sample.longueur,
+                            useEnrichedSectionDims ? sample.largeurEnrichie : sample.largeur,
+                            useEnrichedSectionDims ? sample.epaisseurEnrichie : sample.epaisseur,
+                            useEnrichedSectionDims ? sample.diametreEnrichi : sample.diametre,
+                            sample.count
+                        );
                     });
 
-                    lot.allotissement.tauxSimilarite = sumWeights > 0
-                        ? Math.round((sumScores / sumWeights) * 100)
-                        : null;
-                }
+                    return sumWeights > 0 ? Math.round((sumScores / sumWeights) * 100) : null;
+                };
+
+                const tauxHistorique = computeTauxFromStrategy({
+                    medoidDimsRef: medoidDimsHistorique,
+                    useEnrichedSectionDims: false,
+                });
+                const tauxEnrichi = computeTauxFromStrategy({
+                    medoidDimsRef: lot.allotissement.medoideDimsEnrichi || null,
+                    useEnrichedSectionDims: true,
+                });
+
+                lot.allotissement.tauxSimilarite = tauxHistorique;
+                lot.allotissement.tauxSimilariteSingle = tauxHistorique;
+                lot.allotissement.tauxSimilariteEnrichi = tauxEnrichi;
+                lot.allotissement.tauxSimilariteMultiple = tauxEnrichi;
 
                 const hasConformityBounds = activeDimsForSimilarity.some((dim) => {
                     const b = similarityBoundsByDim[dim] || {};
@@ -5860,6 +6536,49 @@ class ValoboisApp {
                 } else {
                     lot.allotissement.conformiteLot = null;
                 }
+
+                lot.allotissement.similarityVariants = {
+                    single: {
+                        tauxSimilarite: lot.allotissement.tauxSimilarite,
+                        medoideKey: lot.allotissement.medoideKey,
+                        medoideLabel: lot.allotissement.medoideLabel,
+                        medoideScore: lot.allotissement.medoideScore,
+                        scoreMinPiece: lot.allotissement.scoreMinPiece,
+                        scoreMinDelta: lot.allotissement.scoreMinDelta,
+                        scoreMinPieceLabel: lot.allotissement.scoreMinPieceLabel,
+                        dispersionScores: lot.allotissement.dispersionScores,
+                        medoideDims: lot.allotissement.medoideDims,
+                        madLongueur: lot.allotissement.madLongueur,
+                        madLargeur: lot.allotissement.madLargeur,
+                        madEpaisseur: lot.allotissement.madEpaisseur,
+                        madDiametre: lot.allotissement.madDiametre,
+                    },
+                    multiple: {
+                        tauxSimilarite: lot.allotissement.tauxSimilariteEnrichi,
+                        medoideKey: lot.allotissement.medoideKeyEnrichi,
+                        medoideLabel: lot.allotissement.medoideLabelEnrichi,
+                        medoideScore: lot.allotissement.medoideScoreEnrichi,
+                        scoreMinPiece: lot.allotissement.scoreMinPieceEnrichi,
+                        scoreMinDelta: lot.allotissement.scoreMinDeltaEnrichi,
+                        scoreMinPieceLabel: lot.allotissement.scoreMinPieceLabelEnrichi,
+                        dispersionScores: lot.allotissement.dispersionScoresEnrichi,
+                        medoideDims: lot.allotissement.medoideDimsEnrichi,
+                        madLongueur: lot.allotissement.madLongueurEnrichi,
+                        madLargeur: lot.allotissement.madLargeurEnrichi,
+                        madEpaisseur: lot.allotissement.madEpaisseurEnrichi,
+                        madDiametre: lot.allotissement.madDiametreEnrichi,
+                    }
+                };
+                if (lot.allotissement) {
+                    const hasLotMM = this.hasValidMultipleMeasurements(lot);
+                    if (!lot.allotissement.similarityStrategyManuallySet) {
+                        lot.allotissement.similarityStrategy = hasLotMM ? 'multiple' : 'single';
+                    } else if (this.getSimilarityStrategy(lot) === 'multiple' && !hasLotMM) {
+                        lot.allotissement.similarityStrategy = 'single';
+                        lot.allotissement.similarityStrategyManuallySet = false;
+                    }
+                }
+                this.applySimilarityStrategyToLot(lot);
             }
 
             // Outliers optionnels — utiles pour alerte pièce aberrante
@@ -5920,20 +6639,72 @@ class ValoboisApp {
             lot.allotissement.eiqAbsEpaisseur = null;
             lot.allotissement.eiqAbsDiametre = null;
             lot.allotissement.tauxSimilarite = null;
+            lot.allotissement.tauxSimilariteSingle = null;
+            lot.allotissement.tauxSimilariteEnrichi = null;
+            lot.allotissement.tauxSimilariteMultiple = null;
             lot.allotissement.medoideKey = null;
             lot.allotissement.medoideLabel = null;
             lot.allotissement.medoideScore = null;
             lot.allotissement.medoideDims = null;
+            lot.allotissement.medoideKeyEnrichi = null;
+            lot.allotissement.medoideLabelEnrichi = null;
+            lot.allotissement.medoideScoreEnrichi = null;
+            lot.allotissement.medoideDimsEnrichi = null;
             lot.allotissement.madLongueur = null;
             lot.allotissement.madLargeur = null;
             lot.allotissement.madEpaisseur = null;
             lot.allotissement.madDiametre = null;
+            lot.allotissement.madLongueurEnrichi = null;
+            lot.allotissement.madLargeurEnrichi = null;
+            lot.allotissement.madEpaisseurEnrichi = null;
+            lot.allotissement.madDiametreEnrichi = null;
+            lot.allotissement.scoreMinPiece = null;
+            lot.allotissement.scoreMinDelta = null;
+            lot.allotissement.scoreMinPieceLabel = null;
+            lot.allotissement.dispersionScores = null;
+            lot.allotissement.scoreMinPieceEnrichi = null;
+            lot.allotissement.scoreMinDeltaEnrichi = null;
+            lot.allotissement.scoreMinPieceLabelEnrichi = null;
+            lot.allotissement.dispersionScoresEnrichi = null;
             lot.allotissement.seuilSuggest = null;
             lot.allotissement.conformiteLot = null;
             lot.allotissement.tukeyLongueur = null;
             lot.allotissement.tukeyLargeur = null;
             lot.allotissement.tukeyEpaisseur = null;
             lot.allotissement.tukeyDiametre = null;
+            lot.allotissement.similarityVariants = {
+                single: {
+                    tauxSimilarite: null,
+                    medoideKey: null,
+                    medoideLabel: null,
+                    medoideScore: null,
+                    scoreMinPiece: null,
+                    scoreMinDelta: null,
+                    scoreMinPieceLabel: null,
+                    dispersionScores: null,
+                    medoideDims: null,
+                    madLongueur: null,
+                    madLargeur: null,
+                    madEpaisseur: null,
+                    madDiametre: null,
+                },
+                multiple: {
+                    tauxSimilarite: null,
+                    medoideKey: null,
+                    medoideLabel: null,
+                    medoideScore: null,
+                    scoreMinPiece: null,
+                    scoreMinDelta: null,
+                    scoreMinPieceLabel: null,
+                    dispersionScores: null,
+                    medoideDims: null,
+                    madLongueur: null,
+                    madLargeur: null,
+                    madEpaisseur: null,
+                    madDiametre: null,
+                },
+            };
+            this.applySimilarityStrategyToLot(lot);
         }
     }
 
@@ -8007,7 +8778,42 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         }
     }
 
-    openTauxLogicModal() {
+    refreshTauxLogicModalStrategyContent(lot = null) {
+        const modalLot = lot || (this.data?.lots || []).find((candidate) => candidate?.id === this._tauxLogicModalLotId) || this.getCurrentLot();
+        const strategy = this.getSimilarityStrategy(modalLot);
+        const labels = {
+            single: 'Mesure unique',
+            multiple: 'Mesures multiples',
+        };
+        const introByStrategy = {
+            single: 'Mode mesure unique: les indicateurs reposent sur les dimensions scalaires saisies (L, l, e, d).',
+            multiple: 'Mode mesures multiples: la pièce type et le taux de similarité intègrent les sections mesurées quand elles sont disponibles.',
+        };
+        const tauxByStrategy = {
+            single: 'Le score de conformité est calculé sur les dimensions directes de chaque pièce.',
+            multiple: 'Le score de conformité utilise prioritairement les dimensions issues des mesures multiples lorsqu’elles sont disponibles (dont le diamètre en mode cylindrique).',
+        };
+        const medoidByStrategy = {
+            single: 'Le médoïde est déterminé uniquement à partir des dimensions scalaires.',
+            multiple: 'Le médoïde est déterminé à partir des dimensions enrichies, y compris le diamètre lorsqu’il est mesuré en sections.',
+        };
+
+        const strategyLabel = document.getElementById('tauxLogicStrategyLabel');
+        if (strategyLabel) strategyLabel.textContent = labels[strategy] || labels.single;
+
+        const intro = document.getElementById('tauxLogicIntroDynamic');
+        if (intro) intro.textContent = introByStrategy[strategy] || introByStrategy.single;
+
+        const tauxDesc = document.getElementById('tauxLogicTauxDescription');
+        if (tauxDesc) tauxDesc.textContent = tauxByStrategy[strategy] || tauxByStrategy.single;
+
+        const medoidDesc = document.getElementById('tauxLogicMedoidDescription');
+        if (medoidDesc) medoidDesc.textContent = medoidByStrategy[strategy] || medoidByStrategy.single;
+    }
+
+    openTauxLogicModal(lot = null) {
+        this._tauxLogicModalLotId = lot?.id || this.getCurrentLot()?.id || null;
+        this.refreshTauxLogicModalStrategyContent(lot);
         const b = document.getElementById('tauxLogicModalBackdrop');
         if (b) {
             b.classList.remove('hidden');
@@ -8016,6 +8822,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     }
 
     closeTauxLogicModal() {
+        this._tauxLogicModalLotId = null;
         const b = document.getElementById('tauxLogicModalBackdrop');
         if (b) {
             b.classList.add('hidden');
@@ -8362,7 +9169,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             });
 
             if (referenceLines.length) {
-                referenceChunks.push(referenceLines.map((line) => this.linkifyText(line)).join('<br>'));
+                const filteredRefLines = referenceLines.filter(
+                    (line) => !/^Références?\s+et\s+[Rr]essources\.?\s*$/i.test(line.trim())
+                );
+                if (filteredRefLines.length) {
+                    referenceChunks.push(filteredRefLines.map((line) => this.linkifyText(line)).join('<br>'));
+                }
             }
 
             currentBlock = contentLines.join('\n').trim();
@@ -8666,6 +9478,32 @@ Noter la tenue au feu potentielle des pièces évaluées.
 Une tenue au feu « forte » vaut pour des pièces de bois combinant plusieurs de ces éléments : une volumétrie forte, une humidité moyenne, une massivité forte, une masse volumique forte à moyenne, une expansion des dégradations biologiques faible [+3].
 Une tenue au feu « moyenne » vaut pour des pièces de bois combinant plusieurs de ces éléments : une volumétrie moyenne, une humidité moyenne, une massivité moyenne, une masse volumique faible, expansion des dégradations biologiques moyenne [+2].
 Une tenue au feu « faible » vaut pour des pièces de bois combinant plusieurs de ces éléments : une volumétrie faible, une humidité faible, une massivité faible, une masse volumique faible, expansion des dégradations biologiques forte [+1].
+
+    Interprétation de l’alerte automatique.
+
+    Le terme « combinant » signifie ici qu’au moins 2 critères parmi les 5 contributeurs sont pris en compte : Volumétrie, Humidité, Massivité, Masse volumique, Expansion des dégradations biologiques.
+
+    Plus le nombre de critères renseignés est élevé, plus l’alerte est robuste.
+
+    Méthode de pondération de l’alerte (interprétation applicative).
+
+    Barème par critère.
+    - Volumétrie : Forte = +2 ; Moyenne = +1 ; Faible = -2
+    - Humidité : Moyenne = +2 ; Faible = -2 ; Forte = 0
+    - Massivité : Forte = +2 ; Moyenne = +1 ; Faible = -2
+    - Masse volumique : Forte = +2 ; Moyenne = +1 ; Faible = -1
+    - Expansion biologique : Faible = +2 ; Moyenne = 0 ; Forte = -3
+
+    Seuils de classement.
+    - Feu « fort » (alerte verte) : score ≥ 6 avec au moins 4 critères disponibles et sans signal critique.
+    - Feu « moyen » (alerte orange) : score de 2 à 5.
+    - Feu « faible » (alerte rouge) : score ≤ 1, ou présence d’au moins un signal critique.
+    - Alerte « none » : moins de 2 critères disponibles.
+
+    Signaux critiques.
+    - Expansion biologique forte.
+    - Volumétrie faible et massivité faible.
+    - Humidité faible combinée à un facteur aggravant (massivité faible ou expansion forte).
 
 Voir : Uldry, A., Husted, B. P., Pope, I., & Ottosen, L. M. (2024). A Review of the Applicability of Non-destructive Testing for the Determination of the Fire Performance of Reused Structural Timber. Journal of Nondestructive Evaluation, 43(4). https://doi.org/10.1007/s10921-024-01120-6
 
@@ -9100,7 +9938,11 @@ Noter l’importance de la massivité des bois évalués.
 
 Une massivité « forte » vaut pour les pièces de bois massif et de Bois Massif Abouté (BMA) d’une épaisseur strictement supérieure à 75 mm, pour les pièces en BLC avec lamelles > 35 mm et chant > 150 mm, ou pour les pièces en BLC avec lamelles ≤ 35 mm et chant > 210 mm [+3].
 Une massivité « moyenne » vaut pour des configurations intermédiaires (28–75 mm, etc.) [+2].
-Une massivité « faible » vaut pour les pièces les plus fines (≤ 28 mm) [+1].`,
+    Une massivité « faible » vaut pour les pièces les plus fines (≤ 28 mm) [+1].
+
+    Références et ressources.
+
+    Catégorisation conforme à la FD P20-651.`,
         deformationGeo: `Déformation.
 
 Noter l’importance des déformations des bois évalués.
@@ -9114,14 +9956,30 @@ Noter le degré d’industrialité des bois évalués.
 
 Une industrialité « forte » vaut pour des bois sciés dits d'ingénierie : Bois Massif Abouté (BMA) ou Reconstitué (BMR), Bois Lamellé-Collé (BLC) ou Lamellé-croisé (CLT) et Contre-Collé (CC) [+3].
 Une industrialité « moyenne » vaut pour des Bois Brut Sec (BBS), Bois Brut Séché (BRS), les Bois d’Ossature (BO) et de Fermette (BF) [+2].
-Une industrialité « faible » vaut pour les bois Brut Non Taillé (BNT), Bois Équarri Non Scié (BENS) ou Bois Avivé (BA) [+1].`,
+    Une industrialité « faible » vaut pour les bois Brut Non Taillé (BNT), Bois Équarri Non Scié (BENS) ou Bois Avivé (BA) [+1].
+
+    Références et ressources.
+
+    Préférer les bois de France. (s. d.). Bois de structure. En ligne : https://preferezlesboisdefrance.fr/trouver-des-produits-pour-construire-renover-amenager/bois-de-structure/
+
+    Préférer les bois de France. (2024). Le catalogue des produits bois français. En ligne : https://secure.webpublication.fr/321658/1709663/#page=1`,
         inclusiviteGeo: `Inclusivité.
 
-Noter le degré d’inclusivité des bois évalués.
+    Noter le degré d’inclusivité des bois évalués.
 
-Une inclusivité « forte » vaut pour des bois sciés, droits, régularité forte et unitaire, avec taux de similarité élevé [+3].
-Une inclusivité « moyenne » vaut pour des bois sciés à régularité moyenne/unitaire ou intégrés à un système constructif, taux de similarité moyen à élevé [+2].
-Une inclusivité « faible » vaut pour des bois à régularité faible ou rusticité forte/moyenne, taux de similarité moyen à faible [+1].`
+    Une inclusivité « forte » vaut pour des bois droits, unitaires*, disposant d'une rusticité faible, d'une régularité forte, d'une déformation faible, et dont le score de la pièce type*** est supérieur ou égale à 66% [+3].
+    Une inclusivité « moyenne » vaut pour des bois droits, unitaires ou faisant partie intégrante d’un système constructif propre**, disposant d'une rusticité faible à moyenne, d'une régularité forte à moyenne, d'une déformation faible à moyenne, et dont le score de la pièce type est strictement inférieur à 66% [+2].
+    Une inclusivité « faible » vaut pour des bois disposant d'une rusticité forte ou d'une régularité faible ou d'une déformation forte, et dont le score de la pièce type est strictement inférieur à 66% [+1].
+
+    * Unitaires : vaut pour les pièces de bois qui ne sont pas considérées comme appartenant à un « système constructif propre ».
+    ** Système constructif propre : vaut pour un groupe de pièces de bois dont l’usage est réciproque. Exemples : Ferme, Pan d’ossature bois et Pan de bois, Structure réticulaire…
+    *** La Pièce type, ou médoïde, est la pièce (ou groupe de pièces identiques) dont les dimensions sont les plus proches de l'ensemble des autres pièces du lot. Elle est déterminée en maximisant le score de similarité pairwise moyen pondéré avec toutes les autres pièces.
+
+    Le médoïde est déterminé à partir des dimensions enrichies, y compris le diamètre lorsqu’il est mesuré par sections.
+
+    Le score du médoïde (%) indique sa centralité dans le lot : 100 % signifie que la pièce type est dimensionnellement identique à toutes les autres pièces.
+
+    La similarité pairwise entre deux pièces est calculée par dimension : max(0, 1 − |a − b| / t3), où t3 est le seuil de dispersion configurable par dimension.`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -10610,7 +11468,11 @@ closeEvalOpModal() {
                         : '...';
 
         const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
-        const hasDiametre = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (hasDetailDimensions && (lot.allotissement._avgDiametre || 0) > 0);
+        const mmGeometryProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
+        const hasDiametreScalar = (lot.allotissement.diametre !== '' && lot.allotissement.diametre != null) || (hasDetailDimensions && (lot.allotissement._avgDiametre || 0) > 0);
+        const hasDiametre = mmGeometryProfile === 'rect-present'
+            ? false
+            : (mmGeometryProfile === 'circle-only' || hasDiametreScalar);
         const hasLargeurEpaisseur = (lot.allotissement.largeur !== '' && lot.allotissement.largeur != null) || (lot.allotissement.epaisseur !== '' && lot.allotissement.epaisseur != null) || (hasDetailDimensions && ((lot.allotissement._avgLargeur || 0) > 0 || (lot.allotissement._avgEpaisseur || 0) > 0));
         const _lDim = parseFloat(hasDetailDimensions ? lot.allotissement._avgLargeur : lot.allotissement.largeur) || 0;
         const _hDim = parseFloat(hasDetailDimensions ? lot.allotissement._avgEpaisseur : lot.allotissement.epaisseur) || 0;
@@ -10816,6 +11678,7 @@ closeEvalOpModal() {
                         <div class="lot-piece-type-summary-inline">
                             <div class="lot-taux-piecetype-header">
                                 <h3 class="lot-taux-piecetype-title">Pièce type du lot</h3>
+                                <button type="button" class="lot-taux-strategy-badge" data-action="toggleSimilarityStrategy" data-display="similarityStrategyBadge" aria-label="Basculer le mode de similarité">${({ single: 'Mesure unique', multiple: 'Mesures multiples' }[this.getSimilarityStrategy(lot)] || 'Mesure unique')}</button>
                                 <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type">info</button>
                             </div>
                             <div class="lot-taux-piecetype-wrapper">
@@ -10857,7 +11720,7 @@ closeEvalOpModal() {
                                                 </div>
                                             </div>
                                             <div class="lot-field-block" data-variabilite-dim="diametre">
-                                                <label class="lot-field-label">d type</label>
+                                                <label class="lot-field-label">⌀ type</label>
                                                 <div class="lot-dimension-input-wrap" data-piece-type-dim-wrap="diametre" data-has-value="${lot.allotissement.medoideDims?.diametre != null ? 'true' : 'false'}">
                                                     <input type="text" class="lot-input" value="${lot.allotissement.medoideDims?.diametre != null ? Math.round(lot.allotissement.medoideDims.diametre).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }) : ''}" readonly data-display="pieceTypeDiametre">
                                                     <span class="lot-dimension-unit">mm</span>
@@ -11397,6 +12260,11 @@ closeEvalOpModal() {
                 const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
                 medoideNomCardEl.textContent = rawLabel;
             }
+            const strategyBadgeCardEl = card.querySelector('[data-display="similarityStrategyBadge"]');
+            if (strategyBadgeCardEl) {
+                const labels = { single: 'Mesure unique', multiple: 'Mesures multiples' };
+                strategyBadgeCardEl.textContent = labels[this.getSimilarityStrategy(lot)] || labels.single;
+            }
             const medoideScoreCardEl = card.querySelector('[data-display="medoideScore"]');
             if (medoideScoreCardEl) {
                 medoideScoreCardEl.textContent = lot.allotissement.medoideScore !== null
@@ -11438,6 +12306,7 @@ closeEvalOpModal() {
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
+            this.refreshFeuMechAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -11726,7 +12595,21 @@ closeEvalOpModal() {
         if (tauxInfoBtn) {
             tauxInfoBtn.addEventListener('click', (e) => {
                 e.stopPropagation();
-                this.openTauxLogicModal();
+                this.openTauxLogicModal(lot);
+            });
+        }
+
+        const strategyToggleBtn = card.querySelector('[data-action="toggleSimilarityStrategy"]');
+        if (strategyToggleBtn) {
+            strategyToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const current = this.getSimilarityStrategy(lot);
+                const next = current === 'single' ? 'multiple' : 'single';
+                if (next === 'multiple' && !this.hasValidMultipleMeasurements(lot)) {
+                    this.setSimilarityStrategy(lot, 'single', { rerender: true });
+                    return;
+                }
+                this.setSimilarityStrategy(lot, next, { rerender: true });
             });
         }
 
@@ -12157,6 +13040,7 @@ closeEvalOpModal() {
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
+            this.refreshFeuMechAlertButton(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -12470,6 +13354,7 @@ closeEvalOpModal() {
                 this.refreshStabiliteAlertButton(lot);
                 this.refreshArtisanaliteAlertButton(lot);
                 this.refreshIndustrialiteAlertButton(lot);
+                this.refreshFeuMechAlertButton(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -13155,6 +14040,7 @@ updateMechRow(row, key, lot) {
     const intensityBox = row.querySelector(`.mech-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.mech-reset-btn');
     const infoBtn = row.querySelector('.mech-info-small-btn');
+    const feuAlertBtn = key === 'feuMech' ? row.querySelector('[data-mech-feu-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-mech-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -13233,11 +14119,25 @@ updateMechRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
 
+            if (feuAlertBtn) {
+                this.refreshFeuMechAlertButton(lot);
+            }
+
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openMechDetailModal(key);
+    }
+
+    if (feuAlertBtn) {
+        this.refreshFeuMechAlertButton(lot);
+        feuAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshFeuMechAlertButton(lot);
+            const alertState = feuAlertBtn.dataset.alertFeuState || 'none';
+            this.openMechFeuAlertModal(alertState, lot);
+        };
     }
 
     if (!current) {
@@ -14026,6 +14926,7 @@ updateGeoRow(row, key, lot) {
     const infoBtn = row.querySelector('.geo-info-small-btn');
     const massiviteAlertBtn = key === 'massiviteGeo' ? row.querySelector('[data-geo-massivite-alert-btn]') : null;
     const industrialiteAlertBtn = key === 'industrialiteGeo' ? row.querySelector('[data-geo-industrialite-alert-btn]') : null;
+    const inclusiviteAlertBtn = key === 'inclusiviteGeo' ? row.querySelector('[data-geo-inclusivite-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
 
@@ -14130,6 +15031,10 @@ updateGeoRow(row, key, lot) {
         if (industrialiteAlertBtn) {
             this.refreshIndustrialiteAlertButton(lot);
         }
+
+        if (inclusiviteAlertBtn) {
+            this.refreshInclusiviteAlertButton(lot);
+        }
     };
 
     updateGeoAlertBtns();
@@ -14148,6 +15053,15 @@ updateGeoRow(row, key, lot) {
             this.refreshIndustrialiteAlertButton(lot);
             const alertState = industrialiteAlertBtn.dataset.alertIndustrialiteState || 'none';
             this.openGeoIndustrialiteAlertModal(alertState, lot);
+        };
+    }
+
+    if (inclusiviteAlertBtn) {
+        inclusiviteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshInclusiviteAlertButton(lot);
+            const alertState = inclusiviteAlertBtn.dataset.alertInclusiviteState || 'none';
+            this.openGeoInclusiviteAlertModal(alertState, lot);
         };
     }
 

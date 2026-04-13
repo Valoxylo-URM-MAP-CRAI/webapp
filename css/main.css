@@ -938,6 +938,11 @@ body.day-mode .accueil-collapsible-summary:hover {
             border-radius: var(--radius-sm);
         }
 
+        .info-sheet-section--strategy {
+            background-color: #F5F7F8;
+            border-color: #D6DEE2;
+        }
+
         .detail-modal-content {
             display: grid;
             gap: 10px;
@@ -1846,7 +1851,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-taux-piecetype-header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-start;
+    gap: 8px;
     margin-bottom: 8px;
 }
 .lot-taux-piecetype-title {
@@ -1854,6 +1860,31 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
+    margin-right: auto;
+}
+.lot-taux-strategy-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 2.3em;
+    padding: var(--space-4) var(--space-8);
+    border-radius: var(--radius-base);
+    border: 1px solid #A8B7BF;
+    background-color: #EDF3F6;
+    color: #33444D;
+    font-size: var(--font-size-xs);
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+.lot-taux-strategy-badge:hover {
+    background-color: #DBE8EF;
+    border-color: #8EA4B0;
+}
+.lot-taux-strategy-badge:focus-visible {
+    outline: 2px solid #4C7C93;
+    outline-offset: 2px;
 }
 .lot-taux-info-btn {
     flex-shrink: 0;
@@ -2559,6 +2590,52 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-alert-btn--geo-industrialite[data-alert-industrialite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--geo-inclusivite[data-alert-inclusivite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--geo-inclusivite[data-alert-inclusivite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--geo-inclusivite[data-alert-inclusivite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--geo-inclusivite[data-alert-inclusivite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--mech-feu[data-alert-feu-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--mech-feu[data-alert-feu-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--mech-feu[data-alert-feu-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--mech-feu[data-alert-feu-state="none"] {
     opacity: 0.3;
     pointer-events: auto;
 }
@@ -5313,6 +5390,48 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-shrink: 0;
 }
 
+/* Wrapper boutons inclusivite : empile reset + alerte + info */
+.geo-inclusivite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.geo-inclusivite-btn-stack .geo-reset-btn,
+.geo-inclusivite-btn-stack .lot-alert-btn,
+.geo-inclusivite-btn-stack .geo-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+/* Wrapper boutons feu : empile reset + alerte + info */
+.mech-feu-btn-stack {
+    grid-column: 6;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.mech-feu-btn-stack .mech-reset-btn,
+.mech-feu-btn-stack .lot-alert-btn,
+.mech-feu-btn-stack .mech-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
 /* Wrapper boutons naturalite : empile reset + alerte + info */
 .denat-naturalite-btn-stack {
     grid-column: 6;
@@ -7948,8 +8067,10 @@ body.day-mode .lot-group--collapsible summary:hover {
 
         /* Wrappers boutons alerte en mobile : utilise la zone "info" */
     .ancien-amort-btn-stack,
+    .mech-feu-btn-stack,
     .geo-massivite-btn-stack,
     .geo-industrialite-btn-stack,
+    .geo-inclusivite-btn-stack,
     .debit-volumetrie-btn-stack,
     .debit-regularite-btn-stack,
     .debit-stabilite-btn-stack,
@@ -9166,6 +9287,13 @@ body.day-mode .evalop-column-title {
     gap: 2px;
 }
 
+/* Wrapper boutons feu en vue grille de cartes */
+.cards-grid .mech-feu-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
 /* Wrapper boutons massivité en vue grille de cartes */
 .cards-grid .geo-massivite-btn-stack {
     grid-column: 3;
@@ -9175,6 +9303,13 @@ body.day-mode .evalop-column-title {
 
 /* Wrapper boutons industrialité en vue grille de cartes */
 .cards-grid .geo-industrialite-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    gap: 2px;
+}
+
+/* Wrapper boutons inclusivité en vue grille de cartes */
+.cards-grid .geo-inclusivite-btn-stack {
     grid-column: 3;
     grid-row: 1 / -1;
     gap: 2px;
