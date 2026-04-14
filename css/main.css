@@ -2640,6 +2640,29 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: auto;
 }
 
+.lot-alert-btn--confidence[data-alert-confidence-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--confidence[data-alert-confidence-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--confidence[data-alert-confidence-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--confidence[data-alert-confidence-state="none"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
 .lot-prix-group-header {
     display: flex;
     justify-content: flex-end;
@@ -5264,6 +5287,70 @@ body.day-mode .lot-group--collapsible summary:hover {
     flex-shrink: 0;
 }
 
+.bio-confidence-btn-stack,
+.ancien-confidence-btn-stack,
+.traces-confidence-btn-stack,
+.provenance-confidence-btn-stack {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.bio-confidence-btn-stack .bio-reset-btn,
+.bio-confidence-btn-stack .lot-alert-btn,
+.bio-confidence-btn-stack .bio-info-small-btn,
+.ancien-confidence-btn-stack .ancien-reset-btn,
+.ancien-confidence-btn-stack .lot-alert-btn,
+.ancien-confidence-btn-stack .ancien-info-small-btn,
+.traces-confidence-btn-stack .traces-reset-btn,
+.traces-confidence-btn-stack .lot-alert-btn,
+.traces-confidence-btn-stack .traces-info-small-btn,
+.provenance-confidence-btn-stack .provenance-reset-btn,
+.provenance-confidence-btn-stack .lot-alert-btn,
+.provenance-confidence-btn-stack .provenance-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+.mech-confidence-btn-stack,
+.usage-confidence-btn-stack,
+.denat-confidence-btn-stack,
+.essence-confidence-btn-stack {
+    grid-column: 6;
+    grid-row: 1 / -1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    align-self: stretch;
+    gap: 0;
+}
+
+.mech-confidence-btn-stack .mech-reset-btn,
+.mech-confidence-btn-stack .lot-alert-btn,
+.mech-confidence-btn-stack .mech-info-small-btn,
+.usage-confidence-btn-stack .usage-reset-btn,
+.usage-confidence-btn-stack .lot-alert-btn,
+.usage-confidence-btn-stack .usage-info-small-btn,
+.denat-confidence-btn-stack .denat-reset-btn,
+.denat-confidence-btn-stack .lot-alert-btn,
+.denat-confidence-btn-stack .denat-info-small-btn,
+.essence-confidence-btn-stack .essence-reset-btn,
+.essence-confidence-btn-stack .lot-alert-btn,
+.essence-confidence-btn-stack .essence-info-small-btn {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
 /* Wrapper boutons massivité : empile reset + alerte + info */
 .geo-massivite-btn-stack {
     grid-column: 3;
@@ -7108,6 +7195,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 /* Orientation (Synthèse) */
 
 .orientation-card {
+    --lot-piece-card-min-width: 280px;
+    --lot-piece-card-max-width: 320px;
     background-color: var(--color-black);
     color: var(--color-white);
 }
@@ -7176,9 +7265,9 @@ body.day-mode .lot-group--collapsible summary:hover {
 /* Cartes lots */
 
 .orientation-lot-card {
-    min-width: 220px;
-    max-width: 240px;
-    flex: 0 0 auto;
+    min-width: var(--lot-piece-card-min-width);
+    max-width: var(--lot-piece-card-max-width);
+    flex: 0 0 var(--lot-piece-card-min-width);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     border: 1px solid var(--color-border);
@@ -7252,6 +7341,12 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-template-columns: 1fr;
     gap: var(--space-8);
     font-size: var(--font-size-xs);
+}
+
+.orientation-notation-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
 }
 
 .orientation-field {

@@ -95,83 +95,185 @@ const vbMAD = (vals, ref) => {
 // Chaque Pset regroupe des propriétés VALOBOIS à inclure dans le fichier .ifc.
 // enabled (Pset ou propriété) peut être basculé par l'UI sans modifier cette constante.
 const DEFAULT_PSET_CONFIG = {
-    identification: {
+    // ── COUCHE 2 : Psets IFC standard ────────────────────────────────────────────────────
+    memberCommon: {
+        layer: 'standard',
+        label: 'Pset_MemberCommon',
+        psetName: 'Pset_MemberCommon',
         enabled: true,
+        properties: {
+            reference:   { enabled: true,  label: 'Reference',    getValue: (piece, lot) => lot?.allotissement?.typeProduit || piece?.typeProduit || null },
+            status:      { enabled: true,  label: 'Status',       getValue: (piece, lot) => {
+                const orientation = piece?.orientation || lot?.orientation || null;
+                if (!orientation) return null;
+                const o = orientation.toLowerCase();
+                if (o.includes('remploi') || o.includes('rutilisation') || o.includes('réutilisation')) return 'Existing';
+                if (o.includes('incin') || o.includes('démolition')) return 'Demolish';
+                if (o.includes('recycl')) return 'Other';
+                return null;
+            }},
+            span:        { enabled: true,  label: 'Span',         getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.lineaireLot); 
+                return !isNaN(v) ? v : null; 
+            }},
+            loadBearing: { enabled: true,  label: 'LoadBearing',  getValue: () => false },
+        },
+    },
+    materialWood: {
+        layer: 'standard',
+        label: 'Pset_MaterialWood',
+        psetName: 'Pset_MaterialWood',
+        enabled: true,
+        properties: {
+            species:         { enabled: true,  label: 'Species',         getValue: (piece, lot) => piece?.essenceNomCommun || lot?.allotissement?.essenceNomCommun || null },
+            moistureContent: { enabled: true,  label: 'MoistureContent', getValue: (piece, lot) => { 
+                const v = parseFloat(piece?.humidite ?? lot?.allotissement?.humidite); 
+                return !isNaN(v) ? v : null; 
+            }},
+            layup:           { enabled: false, label: 'Layup',           getValue: (piece, lot) => lot?.allotissement?.typeProduit || null },
+        },
+    },
+    materialCommon: {
+        layer: 'standard',
+        label: 'Pset_MaterialCommon',
+        psetName: 'Pset_MaterialCommon',
+        enabled: true,
+        properties: {
+            massDensity: { enabled: true, label: 'MassDensity', getValue: (piece, lot) => { 
+                const v = parseFloat(piece?.masseVolumique ?? lot?.allotissement?.masseVolumique); 
+                return !isNaN(v) ? v : null; 
+            }},
+        },
+    },
+
+    // ── COUCHE 3 : Psets VALOBOIS ───────────────────────────────────────────────────────
+    identification: {
+        layer: 'valobois',
         label: 'Identification',
         psetName: 'Pset_Valobois_Identification',
+        enabled: true,
         properties: {
-            lotNom:           { enabled: true,  label: 'Nom du lot',              getValue: (piece, lot) => (lot && (lot.nomLot || lot.nom)) || null },
-            refGisement:      { enabled: true,  label: 'Réf. gisement',           getValue: (piece, lot) => (lot && lot.refGisement) || null },
-            essenceNomCommun: { enabled: true,  label: 'Essence (nom commun)',    getValue: (piece) => piece.essence || piece.essenceNomCommun || null },
-            essenceNomSci:    { enabled: false, label: 'Essence (nom scient.)',   getValue: (piece) => piece.essenceSci || piece.essenceNomSci || null },
-            typePiece:        { enabled: true,  label: 'Type de pièce',           getValue: (piece) => piece.typePiece || null },
-            typeProduit:      { enabled: false, label: 'Type de produit',         getValue: (piece) => piece.typeProduit || null },
+            lotNom:                 { enabled: true,  label: 'Nom du lot',                   getValue: (piece, lot) => (lot && (lot.nomLot || lot.nom)) || null },
+            typePiece:              { enabled: true,  label: 'Type de pièce',                getValue: (piece, lot) => piece?.typePiece || lot?.allotissement?.typePiece || null },
+            destination:            { enabled: true,  label: 'Destination',                  getValue: (piece, lot) => piece?.orientation || lot?.orientation || null },
+            versionEtude:           { enabled: true,  label: 'Version de l\'évaluation',     getValue: (piece, lot, meta) => meta?.versionEtude || null },
+            statutEtude:            { enabled: true,  label: 'Statut de l\'étude',           getValue: (piece, lot, meta) => {
+                const labels = ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
+                const v = meta?.statutEtude;
+                if (v === undefined || v === null || v === '') return null;
+                if (typeof v === 'number') return labels[v] || String(v);
+                const n = parseInt(v, 10);
+                return !Number.isNaN(n) && String(n) === String(v).trim() ? (labels[n] || String(v)) : String(v);
+            }},
+            nomOperation:           { enabled: true,  label: 'NomOperation',                 getValue: (piece, lot, meta) => meta?.operation || null },
+            localisation:           { enabled: true,  label: 'Localisation',                 getValue: (piece, lot, meta) => meta?.localisation || null },
+            referenceGisement:      { enabled: true,  label: 'ReferenceGisement',            getValue: (piece, lot, meta) => meta?.refGisement || null },
+            diagnostiqueurMail:     { enabled: true,  label: 'DiagnostiqueurMail',           getValue: (piece, lot, meta) => meta?.diagnostiqueurMail || null },
+            diagnostiqueurTelephone:{ enabled: true,  label: 'DiagnostiqueurTelephone',      getValue: (piece, lot, meta) => meta?.diagnostiqueurTelephone || null },
+            diagnostiqueurAdresse:  { enabled: true,  label: 'DiagnostiqueurAdresse',        getValue: (piece, lot, meta) => meta?.diagnostiqueurAdresse || null },
         },
     },
     dimensions: {
-        enabled: true,
-        label: 'Dimensions',
+        layer: 'valobois',
+        label: 'Dimensions calculées',
         psetName: 'Pset_Valobois_Dimensions',
+        enabled: true,
         properties: {
-            longueur_mm:  { enabled: true,  label: 'Longueur (mm)',  getValue: (piece) => parseFloat(piece.longueur)   || null },
-            largeur_mm:   { enabled: true,  label: 'Largeur (mm)',   getValue: (piece) => {
-                const v = parseFloat(piece.largeur); if (v) return v;
-                if (typeof window.resolveSections === 'function') {
-                    let max = 0;
-                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.largeur); if (d > max) max = d; });
-                    if (max) return max;
-                }
-                return null;
+            volumePiece:  { enabled: true,  label: 'Volume pièce (m³)',  getValue: (piece) => { 
+                const v = parseFloat(piece?.volumePiecem3 || piece?.volumePiece); 
+                return !isNaN(v) ? v : null; 
             }},
-            epaisseur_mm: { enabled: true,  label: 'Épaisseur (mm)', getValue: (piece) => {
-                const v = parseFloat(piece.epaisseur); if (v) return v;
-                if (typeof window.resolveSections === 'function') {
-                    let max = 0;
-                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.epaisseur); if (d > max) max = d; });
-                    if (max) return max;
-                }
-                return null;
+            volumeLot:    { enabled: true,  label: 'Volume lot (m³)',    getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.volumeLot); 
+                return !isNaN(v) ? v : null; 
             }},
-            diametre_mm:  { enabled: true,  label: 'Diamètre (mm)',  getValue: (piece) => {
-                const v = parseFloat(piece.diametre); if (v) return v;
-                if (typeof window.resolveSections === 'function') {
-                    let max = 0;
-                    window.resolveSections(piece).forEach(s => { const d = parseFloat(s.diametre); if (d > max) max = d; });
-                    if (max) return max;
-                }
-                return null;
+            surfacePiece: { enabled: true,  label: 'Surface pièce (m²)', getValue: (piece) => { 
+                const v = parseFloat(piece?.surfacePiecem2); 
+                return !isNaN(v) ? v : null; 
             }},
-            volume_m3:    { enabled: true,  label: 'Volume (m³)',    getValue: (piece) => parseFloat(piece.volumePiecem3 || piece.volumePiece) || null },
-            surface_m2:   { enabled: false, label: 'Surface (m²)',   getValue: (piece) => parseFloat(piece.surfacePiecem2) || null },
-            quantite:     { enabled: true,  label: 'Quantité',       getValue: (piece) => parseInt(piece.quantite) || 1 },
+            lineaireLot:  { enabled: false, label: 'Linéaire lot (ml)',  getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.lineaireLot); 
+                return !isNaN(v) ? v : null; 
+            }},
+            masseLot:     { enabled: false, label: 'Masse lot (kg)',     getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.masseLot); 
+                return !isNaN(v) ? v : null; 
+            }},
         },
     },
     destination: {
-        enabled: true,
-        label: 'Destination & Prix',
+        layer: 'valobois',
+        label: 'Destination & valeur',
         psetName: 'Pset_Valobois_Destination',
+        enabled: true,
         properties: {
-            orientation:   { enabled: true,  label: 'Orientation',         getValue: (piece) => piece.orientation || null },
-            scoreReemploi: { enabled: true,  label: 'Score réemploi',      getValue: (piece) => parseFloat(piece.scoreReemploi) || null },
-            prixMarche:    { enabled: false, label: 'Prix marché (€/m³)',  getValue: (piece) => parseFloat(piece.prixMarche) || null },
-            prixLot:       { enabled: false, label: 'Prix lot (€)',        getValue: (piece) => parseFloat(piece.prixLot) || null },
+            orientation:    { enabled: true,  label: 'Orientation',           getValue: (piece, lot) => piece?.orientation || lot?.orientation || null },
+            scoreEconomique:{ enabled: true,  label: 'Score économique',      getValue: (piece, lot) => { 
+                const v = parseFloat(piece?.scoreReemploi ?? lot?.scores?.economique); 
+                return !isNaN(v) ? v : null; 
+            }},
+            scoreEcologique:{ enabled: true,  label: 'Score écologique',      getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.scores?.ecologique); 
+                return !isNaN(v) ? v : null; 
+            }},
+            scoreMecanique: { enabled: true,  label: 'Score mécanique',       getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.scores?.mecanique); 
+                return !isNaN(v) ? v : null; 
+            }},
+            prixMarche:     { enabled: true,  label: 'Prix marché (€/m³)',    getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.prixMarche); 
+                return !isNaN(v) ? v : null; 
+            }},
+            prixLot:        { enabled: true,  label: 'Prix lot (€)',          getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.prixLot); 
+                return !isNaN(v) ? v : null; 
+            }},
+            circularite:    { enabled: false, label: 'Circularité (%)',       getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.circularite); 
+                return !isNaN(v) ? v : null; 
+            }},
+            coeffIntegrite: { enabled: false, label: 'Coeff. intégrité',      getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.integrity?.coeff); 
+                return !isNaN(v) ? v : null; 
+            }},
+        },
+    },
+    carbone: {
+        layer: 'valobois',
+        label: 'Carbone & matière',
+        psetName: 'Pset_Valobois_Carbone',
+        enabled: true,
+        properties: {
+            fractionCarbonee:  { enabled: true,  label: 'Fraction carbonée',         getValue: (piece, lot) => { 
+                const v = parseFloat(piece?.fractionCarbonee ?? lot?.allotissement?.fractionCarbonee); 
+                return !isNaN(v) ? v : null; 
+            }},
+            carboneBiogenique:{ enabled: true,  label: 'Carbone biogénique (kgCO₂)',getValue: (piece, lot) => { 
+                const v = parseFloat(lot?.allotissement?.carboneBiogeniqueEstime); 
+                return !isNaN(v) ? v : null; 
+            }},
+            masseVolumique:    { enabled: false, label: 'Masse volumique (kg/m³)',   getValue: (piece, lot) => { 
+                const v = parseFloat(piece?.masseVolumique ?? lot?.allotissement?.masseVolumique); 
+                return !isNaN(v) ? v : null; 
+            }},
         },
     },
     evaluation: {
-        enabled: false,
-        label: 'Scores critères',
+        layer: 'valobois',
+        label: 'Évaluation détaillée (scores)',
         psetName: 'Pset_Valobois_Evaluation',
+        enabled: false,
         properties: {
-            scoreBio:        { enabled: true, label: 'Biologie',     getValue: (piece) => parseFloat(piece.scoreBio)        || null },
-            scoreMech:       { enabled: true, label: 'Mécanique',    getValue: (piece) => parseFloat(piece.scoreMech)       || null },
-            scoreUsage:      { enabled: true, label: 'Usage',        getValue: (piece) => parseFloat(piece.scoreUsage)      || null },
-            scoreDenat:      { enabled: true, label: 'Dénaturation', getValue: (piece) => parseFloat(piece.scoreDenat)      || null },
-            scoreDebit:      { enabled: true, label: 'Débit',        getValue: (piece) => parseFloat(piece.scoreDebit)      || null },
-            scoreGeo:        { enabled: true, label: 'Géométrie',    getValue: (piece) => parseFloat(piece.scoreGeo)        || null },
-            scoreEssence:    { enabled: true, label: 'Essence',      getValue: (piece) => parseFloat(piece.scoreEssence)    || null },
-            scoreAncien:     { enabled: true, label: 'Ancienneté',   getValue: (piece) => parseFloat(piece.scoreAncien)     || null },
-            scoreTraces:     { enabled: true, label: 'Traces',       getValue: (piece) => parseFloat(piece.scoreTraces)     || null },
-            scoreProvenance: { enabled: true, label: 'Provenance',   getValue: (piece) => parseFloat(piece.scoreProvenance) || null },
+            scoreBio:       { enabled: true, label: 'Score biologie',    getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.bio);       return !isNaN(v) ? v : null; }},
+            scoreMech:      { enabled: true, label: 'Score mécanique',   getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.mech);      return !isNaN(v) ? v : null; }},
+            scoreUsage:     { enabled: true, label: 'Score usage',       getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.usage);     return !isNaN(v) ? v : null; }},
+            scoreDenat:     { enabled: true, label: 'Score dénaturation',getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.denat);     return !isNaN(v) ? v : null; }},
+            scoreDebit:     { enabled: true, label: 'Score débit',       getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.debit);     return !isNaN(v) ? v : null; }},
+            scoreGeo:       { enabled: true, label: 'Score géométrie',   getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.geo);       return !isNaN(v) ? v : null; }},
+            scoreEssence:   { enabled: true, label: 'Score essence',     getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.essence);   return !isNaN(v) ? v : null; }},
+            scoreAncien:    { enabled: true, label: 'Score ancienneté',  getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.ancien);    return !isNaN(v) ? v : null; }},
+            scoreTraces:    { enabled: true, label: 'Score traces',      getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.traces);    return !isNaN(v) ? v : null; }},
+            scoreProvenance:{ enabled: true, label: 'Score provenance',  getValue: (piece, lot) => { const v = parseFloat(lot?.scores?.provenance);return !isNaN(v) ? v : null; }},
         },
     },
 };
@@ -1625,6 +1727,50 @@ class ValoboisApp {
         ];
 
         return blocks.some(([block, fields]) => checkBlock(block, fields));
+    }
+
+    getNotationConfidenceSummaryActionFromLevel(level) {
+        const normalized = String(level || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+
+        if (normalized === 'forte' || normalized === 'fort') return 'à confirmer';
+        if (normalized === 'moyenne' || normalized === 'moyen') return 'à compléter';
+        if (normalized === 'faible') return 'à investiguer';
+        return 'à renseigner';
+    }
+
+    getNotationConfidenceSummaryEntries(lot) {
+        const getLevel = (entry) => {
+            if (!entry) return '';
+            if (typeof entry === 'string') return entry;
+            if (typeof entry === 'object') return entry.niveau || '';
+            return '';
+        };
+
+        const descriptors = [
+            { label: 'Dégradation biologique', level: getLevel(lot?.bio?.confianceBio) },
+            { label: 'Dégradation mécanique', level: getLevel(lot?.mech?.confianceMech) },
+            { label: 'Classement d\'usage', level: getLevel(lot?.usage?.confianceUsage) },
+            { label: 'Dénaturation', level: getLevel(lot?.denat?.confianceDenat) },
+            { label: 'Essence', level: getLevel(lot?.essence?.confianceEssence) },
+            { label: 'Ancienneté', level: getLevel(lot?.ancien?.confianceAncien) },
+            { label: 'Traces', level: getLevel(lot?.traces?.confianceTraces) },
+            { label: 'Provenance', level: getLevel(lot?.provenance?.confianceProv) },
+        ];
+
+        return descriptors.map((item) => ({
+            label: item.label,
+            action: this.getNotationConfidenceSummaryActionFromLevel(item.level),
+        }));
+    }
+
+    getNotationConfidenceSummaryText(lot) {
+        return this.getNotationConfidenceSummaryEntries(lot)
+            .map((item) => `${item.label} : ${item.action}`)
+            .join('\n');
     }
 
     hasIncompleteDestinationFields(lot) {
@@ -3722,6 +3868,216 @@ class ValoboisApp {
     getStudyStatusIndexFromValue(statusValue) {
         const index = this.getStudyStatusValues().indexOf(statusValue);
         return index >= 0 ? index : 0;
+    }
+
+    normalizeConfidenceAlertText(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+    }
+
+    getConfidenceAlertConfig(key) {
+        const configMap = {
+            confianceBio: {
+                label: 'Dégradation biologique',
+                sectionKey: 'bio',
+                detailBackdropId: 'bioDetailModalBackdrop',
+                detailTitleId: 'bioDetailModalTitle',
+                detailContentId: 'bioDetailModalContent',
+                rowSelector: '.bio-row[data-bio-field="confianceBio"]'
+            },
+            confianceMech: {
+                label: 'Dégradation mécanique',
+                sectionKey: 'mech',
+                detailBackdropId: 'mechDetailModalBackdrop',
+                detailTitleId: 'mechDetailModalTitle',
+                detailContentId: 'mechDetailModalContent',
+                rowSelector: '.mech-row[data-mech-field="confianceMech"]'
+            },
+            confianceUsage: {
+                label: 'Classement d’usage',
+                sectionKey: 'usage',
+                detailBackdropId: 'usageDetailModalBackdrop',
+                detailTitleId: 'usageDetailModalTitle',
+                detailContentId: 'usageDetailModalContent',
+                rowSelector: '.usage-row[data-usage-field="confianceUsage"]'
+            },
+            confianceDenat: {
+                label: 'Dénaturation',
+                sectionKey: 'denat',
+                detailBackdropId: 'denatDetailModalBackdrop',
+                detailTitleId: 'denatDetailModalTitle',
+                detailContentId: 'denatDetailModalContent',
+                rowSelector: '.denat-row[data-denat-field="confianceDenat"]'
+            },
+            confianceEssence: {
+                label: 'Essence',
+                sectionKey: 'essence',
+                detailBackdropId: 'essenceDetailModalBackdrop',
+                detailTitleId: 'essenceDetailModalTitle',
+                detailContentId: 'essenceDetailModalContent',
+                rowSelector: '.essence-row[data-essence-field="confianceEssence"]'
+            },
+            confianceAncien: {
+                label: 'Ancienneté',
+                sectionKey: 'ancien',
+                detailBackdropId: 'ancienDetailModalBackdrop',
+                detailTitleId: 'ancienDetailModalTitle',
+                detailContentId: 'ancienDetailModalContent',
+                rowSelector: '.ancien-row[data-ancien-field="confianceAncien"]'
+            },
+            confianceTraces: {
+                label: 'Traces',
+                sectionKey: 'traces',
+                detailBackdropId: 'tracesDetailModalBackdrop',
+                detailTitleId: 'tracesDetailModalTitle',
+                detailContentId: 'tracesDetailModalContent',
+                rowSelector: '.traces-row[data-traces-field="confianceTraces"]'
+            },
+            confianceProv: {
+                label: 'Provenance',
+                sectionKey: 'provenance',
+                detailBackdropId: 'provenanceDetailModalBackdrop',
+                detailTitleId: 'provenanceDetailModalTitle',
+                detailContentId: 'provenanceDetailModalContent',
+                rowSelector: '.provenance-row[data-provenance-field="confianceProv"]'
+            }
+        };
+
+        return configMap[key] || null;
+    }
+
+    getConfidenceAlertState(noteLevel, studyStatus) {
+        const normalizedStatus = this.normalizeConfidenceAlertText(studyStatus);
+        const normalizedLevel = this.normalizeConfidenceAlertText(noteLevel);
+        const isEarlyStudy = normalizedStatus === 'pre-diagnostic' || normalizedStatus === 'en cours';
+        const isLateStudy = normalizedStatus === 'finalise' || normalizedStatus === 'revision' || normalizedStatus === 'cloture';
+
+        if (isEarlyStudy) {
+            if (normalizedLevel === 'forte') return 'strong';
+            if (normalizedLevel === 'moyenne' || normalizedLevel === 'faible') return 'medium';
+            return 'low';
+        }
+
+        if (isLateStudy) {
+            return normalizedLevel === 'forte' ? 'strong' : 'low';
+        }
+
+        if (normalizedLevel === 'forte') return 'strong';
+        if (normalizedLevel === 'moyenne' || normalizedLevel === 'faible') return 'medium';
+        return 'low';
+    }
+
+    getConfidenceAlertStateLabel(alertState) {
+        if (alertState === 'strong') return 'verte';
+        if (alertState === 'medium') return 'orange';
+        if (alertState === 'low') return 'rouge';
+        return 'inactive';
+    }
+
+    collectConfidenceAlertDetails(key, lot = null) {
+        const config = this.getConfidenceAlertConfig(key);
+        const targetLot = lot || this.getCurrentLot();
+        if (!config || !targetLot) return null;
+
+        const sectionData = targetLot[config.sectionKey] || {};
+        const noteEntry = sectionData[key] || null;
+        const studyStatus = this.data && this.data.meta ? this.data.meta.statutEtude : '';
+        const noteLevel = noteEntry && noteEntry.niveau ? noteEntry.niveau : '';
+        const alertState = this.getConfidenceAlertState(noteLevel, studyStatus);
+
+        return {
+            ...config,
+            studyStatus: studyStatus || 'Pré-diagnostic',
+            noteLevel: noteLevel || 'Aucune note',
+            alertState
+        };
+    }
+
+    buildConfidenceAlertModalMessage(details) {
+        if (!details) return 'Aucune donnée disponible.';
+
+        const normalizedStatus = this.normalizeConfidenceAlertText(details.studyStatus);
+        let reason = '';
+
+        if (normalizedStatus === 'pre-diagnostic' || normalizedStatus === 'en cours') {
+            if (details.alertState === 'strong') {
+                reason = 'En Pré-diagnostic ou En cours, une confiance forte allume l’alerte en vert.';
+            } else if (details.alertState === 'medium') {
+                reason = 'En Pré-diagnostic ou En cours, une confiance moyenne ou faible maintient l’alerte en orange pour signaler qu’un complément d’analyse reste attendu.';
+            } else {
+                reason = 'En Pré-diagnostic ou En cours, l’absence de note de confiance allume l’alerte en rouge.';
+            }
+        } else {
+            reason = details.alertState === 'strong'
+                ? 'En Finalisé, Révision ou Cloturé, seule une confiance forte maintient l’alerte en vert.'
+                : 'En Finalisé, Révision ou Cloturé, toute situation autre qu’une confiance forte allume l’alerte en rouge.';
+        }
+
+        return [
+            'Le bouton d’alerte confiance dépend du statut de l’étude et de la note de confiance active.',
+            '',
+            `Critère concerné : ${details.label}`,
+            `Statut de l’étude : ${details.studyStatus}`,
+            `Niveau de confiance : ${details.noteLevel}`,
+            `Couleur affichée : ${this.getConfidenceAlertStateLabel(details.alertState)}`,
+            '',
+            `Raison : ${reason}`,
+            '',
+            'Règle appliquée :',
+            'Pré-diagnostic / En cours : Forte = vert, Moyenne ou Faible = orange, pas de note = rouge.',
+            'Finalisé / Révision / Cloturé : Forte = vert, toute autre situation = rouge.'
+        ].join('\n');
+    }
+
+    openConfidenceAlertModal(key, lot = null) {
+        const details = this.collectConfidenceAlertDetails(key, lot);
+        if (!details) return;
+
+        const backdrop = document.getElementById(details.detailBackdropId);
+        const titleEl = document.getElementById(details.detailTitleId);
+        const contentEl = document.getElementById(details.detailContentId);
+
+        if (titleEl) titleEl.textContent = `Alerte Confiance ${details.label}`;
+        this.renderDetailModalContent(contentEl, this.buildConfidenceAlertModalMessage(details));
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    refreshConfidenceAlertButton(row, key, lot = null) {
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-confidence-alert-btn]');
+        if (!alertBtn) return;
+
+        const details = this.collectConfidenceAlertDetails(key, lot);
+        alertBtn.dataset.alertConfidenceState = details ? details.alertState : 'none';
+    }
+
+    refreshAllConfidenceAlertButtons(lot = null) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return;
+
+        [
+            'confianceBio',
+            'confianceMech',
+            'confianceUsage',
+            'confianceDenat',
+            'confianceEssence',
+            'confianceAncien',
+            'confianceTraces',
+            'confianceProv'
+        ].forEach((key) => {
+            const config = this.getConfidenceAlertConfig(key);
+            if (!config) return;
+            const row = document.querySelector(config.rowSelector);
+            if (!row) return;
+            this.refreshConfidenceAlertButton(row, key, targetLot);
+        });
     }
 
     renderStudyStatusHelpByIndex(index) {
@@ -7315,6 +7671,7 @@ deleteLot(index) {
                 const activeLot = this.getCurrentLot(); // On récupère le lot actuel
                 if (activeLot) {
                     this.computeOrientation(activeLot);
+                    this.refreshAllConfidenceAlertButtons(activeLot);
                 }
             };
 
@@ -8527,8 +8884,18 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 const container = document.getElementById(containerId);
                 if (!container) return;
                 container.innerHTML = '';
+
+                // Grouper les Psets par couche
+                const byLayer = { standard: [], valobois: [] };
                 Object.keys(psetConfig).forEach((psetKey) => {
                     const psetDef = psetConfig[psetKey];
+                    const layer = psetDef.layer || 'valobois';
+                    if (!byLayer[layer]) byLayer[layer] = [];
+                    byLayer[layer].push({ key: psetKey, def: psetDef });
+                });
+
+                // Fonction pour créer un Pset item (checkbox + details)
+                const createPsetItem = (psetKey, psetDef) => {
                     const item = document.createElement('div');
                     item.style.cssText = 'padding:6px 0;';
 
@@ -8566,8 +8933,36 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     });
                     details.appendChild(propsDiv);
                     item.appendChild(details);
-                    container.appendChild(item);
-                });
+                    return item;
+                };
+
+                // Afficher les groupes avec en-têtes
+                if (byLayer.standard && byLayer.standard.length > 0) {
+                    const standardHeader = document.createElement('div');
+                    standardHeader.style.cssText = 'font-size:12px;font-weight:600;color:#2c5aa0;margin-bottom:8px;margin-top:0;';
+                    standardHeader.textContent = '🔵 Psets IFC standard — interopérabilité maximale';
+                    container.appendChild(standardHeader);
+
+                    byLayer.standard.forEach(({ key, def }) => {
+                        container.appendChild(createPsetItem(key, def));
+                    });
+
+                    // Séparateur
+                    const sep = document.createElement('div');
+                    sep.style.cssText = 'height:1px;background:#E6E6E6;margin:12px 0;';
+                    container.appendChild(sep);
+                }
+
+                if (byLayer.valobois && byLayer.valobois.length > 0) {
+                    const valoboisHeader = document.createElement('div');
+                    valoboisHeader.style.cssText = 'font-size:12px;font-weight:600;color:#b8601f;margin-bottom:8px;margin-top:0;';
+                    valoboisHeader.textContent = '🟠 Psets VALOBOIS — données métier';
+                    container.appendChild(valoboisHeader);
+
+                    byLayer.valobois.forEach(({ key, def }) => {
+                        container.appendChild(createPsetItem(key, def));
+                    });
+                }
             };
 
             const updateExportLotsState = () => {
@@ -8650,8 +9045,9 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                         alert('Sélectionne au moins un lot à exporter.');
                         return;
                     }
+                    const ifcMode = document.querySelector('input[name="ifcExportMode"]:checked')?.value || 'library';
                     closeExportPdf();
-                    this.exportToIFC(selectedLotIndices, activePsetConfig);
+                    this.exportToIFC(selectedLotIndices, activePsetConfig, ifcMode);
                     return;
                 }
                 if (formatVal === 'glb') {
@@ -9082,11 +9478,11 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         const referenceChunks = [];
 
-        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*«\s*(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)\s*»[^\n]*\[[^\]]+\][^\n]*\.?/gi;
+        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
         const referenceTokenRegex = /(https?:\/\/|\bwww\.|\bdoi\s*:|\b10\.\d{4,9}\/)/i;
         const bibliographicRegex = /\((?:\d{4}(?:[^)]*)|s\.\s*d\.)\)/i;
         const normRegex = /\b(FD|NF|EN|ISO|FWPA|STI|STII|STIII|C\d{2}|D\d{2})\b/i;
-        const scaleLineRegex = /(?:Une?|Un|Des)\s+.*«\s*(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)\s*».*\[[^\]]+\]/i;
+        const scaleLineRegex = /(?:Une?|Un|Des)\s+.*(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?.*\[[^\]]+\]/i;
 
         const isReferenceLine = (line) => {
             const clean = String(line || '').trim();
@@ -9388,7 +9784,7 @@ https://quefairedemesdechets.ademe.fr/dechet/bois-contamine-termites/`,
             integriteBio: `Noter le degré d’atteinte à l’intégrité des bois par des dégradations biologiques.
 
 Une intégrité biologique « forte » vaut pour une absence de dégradation [+3].
-Une intégrité biologique « moyenne » vaut pour des altérations d’ordres biologiques superficielles limitées aux premières cernes de l’aubier [+1].
+Une intégrité biologique « moyenne » vaut pour des altérations d’ordres biologiques superficielles limitées aux premières cernes de l’aubier et/ou aux premiers centimètres des extrémités [+1].
 Une intégrité biologique « faible » vaut pour des altérations biologiques à cœur manifestes sur plus d’un tiers de la longueur des éléments évalués [-10].
 
 (Choix des dimensions à spécifier).
@@ -9409,9 +9805,9 @@ Attention, l’estimation de la classe n’est pas que situationnelle (localisat
 
 Noter le niveau de confiance dans l’identification des dégradations biologiques des bois évalués.
 
-Une confiance « forte » vaut pour une certitude [3].
-Une confiance « moyenne » vaut pour un doute [2].
-Une confiance « faible » implique d’engager une étude complémentaire [1].`
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`
         };
 
         if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -9455,7 +9851,7 @@ openMechDetailModal(fieldKey) {
     const titles = {
         purgeMech: 'Purge',
         feuMech: 'Feu',
-        integriteMech: 'Intégrité',
+        integriteMech: 'Intégrité mécanique',
         expositionMech: 'Exposition',
         confianceMech: 'Confiance'
     };
@@ -9512,7 +9908,7 @@ Jurecki, A., Wieruszewski, M., & Grześkowiak, W. (2024). Comparative Analysis o
 Jing, C., Renner, J. S., & Xu, Q. (2024). Research on the Fire Performance of Aged and Modern Wood. In Wood & Fire Safety 2024 (p. 378‑386). Springer Nature Switzerland. https://doi.org/10.1007/978-3-031-59177-8_44`,
         integriteMech: `Intégrité mécanique.
 
-Noter l’intégrité mécanique des bois évalués.
+Noter l’intégrité mécanique des bois évalués. (À distinguer de la notation de l'Altération, postérieure à la déconstruction.)
 
 Une intégrité mécanique « forte » vaut pour une absence de dégradations ou pour des dégradations superficielles, locales, limitées aux premières cernes de l’aubier, aux arêtes, aux extrémités des pièces sur moins d’un cinquième de la longueur totale du bois, répondants aux critères les plus défavorables de classement visuel des normes relatives à l’essence évaluée [+3].
 Une intégrité mécanique « moyenne » vaut pour des bois disposant d’assemblages taillés dans la pièce (ex : entailles, poches, mortaises, encoches, mi-bois, percements de boulons, vis ou clous, de charbon*…), des fentes de séchage non traversantes [-3].
@@ -9542,9 +9938,9 @@ Définir un % de charge moyen sur la durée d’usage pour statuer sur le dimens
 
 Noter le niveau de confiance dans l’identification des dégradations mécaniques des bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`
     };
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
@@ -9598,9 +9994,9 @@ openUsageDetailModal(fieldKey) {
 
 Noter le niveau de confiance de la résistance mécanique des bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         durabiliteUsage: `Durabilité naturelle.
 
 Noter la durabilité naturelle de l’essence de bois identifiée.
@@ -9750,20 +10146,49 @@ openDenatDetailModal(fieldKey) {
 
 Noter le degré de dépollution nécessaire à la réappropriation des bois évalués.
 
-Une dépollution « forte » vaut pour des bois disposant de dégradations biologiques, nécessitant une purge forte, et d’une intégrité faible (ex: pourriture à cœur), ou des peints ou traités, en surface (non imprégnés), mécaniquement extractibles* (ex : peinture plombée) [-3].
-Une dépollution « moyenne » vaut pour des bois nécessitant un nettoyage conséquent lié à la présence de poussières (brossage, eau à haute pression) et autres formes de polluants assimilés (poussière de plâtre, boue, terres*, moisissures superficielles, liés à la déconstruction) et/ou des corps étrangers de surface (clous, vis et autres formes de connecteurs métalliques, ou d’objets liés à l’usage du bâtiment, etc…) [+1].
-Une dépollution « faible » vaut pour des bois conservés à l’état brut, exempts de polluants (y compris traitements préventifs ou curatifs), et nécessitant peu de nettoyage [+3].
+Une dépollution « forte » vaut pour des bois disposant de dégradations biologiques, nécessitant une purge forte, et d’une intégrité faible (ex: pourriture à cœur), ou des bois peints, vernis ou traités en surface (non imprégnés), mécaniquement extractibles* (ex : peinture plombée) [-3].
+Une dépollution « moyenne » vaut pour des bois nécessitant un nettoyage conséquent lié à la présence de poussières incrustées (brossage à l'aide d'outils électroportatifs, eau à haute pression) et autres formes de polluants assimilés (poussière de plâtre, boue, terres*, moisissures superficielles, liés à la déconstruction) et/ou des corps étrangers de surface (connecteurs métalliques, objets liés à l’usage du bâtiment, etc…) qui ne sont pas des clous, vis et autres formes de connecteurs métalliques consommables [+1].
+Une dépollution « faible » vaut pour des bois conservés à l’état brut, exempts de polluants chimiques (traitements préventifs ou curatifs, hors éléments propres à l'essence), nécessitant un nettoyage limité à la présence de poussières superficielles, de clous, vis et autres formes de connecteurs métalliques consommables [+3].
 
 * Voir : François Privat. Faisabilité du recyclage en boucle fermée des déchets post-consommateurs en bois massif. Génie des procédés. École centrale de Nantes, 2019, page 36.`,
         contaminationDenat: `Contamination.
 
 Noter le degré de contamination des bois évalués.
 
-Une contamination « forte » vaut pour : des bois dits de classe C*, défini comme des déchets dangereux (ex : créosote); des bois imprégnés dont l’agent de traitement est inconnu, retiré du marché, ou dont la teneur de certaines substances est supérieure aux exigences de recyclage en panneaux* et impropre à la combustion** dans certaines installations dédiées; des bois pour lesquels une expansion forte des dégradations biologiques (termites et mérules en particulier) est constatée [-10].
-Une contamination « moyenne » vaut pour des bois imprégnés dont les agents employés sont encore présent sur le marché, ou pour lesquels une dépollution forte est possible; ou dits de classes BR1, BR2 [+1].
-Une contamination « faible » vaut pour de bois de classe A, dépollution moyenne et faible [+3].
+Une contamination « forte » vaut pour des pièces dont le ou les agents contaminants, biologique ou chimiques, ne peuvent pas être mécaniquement dissociés du bois sans en altérer profondément l'intégrité. Ce sont les bois dits de classe C*, défini comme des déchets dangereux (contenant : créosote, CCA, PCP...); des bois imprégnés dont l’agent de traitement est inconnu, retiré du marché, ou dont la teneur en certaines substances est supérieure aux cahiers des charges des entreprises de recyclage en panneaux** (impropre à cette orientation). Ce sont aussi les bois des bois pour lesquels une expansion forte des dégradations biologiques est constatée (termites et mérules en particulier, pourrissement étendu). La combustion dans les installations dédiées*** est à privilégier [-10].
+Une contamination « moyenne » vaut pour des bois imprégnés dont les agents employés sont encore présent sur le marché, dits de classes BR1, BR2, pour lesquels une dépollution forte est possible ou une dépollution moyenne nécessaire [+1].
+Une contamination « faible » vaut pour des bois de classe A [+3].
 
-Voir : FCBA, Référentiel de classification des déchets bois (2022). EPF, EN ISO 17225-1, Ineris (2021), etc.`,
+À noter : 
+• Si des bois de diverses classes sont mélangés dans un lot, le lot acquiert la classe la plus défavorable*. La rigueur de l'allotissement est donc primordiale.
+• L'orienation estimée par la notation de cet outil ne vaut pas pour une acceptation dans les filières visées. La confirmation de l'orientation reste à la discrétion des exigences du récupérateur visé. Il est donc recommandé de disposer d'une analyse chimique des bois.
+• Au regard du principe de cascade d'usage, la combustion (valorisation énergétique ou incinération) n'est estimée valable que dans la mesure ou le bois ne peut pas être recyclé.
+• L'orientation vers l'enfouissement (élimination des déchets dits ultimes) a été exclue des voies de traitements possbiles au regard de la La loi AGEC du 10 février 2020****. Avec cette dernière a été instauré le principe d'une interdiction progressive de l'enfouissement des déchets non dangereux valorisables. Son article 6 conditionne toute élimination des déchets à une justification du respect des obligations de tri, tandis que son article 10 introduit l'interdiction progressive de mise en décharge. Ces dispositions ont été mises en application opérationnelle par le décret n° 2021-1199 du 16 septembre 2021, qui crée dans le Code de l'environnement deux nouveaux articles : R.541-48-3 (calendrier d'interdiction progressive de la mise en décharge des déchets non dangereux valorisables, applicable aux ISDND uniquement) et R.541-48-4 (modalités de justification du respect des obligations de tri par le producteur de déchets, applicable au stockage et à l'incinération). 
+• Ajoutons que les bois contaminés par des agents seulement enfouissables ne sont pas amenés à être considérés comme un déchet bois, mais comme des déchets relatifs à l'agent contaminant et par conséquent traité comme tel.
+
+*FCBA, Groupe de travail plan Déchets du CSF bois. 2022. Référentiel de classification des déchets bois - Version 05/2022. 13 pages. EN ISO 17225-1.
+
+**European Panel Federation. (2018). EPF standard for delivery conditions of recycled wood. Europanels / European Panel Federation. https://europanels.org/wp-content/uploads/2018/09/EPF-Standard-for-recycled-wood-use.pdf.
+
+***Ineris. (2021). Sortie du statut de déchet pour un usage combustible : Guide méthodologique pour la démonstration de l'incidence globale sur l'environnement et la santé humaine (Rapport Ineris‑DRC‑18‑173979‑03331‑D). Institut national de l'environnement industriel et des risques. https://www.ineris.fr/sites/default/files/contribution/Documents/Ineris_GuideSSD-Juin2021-A4-BD.pdf.
+
+Ministère de la Transition écologique. (2021, 16 septembre). Décret n° 2021-1199 relatif aux conditions d'élimination des déchets non dangereux. Journal officiel de la République française. https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000044060460.
+
+FCBA Institut Technologique. (2024, mai). Guide pratique : Gestion des déchets bois dans les entreprises bois-construction (v5). CODIFAB. https://www.codifab.fr/uploads/media/66f2778e2390d/guide-gestion-dechets-bois-v5.pdf
+
+****Textes législatifs et réglementaires
+
+Loi n° 2020-105 du 10 février 2020 relative à la lutte contre le gaspillage et à l'économie circulaire. Journal officiel de la République française, n° 35 du 11 février 2020. https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000041553759/
+
+Décret n° 2021-1199 du 16 septembre 2021 relatif aux conditions d'élimination des déchets non dangereux. Journal officiel de la République française, n° 218 du 18 septembre 2021 (NOR : TREP2107747D). https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000044060460
+
+Arrêté du 16 septembre 2021 pris en application des articles R. 541-48-3 et R. 541-48-4 du code de l'environnement. Journal officiel de la République française, n° 218 du 18 septembre 2021. https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000044060484
+
+Arrêté du 3 août 2018 relatif aux prescriptions générales applicables aux installations relevant du régime de l'autorisation au titre de la rubrique n° 2910 de la nomenclature des installations classées pour la protection de l'environnement. Journal officiel de la République française. https://www.legifrance.gouv.fr/loda/id/JORFTEXT000037284611/
+
+Article du Code de l'environnement
+
+Article LEGIARTI000043974936 — Code de l'environnement (art. R.541-48-3). Légifrance. https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000043974936`,
         durabiliteConfDenat: `Durabilité conférée.
 
 Noter la durabilité conférée des bois évalués.
@@ -9775,9 +10200,9 @@ Une durabilité conférée « faible » vaut pour des bois conservés à l’ét
 
     Noter le niveau de confiance de la dénaturation des bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-    Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+    Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         naturaliteDenat: `Naturalité.
 
 Noter le degré de naturalité des bois évalués.
@@ -10035,9 +10460,9 @@ openEssenceDetailModal(fieldKey) {
 
 Noter le niveau de confiance de la reconnaissance de l’essence et des caractéristiques notées ci-après qui lui sont relatives.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         rareteEcoEssence: `Rareté.
 
 Noter le niveau de rareté de l'essence.
@@ -10141,9 +10566,9 @@ openAncienDetailModal(fieldKey) {
 
 Noter le niveau de confiance dans l’identification de l’ancienneté des bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         amortissementAncien: `Amortissement.
 
 Noter le degré d’amortissement biologique des bois évalués.
@@ -10258,9 +10683,9 @@ openTracesDetailModal(fieldKey) {
 
 Noter le niveau de confiance de la tracéologie effectuée sur les bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         etiquetageTraces: `Étiquetage.
 
 Noter la qualité de l’étiquetage des pièces de bois évaluées.
@@ -10275,7 +10700,7 @@ Voir : EN 13556 (essence).
 Voir : NF EN 14250 (mise en forme).`,
         alterationTraces: `Altération.
 
-Noter les altérations imputables à la récupération des éléments.
+Noter les altérations imputables à la récupération des éléments. (À distinguer de la notation de l'Intégrité mécanique, antérieure à la déconstruction.)
 
 Une altération « forte » vaut pour des bois présentant ruptures, cassures, morsures d’engin, auréoles, tâches d’huiles ou d’hydrocarbures [-10].
 Une altération « moyenne » vaut pour des bois avec coins et arêtes enfoncés ou arrachés sur les premières cernes [+1].
@@ -10349,9 +10774,9 @@ openProvenanceDetailModal(fieldKey) {
 
 Noter le niveau de confiance de la tracéologie effectuée sur les bois évalués.
 
-Une confiance « forte » vaut pour une certitude [+3].
-Une confiance « moyenne » vaut pour un doute [+2].
-Une confiance « faible » implique d’engager une étude complémentaire [+1].`,
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         transportProv: `Un transport « fort » vaut pour des bois transportés sur une distance intercontinentale (hors Europe) [-3].
     Un transport « moyen » vaut pour des bois transportés dans un rayon continentale (pays transfrontaliers, Europe) [+1].
     Un transport « faible » vaut pour des bois qui peuvent être réemployés, réutilisés ou recyclés sur site (in situ) [+3].
@@ -13875,6 +14300,7 @@ updateBioRow(row, key, lot) {
     const intensityBox   = row.querySelector(`.bio-intensity-box[data-intensity="${key}"]`);
     const resetBtn       = row.querySelector('.bio-reset-btn');
     const infoBtn        = row.querySelector('.bio-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const confianceTitle = row.querySelector('[data-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -13932,6 +14358,7 @@ updateBioRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
         };
@@ -13968,6 +14395,7 @@ updateBioRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
         };
@@ -13975,6 +14403,15 @@ updateBioRow(row, key, lot) {
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openBioDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (!current) {
@@ -14040,6 +14477,7 @@ updateMechRow(row, key, lot) {
     const intensityBox = row.querySelector(`.mech-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.mech-reset-btn');
     const infoBtn = row.querySelector('.mech-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const feuAlertBtn = key === 'feuMech' ? row.querySelector('[data-mech-feu-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-mech-confiance-title]');
 
@@ -14079,6 +14517,7 @@ updateMechRow(row, key, lot) {
             // SECURITÉ : Utiliser "lot" (le paramètre) ou "activeLot"
             const activeLot = this.getCurrentLot();
             if (activeLot) this.computeOrientation(activeLot);
+            this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
 
@@ -14123,11 +14562,22 @@ updateMechRow(row, key, lot) {
                 this.refreshFeuMechAlertButton(lot);
             }
 
+            this.refreshConfidenceAlertButton(row, key, lot);
+
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openMechDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (feuAlertBtn) {
@@ -14208,6 +14658,7 @@ updateUsageRow(row, key, lot) {
     const intensityBox = row.querySelector(`.usage-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.usage-reset-btn');
     const infoBtn = row.querySelector('.usage-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const confianceTitle = row.querySelector('[data-usage-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -14267,6 +14718,7 @@ updateUsageRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
@@ -14308,12 +14760,22 @@ updateUsageRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openUsageDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (!current) {
@@ -14384,6 +14846,7 @@ updateDenatRow(row, key, lot) {
     const intensityBox = row.querySelector(`.denat-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.denat-reset-btn');
     const infoBtn = row.querySelector('.denat-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const naturaliteAlertBtn = key === 'naturaliteDenat' ? row.querySelector('[data-denat-naturalite-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-denat-confiance-title]');
 
@@ -14447,6 +14910,7 @@ updateDenatRow(row, key, lot) {
             }
 
             updateNaturaliteAlertBtn();
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
@@ -14490,12 +14954,22 @@ updateDenatRow(row, key, lot) {
             }
 
             updateNaturaliteAlertBtn();
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openDenatDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     const updateNaturaliteAlertBtn = () => this.refreshNaturaliteAlertButton(lot);
@@ -14748,6 +15222,7 @@ updateProvenanceRow(row, key, lot) {
     const intensityBox = row.querySelector(`.provenance-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.provenance-reset-btn');
     const infoBtn = row.querySelector('.provenance-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const confianceTitle = row.querySelector('[data-provenance-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -14807,6 +15282,7 @@ updateProvenanceRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
 
@@ -14849,12 +15325,22 @@ updateProvenanceRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openProvenanceDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (!current) {
@@ -15123,6 +15609,7 @@ updateEssenceRow(row, key, lot) {
     const intensityBox = row.querySelector(`.essence-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.essence-reset-btn');
     const infoBtn = row.querySelector('.essence-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const confianceTitle = row.querySelector('[data-essence-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15179,6 +15666,7 @@ updateEssenceRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
         };
@@ -15220,12 +15708,22 @@ updateEssenceRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openEssenceDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (!current) {
@@ -15293,6 +15791,7 @@ updateAncienRow(row, key, lot) {
     const intensityBox = row.querySelector(`.ancien-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.ancien-reset-btn');
     const infoBtn = row.querySelector('.ancien-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const alertBtn = key === 'amortissementAncien' ? row.querySelector('[data-ancien-amortissement-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15346,6 +15845,7 @@ updateAncienRow(row, key, lot) {
             this.renderSeuils();
             this.renderEvalOp();
             updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
+            this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
 
@@ -15381,11 +15881,21 @@ updateAncienRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
+            this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openAncienDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     // Gestion du bouton alerte Amortissement biologique (seulement pour amortissementAncien)
@@ -15470,6 +15980,7 @@ updateTracesRow(row, key, lot) {
     const intensityBox = row.querySelector(`.traces-intensity-box[data-intensity="${key}"]`);
     const resetBtn = row.querySelector('.traces-reset-btn');
     const infoBtn = row.querySelector('.traces-info-small-btn');
+    const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const confianceTitle = row.querySelector('[data-traces-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15541,6 +16052,7 @@ updateTracesRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
 
@@ -15583,12 +16095,22 @@ updateTracesRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            this.refreshConfidenceAlertButton(row, key, lot);
 
         };
     }
 
     if (infoBtn) {
         infoBtn.onclick = () => this.openTracesDetailModal(key);
+    }
+
+    if (confidenceAlertBtn) {
+        this.refreshConfidenceAlertButton(row, key, lot);
+        confidenceAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshConfidenceAlertButton(row, key, lot);
+            this.openConfidenceAlertModal(key, lot);
+        };
     }
 
     if (!current) {
@@ -17394,6 +17916,21 @@ renderRadar() {
         const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
         const prixLot = info.prixLot != null ? info.prixLot : (info.prix_total != null ? info.prix_total : '');
         const prixLotLabel = prixLot === '' ? '' : formatGroupedValue(Math.round(parseFloat(prixLot) || 0), 0);
+        const notationConfidenceEntries = this.getNotationConfidenceSummaryEntries(lot);
+
+        const createOrientationField = (fieldDef) => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'orientation-field';
+            const labelEl = document.createElement('div');
+            labelEl.className = 'orientation-field-label';
+            labelEl.textContent = fieldDef.label;
+            const box = document.createElement('div');
+            box.className = 'orientation-field-box';
+            box.innerHTML = `<span>${fieldDef.value || fieldDef.fallback || '—'}</span>`;
+            wrapper.appendChild(labelEl);
+            wrapper.appendChild(box);
+            return wrapper;
+        };
 
         const fieldDefs = [
             { label: 'Quantité', value: qtyLabel },
@@ -17415,18 +17952,15 @@ renderRadar() {
         );
 
         fieldDefs.forEach((f) => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'orientation-field';
-            const labelEl = document.createElement('div');
-            labelEl.className = 'orientation-field-label';
-            labelEl.textContent = f.label;
-            const box = document.createElement('div');
-            box.className = 'orientation-field-box';
-            box.innerHTML = `<span>${f.value || f.fallback || '—'}</span>`;
-            wrapper.appendChild(labelEl);
-            wrapper.appendChild(box);
-            grid.appendChild(wrapper);
+            grid.appendChild(createOrientationField(f));
         });
+
+        const notationGrid = document.createElement('div');
+        notationGrid.className = 'orientation-notation-grid';
+        notationConfidenceEntries.forEach((item) => {
+            notationGrid.appendChild(createOrientationField({ label: item.label, value: item.action }));
+        });
+        grid.appendChild(notationGrid);
 
         card.appendChild(header);
         card.appendChild(grid);
@@ -20255,7 +20789,7 @@ renderRadar() {
         });
     }
 
-    exportToIFC(selectedLotIndices = [], psetConfig) {
+    exportToIFC(selectedLotIndices = [], psetConfig, ifcMode = 'library') {
         if (typeof window.buildIFC !== 'function') {
             alert('Export IFC indisponible.');
             return;
@@ -20273,6 +20807,7 @@ renderRadar() {
             return;
         }
         const activePset = psetConfig || DEFAULT_PSET_CONFIG;
+        const exportMeta = (this.data && this.data.meta) || null;
 
         targetLotIndices.forEach((lotIdx, lotPos) => {
             const lot = lots[lotIdx];
@@ -20291,7 +20826,7 @@ renderRadar() {
 
             setTimeout(() => {
                 try {
-                    const ifcText = window.buildIFC(lotForIfc, activePset);
+                    const ifcText = window.buildIFC(lotForIfc, activePset, ifcMode, exportMeta);
                     const blob = new Blob([ifcText], { type: 'application/x-step' });
                     const url  = URL.createObjectURL(blob);
                     const a    = document.createElement('a');

@@ -2,7 +2,7 @@
  * build-ifc.js — Export IFC4 STEP pour VALOBOIS
  *
  * Dépend de window.buildMesh et window.resolveSections exposés par build-glb.js.
- * Expose window.buildIFC(lot, psetConfig) → string (contenu .ifc complet)
+ * Expose window.buildIFC(lot, psetConfig, ifcMode, meta) → string (contenu .ifc complet)
  *
  * Coordonnées géométriques : mètres (cohérent avec buildMesh qui renvoie des mètres).
  * IDs STEP séquentiels via un compteur { val: number } passé par référence.
@@ -37,15 +37,84 @@
     }
 
     /**
+     * orientationToStatus — Mappe orientation VALOBOIS → Pset_MemberCommon.Status (IFC4)
+     * @param {string} orientationLabel - Libellé d'orientation (ex: "Réemploi", "Réutilisation", "Incinération")
+     * @returns {string|null} - 'Existing', 'Demolish', 'Other', ou null
+     */
+    function orientationToStatus(orientationLabel) {
+        if (!orientationLabel) return null;
+        var o = orientationLabel.toLowerCase();
+        if (o.includes('remploi') || o.includes('rutilisation') || o.includes('réutilisation')) return 'Existing';
+        if (o.includes('incin') || o.includes('démolition')) return 'Demolish';
+        if (o.includes('recycl')) return 'Other';
+        return null;
+    }
+
+    /**
+     * buildOwnerHistoryLines — Génère les entités IFC OwnerHistory à partir des meta données étude
+     *
+     * Mapping IFC:
+     * - OwningUser: diagnostiqueur (personne + organisation)
+     * - OwningApplication: logiciel VALOBOIS (fixe)
+     */
+    function buildOwnerHistoryLines(idCounter, meta) {
+        var lines = [];
+        var metaObj = meta || {};
+
+        var contactRaw = (metaObj.diagnostiqueurContact || '').trim();
+        var tokens = contactRaw ? contactRaw.split(/\s+/) : [];
+        var familyNameRaw = tokens.length ? tokens[tokens.length - 1] : 'VALOBOIS';
+        var givenNameRaw = tokens.length > 1 ? tokens.slice(0, -1).join(' ') : '$';
+
+        var orgNameRaw = (metaObj.diagnostiqueurNom || '').trim() || 'VALOBOIS';
+        var orgDescription = 'Application VALOBOIS';
+        var appVersion = '1.0';
+
+        var creationDate = Math.floor(Date.now() / 1000);
+        if (metaObj.date) {
+            var d = new Date(metaObj.date);
+            if (!Number.isNaN(d.getTime())) creationDate = Math.floor(d.getTime() / 1000);
+        }
+
+        var familyName = familyNameRaw.replace(/'/g, "''");
+        var givenName = givenNameRaw === '$' ? '$' : ("'" + givenNameRaw.replace(/'/g, "''") + "'");
+        var orgName = orgNameRaw.replace(/'/g, "''");
+
+        var personId = idCounter.val++;
+        lines.push('#' + personId + "= IFCPERSON($,'" + familyName + "'," + givenName + ',$,$,$,$,$);');
+
+        var userOrgId = idCounter.val++;
+        lines.push('#' + userOrgId + "= IFCORGANIZATION($,'" + orgName + "','" + orgDescription + "',$,$);");
+
+        var personOrgId = idCounter.val++;
+        lines.push('#' + personOrgId + '= IFCPERSONANDORGANIZATION(#' + personId + ',#' + userOrgId + ',$);');
+
+        var appOrgId = idCounter.val++;
+        lines.push('#' + appOrgId + "= IFCORGANIZATION($,'VALOBOIS','Application VALOBOIS',$,$);");
+
+        var appId = idCounter.val++;
+        lines.push('#' + appId + "= IFCAPPLICATION(#" + appOrgId + ",'" + appVersion + "','VALOBOIS','VALOBOIS');");
+
+        var ownerHistId = idCounter.val++;
+        lines.push('#' + ownerHistId + '= IFCOWNERHISTORY(#' + personOrgId + ',#' + appId + ',$,.ADDED.,$,$,$,' + creationDate + ');');
+
+        return {
+            lines: lines,
+            ownerHistId: ownerHistId,
+        };
+    }
+
+    /**
      * buildPsetLines — Génère les lignes STEP pour un IfcPropertySet
      *
      * @param {number}        entityId   - ID STEP de l'entité parente (IfcMember)
      * @param {string}        psetName   - Nom du Pset IFC (ex. "Pset_Valobois_Identification")
      * @param {object}        properties - { libellé: valeur } — null/undefined omis
-     * @param {{ val:number }} idCounter  - Compteur d'IDs STEP passé par référence
+    * @param {{ val:number }} idCounter  - Compteur d'IDs STEP passé par référence
+    * @param {number}         ownerHistId - ID STEP de IfcOwnerHistory
      * @returns {{ lines: string[], relId: number|null }}
      */
-    function buildPsetLines(entityId, psetName, properties, idCounter) {
+    function buildPsetLines(entityId, psetName, properties, idCounter, ownerHistId) {
         var lines = [];
         var propIds = [];
 
@@ -54,7 +123,9 @@
             if (val === null || val === undefined) return;
 
             var stVal;
-            if (typeof val === 'number') {
+            if (typeof val === 'boolean') {
+                stVal = 'IFCBOOLEAN(.' + (val ? 'T' : 'F') + '.)';
+            } else if (typeof val === 'number') {
                 if (Number.isInteger(val)) {
                     stVal = 'IFCINTEGER(' + val + ')';
                 } else {
@@ -75,11 +146,11 @@
 
         var psetId = idCounter.val++;
         var psetGuid = generateGUID();
-        lines.push('#' + psetId + "= IFCPROPERTYSET('" + psetGuid + "',#3,'" + psetName + "',$,(" + propIds.join(',') + '));');
+        lines.push('#' + psetId + "= IFCPROPERTYSET('" + psetGuid + "',#" + ownerHistId + ",'" + psetName + "',$,(" + propIds.join(',') + '));');
 
         var relId = idCounter.val++;
         var relGuid = generateGUID();
-        lines.push('#' + relId + "= IFCRELDEFINESBYPROPERTIES('" + relGuid + "',#3,$,$,(#" + entityId + '),#' + psetId + ');');
+        lines.push('#' + relId + "= IFCRELDEFINESBYPROPERTIES('" + relGuid + "',#" + ownerHistId + ",$,$,(#" + entityId + '),#' + psetId + ');');
 
         return { lines: lines, relId: relId };
     }
@@ -144,7 +215,7 @@
      * @param {number}        ownerHistId       - ID STEP de l'OwnerHistory (#3)
      * @returns {{ lines: string[], memberEntityId: number, memberGlobalId: string }}
      */
-    function buildIFCMember(piece, lot, psetConfig, idCounter, placementOffsetY, globalPlacementId, geomCtxId, ownerHistId) {
+    function buildIFCMember(piece, lot, meta, psetConfig, idCounter, placementOffsetY, globalPlacementId, geomCtxId, ownerHistId) {
         var lines = [];
         var longueur_mm = parseFloat(piece.longueur) || 1000;
         var offsetY_m = placementOffsetY / 1000;
@@ -274,6 +345,16 @@
         var memberEntityId = idCounter.val++;
         lines.push('#' + memberEntityId + "= IFCMEMBER('" + memberGlobalId + "',#" + ownerHistId + ",'" + nomPiece + "','IfcMember',$,#" + memberPlacId + ',#' + prodDefShapeId + ',$,.BEAM.);');
 
+        // ── IfcMaterial + IfcRelAssociatesMaterial (si essence renseignée) ──
+        var essenceName = piece.essenceNomCommun || piece.essence || null;
+        if (essenceName) {
+            var safeEssence = (essenceName + '').replace(/'/g, "''");
+            var materialId = idCounter.val++;
+            lines.push('#' + materialId + "= IFCMATERIAL('" + safeEssence + "');");
+            var relMatId = idCounter.val++;
+            lines.push('#' + relMatId + "= IFCRELASSOCIATESMATERIAL('" + generateGUID() + "',#" + ownerHistId + ",$,$,(#" + memberEntityId + "),#" + materialId + ');');
+        }
+
         // ── Psets ──
         if (psetConfig) {
             Object.keys(psetConfig).forEach(function (psetKey) {
@@ -285,7 +366,7 @@
                     var propDef = psetDef.properties[propKey];
                     if (!propDef || !propDef.enabled) return;
                     try {
-                        var val = propDef.getValue(piece, lot);
+                        var val = propDef.getValue(piece, lot, meta);
                         if (val !== null && val !== undefined && val !== '') {
                             props[propDef.label] = val;
                         }
@@ -293,7 +374,7 @@
                 });
 
                 if (Object.keys(props).length === 0) return;
-                var psetResult = buildPsetLines(memberEntityId, psetDef.psetName, props, idCounter);
+                var psetResult = buildPsetLines(memberEntityId, psetDef.psetName, props, idCounter, ownerHistId);
                 lines = lines.concat(psetResult.lines);
             });
         }
@@ -306,48 +387,175 @@
      *
      * @param {object} lot        - Lot VALOBOIS (avec lot.pieces[])
      * @param {object} psetConfig - Configuration des Psets (DEFAULT_PSET_CONFIG ou copie)
+     * @param {string} ifcMode    - Mode d'export : 'library' (défaut) ou 'project'
      * @returns {string} Contenu du fichier .ifc (format STEP ISO-10303-21)
      */
-    function buildIFC(lot, psetConfig) {
+    function buildIFC(lot, psetConfig, ifcMode, meta) {
+        if (!ifcMode) ifcMode = 'library'; // défaut = library
+        return ifcMode === 'library'
+            ? buildIFCLibrary(lot, psetConfig, meta)
+            : buildIFCProject(lot, psetConfig, meta);
+    }
+
+    /**
+     * buildIFCLibrary — Mode 'library' : IfcProjectLibrary avec hiérarchie minimale
+     * Les IfcMember sont contenus directement via IfcRelDeclares.
+     */
+    function buildIFCLibrary(lot, psetConfig, meta) {
+        var idCounter = { val: 1 };
+        var dataLines = [];
+        var today = new Date().toISOString().slice(0, 19);
+        var lotName = ((lot.nomLot || lot.nom || 'VALOBOIS') + '').replace(/'/g, "''");
+
+        // ── OwnerHistory enrichi à partir des meta ──
+        var ownerInfo = buildOwnerHistoryLines(idCounter, meta);
+        dataLines = dataLines.concat(ownerInfo.lines);
+        var ownerHistId = ownerInfo.ownerHistId;
+
+        // ── Entités fixes (contexte IFC minimaliste) ──
+        var dimExpId = idCounter.val++;
+        dataLines.push('#' + dimExpId + '= IFCDIMENSIONALEXPONENTS(0,0,0,0,0,0,0);');
+
+        var lengthUnitId = idCounter.val++;
+        dataLines.push('#' + lengthUnitId + '= IFCSIUNIT(*,.LENGTHUNIT.,.MILLI.,.METRE.);');
+        var areaUnitId = idCounter.val++;
+        dataLines.push('#' + areaUnitId + '= IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);');
+        var volumeUnitId = idCounter.val++;
+        dataLines.push('#' + volumeUnitId + '= IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);');
+
+        var unitAssignId = idCounter.val++;
+        dataLines.push('#' + unitAssignId + '= IFCUNITASSIGNMENT((#' + lengthUnitId + ',#' + areaUnitId + ',#' + volumeUnitId + '));');
+
+        var contextOriginId = idCounter.val++;
+        dataLines.push('#' + contextOriginId + '= IFCCARTESIANPOINT((0.,0.,0.));');
+        var contextAxisZId = idCounter.val++;
+        dataLines.push('#' + contextAxisZId + '= IFCDIRECTION((0.,0.,1.));');
+        var contextRefXId = idCounter.val++;
+        dataLines.push('#' + contextRefXId + '= IFCDIRECTION((1.,0.,0.));');
+        var contextAxisId = idCounter.val++;
+        dataLines.push('#' + contextAxisId + '= IFCAXIS2PLACEMENT3D(#' + contextOriginId + ',#' + contextAxisZId + ',#' + contextRefXId + ');');
+
+        var geomCtxId = idCounter.val++;
+        dataLines.push('#' + geomCtxId + "= IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#" + contextAxisId + ',$);');
+
+        var projectGuid = generateGUID();
+        var projectLibraryId = idCounter.val++;
+        dataLines.push('#' + projectLibraryId + "= IFCPROJECTLIBRARY('" + projectGuid + "',#" + ownerHistId + ",'" + lotName + "',$,$,$,$,(#" + geomCtxId + '),#' + unitAssignId + ');');
+
+        // ── Placement global pour toutes les pièces ──
+        var globalPtId = idCounter.val++;
+        dataLines.push('#' + globalPtId + '= IFCCARTESIANPOINT((0.,0.,0.));');
+        var globalAxisId = idCounter.val++;
+        dataLines.push('#' + globalAxisId + '= IFCAXIS2PLACEMENT3D(#' + globalPtId + ',$,$);');
+        var globalPlacementId = idCounter.val++;
+        dataLines.push('#' + globalPlacementId + '= IFCLOCALPLACEMENT($,#' + globalAxisId + ');');
+
+        // ── Générer les IfcMember pour toutes les pièces ──
+        var memberIds = [];
+        var pieces    = Array.isArray(lot.pieces) ? lot.pieces : [];
+
+        var instances = [];
+        pieces.forEach(function (piece) {
+            if (!piece || typeof piece !== 'object') return;
+            var qty = Math.max(1, Math.floor(parseFloat(piece.quantite) || 1));
+            var secDimMm = 0;
+            if (typeof window.resolveSections === 'function') {
+                var secs = window.resolveSections(piece);
+                secs.forEach(function (s) {
+                    var dim = s.typeSection === 'circ'
+                        ? (parseFloat(s.diametre) || 0)
+                        : (parseFloat(s.largeur)  || 0);
+                    if (dim > secDimMm) secDimMm = dim;
+                });
+            }
+            if (!secDimMm) secDimMm = parseFloat(piece.largeur) || parseFloat(piece.diametre) || 100;
+            var halfW = secDimMm / 2;
+            for (var q = 0; q < qty; q++) {
+                instances.push({ piece: piece, halfW: halfW });
+            }
+        });
+
+        var centers = [];
+        if (instances.length > 0) {
+            var cx = instances[0].halfW;
+            for (var ii = 0; ii < instances.length; ii++) {
+                centers.push(cx);
+                if (ii + 1 < instances.length) {
+                    cx += 2 * instances[ii].halfW + instances[ii + 1].halfW;
+                }
+            }
+        }
+
+        instances.forEach(function (inst, ii) {
+            var result = buildIFCMember(
+                inst.piece, lot, meta, psetConfig, idCounter,
+                centers[ii], globalPlacementId, geomCtxId, ownerHistId
+            );
+            dataLines = dataLines.concat(result.lines);
+            memberIds.push('#' + result.memberEntityId);
+        });
+
+        // ── Relation IfcProjectLibrary → IfcMember (Declares) ──
+        if (memberIds.length > 0) {
+            var relDeclId = idCounter.val++;
+            dataLines.push('#' + relDeclId + "= IFCRELDECLARES('" + generateGUID() + "',#" + ownerHistId + ",$,$,#" + projectLibraryId + ",(" + memberIds.join(',') + '));');
+        }
+
+        // ── Assemblage du fichier STEP ──
+        var safeLotName = (lot.nomLot || lot.nom || 'lot').replace(/\s+/g, '_').replace(/'/g, '');
+        var header = [
+            'ISO-10303-21;',
+            'HEADER;',
+            "FILE_DESCRIPTION(('ViewDefinition [CoordinationView]'),'2;1');",
+            "FILE_NAME('valobois_" + safeLotName + "_lib.ifc','" + today + "',('VALOBOIS'),(''),",
+            "  'VALOBOIS Export IFC4 Library','IfcOpenShell','');",
+            "FILE_SCHEMA(('IFC4'));",
+            'ENDSEC;',
+            'DATA;',
+        ].join('\n');
+
+        return header + '\n' + dataLines.join('\n') + '\nENDSEC;\nEND-ISO-10303-21;\n';
+    }
+
+    /**
+     * buildIFCProject — Mode 'project' : hiérarchie IFC4 complète
+     * IfcProject → IfcSite → IfcBuilding → IfcBuildingStorey → IfcMember
+     */
+    function buildIFCProject(lot, psetConfig, meta) {
         var idCounter = { val: 1 };
         var dataLines = [];
         var today = new Date().toISOString().slice(0, 19);
         var lotName = ((lot.nomLot || lot.nom || 'Lot') + '').replace(/'/g, "''");
 
-        // ── Entités fixes #1–#14 (contexte IFC) — ordre strict sans référence forward ──
-        // #1 — Personne
-        dataLines.push('#' + idCounter.val++ + "= IFCPERSON($,'VALOBOIS',$,$,$,$,$,$);");
-        // #2 — Organisation
-        dataLines.push('#' + idCounter.val++ + "= IFCORGANIZATION($,'VALOBOIS','Application VALOBOIS',$,$);");
-        // #3 — Application (référence #2)
-        dataLines.push('#' + idCounter.val++ + "= IFCAPPLICATION(#2,'1.0','VALOBOIS','VALOBOIS');");
-        // #4 — PersonAndOrganization (références #1, #2)
-        dataLines.push('#' + idCounter.val++ + '= IFCPERSONANDORGANIZATION(#1,#2,$);');
-        // #5 — OwnerHistory (références #4, #3) — ownerHistId = 5
-        dataLines.push('#' + idCounter.val++ + '= IFCOWNERHISTORY(#4,#3,$,.ADDED.,$,$,$,0);');
-        // #6 — DimensionalExponents (non référencé, conservé pour conformité)
-        dataLines.push('#' + idCounter.val++ + '= IFCDIMENSIONALEXPONENTS(0,0,0,0,0,0,0);');
-        // #7 — Unité longueur
-        dataLines.push('#' + idCounter.val++ + '= IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);');
-        // #8 — Unité surface
-        dataLines.push('#' + idCounter.val++ + '= IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);');
-        // #9 — Unité volume
-        dataLines.push('#' + idCounter.val++ + '= IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);');
-        // #10 — UnitAssignment (références #7, #8, #9)
-        dataLines.push('#' + idCounter.val++ + '= IFCUNITASSIGNMENT((#7,#8,#9));');
-        // #11 — CartesianPoint origine pour le contexte géométrique
-        dataLines.push('#' + idCounter.val++ + '= IFCCARTESIANPOINT((0.,0.,0.));');
-        // #12 — Axis2Placement3D (référence #11)
-        dataLines.push('#' + idCounter.val++ + '= IFCAXIS2PLACEMENT3D(#11,$,$);');
-        // #13 — GeometricRepresentationContext (référence #12) — geomCtxId = 13
-        dataLines.push('#' + idCounter.val++ + "= IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#12,$);");
-        // #14 — Project (références #5, #13, #10) — projectId = 14
-        var projectGuid = generateGUID();
-        dataLines.push('#' + idCounter.val++ + "= IFCPROJECT('" + projectGuid + "',#5,'VALOBOIS Diagnostic',$,$,$,$,(#13),#10);");
+        // ── OwnerHistory enrichi à partir des meta ──
+        var ownerInfo = buildOwnerHistoryLines(idCounter, meta);
+        dataLines = dataLines.concat(ownerInfo.lines);
+        var ownerHistId = ownerInfo.ownerHistId;
 
-        var geomCtxId   = 13;
-        var projectId   = 14;
-        var ownerHistId = 5;
+        // ── Entités fixes de contexte IFC ──
+        var dimExpId = idCounter.val++;
+        dataLines.push('#' + dimExpId + '= IFCDIMENSIONALEXPONENTS(0,0,0,0,0,0,0);');
+
+        var lengthUnitId = idCounter.val++;
+        dataLines.push('#' + lengthUnitId + '= IFCSIUNIT(*,.LENGTHUNIT.,$,.METRE.);');
+        var areaUnitId = idCounter.val++;
+        dataLines.push('#' + areaUnitId + '= IFCSIUNIT(*,.AREAUNIT.,$,.SQUARE_METRE.);');
+        var volumeUnitId = idCounter.val++;
+        dataLines.push('#' + volumeUnitId + '= IFCSIUNIT(*,.VOLUMEUNIT.,$,.CUBIC_METRE.);');
+
+        var unitAssignId = idCounter.val++;
+        dataLines.push('#' + unitAssignId + '= IFCUNITASSIGNMENT((#' + lengthUnitId + ',#' + areaUnitId + ',#' + volumeUnitId + '));');
+
+        var contextOriginId = idCounter.val++;
+        dataLines.push('#' + contextOriginId + '= IFCCARTESIANPOINT((0.,0.,0.));');
+        var contextAxisId = idCounter.val++;
+        dataLines.push('#' + contextAxisId + '= IFCAXIS2PLACEMENT3D(#' + contextOriginId + ',$,$);');
+        var geomCtxId = idCounter.val++;
+        dataLines.push('#' + geomCtxId + "= IFCGEOMETRICREPRESENTATIONCONTEXT($,'Model',3,1.E-05,#" + contextAxisId + ',$);');
+
+        var projectGuid = generateGUID();
+        var projectId = idCounter.val++;
+        dataLines.push('#' + projectId + "= IFCPROJECT('" + projectGuid + "',#" + ownerHistId + ",'VALOBOIS Diagnostic',$,$,$,$,(#" + geomCtxId + '),#' + unitAssignId + ');');
 
         // ── IfcSite ──
         var sitePtId = idCounter.val++;
@@ -406,8 +614,6 @@
 
         // Aplatir les instances (quantité × pièce) avec leur demi-largeur réelle
         // On utilise resolveSections pour prendre le MAX sur toutes les sections
-        // (indispensable pour les pièces hybrides circ↔rect et pour les circulaires
-        //  dont piece.largeur pourrait être non nul par ailleurs).
         var instances = [];
         pieces.forEach(function (piece) {
             if (!piece || typeof piece !== 'object') return;
@@ -429,9 +635,7 @@
             }
         });
 
-        // Calcul des centres sur l'axe Y — règle identique au DAE :
-        //   centre[0] = halfW[0]  (bord gauche ancré à Y=0)
-        //   centre[i+1] = centre[i] + 2×halfW[i] + halfW[i+1]  (gap = halfW courant)
+        // Calcul des centres sur l'axe Y
         var centers = [];
         if (instances.length > 0) {
             var cx = instances[0].halfW;
@@ -445,7 +649,7 @@
 
         instances.forEach(function (inst, ii) {
             var result = buildIFCMember(
-                inst.piece, lot, psetConfig, idCounter,
+                inst.piece, lot, meta, psetConfig, idCounter,
                 centers[ii], globalPlacementId, geomCtxId, ownerHistId
             );
             dataLines = dataLines.concat(result.lines);

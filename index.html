@@ -1819,7 +1819,6 @@
                         <!-- Confiance (Esthétique) -->
                         <div class="bio-row" data-bio-field="confianceBio">
                             <div class="bio-value-label-box" data-i18n="editor.axis.aesthetic">Esthétique</div>
-                            <button class="bio-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="bio-label-box bio-label-confiance" data-confiance-title data-i18n="editor.bio.confiance">
                                 Confiance
                             </div>
@@ -1829,7 +1828,17 @@
                             <div class="bio-intensity-box" data-intensity="confianceBio">
                                 ...
                             </div>
-                            <button class="bio-info-small-btn" type="button" data-info="confianceBio" data-i18n="editor.common.info">info</button>
+                            <div class="bio-confidence-btn-stack">
+                                <button class="bio-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="bio-info-small-btn" type="button" data-info="confianceBio" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="bio-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="bio-slider"
                                     data-slider="confianceBio">
@@ -2004,7 +2013,6 @@
                         <!-- Confiance (Esthétique) -->
                         <div class="mech-row" data-mech-field="confianceMech">
                             <div class="mech-value-label-box" data-i18n="editor.axis.aesthetic">Esthétique</div>
-                            <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="mech-label-box mech-label-confiance" data-mech-confiance-title data-i18n="editor.mech.confiance">
                                 Confiance
                             </div>
@@ -2014,7 +2022,17 @@
                             <div class="mech-intensity-box" data-intensity="confianceMech">
                                 ...
                             </div>
-                            <button class="mech-info-small-btn" type="button" data-info="confianceMech" data-i18n="editor.common.info">info</button>
+                            <div class="mech-confidence-btn-stack">
+                                <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="mech-info-small-btn" type="button" data-info="confianceMech" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="confianceMech">
@@ -2080,7 +2098,6 @@
                         <!-- Confiance (Économique) -->
                         <div class="usage-row" data-usage-field="confianceUsage">
                             <div class="usage-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="usage-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="usage-label-box usage-label-confiance" data-usage-confiance-title data-i18n="editor.usage.confiance">
                                 Confiance
                             </div>
@@ -2090,7 +2107,17 @@
                             <div class="usage-intensity-box" data-intensity="confianceUsage">
                                 ...
                             </div>
-                            <button class="usage-info-small-btn" type="button" data-info="confianceUsage" data-i18n="editor.common.info">info</button>
+                            <div class="usage-confidence-btn-stack">
+                                <button class="usage-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="usage-info-small-btn" type="button" data-info="confianceUsage" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="usage-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="usage-slider"
                                     data-slider="confianceUsage">
@@ -2331,7 +2358,6 @@
                         <!-- Confiance (Historique) -->
                         <div class="denat-row" data-denat-field="confianceDenat">
                             <div class="denat-value-label-box" data-i18n="editor.axis.historical">Historique</div>
-                            <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="denat-label-box denat-label-confiance" data-denat-confiance-title data-i18n="editor.denat.confiance">
                                 Confiance
                             </div>
@@ -2341,7 +2367,17 @@
                             <div class="denat-intensity-box" data-intensity="confianceDenat">
                                 ...
                             </div>
-                            <button class="denat-info-small-btn" type="button" data-info="confianceDenat" data-i18n="editor.common.info">info</button>
+                            <div class="denat-confidence-btn-stack">
+                                <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="denat-info-small-btn" type="button" data-info="confianceDenat" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="confianceDenat">
@@ -2856,7 +2892,6 @@
                         <!-- Confiance (Économique) -->
                         <div class="essence-row" data-essence-field="confianceEssence">
                             <div class="essence-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="essence-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="essence-label-box essence-label-confiance" data-essence-confiance-title data-i18n="editor.essence.confiance">
                                 Confiance
                             </div>
@@ -2866,7 +2901,17 @@
                             <div class="essence-intensity-box" data-intensity="confianceEssence">
                                 ...
                             </div>
-                            <button class="essence-info-small-btn" type="button" data-info="confianceEssence" data-i18n="editor.common.info">info</button>
+                            <div class="essence-confidence-btn-stack">
+                                <button class="essence-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="essence-info-small-btn" type="button" data-info="confianceEssence" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="essence-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="essence-slider"
                                     data-slider="confianceEssence">
@@ -3033,7 +3078,6 @@
                         <!-- Confiance (Économique) -->
                         <div class="ancien-row" data-ancien-field="confianceAncien">
                             <div class="ancien-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="ancien-label-box" data-i18n="editor.ancien.confiance">
                                 Confiance
                             </div>
@@ -3043,7 +3087,17 @@
                             <div class="ancien-intensity-box" data-intensity="confianceAncien">
                                 ...
                             </div>
-                            <button class="ancien-info-small-btn" type="button" data-info="confianceAncien" data-i18n="editor.common.info">info</button>
+                            <div class="ancien-confidence-btn-stack">
+                                <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="ancien-info-small-btn" type="button" data-info="confianceAncien" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="ancien-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="ancien-slider"
                                     data-slider="confianceAncien">
@@ -3218,7 +3272,6 @@
                         <!-- Confiance (Économique) -->
                         <div class="traces-row" data-traces-field="confianceTraces">
                             <div class="traces-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="traces-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="traces-label-box traces-label-confiance" data-traces-confiance-title data-i18n="editor.traces.confiance">
                                 Confiance
                             </div>
@@ -3228,7 +3281,17 @@
                             <div class="traces-intensity-box" data-intensity="confianceTraces">
                                 ...
                             </div>
-                            <button class="traces-info-small-btn" type="button" data-info="confianceTraces" data-i18n="editor.common.info">info</button>
+                            <div class="traces-confidence-btn-stack">
+                                <button class="traces-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="traces-info-small-btn" type="button" data-info="confianceTraces" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="traces-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="traces-slider"
                                     data-slider="confianceTraces">
@@ -3394,7 +3457,6 @@
                         <!-- Confiance (Économique) -->
                         <div class="provenance-row" data-provenance-field="confianceProv">
                             <div class="provenance-value-label-box" data-i18n="editor.axis.economic">Économique</div>
-                            <button class="provenance-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
                             <div class="provenance-label-box provenance-label-confiance"
                                 data-provenance-confiance-title>
                                 Confiance
@@ -3405,7 +3467,17 @@
                             <div class="provenance-intensity-box" data-intensity="confianceProv">
                                 ...
                             </div>
-                            <button class="provenance-info-small-btn" type="button" data-info="confianceProv" data-i18n="editor.common.info">info</button>
+                            <div class="provenance-confidence-btn-stack">
+                                <button class="provenance-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                </button>
+                                <button class="provenance-info-small-btn" type="button" data-info="confianceProv" data-i18n="editor.common.info">info</button>
+                            </div>
                             <div class="provenance-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="provenance-slider"
                                     data-slider="confianceProv">
@@ -3922,6 +3994,19 @@
                             </label>
                         </div>
                         <div id="exportIfcPsetSection" hidden style="display:none;">
+                            <div id="exportIfcModeGroup" style="margin-bottom:12px;">
+                                <span style="font-size:13px; font-weight:600; display:block; margin-bottom:6px;">
+                                    Mode d'export IFC
+                                </span>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer; margin-bottom:4px;">
+                                    <input type="radio" name="ifcExportMode" id="ifcModeLibrary" value="library" checked>
+                                    Bibliothèque d'éléments <span style="font-size:11px; color:#888; margin-left:4px;">(IfcProjectLibrary — catalogue réemploi)</span>
+                                </label>
+                                <label style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer;">
+                                    <input type="radio" name="ifcExportMode" id="ifcModeProject" value="project">
+                                    Projet BIM <span style="font-size:11px; color:#888; margin-left:4px;">(IfcProject + hiérarchie complète — intégration bureau d'études)</span>
+                                </label>
+                            </div>
                             <div style="margin-top:16px; border-top:1px solid #E6E6E6; padding-top:16px;">
                                 <span style="font-size:13px; font-weight:600; display:block; margin-bottom:10px;">Données à inclure dans l'IFC</span>
                                 <div id="exportIfcPsetList" style="display:grid; gap:10px;"></div>
