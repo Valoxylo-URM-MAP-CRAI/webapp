@@ -3722,6 +3722,13 @@
             <header class="scatter-dims-header">
                 <div class="scatter-dims-lot-badge" id="scatterDimsActiveLotLabel">Lot …</div>
                 <h2 class="card-title scatter-dims-title" data-i18n="editor.section.scatterDims">Dimensions</h2>
+                <button class="scatter-dims-reset-btn" type="button" id="btnScatterDimsResetView" title="Réinitialiser" aria-label="Réinitialiser">
+                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <polyline points="3 3 3 8 8 8" />
+                    </svg>
+                    <span class="sr-only">Réinitialiser</span>
+                </button>
                 <button class="scatter-dims-info-btn" type="button" id="btnScatterDimsInfo" data-i18n="editor.common.info">info</button>
             </header>
             <div class="scatter-dims-body">
@@ -3958,6 +3965,7 @@
                                     <option value="synthese">Synthèse</option>
                                     <option value="lots-selectionnes">Revue complète des informations relatives au(x) lot(s)
                                     </option>
+                                    <option value="pieces-detaillees">Détail par pièce (une ligne par pièce)</option>
                                 </select>
                             </label>
                         </div>

@@ -292,6 +292,15 @@ class ValoboisApp {
         this.seuilsCharts = {};
         this.radarChart = null;
         this.scatterDimsChart = null;
+        this._scatterDimsInteractionStateByLot = {};
+        this._scatterDimsCurrentLotStateKey = null;
+        this._scatterDimsNavHandlersBound = false;
+        this._scatterDimsPanState = null;
+        this._scatterDimsGestureState = {
+            pointers: new Map(),
+            pinch: null,
+            lastTap: null
+        };
         /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
         this._accordionOpenStates = new Map();
         this.ensureTermesBoisDatalist();
@@ -1742,24 +1751,57 @@ class ValoboisApp {
         return 'à renseigner';
     }
 
-    getNotationConfidenceSummaryEntries(lot) {
-        const getLevel = (entry) => {
-            if (!entry) return '';
-            if (typeof entry === 'string') return entry;
-            if (typeof entry === 'object') return entry.niveau || '';
-            return '';
-        };
+    normalizeNotationConfidenceLevel(level) {
+        return String(level || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+    }
 
-        const descriptors = [
-            { label: 'Dégradation biologique', level: getLevel(lot?.bio?.confianceBio) },
-            { label: 'Dégradation mécanique', level: getLevel(lot?.mech?.confianceMech) },
-            { label: 'Classement d\'usage', level: getLevel(lot?.usage?.confianceUsage) },
-            { label: 'Dénaturation', level: getLevel(lot?.denat?.confianceDenat) },
-            { label: 'Essence', level: getLevel(lot?.essence?.confianceEssence) },
-            { label: 'Ancienneté', level: getLevel(lot?.ancien?.confianceAncien) },
-            { label: 'Traces', level: getLevel(lot?.traces?.confianceTraces) },
-            { label: 'Provenance', level: getLevel(lot?.provenance?.confianceProv) },
+    getNotationConfidenceLevel(entry) {
+        if (!entry) return '';
+        if (typeof entry === 'string') return entry;
+        if (typeof entry === 'object') return entry.niveau || '';
+        return '';
+    }
+
+    getNotationConfidenceDescriptors(lot) {
+        return [
+            { label: 'Dégradation biologique', level: this.getNotationConfidenceLevel(lot?.bio?.confianceBio) },
+            { label: 'Dégradation mécanique', level: this.getNotationConfidenceLevel(lot?.mech?.confianceMech) },
+            { label: 'Classement d\'usage', level: this.getNotationConfidenceLevel(lot?.usage?.confianceUsage) },
+            { label: 'Dénaturation', level: this.getNotationConfidenceLevel(lot?.denat?.confianceDenat) },
+            { label: 'Essence', level: this.getNotationConfidenceLevel(lot?.essence?.confianceEssence) },
+            { label: 'Ancienneté', level: this.getNotationConfidenceLevel(lot?.ancien?.confianceAncien) },
+            { label: 'Traces', level: this.getNotationConfidenceLevel(lot?.traces?.confianceTraces) },
+            { label: 'Provenance', level: this.getNotationConfidenceLevel(lot?.provenance?.confianceProv) },
         ];
+    }
+
+    getNotationConfidenceScoreFromLevel(level) {
+        const normalized = this.normalizeNotationConfidenceLevel(level);
+        if (normalized === 'forte' || normalized === 'fort') return 3;
+        if (normalized === 'moyenne' || normalized === 'moyen') return 2;
+        if (normalized === 'faible') return 1;
+        return 0;
+    }
+
+    getNotationConfidenceGeneralSummary(lot) {
+        const descriptors = this.getNotationConfidenceDescriptors(lot);
+        const score = descriptors.reduce((sum, item) => sum + this.getNotationConfidenceScoreFromLevel(item.level), 0);
+        const maxScore = descriptors.length * 3;
+        let level = 'Faible';
+        if (score >= 17) {
+            level = 'Forte';
+        } else if (score >= 8) {
+            level = 'Moyenne';
+        }
+        return { score, maxScore, level };
+    }
+
+    getNotationConfidenceSummaryEntries(lot) {
+        const descriptors = this.getNotationConfidenceDescriptors(lot);
 
         return descriptors.map((item) => ({
             label: item.label,
@@ -9061,7 +9103,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
             const updateExportLotsState = () => {
                 if (exportFileFormatSelect.value === 'json') return;
-                const requiresLotSelection = exportContentModeSelect.value === 'lots-selectionnes';
+                const mode = exportContentModeSelect.value;
+                const requiresLotSelection = mode === 'lots-selectionnes' || mode === 'pieces-detaillees';
                 const lotCheckboxes = exportPdfLotsList.querySelectorAll('[data-export-pdf-lot]');
                 lotCheckboxes.forEach((checkbox) => {
                     checkbox.disabled = !requiresLotSelection;
@@ -9077,6 +9120,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             const updateExportModalFormatState = () => {
                 const fmt    = exportFileFormatSelect.value;
                 const isJson = fmt === 'json';
+                const isCsv  = fmt === 'csv';
                 const isGlb  = fmt === 'glb';
                 const isDae  = fmt === 'dae';
                 const isGh   = fmt === 'json-gh';
@@ -9116,6 +9160,9 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 if (isJson) {
                     exportPdfLotsList.style.opacity = '1';
                 } else {
+                    if (!isCsv && exportContentModeSelect.value === 'pieces-detaillees') {
+                        exportContentModeSelect.value = 'synthese';
+                    }
                     if (is3d || isGh || isIfc) exportContentModeSelect.value = 'lots-selectionnes';
                     updateExportLotsState();
                     if (isIfc) renderIfcPsetUI(activePsetConfig, 'exportIfcPsetList');
@@ -9167,16 +9214,24 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     this.exportEvaluationJson();
                     return;
                 }
-                const mode = exportContentModeSelect.value === 'lots-selectionnes' ? 'lots-selectionnes' : 'synthese';
+                const selectedMode = exportContentModeSelect.value;
+                const mode = (selectedMode === 'lots-selectionnes' || selectedMode === 'pieces-detaillees')
+                    ? selectedMode
+                    : 'synthese';
                 const format = formatVal === 'csv' ? 'csv' : 'pdf';
                 let selectedLotIndices = [];
 
-                if (mode === 'lots-selectionnes') {
+                if (mode !== 'synthese') {
                     selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     if (!selectedLotIndices.length) {
                         alert('Sélectionne au moins un lot à exporter.');
                         return;
                     }
+                }
+
+                if (format !== 'csv' && mode === 'pieces-detaillees') {
+                    alert('Le mode “Détail par pièce” est disponible uniquement pour le format CSV.');
+                    return;
                 }
 
                 if (format === 'pdf') {
@@ -9572,7 +9627,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         const referenceChunks = [];
 
-        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
+        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
         const referenceTokenRegex = /(https?:\/\/|\bwww\.|\bdoi\s*:|\b10\.\d{4,9}\/)/i;
         const bibliographicRegex = /\((?:\d{4}(?:[^)]*)|s\.\s*d\.)\)/i;
         const normRegex = /\b(FD|NF|EN|ISO|FWPA|STI|STII|STIII|C\d{2}|D\d{2})\b/i;
@@ -9841,16 +9896,15 @@ La notation de l’intégrité générale permet de statuer sur une évaluation 
         const contentEl = document.getElementById('bioDetailModalContent');
 
         const titles = {
-            purge: 'Purge',
+            purge: 'Purge des dégradations biologiques',
             expansion: 'Expansion',
-            integriteBio: 'Intégrité',
+            integriteBio: 'Intégrité biologique',
             exposition: 'Exposition',
             confianceBio: 'Confiance'
         };
 
         const contents = {
-            purge: `Purge.
-Noter le degré de purge des dégradations biologiques nécessaire pour le réusage des bois évalués.
+            purge: `Noter le degré de purge des dégradations biologiques nécessaire pour le réusage des bois évalués.
 
 Une purge « forte » vaut pour la réalisation de coupes transversales (réduction de la longueur) des pièces de bois d’une dégradation à plus de 50 cm de leurs extrémités [-3].
 Une purge « moyenne » vaut pour la coupe des extrémités de bois inférieure à 50 cm [+1].
@@ -9944,7 +9998,7 @@ openMechDetailModal(fieldKey) {
     const contentEl = document.getElementById('mechDetailModalContent');
 
     const titles = {
-        purgeMech: 'Purge',
+        purgeMech: 'Purge des dégradations mécaniques',
         feuMech: 'Feu',
         integriteMech: 'Intégrité mécanique',
         expositionMech: 'Exposition',
@@ -9952,13 +10006,11 @@ openMechDetailModal(fieldKey) {
     };
 
     const contents = {
-        purgeMech: `Purge.
-
-Noter le degré de purge des dégradations mécaniques nécessaire pour le réusage des bois évalués.
+        purgeMech: `Noter le degré de purge des dégradations mécaniques nécessaire pour le réusage des bois évalués.
 
 Une purge mécanique « forte » vaut pour la réalisation de coupes transversales (réduction de la longueur) sur des pièces de bois à l’intégrité biologique faible et à l’intégrité mécanique faible [-3].
-Une intégrité mécanique « moyenne » vaut pour la coupe des extrémités des bois, sur une longueur totale inférieure à un cinquième de la pièce, avec une intégrité biologique moyenne et une intégrité mécanique moyenne [+1].
-Une intégrité mécanique « faible » vaut pour l’absence de l’élimination des défauts du bois par des coupes transversales (en dehors d’une purge de propreté, moins de 5 cm en bout des pièces) induit par une intégrité biologique et mécanique forte [+3].
+Une purge mécanique « moyenne » vaut pour les bois disposant d'une intégrité biologique et mécanique moyenne, pour la coupe des extrémités des bois, sur une longueur totale inférieure à un cinquième de la pièce [+1].
+Une purge mécanique « faible » vaut pour l’absence de l’élimination des défauts du bois par des coupes transversales (en dehors d’une purge de propreté, moins de 5 cm en bout des pièces) induit par une intégrité biologique et mécanique forte [+3].
 
 Ridout, B. (2001). Timber Decay in Buildings: The Conservation Approach to Treatment. APT Bulletin: The Journal of Preservation Technology, 32(1), 58–60. https://doi.org/10.2307/1504694.
 (Préconise à minima la purge des éléments endommagés).`,
@@ -16967,6 +17019,16 @@ renderRadar() {
 
         const lots = this.data.lots || [];
         const lotIndex = lots.indexOf(lot);
+        const lotStateKey = (lot && lot.id) ? `lot:${lot.id}` : `lot-index:${lotIndex >= 0 ? lotIndex : this.currentLotIndex}`;
+        if (!this._scatterDimsInteractionStateByLot[lotStateKey]) {
+            this._scatterDimsInteractionStateByLot[lotStateKey] = {
+                zoom: null,
+                focusedPointKeys: []
+            };
+        }
+        const scatterInteractionState = this._scatterDimsInteractionStateByLot[lotStateKey];
+        this._scatterDimsCurrentLotStateKey = lotStateKey;
+
         if (lotLabel) {
             const defaultName = lotIndex >= 0 ? 'Lot ' + (lotIndex + 1) : 'Lot …';
             const lotName = (lot.nom || '').trim();
@@ -17465,8 +17527,8 @@ renderRadar() {
         const lotNumber = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot ?';
         const locale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : undefined;
 
-        const datasetDataRaw = Array.from(grouped.values())
-            .map((group) => {
+        const datasetDataRaw = Array.from(grouped.entries())
+            .map(([pointKey, group]) => {
                 const shapeMain = normalizeSectionShape(group.shapeMain || {
                     typeSection: group.typeSection,
                     largeur: group.largeur,
@@ -17479,6 +17541,7 @@ renderRadar() {
                         .slice(0, 2)
                     : [];
                 return {
+                    pointKey,
                     x: group.longueur,
                     y: group.section,
                     epaisseur: group.epaisseur,
@@ -17548,13 +17611,12 @@ renderRadar() {
         const maxShapeMetric = shapeMetrics.length ? Math.max(...shapeMetrics) : minShapeMetric;
 
         const shapeMetricToPx = (metricMm) => {
-            const minPx = 10;
             const maxPx = 38;
             const safeMetric = Number(metricMm) || 0;
-            if (!Number.isFinite(safeMetric) || safeMetric <= 0) return minPx;
-            if (maxShapeMetric <= minShapeMetric) return (minPx + maxPx) / 2;
-            const ratio = Math.max(0, Math.min(1, (safeMetric - minShapeMetric) / (maxShapeMetric - minShapeMetric)));
-            return minPx + ((maxPx - minPx) * ratio);
+            if (!Number.isFinite(safeMetric) || safeMetric <= 0) return 0;
+            const denominator = Math.max(1, Number(maxShapeMetric) || 1);
+            const pxPerMm = maxPx / denominator;
+            return safeMetric * pxPerMm;
         };
 
         const buildShapePx = (shape) => {
@@ -17569,10 +17631,8 @@ renderRadar() {
             }
             const widthMetric = normalized.epaisseur > 0 ? normalized.epaisseur : normalized.largeur;
             const heightMetric = normalized.largeur;
-            const maxDimension = Math.max(widthMetric, heightMetric, 1);
-            const scalePx = shapeMetricToPx(maxDimension);
-            const widthPx = scalePx * (widthMetric / maxDimension);
-            const heightPx = scalePx * (heightMetric / maxDimension);
+            const widthPx = shapeMetricToPx(widthMetric);
+            const heightPx = shapeMetricToPx(heightMetric);
             return {
                 typeSection: 'rect',
                 widthPx,
@@ -17596,9 +17656,11 @@ renderRadar() {
                     ? point.shapeHybridExtremes.map((shape) => buildShapePx(shape)).filter(Boolean).slice(0, 2)
                     : [];
                 const hitShapes = shapeHybridExtremesPx.length ? shapeHybridExtremesPx : [shapeMainPx];
-                const hitRadius = hitShapes.reduce((acc, shapePx) => Math.max(acc, getShapeHitRadius(shapePx)), 8);
+                const hitRadius = hitShapes.reduce((acc, shapePx) => Math.max(acc, getShapeHitRadius(shapePx)), 6);
                 return Object.assign({}, point, {
                     r: Math.max(6, Math.min(42, Math.round(hitRadius + 2))),
+                    baseX: point.x,
+                    baseY: point.y,
                     shapeMainPx,
                     shapeHybridExtremesPx
                 });
@@ -17608,6 +17670,42 @@ renderRadar() {
                 if (a.y !== b.y) return a.y - b.y;
                 return (a.epaisseur || 0) - (b.epaisseur || 0);
             });
+
+        const focusedPointKeys = Array.isArray(scatterInteractionState.focusedPointKeys)
+            ? scatterInteractionState.focusedPointKeys.filter(Boolean)
+            : [];
+        const focusedKeySet = new Set(focusedPointKeys);
+        const hasFocusedCluster = focusedKeySet.size > 0;
+
+        datasetData.forEach((point) => {
+            point.isClusterFocused = hasFocusedCluster && focusedKeySet.has(point.pointKey);
+            point.isClusterMuted = hasFocusedCluster && !point.isClusterFocused;
+            point.x = point.baseX;
+            point.y = point.baseY;
+        });
+
+        if (hasFocusedCluster) {
+            const focusedPoints = datasetData.filter((point) => point.isClusterFocused);
+            if (focusedPoints.length >= 2) {
+                const centerX = focusedPoints.reduce((sum, point) => sum + (Number(point.baseX) || 0), 0) / focusedPoints.length;
+                const centerY = focusedPoints.reduce((sum, point) => sum + (Number(point.baseY) || 0), 0) / focusedPoints.length;
+                const xValues = datasetData.map((point) => Number(point.baseX) || 0).filter((value) => Number.isFinite(value) && value >= 0);
+                const yValues = datasetData.map((point) => Number(point.baseY) || 0).filter((value) => Number.isFinite(value) && value >= 0);
+                const xRange = xValues.length ? Math.max(...xValues) : 1;
+                const yRange = yValues.length ? Math.max(...yValues) : 1;
+                const spreadX = Math.max(28, (xRange + 1000) * 0.012);
+                const spreadY = Math.max(1200, (yRange + 10000) * 0.02);
+
+                focusedPoints
+                    .sort((a, b) => (Number(b.r) || 0) - (Number(a.r) || 0))
+                    .forEach((point, index) => {
+                        const angle = (Math.PI * 2 * index) / focusedPoints.length;
+                        const radialFactor = 0.65 + (0.35 * (index / Math.max(1, focusedPoints.length - 1)));
+                        point.x = centerX + (Math.cos(angle) * spreadX * radialFactor);
+                        point.y = Math.max(0, centerY + (Math.sin(angle) * spreadY * radialFactor));
+                    });
+            }
+        }
 
         const hasCircularPoints = datasetData.some((point) => point && point.typeSection === 'circ');
 
@@ -17639,8 +17737,15 @@ renderRadar() {
         };
 
         const pointColors = datasetData.map((point) => getThicknessColor(getThicknessDimension(point)));
+        const withAlpha = (color, alpha) => {
+            const match = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/i.exec(String(color || '').trim());
+            if (!match) return color;
+            return `rgba(${match[1]},${match[2]},${match[3]},${alpha})`;
+        };
         datasetData.forEach((point, index) => {
-            point.shapeColor = pointColors[index];
+            const baseColor = pointColors[index];
+            point.shapeColor = point.isClusterMuted ? withAlpha(baseColor, 0.18) : baseColor;
+            point.shapeStrokeColor = point.isClusterMuted ? 'rgba(0,0,0,0.35)' : '#000000';
         });
         const invisiblePointColors = datasetData.map(() => 'rgba(0,0,0,0)');
 
@@ -17761,18 +17866,29 @@ renderRadar() {
                             x: element.x,
                             y: element.y,
                             r: Number.isFinite(point?.r) ? point.r : 8,
+                            isClusterMuted: !!point?.isClusterMuted,
                             typeCounts: Object.assign({}, point?.typeCounts || {})
                         };
                     })
                     .filter(Boolean);
 
-                const averageRadius = points.length
-                    ? points.reduce((sum, point) => sum + (Number(point.r) || 0), 0) / points.length
+                const hasFocusedSubset = points.some((point) => point.isClusterMuted);
+                const activePoints = hasFocusedSubset
+                    ? points.filter((point) => !point.isClusterMuted)
+                    : points;
+
+                if (!activePoints.length) {
+                    chartCtx.restore();
+                    return;
+                }
+
+                const averageRadius = activePoints.length
+                    ? activePoints.reduce((sum, point) => sum + (Number(point.r) || 0), 0) / activePoints.length
                     : 0;
                 const distanceThreshold = Math.max(36, Math.min(52, Math.round(averageRadius * 2.4)));
 
                 const clusters = [];
-                points.forEach((point) => {
+                activePoints.forEach((point) => {
                     let targetCluster = null;
                     for (let i = 0; i < clusters.length; i += 1) {
                         const cluster = clusters[i];
@@ -17807,7 +17923,7 @@ renderRadar() {
                 const labelHeight = 11;
                 const occupiedLabelBoxes = [];
                 const bubblePadding = 4;
-                const bubbleExclusions = points.map((point) => ({
+                const bubbleExclusions = activePoints.map((point) => ({
                     x: point.x,
                     y: point.y,
                     r: point.r + bubblePadding
@@ -17982,14 +18098,23 @@ renderRadar() {
             afterDatasetsDraw(chart) {
                 const dataset = chart?.data?.datasets?.[0];
                 const meta = chart.getDatasetMeta(0);
-                if (!dataset || !meta || !Array.isArray(meta.data)) return;
+                const chartArea = chart?.chartArea;
+                if (!dataset || !meta || !Array.isArray(meta.data) || !chartArea) return;
 
                 const chartCtx = chart.ctx;
-                const drawShape = (cx, cy, shapePx, { color, dashed }) => {
+                const drawShape = (cx, cy, shapePx, { color, stroke, dashed }) => {
                     if (!shapePx) return;
                     chartCtx.save();
+                    chartCtx.beginPath();
+                    chartCtx.rect(
+                        chartArea.left,
+                        chartArea.top,
+                        chartArea.right - chartArea.left,
+                        chartArea.bottom - chartArea.top
+                    );
+                    chartCtx.clip();
                     chartCtx.fillStyle = color;
-                    chartCtx.strokeStyle = '#000000';
+                    chartCtx.strokeStyle = stroke || '#000000';
                     chartCtx.lineWidth = 1;
                     chartCtx.setLineDash(dashed ? [3, 2] : []);
 
@@ -18023,20 +18148,22 @@ renderRadar() {
                 meta.data.forEach((element, index) => {
                     const raw = dataset.data && dataset.data[index] ? dataset.data[index] : null;
                     if (!raw || !element) return;
+                    if (!Number.isFinite(element.x) || !Number.isFinite(element.y)) return;
 
                     const fillColor = String(raw.shapeColor || 'rgba(125, 157, 214, 0.88)');
+                    const strokeColor = String(raw.shapeStrokeColor || '#000000');
                     const isDashed = !!raw.hasMesuresMultiples;
 
                     if (raw.hasHybridShape && Array.isArray(raw.shapeHybridExtremesPx) && raw.shapeHybridExtremesPx.length === 2) {
                         const orderedShapes = [...raw.shapeHybridExtremesPx]
                             .sort((a, b) => (Number(b?.areaPx2) || 0) - (Number(a?.areaPx2) || 0));
                         orderedShapes.forEach((shapePx) => {
-                            drawShape(element.x, element.y, shapePx, { color: fillColor, dashed: isDashed });
+                            drawShape(element.x, element.y, shapePx, { color: fillColor, stroke: strokeColor, dashed: isDashed });
                         });
                         return;
                     }
 
-                    drawShape(element.x, element.y, raw.shapeMainPx, { color: fillColor, dashed: isDashed });
+                    drawShape(element.x, element.y, raw.shapeMainPx, { color: fillColor, stroke: strokeColor, dashed: isDashed });
                 });
             }
         };
@@ -18048,6 +18175,189 @@ renderRadar() {
         const sections = datasetData.map((point) => Number(point.y) || 0).filter((value) => Number.isFinite(value) && value >= 0);
         const maxLongueur = longueurs.length ? Math.max(...longueurs) : 1;
         const maxSection = sections.length ? Math.max(...sections) : 1;
+        const defaultXMin = 0;
+        const defaultXMax = maxLongueur + 1000;
+        const defaultYMin = 0;
+        const defaultYMax = maxSection + 10000;
+        scatterInteractionState.defaultBounds = {
+            xMin: defaultXMin,
+            xMax: defaultXMax,
+            yMin: defaultYMin,
+            yMax: defaultYMax
+        };
+
+        const getScatterClusterIndices = (chart, startIndex) => {
+            const dataset = chart?.data?.datasets?.[0]?.data || [];
+            const meta = chart.getDatasetMeta(0);
+            if (!Array.isArray(dataset) || !Array.isArray(meta?.data) || startIndex == null || startIndex < 0 || startIndex >= dataset.length) {
+                return [];
+            }
+
+            const radii = dataset
+                .map((point) => Number(point?.r) || 0)
+                .filter((value) => Number.isFinite(value) && value > 0);
+            const avgRadius = radii.length ? radii.reduce((sum, value) => sum + value, 0) / radii.length : 8;
+            const threshold = Math.max(30, Math.min(58, Math.round(avgRadius * 2.2)));
+
+            const visited = new Set([startIndex]);
+            const queue = [startIndex];
+
+            while (queue.length) {
+                const current = queue.shift();
+                const currentEl = meta.data[current];
+                if (!currentEl) continue;
+
+                for (let idx = 0; idx < meta.data.length; idx += 1) {
+                    if (visited.has(idx)) continue;
+                    const candidateEl = meta.data[idx];
+                    if (!candidateEl) continue;
+                    const dx = (candidateEl.x || 0) - (currentEl.x || 0);
+                    const dy = (candidateEl.y || 0) - (currentEl.y || 0);
+                    if (Math.hypot(dx, dy) <= threshold) {
+                        visited.add(idx);
+                        queue.push(idx);
+                    }
+                }
+            }
+
+            return Array.from(visited).sort((a, b) => a - b);
+        };
+
+        const applyZoomToChart = (chart, zoomState) => {
+            const xScale = chart?.options?.scales?.x;
+            const yScale = chart?.options?.scales?.y;
+            if (!xScale || !yScale) return;
+            if (!zoomState) {
+                xScale.min = defaultXMin;
+                xScale.max = defaultXMax;
+                yScale.min = defaultYMin;
+                yScale.max = defaultYMax;
+                return;
+            }
+            xScale.min = Number.isFinite(zoomState.xMin) ? zoomState.xMin : defaultXMin;
+            xScale.max = Number.isFinite(zoomState.xMax) ? zoomState.xMax : defaultXMax;
+            yScale.min = Number.isFinite(zoomState.yMin) ? zoomState.yMin : defaultYMin;
+            yScale.max = Number.isFinite(zoomState.yMax) ? zoomState.yMax : defaultYMax;
+        };
+
+        const getActiveScatterInteractionState = () => {
+            const stateKey = this._scatterDimsCurrentLotStateKey;
+            if (!stateKey) return null;
+            if (!this._scatterDimsInteractionStateByLot[stateKey]) {
+                this._scatterDimsInteractionStateByLot[stateKey] = {
+                    zoom: null,
+                    focusedPointKeys: []
+                };
+            }
+            return this._scatterDimsInteractionStateByLot[stateKey];
+        };
+
+        const persistZoomFromChart = (chart) => {
+            const xScale = chart?.scales?.x;
+            const yScale = chart?.scales?.y;
+            if (!xScale || !yScale) return;
+            const activeState = getActiveScatterInteractionState();
+            if (!activeState) return;
+            activeState.zoom = {
+                xMin: Number(xScale.min),
+                xMax: Number(xScale.max),
+                yMin: Number(yScale.min),
+                yMax: Number(yScale.max)
+            };
+        };
+
+        const resetScatterViewAndSelection = () => {
+            const activeState = getActiveScatterInteractionState();
+            if (!activeState) return;
+            activeState.zoom = null;
+            activeState.focusedPointKeys = [];
+            this.renderScatterDims();
+        };
+
+        const handleOutsideClickReset = () => {
+            const activeState = getActiveScatterInteractionState();
+            if (!activeState) return;
+            const hasActiveFocus = Array.isArray(activeState.focusedPointKeys) && activeState.focusedPointKeys.length > 0;
+            if (hasActiveFocus) resetScatterViewAndSelection();
+        };
+
+        const focusClusterFromIndex = (chart, clickedIndex) => {
+            if (!chart || !Number.isFinite(clickedIndex)) return false;
+            const clusterIndices = getScatterClusterIndices(chart, clickedIndex);
+            if (!clusterIndices.length) return false;
+
+            const dataset = chart.data && chart.data.datasets && chart.data.datasets[0]
+                ? chart.data.datasets[0].data || []
+                : [];
+            const nextKeys = clusterIndices
+                .map((idx) => dataset[idx] && dataset[idx].pointKey)
+                .filter(Boolean)
+                .sort();
+            if (!nextKeys.length) return false;
+
+            const activeState = getActiveScatterInteractionState();
+            if (!activeState) return false;
+            activeState.focusedPointKeys = nextKeys;
+
+            const clusterPoints = clusterIndices
+                .map((idx) => dataset[idx])
+                .filter((point) => point && Number.isFinite(Number(point.baseX)) && Number.isFinite(Number(point.baseY)));
+
+            if (!clusterPoints.length) {
+                activeState.zoom = null;
+                this.renderScatterDims();
+                return true;
+            }
+
+            const xs = clusterPoints.map((point) => Number(point.baseX));
+            const ys = clusterPoints.map((point) => Number(point.baseY));
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+            const defaultBounds = activeState.defaultBounds || {
+                xMin: defaultXMin,
+                xMax: defaultXMax,
+                yMin: defaultYMin,
+                yMax: defaultYMax
+            };
+            const defaultXRange = Math.max(1, (Number(defaultBounds.xMax) || 0) - (Number(defaultBounds.xMin) || 0));
+            const defaultYRange = Math.max(1, (Number(defaultBounds.yMax) || 0) - (Number(defaultBounds.yMin) || 0));
+            const padX = Math.max(220, (maxX - minX) * 0.75, defaultXRange * 0.05);
+            const padY = Math.max(2600, (maxY - minY) * 0.8, defaultYRange * 0.06);
+
+            const clamp = (value, min, max) => Math.max(min, Math.min(max, value));
+            let nextXMin = clamp(minX - padX, defaultBounds.xMin, defaultBounds.xMax);
+            let nextXMax = clamp(maxX + padX, defaultBounds.xMin, defaultBounds.xMax);
+            let nextYMin = clamp(minY - padY, defaultBounds.yMin, defaultBounds.yMax);
+            let nextYMax = clamp(maxY + padY, defaultBounds.yMin, defaultBounds.yMax);
+            if (nextXMax <= nextXMin) {
+                nextXMin = defaultBounds.xMin;
+                nextXMax = defaultBounds.xMax;
+            }
+            if (nextYMax <= nextYMin) {
+                nextYMin = defaultBounds.yMin;
+                nextYMax = defaultBounds.yMax;
+            }
+
+            activeState.zoom = {
+                xMin: nextXMin,
+                xMax: nextXMax,
+                yMin: nextYMin,
+                yMax: nextYMax
+            };
+            this.renderScatterDims();
+            return true;
+        };
+
+        const resetViewBtn = document.getElementById('btnScatterDimsResetView');
+        if (resetViewBtn) {
+            resetViewBtn.onclick = () => resetScatterViewAndSelection();
+            const hasActiveZoom = !!scatterInteractionState.zoom;
+            const hasActiveFocus = Array.isArray(scatterInteractionState.focusedPointKeys) && scatterInteractionState.focusedPointKeys.length > 0;
+            resetViewBtn.disabled = !(hasActiveZoom || hasActiveFocus);
+            resetViewBtn.setAttribute('aria-disabled', resetViewBtn.disabled ? 'true' : 'false');
+        }
 
         const formatMm = (value) => `${Math.round(Number(value) || 0).toLocaleString(locale, { maximumFractionDigits: 0 })} mm`;
 
@@ -18089,13 +18399,23 @@ renderRadar() {
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'nearest',
+                        intersect: false
+                    },
                     layout: {
                         padding: { top: 10, right: 10, bottom: 10, left: 10 }
+                    },
+                    onClick: (event, elements, chartInstance) => {
+                        const chart = chartInstance || this.scatterDimsChart;
+                        if (!chart) return;
+                        if (!elements || !elements.length) handleOutsideClickReset();
                     },
                     scales: {
                         x: {
                             beginAtZero: true,
-                            max: maxLongueur + 1000,
+                            min: defaultXMin,
+                            max: defaultXMax,
                             title: {
                                 display: true,
                                 text: xTitle
@@ -18103,7 +18423,8 @@ renderRadar() {
                         },
                         y: {
                             beginAtZero: true,
-                            max: maxSection + 10000,
+                            min: defaultYMin,
+                            max: defaultYMax,
                             title: {
                                 display: true,
                                 text: yTitle
@@ -18148,6 +18469,8 @@ renderRadar() {
                     }
                 }
             });
+            applyZoomToChart(this.scatterDimsChart, scatterInteractionState.zoom);
+            if (scatterInteractionState.zoom) this.scatterDimsChart.update('none');
         } else {
             this.scatterDimsChart.data.datasets[0].data = datasetData;
             this.scatterDimsChart.data.datasets[0].backgroundColor = invisiblePointColors;
@@ -18167,9 +18490,17 @@ renderRadar() {
             }
             this.scatterDimsChart.options.maintainAspectRatio = false;
             this.scatterDimsChart.options.scales.x.title.text = xTitle;
-            this.scatterDimsChart.options.scales.x.max = maxLongueur + 1000;
+            this.scatterDimsChart.options.scales.x.min = defaultXMin;
+            this.scatterDimsChart.options.scales.x.max = defaultXMax;
             this.scatterDimsChart.options.scales.y.title.text = yTitle;
-            this.scatterDimsChart.options.scales.y.max = maxSection + 10000;
+            this.scatterDimsChart.options.scales.y.min = defaultYMin;
+            this.scatterDimsChart.options.scales.y.max = defaultYMax;
+            this.scatterDimsChart.options.interaction = { mode: 'nearest', intersect: false };
+            this.scatterDimsChart.options.onClick = (event, elements, chartInstance) => {
+                const chart = chartInstance || this.scatterDimsChart;
+                if (!chart) return;
+                if (!elements || !elements.length) handleOutsideClickReset();
+            };
             this.scatterDimsChart.options.plugins.tooltip.position = 'scatterBounded';
             this.scatterDimsChart.options.plugins.tooltip.displayColors = false;
             this.scatterDimsChart.options.plugins.tooltip.backgroundColor = 'rgba(255, 255, 255, 0.96)';
@@ -18193,7 +18524,303 @@ renderRadar() {
             this.scatterDimsChart.options.plugins.tooltip.callbacks.label = function (context) {
                 return tooltipLines(context.raw || {});
             };
+            applyZoomToChart(this.scatterDimsChart, scatterInteractionState.zoom);
             this.scatterDimsChart.update();
+        }
+
+        if (!this._scatterDimsNavHandlersBound && canvas) {
+            this._scatterDimsNavHandlersBound = true;
+            canvas.style.touchAction = 'none';
+
+            const getCurrentDefaultBounds = () => {
+                const stateKey = this._scatterDimsCurrentLotStateKey;
+                const state = stateKey ? this._scatterDimsInteractionStateByLot[stateKey] : null;
+                const bounds = state && state.defaultBounds ? state.defaultBounds : null;
+                return {
+                    xMin: Number.isFinite(bounds && bounds.xMin) ? bounds.xMin : 0,
+                    xMax: Number.isFinite(bounds && bounds.xMax) ? bounds.xMax : 1,
+                    yMin: Number.isFinite(bounds && bounds.yMin) ? bounds.yMin : 0,
+                    yMax: Number.isFinite(bounds && bounds.yMax) ? bounds.yMax : 1
+                };
+            };
+
+            const zoomScale = (scaleMin, scaleMax, center, factor, hardMin, hardMax) => {
+                const minRange = Math.max(1e-3, (hardMax - hardMin) * 0.03);
+                let nextMin = center - ((center - scaleMin) * factor);
+                let nextMax = center + ((scaleMax - center) * factor);
+                if ((nextMax - nextMin) < minRange) {
+                    const half = minRange / 2;
+                    nextMin = center - half;
+                    nextMax = center + half;
+                }
+                if (nextMin < hardMin) {
+                    nextMax += (hardMin - nextMin);
+                    nextMin = hardMin;
+                }
+                if (nextMax > hardMax) {
+                    nextMin -= (nextMax - hardMax);
+                    nextMax = hardMax;
+                }
+                nextMin = Math.max(hardMin, nextMin);
+                nextMax = Math.min(hardMax, Math.max(nextMin + minRange, nextMax));
+                return { min: nextMin, max: nextMax };
+            };
+
+            const getElementIndexAtEvent = (chart, event) => {
+                if (!chart) return null;
+                const hits = chart.getElementsAtEventForMode(event, 'point', { intersect: true }, true);
+                if (!Array.isArray(hits) || !hits.length) return null;
+                const idx = Number(hits[0] && hits[0].index);
+                return Number.isFinite(idx) ? idx : null;
+            };
+
+            canvas.addEventListener('wheel', (event) => {
+                if (!this.scatterDimsChart) return;
+                event.preventDefault();
+
+                const chart = this.scatterDimsChart;
+                const xScale = chart.scales && chart.scales.x;
+                const yScale = chart.scales && chart.scales.y;
+                if (!xScale || !yScale) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const offsetX = event.clientX - rect.left;
+                const offsetY = event.clientY - rect.top;
+                const xCenter = xScale.getValueForPixel(offsetX);
+                const yCenter = yScale.getValueForPixel(offsetY);
+                if (!Number.isFinite(xCenter) || !Number.isFinite(yCenter)) return;
+
+                const zoomFactor = event.deltaY < 0 ? 0.9 : 1.1;
+                const defaultBounds = getCurrentDefaultBounds();
+
+                const currentXMin = Number.isFinite(xScale.min) ? xScale.min : defaultBounds.xMin;
+                const currentXMax = Number.isFinite(xScale.max) ? xScale.max : defaultBounds.xMax;
+                const currentYMin = Number.isFinite(yScale.min) ? yScale.min : defaultBounds.yMin;
+                const currentYMax = Number.isFinite(yScale.max) ? yScale.max : defaultBounds.yMax;
+                const nextX = zoomScale(currentXMin, currentXMax, xCenter, zoomFactor, defaultBounds.xMin, defaultBounds.xMax);
+                const nextY = zoomScale(currentYMin, currentYMax, yCenter, zoomFactor, defaultBounds.yMin, defaultBounds.yMax);
+
+                chart.options.scales.x.min = nextX.min;
+                chart.options.scales.x.max = nextX.max;
+                chart.options.scales.y.min = nextY.min;
+                chart.options.scales.y.max = nextY.max;
+                chart.update('none');
+                persistZoomFromChart(chart);
+            }, { passive: false });
+
+            canvas.addEventListener('dblclick', (event) => {
+                if (!this.scatterDimsChart) return;
+                event.preventDefault();
+                const chart = this.scatterDimsChart;
+                const clickedIndex = getElementIndexAtEvent(chart, event);
+                if (clickedIndex == null) return;
+                focusClusterFromIndex(chart, clickedIndex);
+            }, { passive: false });
+
+            canvas.addEventListener('pointerdown', (event) => {
+                if (!this.scatterDimsChart) return;
+                this._scatterDimsGestureState.pointers.set(event.pointerId, {
+                    pointerType: event.pointerType,
+                    clientX: event.clientX,
+                    clientY: event.clientY
+                });
+
+                const touchPointers = Array.from(this._scatterDimsGestureState.pointers.values())
+                    .filter((pointer) => pointer.pointerType === 'touch' || pointer.pointerType === 'pen');
+                if (touchPointers.length >= 2) {
+                    const [p1, p2] = touchPointers;
+                    const dx = p2.clientX - p1.clientX;
+                    const dy = p2.clientY - p1.clientY;
+                    const dist = Math.hypot(dx, dy);
+                    if (dist > 0) {
+                        const chart = this.scatterDimsChart;
+                        const xScale = chart.scales && chart.scales.x;
+                        const yScale = chart.scales && chart.scales.y;
+                        const defaultBounds = getCurrentDefaultBounds();
+                        if (xScale && yScale) {
+                            this._scatterDimsGestureState.pinch = {
+                                startDistance: dist,
+                                xMin: Number.isFinite(xScale.min) ? xScale.min : defaultBounds.xMin,
+                                xMax: Number.isFinite(xScale.max) ? xScale.max : defaultBounds.xMax,
+                                yMin: Number.isFinite(yScale.min) ? yScale.min : defaultBounds.yMin,
+                                yMax: Number.isFinite(yScale.max) ? yScale.max : defaultBounds.yMax
+                            };
+                        }
+                    }
+                    this._scatterDimsPanState = null;
+                    event.preventDefault();
+                    return;
+                }
+
+                if (event.pointerType !== 'mouse') return;
+                const chart = this.scatterDimsChart;
+                const xScale = chart.scales && chart.scales.x;
+                const yScale = chart.scales && chart.scales.y;
+                if (!xScale || !yScale) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const offsetX = event.clientX - rect.left;
+                const offsetY = event.clientY - rect.top;
+                const defaultBounds = getCurrentDefaultBounds();
+                this._scatterDimsPanState = {
+                    pointerId: event.pointerId,
+                    startX: offsetX,
+                    startY: offsetY,
+                    xMin: Number.isFinite(xScale.min) ? xScale.min : defaultBounds.xMin,
+                    xMax: Number.isFinite(xScale.max) ? xScale.max : defaultBounds.xMax,
+                    yMin: Number.isFinite(yScale.min) ? yScale.min : defaultBounds.yMin,
+                    yMax: Number.isFinite(yScale.max) ? yScale.max : defaultBounds.yMax
+                };
+                canvas.style.cursor = 'grabbing';
+                if (typeof canvas.setPointerCapture === 'function') canvas.setPointerCapture(event.pointerId);
+            });
+
+            canvas.addEventListener('pointermove', (event) => {
+                if (!this.scatterDimsChart) return;
+                const pointer = this._scatterDimsGestureState.pointers.get(event.pointerId);
+                if (pointer) {
+                    pointer.clientX = event.clientX;
+                    pointer.clientY = event.clientY;
+                    this._scatterDimsGestureState.pointers.set(event.pointerId, pointer);
+                }
+
+                const touchPointers = Array.from(this._scatterDimsGestureState.pointers.values())
+                    .filter((entry) => entry.pointerType === 'touch' || entry.pointerType === 'pen');
+                if (touchPointers.length >= 2 && this._scatterDimsGestureState.pinch) {
+                    const chart = this.scatterDimsChart;
+                    const xScale = chart.scales && chart.scales.x;
+                    const yScale = chart.scales && chart.scales.y;
+                    if (!xScale || !yScale) return;
+
+                    const [p1, p2] = touchPointers;
+                    const dx = p2.clientX - p1.clientX;
+                    const dy = p2.clientY - p1.clientY;
+                    const currentDist = Math.hypot(dx, dy);
+                    if (currentDist <= 0) return;
+
+                    const rect = canvas.getBoundingClientRect();
+                    const centerXPixel = ((p1.clientX + p2.clientX) / 2) - rect.left;
+                    const centerYPixel = ((p1.clientY + p2.clientY) / 2) - rect.top;
+                    const xCenter = xScale.getValueForPixel(centerXPixel);
+                    const yCenter = yScale.getValueForPixel(centerYPixel);
+                    if (!Number.isFinite(xCenter) || !Number.isFinite(yCenter)) return;
+
+                    const pinch = this._scatterDimsGestureState.pinch;
+                    const defaultBounds = getCurrentDefaultBounds();
+                    const ratio = currentDist / Math.max(1, pinch.startDistance);
+                    const factor = Math.max(0.35, Math.min(2.2, 1 / ratio));
+                    const nextX = zoomScale(pinch.xMin, pinch.xMax, xCenter, factor, defaultBounds.xMin, defaultBounds.xMax);
+                    const nextY = zoomScale(pinch.yMin, pinch.yMax, yCenter, factor, defaultBounds.yMin, defaultBounds.yMax);
+
+                    chart.options.scales.x.min = nextX.min;
+                    chart.options.scales.x.max = nextX.max;
+                    chart.options.scales.y.min = nextY.min;
+                    chart.options.scales.y.max = nextY.max;
+                    chart.update('none');
+                    persistZoomFromChart(chart);
+                    event.preventDefault();
+                    return;
+                }
+
+                if (!this._scatterDimsPanState) return;
+                const panState = this._scatterDimsPanState;
+                if (panState.pointerId !== event.pointerId) return;
+                const chart = this.scatterDimsChart;
+                const xScale = chart.scales && chart.scales.x;
+                const yScale = chart.scales && chart.scales.y;
+                if (!xScale || !yScale) return;
+
+                const rect = canvas.getBoundingClientRect();
+                const offsetX = event.clientX - rect.left;
+                const offsetY = event.clientY - rect.top;
+
+                const startXValue = xScale.getValueForPixel(panState.startX);
+                const currentXValue = xScale.getValueForPixel(offsetX);
+                const startYValue = yScale.getValueForPixel(panState.startY);
+                const currentYValue = yScale.getValueForPixel(offsetY);
+                if (!Number.isFinite(startXValue) || !Number.isFinite(currentXValue) || !Number.isFinite(startYValue) || !Number.isFinite(currentYValue)) return;
+
+                const deltaX = startXValue - currentXValue;
+                const deltaY = startYValue - currentYValue;
+                const xRange = panState.xMax - panState.xMin;
+                const yRange = panState.yMax - panState.yMin;
+                const defaultBounds = getCurrentDefaultBounds();
+
+                let nextXMin = panState.xMin + deltaX;
+                let nextXMax = nextXMin + xRange;
+                let nextYMin = panState.yMin + deltaY;
+                let nextYMax = nextYMin + yRange;
+
+                if (nextXMin < defaultBounds.xMin) {
+                    nextXMax += (defaultBounds.xMin - nextXMin);
+                    nextXMin = defaultBounds.xMin;
+                }
+                if (nextXMax > defaultBounds.xMax) {
+                    nextXMin -= (nextXMax - defaultBounds.xMax);
+                    nextXMax = defaultBounds.xMax;
+                }
+                if (nextYMin < defaultBounds.yMin) {
+                    nextYMax += (defaultBounds.yMin - nextYMin);
+                    nextYMin = defaultBounds.yMin;
+                }
+                if (nextYMax > defaultBounds.yMax) {
+                    nextYMin -= (nextYMax - defaultBounds.yMax);
+                    nextYMax = defaultBounds.yMax;
+                }
+
+                chart.options.scales.x.min = Math.max(defaultBounds.xMin, nextXMin);
+                chart.options.scales.x.max = Math.min(defaultBounds.xMax, nextXMax);
+                chart.options.scales.y.min = Math.max(defaultBounds.yMin, nextYMin);
+                chart.options.scales.y.max = Math.min(defaultBounds.yMax, nextYMax);
+                chart.update('none');
+            });
+
+            const stopPan = (event) => {
+                const wasTouch = event.pointerType === 'touch' || event.pointerType === 'pen';
+                const chart = this.scatterDimsChart;
+
+                if (wasTouch && chart) {
+                    const tapIndex = getElementIndexAtEvent(chart, event);
+                    if (tapIndex != null) {
+                        const now = Date.now();
+                        const lastTap = this._scatterDimsGestureState.lastTap;
+                        const isDoubleTap = !!lastTap
+                            && (now - lastTap.timeMs) <= 320
+                            && Math.hypot(event.clientX - lastTap.clientX, event.clientY - lastTap.clientY) <= 24;
+                        if (isDoubleTap) {
+                            focusClusterFromIndex(chart, tapIndex);
+                            this._scatterDimsGestureState.lastTap = null;
+                        } else {
+                            this._scatterDimsGestureState.lastTap = {
+                                timeMs: now,
+                                clientX: event.clientX,
+                                clientY: event.clientY,
+                                index: tapIndex
+                            };
+                        }
+                    }
+                }
+
+                if (this._scatterDimsPanState && this._scatterDimsPanState.pointerId === event.pointerId) {
+                    if (typeof canvas.releasePointerCapture === 'function') {
+                        try { canvas.releasePointerCapture(event.pointerId); } catch (_) { /* no-op */ }
+                    }
+                    this._scatterDimsPanState = null;
+                    canvas.style.cursor = '';
+                    if (chart) persistZoomFromChart(chart);
+                }
+
+                this._scatterDimsGestureState.pointers.delete(event.pointerId);
+                const touchPointers = Array.from(this._scatterDimsGestureState.pointers.values())
+                    .filter((entry) => entry.pointerType === 'touch' || entry.pointerType === 'pen');
+                if (touchPointers.length < 2) {
+                    this._scatterDimsGestureState.pinch = null;
+                }
+            };
+
+            canvas.addEventListener('pointerup', stopPan);
+            canvas.addEventListener('pointercancel', stopPan);
+            canvas.addEventListener('pointerleave', stopPan);
         }
         } catch (error) {
             console.error('renderScatterDims error:', error);
@@ -18302,16 +18929,38 @@ renderRadar() {
         const lineaireLot = info.lineaireLot != null ? info.lineaireLot : (info.lineaire_ml != null ? info.lineaire_ml : '');
         const lineaireLotLabel = lineaireLot === '' ? '' : formatGroupedValue(lineaireLot, 1);
         const pco2Display = this.formatPco2Display(info.carboneBiogeniqueEstime);
-        const pco2LotLabel = pco2Display.value ? (pco2Display.value + ' ' + pco2Display.unit) : '';
+        const pco2UnitCompact = (pco2Display.unit || '').replace(' (NF EN 16449)', '').trim();
+        const pco2LotLabel = pco2Display.value ? (pco2Display.value + ' ' + pco2UnitCompact).trim() : '';
         const priceUnitRaw = info.prixUnite != null ? info.prixUnite : (info.prix_unite != null ? info.prix_unite : 'm3');
         const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
         const prixLot = info.prixLot != null ? info.prixLot : (info.prix_total != null ? info.prix_total : '');
         const prixLotLabel = prixLot === '' ? '' : formatGroupedValue(Math.round(parseFloat(prixLot) || 0), 0);
+        const masseLotTheoriqueRaw = info.masseLot != null ? info.masseLot : (info.masse_lot != null ? info.masse_lot : '');
+        const masseLotTheoriqueNum = parseFloat(masseLotTheoriqueRaw);
+        const masseLotTheoriqueDisplay = Number.isFinite(masseLotTheoriqueNum)
+            ? this.formatMasseDisplay(masseLotTheoriqueNum)
+            : { value: '', unit: '' };
+        const masseLotTheoriqueLabel = masseLotTheoriqueDisplay.value ? (masseLotTheoriqueDisplay.value + ' ' + masseLotTheoriqueDisplay.unit) : '';
+        const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
+        const masseMesureeComplete = masseLotMesureeDisplay && masseLotMesureeDisplay.status === 'full' && masseLotMesureeDisplay.value;
+        const masseLotOrientationLabel = masseMesureeComplete ? 'Masse mesurée du lot' : 'Masse théorique du lot';
+        const masseLotOrientationValue = masseMesureeComplete
+            ? ((masseLotMesureeDisplay.value || '') + ' ' + (masseLotMesureeDisplay.unit || '')).trim()
+            : masseLotTheoriqueLabel;
         const notationConfidenceEntries = this.getNotationConfidenceSummaryEntries(lot);
+        const confidenceGeneral = this.getNotationConfidenceGeneralSummary(lot);
+        const confidenceGeneralLabel = `${confidenceGeneral.level} (${confidenceGeneral.score}/${confidenceGeneral.maxScore})`;
 
         const createOrientationField = (fieldDef) => {
             const wrapper = document.createElement('div');
             wrapper.className = 'orientation-field';
+            if (fieldDef.className) {
+                if (Array.isArray(fieldDef.className)) {
+                    wrapper.classList.add(...fieldDef.className);
+                } else {
+                    wrapper.classList.add(fieldDef.className);
+                }
+            }
             const labelEl = document.createElement('div');
             labelEl.className = 'orientation-field-label';
             labelEl.textContent = fieldDef.label;
@@ -18325,8 +18974,13 @@ renderRadar() {
 
         const fieldDefs = [
             { label: 'Quantité', value: qtyLabel },
+            { label: 'Statut de l\'étude', value: studyStatus },
             { label: 'Type de pièce', value: typePiece },
             { label: 'Essence', value: essence },
+            { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
+            { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
+            { label: 'PCO2 du lot (NF EN 16449)', value: pco2LotLabel },
+            { label: masseLotOrientationLabel, value: masseLotOrientationValue }
         ];
 
         if (priceUnit === 'ml') {
@@ -18336,11 +18990,17 @@ renderRadar() {
         }
 
         fieldDefs.push(
-            { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
-            { label: 'PCO2 du lot', value: pco2LotLabel },
-            { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
-            { label: 'Critères défavorables', value: unfavorable, fallback: 'Aucun' },
-            { label: 'Statut de l\'étude', value: studyStatus }
+            {
+                label: 'Critères défavorables',
+                value: unfavorable,
+                fallback: 'Aucun',
+                className: 'orientation-field--unfavorable'
+            },
+            {
+                label: 'Confiance générale (score)',
+                value: confidenceGeneralLabel,
+                className: 'orientation-field--confidence-general'
+            }
         );
 
         fieldDefs.forEach((f) => {
@@ -20770,6 +21430,336 @@ renderRadar() {
         URL.revokeObjectURL(url);
     }
 
+    buildCsvRowsForPiecesDetailed(lotIndices) {
+        const categories = this.getPdfCategoryDefinitions();
+        const sections = this.getPdfSectionDefinitions();
+        const meta = this.data.meta || {};
+
+        const headers = [
+            'Index lot',
+            'Nom du lot',
+            'Index pièce (lot)',
+            'Type source pièce',
+            'Occurrence source',
+            'ID source pièce',
+            'Nom pièce',
+            'Localisation pièce',
+            'Situation pièce',
+            'Type de pièce',
+            'Type de produit',
+            'Essence (nom commun)',
+            'Essence (nom scientifique)',
+            'Essence (libellé)',
+            'Longueur (mm)',
+            'Largeur (mm)',
+            'Hauteur / Epaisseur (mm)',
+            'Diamètre (mm)',
+            'Surface pièce (m2)',
+            'Volume pièce (m3)',
+            'Prix unité',
+            'Prix marché',
+            'Prix pièce (€)',
+            'Prix pièce ajusté intégrité (€)',
+            'Masse volumique est. (kg/m3)',
+            'Masse volumique mesurée (kg/m3)',
+            'Masse pièce mesurée (kg)',
+            'Humidité (%)',
+            'Fraction carbonée (%)',
+            'Proportion de bois (%)',
+            'Age arbre',
+            'Date mise en service',
+            'Masse pièce (kg)',
+            'Carbone biogénique pièce (kgCO2eq)',
+            'Largeur moyenne intra (mm)',
+            'Epaisseur moyenne intra (mm)',
+            'CV largeur intra (%)',
+            'CV epaisseur intra (%)',
+            'Delta largeur intra (mm)',
+            'Delta epaisseur intra (mm)',
+            'Quantité source (pièce par défaut)',
+            'Localisation lot',
+            'Situation lot',
+            'Destination lot',
+            'Type pièce lot',
+            'Type produit lot',
+            'Essence lot',
+            'Quantité lot',
+            'Longueur lot (mm)',
+            'Largeur lot (mm)',
+            'Hauteur / Epaisseur lot (mm)',
+            'Diamètre lot (mm)',
+            'Surface lot (m2)',
+            'Volume lot (m3)',
+            'Linéaire lot (m)',
+            'Masse lot (kg)',
+            'Carbone biogénique lot (kgCO2eq)',
+            'Prix lot base (€)',
+            'Prix lot aj. intégrité (€)',
+            'Orientation',
+            'Orientation (%)',
+            'Référence gisement',
+            'Date du diagnostic',
+            'Opération',
+            'Version de l\'étude',
+            'Statut de l\'étude',
+            'Révision',
+            'Diagnostiqueur (Structure)',
+            'Diagnostiqueur (Contact)',
+            'Diagnostiqueur (Mail)',
+            'Diagnostiqueur (Tél)',
+            'Diagnostiqueur (Adresse)',
+            'Maîtrise d\'ouvrage (Structure)',
+            'Maîtrise d\'ouvrage (Contact)',
+            'Maîtrise d\'ouvrage (Mail)',
+            'Maîtrise d\'ouvrage (Tél)',
+            'Maîtrise d\'ouvrage (Adresse)',
+            'Maîtrise d\'œuvre (Structure)',
+            'Maîtrise d\'œuvre (Contact)',
+            'Maîtrise d\'œuvre (Mail)',
+            'Maîtrise d\'œuvre (Tél)',
+            'Maîtrise d\'œuvre (Adresse)',
+            'Ent. curage/déconstruction (Struct.)',
+            'Ent. curage/déconstruction (Contact)',
+            'Ent. curage/déconstruction (Mail)',
+            'Ent. curage/déconstruction (Tél)',
+            'Ent. curage/déconstruction (Adresse)',
+            'Type de bâtiment',
+            'Période de construction',
+            'Phase d\'intervention',
+            'Localisation',
+            'Conditionnement',
+            'Protection',
+            'Diagnostic Structure',
+            'Diagnostic Amiante',
+            'Diagnostic Plomb',
+            'Commentaires généraux',
+            'Stratégie de similarité',
+            'Profil géométrie MM',
+            'CV longueur lot (%)',
+            'CV largeur lot (%)',
+            'CV epaisseur lot (%)',
+            'CV diamètre lot (%)',
+            'EIQ longueur lot',
+            'EIQ largeur lot',
+            'EIQ epaisseur lot',
+            'EIQ diamètre lot',
+            'EIQ abs longueur lot',
+            'EIQ abs largeur lot',
+            'EIQ abs epaisseur lot',
+            'EIQ abs diamètre lot',
+            'MAD longueur lot',
+            'MAD largeur lot',
+            'MAD epaisseur lot',
+            'MAD diamètre lot',
+            'Conformité lot',
+            'Taux similarité lot (%)',
+            'Seuil suggestion',
+            'Inspection visibilité',
+            'Inspection instrumentation',
+            'Inspection intégrité (niveau)',
+            'Inspection intégrité ignorée',
+            'Inspection intégrité coeff.'
+        ];
+
+        categories.forEach((category) => {
+            headers.push(`Score ${category.label} (/30)`);
+        });
+
+        sections.forEach((section) => {
+            section.rows.forEach((rowDef) => {
+                headers.push(`${section.title} - ${rowDef.label} (Niveau)`);
+                headers.push(`${section.title} - ${rowDef.label} (Note)`);
+            });
+        });
+
+        const rows = [];
+        const withDash = (value) => (value != null && value !== '' ? value : '-');
+        const getPieceValue = (piece, lotValue) => (piece != null && piece !== '' ? piece : lotValue);
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data.lots[lotIndex];
+            if (!lot) return;
+
+            const allotissement = lot.allotissement || {};
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const orientation = this.getPdfOrientationSummary(lot);
+            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+            const expandedPieces = [];
+
+            defaultPieces.forEach((defaultPiece) => {
+                const quantity = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < quantity; q++) {
+                    expandedPieces.push({
+                        piece: defaultPiece,
+                        sourceType: 'default',
+                        sourceOccurrence: q + 1,
+                        sourceQuantity: defaultPiece && defaultPiece.quantite != null ? defaultPiece.quantite : ''
+                    });
+                }
+            });
+
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => {
+                    if (!piece || typeof piece !== 'object') return;
+                    expandedPieces.push({
+                        piece,
+                        sourceType: 'detail',
+                        sourceOccurrence: '',
+                        sourceQuantity: ''
+                    });
+                });
+            }
+
+            expandedPieces.forEach((entry, pieceIndex) => {
+                const piece = entry.piece || {};
+                const sectionValues = [];
+
+                sections.forEach((section) => {
+                    section.rows.forEach((rowDef) => {
+                        const rv = this.getPdfNotationRowValue(lot, section.key, rowDef.key);
+                        sectionValues.push(withDash(rv.niveau));
+                        sectionValues.push(withDash(rv.note));
+                    });
+                });
+
+                const row = [
+                    lotIndex + 1,
+                    withDash(lotLabel),
+                    pieceIndex + 1,
+                    entry.sourceType,
+                    withDash(entry.sourceOccurrence),
+                    withDash(piece.id || piece.sourceDefaultPieceId),
+                    withDash(piece.nom),
+                    withDash(getPieceValue(piece.localisation, lot.localisation)),
+                    withDash(getPieceValue(piece.situation, lot.situation)),
+                    withDash(getPieceValue(piece.typePiece, allotissement.typePiece)),
+                    withDash(getPieceValue(piece.typeProduit, allotissement.typeProduit)),
+                    withDash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)),
+                    withDash(getPieceValue(piece.essenceNomScientifique, allotissement.essenceNomScientifique)),
+                    withDash(getPieceValue(piece.essence, allotissement.essence)),
+                    withDash(getPieceValue(piece.longueur, allotissement.longueur)),
+                    withDash(getPieceValue(piece.largeur, allotissement.largeur)),
+                    withDash(getPieceValue(piece.epaisseur, allotissement.epaisseur)),
+                    withDash(getPieceValue(piece.diametre, allotissement.diametre)),
+                    withDash(getPieceValue(piece.surfacePiecem2, piece.surfacePiece)),
+                    withDash(getPieceValue(piece.volumePiecem3, piece.volumePiece)),
+                    withDash(getPieceValue(piece.prixUnite, allotissement.prixUnite)),
+                    withDash(getPieceValue(piece.prixMarche, allotissement.prixMarche)),
+                    withDash(piece.prixPiece),
+                    withDash(piece.prixPieceAjusteIntegrite),
+                    withDash(getPieceValue(piece.masseVolumique, allotissement.masseVolumique)),
+                    withDash(piece.masseVolumiqueMesuree),
+                    withDash(piece.massePieceMesuree),
+                    withDash(getPieceValue(piece.humidite, allotissement.humidite)),
+                    withDash(getPieceValue(piece.fractionCarbonee, allotissement.fractionCarbonee)),
+                    withDash(getPieceValue(piece.bois, allotissement.bois)),
+                    withDash(piece.ageArbre),
+                    withDash(piece.dateMiseEnService),
+                    withDash(piece.massePiece),
+                    withDash(getPieceValue(piece.carboneBiogeniqueEstimeExact, piece.carboneBiogeniqueEstime)),
+                    withDash(piece.mmLargeurMoyenne),
+                    withDash(piece.mmEpaisseurMoyenne),
+                    withDash(piece.mmCvLargeurIntra),
+                    withDash(piece.mmCvEpaisseurIntra),
+                    withDash(piece.mmDeltaLargeurIntra),
+                    withDash(piece.mmDeltaEpaisseurIntra),
+                    withDash(entry.sourceQuantity),
+                    withDash(lot.localisation),
+                    withDash(lot.situation),
+                    withDash(allotissement.destination),
+                    withDash(allotissement.typePiece),
+                    withDash(allotissement.typeProduit),
+                    withDash(allotissement.essenceNomCommun || allotissement.essence),
+                    withDash(allotissement.quantite),
+                    withDash(allotissement.longueur),
+                    withDash(allotissement.largeur),
+                    withDash(allotissement.epaisseur),
+                    withDash(allotissement.diametre),
+                    withDash(allotissement.surfaceLot),
+                    withDash(allotissement.volumeLot),
+                    withDash(allotissement.lineaireLot),
+                    withDash(allotissement.masseLot),
+                    withDash(allotissement.carboneBiogeniqueEstime),
+                    withDash(allotissement.prixLot),
+                    withDash(allotissement.prixLotAjusteIntegrite),
+                    withDash(orientation.label),
+                    withDash(this.formatPdfDecimal(orientation.percentage, 1, 1)),
+                    withDash(this.getReferenceGisement(meta)),
+                    withDash(meta.date),
+                    withDash(meta.operation),
+                    withDash(meta.versionEtude),
+                    withDash(meta.statutEtude),
+                    withDash(meta.revision),
+                    withDash(meta.diagnostiqueurNom),
+                    withDash(meta.diagnostiqueurContact),
+                    withDash(meta.diagnostiqueurMail),
+                    withDash(meta.diagnostiqueurTelephone),
+                    withDash(meta.diagnostiqueurAdresse),
+                    withDash(meta.maitriseOuvrageNom),
+                    withDash(meta.maitriseOuvrageContact),
+                    withDash(meta.maitriseOuvrageMail),
+                    withDash(meta.maitriseOuvrageTelephone),
+                    withDash(meta.maitriseOuvrageAdresse),
+                    withDash(meta.maitriseOeuvreNom),
+                    withDash(meta.maitriseOeuvreContact),
+                    withDash(meta.maitriseOeuvreMail),
+                    withDash(meta.maitriseOeuvreTelephone),
+                    withDash(meta.maitriseOeuvreAdresse),
+                    withDash(meta.entrepriseDeconstructionNom),
+                    withDash(meta.entrepriseDeconstructionContact),
+                    withDash(meta.entrepriseDeconstructionMail),
+                    withDash(meta.entrepriseDeconstructionTelephone),
+                    withDash(meta.entrepriseDeconstructionAdresse),
+                    withDash(meta.typeBatiment),
+                    withDash(meta.periodeConstruction),
+                    withDash(meta.phaseIntervention),
+                    withDash(meta.localisation),
+                    withDash(meta.conditionnementType),
+                    withDash(meta.protectionType),
+                    withDash(meta.diagnosticStructure),
+                    withDash(meta.diagnosticAmiante),
+                    withDash(meta.diagnosticPlomb),
+                    withDash(meta.commentaires),
+                    withDash(allotissement.similarityStrategy),
+                    withDash(allotissement.mmGeometryProfile),
+                    withDash(allotissement.cvLongueur),
+                    withDash(allotissement.cvLargeur),
+                    withDash(allotissement.cvEpaisseur),
+                    withDash(allotissement.cvDiametre),
+                    withDash(allotissement.eiqLongueur),
+                    withDash(allotissement.eiqLargeur),
+                    withDash(allotissement.eiqEpaisseur),
+                    withDash(allotissement.eiqDiametre),
+                    withDash(allotissement.eiqAbsLongueur),
+                    withDash(allotissement.eiqAbsLargeur),
+                    withDash(allotissement.eiqAbsEpaisseur),
+                    withDash(allotissement.eiqAbsDiametre),
+                    withDash(allotissement.madLongueur),
+                    withDash(allotissement.madLargeur),
+                    withDash(allotissement.madEpaisseur),
+                    withDash(allotissement.madDiametre),
+                    withDash(allotissement.conformiteLot),
+                    withDash(allotissement.tauxSimilarite),
+                    withDash(allotissement.seuilSuggest),
+                    withDash((lot.inspection || {}).visibilite),
+                    withDash((lot.inspection || {}).instrumentation),
+                    withDash(((lot.inspection || {}).integrite || {}).niveau),
+                    ((lot.inspection || {}).integrite || {}).ignore ? 'Oui' : 'Non',
+                    withDash(((lot.inspection || {}).integrite || {}).coeff)
+                ];
+
+                categories.forEach((category) => {
+                    row.push(withDash(orientation.scores[category.key]));
+                });
+
+                sectionValues.forEach((value) => row.push(value));
+                rows.push(row.map((cell) => this.normalizeDecimalForCsv(cell)));
+            });
+        });
+
+        return { headers, rows };
+    }
+
     buildCsvRowsForLots(lotIndices) {
         const categories = this.getPdfCategoryDefinitions();
         const sections = this.getPdfSectionDefinitions();
@@ -20983,10 +21973,21 @@ renderRadar() {
             return;
         }
 
-        const { headers, rows } = this.buildCsvRowsForLots(validLotIndices);
+        const isPiecesDetailed = mode === 'pieces-detaillees';
+        const { headers, rows } = isPiecesDetailed
+            ? this.buildCsvRowsForPiecesDetailed(validLotIndices)
+            : this.buildCsvRowsForLots(validLotIndices);
+
+        if (!rows.length) {
+            alert('Aucune donnée disponible pour l’export CSV.');
+            return;
+        }
+
         const stamp = new Date().toISOString().slice(0, 10);
         const suffix = mode === 'synthese'
             ? 'synthese'
+            : mode === 'pieces-detaillees'
+                ? 'pieces_detaillees'
             : (validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne');
 
         this.downloadCsvFile(`valobois_evaluation_${suffix}_${stamp}.csv`, headers, rows);
