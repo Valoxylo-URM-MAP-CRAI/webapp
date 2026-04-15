@@ -267,6 +267,7 @@
                 axisLength: 'Longueur (mm)',
                 axisWidth: 'Largeur (mm)',
                 scaleTitle: 'Épaisseur (mm)',
+                scaleTitleMixed: 'Épaisseur / Diamètre (mm)',
                 tooltipPattern: 'L: {L}mm / l: {l}mm / é: {e}mm — {n} pièce(s)',
             },
             orientation: {
@@ -578,6 +579,7 @@
                 axisLength: 'Length (mm)',
                 axisWidth: 'Width (mm)',
                 scaleTitle: 'Thickness (mm)',
+                scaleTitleMixed: 'Thickness / Diameter (mm)',
                 tooltipPattern: 'L: {L}mm / W: {l}mm / T: {e}mm - {n} piece(s)',
             },
             orientation: {

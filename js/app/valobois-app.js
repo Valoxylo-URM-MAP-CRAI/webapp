@@ -17021,6 +17021,20 @@ renderRadar() {
             return isDefaultPiece ? 'Pièce par défaut' : 'Pièce';
         };
 
+        const normalizeSectionShape = (shape, fallback = {}) => {
+            const largeur = toRoundedDimension(shape ? shape.largeur : '', fallback.largeur != null ? fallback.largeur : fallbackLargeur);
+            const epaisseur = toRoundedDimension(shape ? shape.epaisseur : '', fallback.epaisseur != null ? fallback.epaisseur : fallbackEpaisseur);
+            const diametre = toRoundedDimension(shape ? shape.diametre : '', fallback.diametre != null ? fallback.diametre : fallbackDiametre);
+            const explicitType = shape && shape.typeSection === 'circ' ? 'circ' : 'rect';
+            const typeSection = explicitType === 'circ' || (diametre > 0 && (largeur <= 0 || epaisseur <= 0)) ? 'circ' : 'rect';
+            return { typeSection, largeur, epaisseur, diametre };
+        };
+
+        const getSectionShapeSignature = (shape) => {
+            const normalized = normalizeSectionShape(shape);
+            return `${normalized.typeSection}|${normalized.largeur}|${normalized.epaisseur}|${normalized.diametre}`;
+        };
+
         const registerAtom = (
             sourceLongueur,
             sourceLargeur,
@@ -17031,6 +17045,7 @@ renderRadar() {
             sourceHasMesuresMultiples,
             sourceMesuresMultiplesSummary,
             sourceMesuresMultiplesDetailLines,
+            sourceHybridExtremes,
             sourceTypePiece,
             sourceEssenceNomCommun,
             sourcePieceTitle,
@@ -17047,13 +17062,19 @@ renderRadar() {
             const _safePrixUnitaire = (sourcePrixUnitaire != null && Number.isFinite(Number(sourcePrixUnitaire)) && Number(sourcePrixUnitaire) > 0) ? Number(sourcePrixUnitaire) : null;
 
             const longueur = toRoundedDimension(sourceLongueur, fallbackLongueur);
-            const largeur = toRoundedDimension(sourceLargeur, fallbackLargeur);
-            const epaisseur = toRoundedDimension(sourceEpaisseur, fallbackEpaisseur);
-            const diametre = toRoundedDimension(sourceDiametre, fallbackDiametre);
+            const mainShape = normalizeSectionShape({
+                typeSection: sourceTypeSection,
+                largeur: sourceLargeur,
+                epaisseur: sourceEpaisseur,
+                diametre: sourceDiametre
+            });
+            const largeur = mainShape.largeur;
+            const epaisseur = mainShape.epaisseur;
+            const diametre = mainShape.diametre;
 
             if (longueur > 0) hasNonZeroLongueur = true;
 
-            const isCircularSection = sourceTypeSection === 'circ' || (diametre > 0 && (largeur <= 0 || epaisseur <= 0));
+            const isCircularSection = mainShape.typeSection === 'circ';
             const sectionOverride = Number(sourceSectionOverride);
             const section = Number.isFinite(sectionOverride) && sectionOverride > 0
                 ? Math.round(sectionOverride)
@@ -17062,10 +17083,19 @@ renderRadar() {
                     : Math.round(largeur * epaisseur));
             if (section > 0) hasNonZeroSection = true;
 
+            const hybridExtremes = Array.isArray(sourceHybridExtremes)
+                ? sourceHybridExtremes
+                    .map((shape) => normalizeSectionShape(shape, mainShape))
+                    .slice(0, 2)
+                : [];
+            const hybridSignature = hybridExtremes.length === 2
+                ? hybridExtremes.map((shape) => getSectionShapeSignature(shape)).join('__')
+                : 'none';
+
             const typePiece = normalizeTypePiece(sourceTypePiece);
             const essenceNomCommun = normalizeEssenceNomCommun(sourceEssenceNomCommun);
             const pieceTitle = normalizePieceTitle(sourcePieceTitle, isDefaultPiece);
-            const key = section + '|' + longueur + '|' + epaisseur + '|' + diametre + '|' + (isCircularSection ? 'circ' : 'rect');
+            const key = section + '|' + longueur + '|' + epaisseur + '|' + diametre + '|' + (isCircularSection ? 'circ' : 'rect') + '|' + hybridSignature;
             const existing = grouped.get(key);
             if (existing) {
                 existing.count += safeCount;
@@ -17073,6 +17103,9 @@ renderRadar() {
                 existing.essenceCounts[essenceNomCommun] = (existing.essenceCounts[essenceNomCommun] || 0) + safeCount;
                 existing.titleCounts[pieceTitle] = (existing.titleCounts[pieceTitle] || 0) + safeCount;
                 if (diametre > 0 && existing.diametre <= 0) existing.diametre = diametre;
+                if (hybridExtremes.length === 2 && (!Array.isArray(existing.shapeHybridExtremes) || existing.shapeHybridExtremes.length !== 2)) {
+                    existing.shapeHybridExtremes = hybridExtremes.map((shape) => Object.assign({}, shape));
+                }
                 if (sourceHasMesuresMultiples) existing.hasMesuresMultiples = true;
                 if (sourceMesuresMultiplesSummary) {
                     existing.mesuresMultiplesCounts[sourceMesuresMultiplesSummary] = (existing.mesuresMultiplesCounts[sourceMesuresMultiplesSummary] || 0) + safeCount;
@@ -17092,6 +17125,8 @@ renderRadar() {
                     epaisseur,
                     diametre,
                     typeSection: isCircularSection ? 'circ' : 'rect',
+                    shapeMain: Object.assign({}, mainShape),
+                    shapeHybridExtremes: hybridExtremes.map((shape) => Object.assign({}, shape)),
                     count: safeCount,
                     hasMesuresMultiples: !!sourceHasMesuresMultiples,
                     mesuresMultiplesCounts: sourceMesuresMultiplesSummary ? { [sourceMesuresMultiplesSummary]: safeCount } : {},
@@ -17130,6 +17165,22 @@ renderRadar() {
                 ? piece.mesuresMultiples.sections
                 : [];
             const hasMesuresMultiples = rawMesuresMultiples.length > 0;
+
+            const normalizedMesuresSections = hasMesuresMultiples
+                ? [...rawMesuresMultiples]
+                    .map((sectionData) => {
+                        const ratio = Number(sectionData && sectionData.positionRatio);
+                        if (!Number.isFinite(ratio)) return null;
+                        const normalizedShape = normalizeSectionShape(sectionData, {
+                            largeur: piece ? piece.largeur : fallbackLargeur,
+                            epaisseur: piece ? piece.epaisseur : fallbackEpaisseur,
+                            diametre: piece ? piece.diametre : fallbackDiametre
+                        });
+                        return Object.assign({ positionRatio: ratio }, normalizedShape);
+                    })
+                    .filter(Boolean)
+                    .sort((a, b) => a.positionRatio - b.positionRatio)
+                : [];
 
             if (!sectionCandidates.length) {
                 sectionCandidates = [{
@@ -17170,23 +17221,9 @@ renderRadar() {
                 if (Number.isFinite(volumeEnrichi) && volumeEnrichi > 0) {
                     equivalentSectionMm2 = (volumeEnrichi * 1e9) / longueur;
                 } else {
-                    const integratedSections = [...rawMesuresMultiples]
-                        .filter((sectionData) => sectionData != null && Number.isFinite(Number(sectionData.positionRatio)))
-                        .map((sectionData) => {
-                            const largeur = toRoundedDimension(sectionData.largeur, piece ? piece.largeur : fallbackLargeur);
-                            const epaisseur = toRoundedDimension(sectionData.epaisseur, piece ? piece.epaisseur : fallbackEpaisseur);
-                            const diametre = toRoundedDimension(sectionData.diametre, piece ? piece.diametre : fallbackDiametre);
-                            const typeSection = sectionData.typeSection === 'circ' ? 'circ' : (diametre > 0 && (largeur <= 0 || epaisseur <= 0) ? 'circ' : 'rect');
-                            return {
-                                positionRatio: Number(sectionData.positionRatio),
-                                largeur,
-                                epaisseur,
-                                diametre,
-                                typeSection,
-                                areaMm2: computeSectionAreaMm2({ largeur, epaisseur, diametre, typeSection })
-                            };
-                        })
-                        .sort((a, b) => a.positionRatio - b.positionRatio);
+                    const integratedSections = normalizedMesuresSections.map((sectionData) => Object.assign({}, sectionData, {
+                        areaMm2: computeSectionAreaMm2(sectionData)
+                    }));
 
                     if (integratedSections.length >= 2) {
                         let areaIntegral = 0;
@@ -17250,6 +17287,25 @@ renderRadar() {
                 diametre: toRoundedDimension(piece ? piece.diametre : '', fallbackDiametre)
             };
 
+            const mainShape = normalizeSectionShape(representative, {
+                largeur: piece ? piece.largeur : fallbackLargeur,
+                epaisseur: piece ? piece.epaisseur : fallbackEpaisseur,
+                diametre: piece ? piece.diametre : fallbackDiametre
+            });
+
+            const hybridExtremes = normalizedMesuresSections.length >= 2
+                ? [normalizedMesuresSections[0], normalizedMesuresSections[normalizedMesuresSections.length - 1]]
+                : [];
+            const effectiveHybridExtremes = hybridExtremes.length === 2
+                && getSectionShapeSignature(hybridExtremes[0]) !== getSectionShapeSignature(hybridExtremes[1])
+                ? hybridExtremes.map((shape) => ({
+                    typeSection: shape.typeSection,
+                    largeur: shape.largeur,
+                    epaisseur: shape.epaisseur,
+                    diametre: shape.diametre
+                }))
+                : [];
+
             // Valeurs économiques par pièce
             const sectionForVol = (Number.isFinite(equivalentSectionMm2) && equivalentSectionMm2 > 0)
                 ? equivalentSectionMm2
@@ -17279,14 +17335,15 @@ renderRadar() {
 
             registerAtom(
                 pieceLongueur,
-                representative.largeur,
-                representative.epaisseur,
-                representative.diametre,
-                representative.typeSection,
+                mainShape.largeur,
+                mainShape.epaisseur,
+                mainShape.diametre,
+                mainShape.typeSection,
                 equivalentSectionMm2,
                 hasMesuresMultiples,
                 mesuresSummary,
                 mesuresDetailLines,
+                effectiveHybridExtremes,
                 pieceTypePiece,
                 pieceEssence,
                 pieceTitle,
@@ -17408,71 +17465,167 @@ renderRadar() {
         const lotNumber = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot ?';
         const locale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : undefined;
 
-        const datasetData = Array.from(grouped.values())
-            .map((group) => ({
-                x: group.longueur,
-                y: group.section,
-                r: Math.min(18, Math.max(5, 4 + (group.count * 2))),
-                epaisseur: group.epaisseur,
-                largeur: group.largeur,
-                diametre: group.diametre,
-                count: group.count,
-                hasMesuresMultiples: !!group.hasMesuresMultiples,
-                typeCounts: Object.assign({}, group.typeCounts),
-                mesuresMultiplesCounts: Object.assign({}, group.mesuresMultiplesCounts || {}),
-                mesuresMultiplesDetailCounts: Object.assign({}, group.mesuresMultiplesDetailCounts || {}),
-                typePiecesLabel: formatTypePiecesLabel(group.typeCounts),
-                tooltipTitle: getTopEntryLabel(group.titleCounts, 'Pièce'),
-                tooltipLotOrientation: `${lotNumber} · ${orientationLabel}`,
-                tooltipTypeLine: formatTypeLine(group.typeCounts),
-                tooltipMesuresDetailsLines: formatMesuresMultiplesDetailsLines(group.mesuresMultiplesDetailCounts),
-                tooltipLongueurLine: `Longueur : ${Math.round(group.longueur)} mm`,
-                tooltipSectionsDimsLine: group.hasMesuresMultiples
-                    ? `Section équivalente : ${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²`
-                    : (group.diametre > 0
-                        ? `Section : Ø ${Math.round(group.diametre)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`
-                        : `Section : ${Math.round(group.largeur)} × ${Math.round(group.epaisseur)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`),
-                tooltipVolumeUnitaireLine: (() => {
-                    const volM3 = group.section * group.longueur * 1e-9;
-                    return (Number.isFinite(volM3) && volM3 > 0)
-                        ? `Volume unitaire : ${volM3.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 4 })} m³`
-                        : null;
-                })(),
-                tooltipMasseLine: (() => {
-                    if (group.masseMesureeCount > 0) {
-                        const avg = group.masseMesureeSum / group.masseMesureeCount;
-                        return `Masse mesurée : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
-                    }
-                    if (group.masseTheoriqueCount > 0) {
-                        const avg = group.masseTheoriqueSum / group.masseTheoriqueCount;
-                        return `Masse théorique : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
-                    }
-                    return null;
-                })(),
-                tooltipPrixLine: (() => {
-                    if (group.prixUnitaireCount > 0) {
-                        const avg = group.prixUnitaireSum / group.prixUnitaireCount;
-                        return `Prix unitaire : ${avg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
-                    }
-                    return null;
-                })(),
-                tooltipEssenceLine: getTopEntryLabel(group.essenceCounts, 'Inconnue')
-            }))
+        const datasetDataRaw = Array.from(grouped.values())
+            .map((group) => {
+                const shapeMain = normalizeSectionShape(group.shapeMain || {
+                    typeSection: group.typeSection,
+                    largeur: group.largeur,
+                    epaisseur: group.epaisseur,
+                    diametre: group.diametre
+                });
+                const shapeHybridExtremes = Array.isArray(group.shapeHybridExtremes)
+                    ? group.shapeHybridExtremes
+                        .map((shape) => normalizeSectionShape(shape, shapeMain))
+                        .slice(0, 2)
+                    : [];
+                return {
+                    x: group.longueur,
+                    y: group.section,
+                    epaisseur: group.epaisseur,
+                    largeur: group.largeur,
+                    diametre: group.diametre,
+                    typeSection: group.typeSection,
+                    shapeMain,
+                    shapeHybridExtremes,
+                    hasHybridShape: shapeHybridExtremes.length === 2,
+                    count: group.count,
+                    hasMesuresMultiples: !!group.hasMesuresMultiples,
+                    typeCounts: Object.assign({}, group.typeCounts),
+                    mesuresMultiplesCounts: Object.assign({}, group.mesuresMultiplesCounts || {}),
+                    mesuresMultiplesDetailCounts: Object.assign({}, group.mesuresMultiplesDetailCounts || {}),
+                    typePiecesLabel: formatTypePiecesLabel(group.typeCounts),
+                    tooltipTitle: getTopEntryLabel(group.titleCounts, 'Pièce'),
+                    tooltipLotOrientation: `${lotNumber} · ${orientationLabel}`,
+                    tooltipTypeLine: formatTypeLine(group.typeCounts),
+                    tooltipMesuresDetailsLines: formatMesuresMultiplesDetailsLines(group.mesuresMultiplesDetailCounts),
+                    tooltipLongueurLine: `Longueur : ${Math.round(group.longueur)} mm`,
+                    tooltipSectionsDimsLine: group.hasMesuresMultiples
+                        ? `Section équivalente : ${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²`
+                        : (group.diametre > 0
+                            ? `Section : Ø ${Math.round(group.diametre)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`
+                            : `Section : ${Math.round(group.largeur)} × ${Math.round(group.epaisseur)} mm (${Math.round(group.section).toLocaleString(locale, { maximumFractionDigits: 0 })} mm²)`),
+                    tooltipVolumeUnitaireLine: (() => {
+                        const volM3 = group.section * group.longueur * 1e-9;
+                        return (Number.isFinite(volM3) && volM3 > 0)
+                            ? `Volume unitaire : ${volM3.toLocaleString(locale, { minimumFractionDigits: 3, maximumFractionDigits: 4 })} m³`
+                            : null;
+                    })(),
+                    tooltipMasseLine: (() => {
+                        if (group.masseMesureeCount > 0) {
+                            const avg = group.masseMesureeSum / group.masseMesureeCount;
+                            return `Masse mesurée : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
+                        }
+                        if (group.masseTheoriqueCount > 0) {
+                            const avg = group.masseTheoriqueSum / group.masseTheoriqueCount;
+                            return `Masse théorique : ${avg.toLocaleString(locale, { maximumFractionDigits: 1 })} kg`;
+                        }
+                        return null;
+                    })(),
+                    tooltipPrixLine: (() => {
+                        if (group.prixUnitaireCount > 0) {
+                            const avg = group.prixUnitaireSum / group.prixUnitaireCount;
+                            return `Prix unitaire : ${avg.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €`;
+                        }
+                        return null;
+                    })(),
+                    tooltipEssenceLine: getTopEntryLabel(group.essenceCounts, 'Inconnue')
+                };
+            });
+
+        const getShapeMetricMm = (shape) => {
+            const normalized = normalizeSectionShape(shape);
+            if (normalized.typeSection === 'circ') return Math.max(0, normalized.diametre);
+            return Math.max(0, Math.max(normalized.largeur, normalized.epaisseur));
+        };
+
+        const shapeMetrics = datasetDataRaw
+            .flatMap((point) => {
+                const shapes = point.hasHybridShape ? point.shapeHybridExtremes : [point.shapeMain];
+                return shapes.map((shape) => getShapeMetricMm(shape));
+            })
+            .filter((value) => Number.isFinite(value) && value > 0);
+        const minShapeMetric = shapeMetrics.length ? Math.min(...shapeMetrics) : 1;
+        const maxShapeMetric = shapeMetrics.length ? Math.max(...shapeMetrics) : minShapeMetric;
+
+        const shapeMetricToPx = (metricMm) => {
+            const minPx = 10;
+            const maxPx = 38;
+            const safeMetric = Number(metricMm) || 0;
+            if (!Number.isFinite(safeMetric) || safeMetric <= 0) return minPx;
+            if (maxShapeMetric <= minShapeMetric) return (minPx + maxPx) / 2;
+            const ratio = Math.max(0, Math.min(1, (safeMetric - minShapeMetric) / (maxShapeMetric - minShapeMetric)));
+            return minPx + ((maxPx - minPx) * ratio);
+        };
+
+        const buildShapePx = (shape) => {
+            const normalized = normalizeSectionShape(shape);
+            if (normalized.typeSection === 'circ') {
+                const diameterPx = shapeMetricToPx(normalized.diametre);
+                return {
+                    typeSection: 'circ',
+                    diameterPx,
+                    areaPx2: Math.PI * Math.pow(diameterPx / 2, 2)
+                };
+            }
+            const widthMetric = normalized.epaisseur > 0 ? normalized.epaisseur : normalized.largeur;
+            const heightMetric = normalized.largeur;
+            const maxDimension = Math.max(widthMetric, heightMetric, 1);
+            const scalePx = shapeMetricToPx(maxDimension);
+            const widthPx = scalePx * (widthMetric / maxDimension);
+            const heightPx = scalePx * (heightMetric / maxDimension);
+            return {
+                typeSection: 'rect',
+                widthPx,
+                heightPx,
+                areaPx2: widthPx * heightPx
+            };
+        };
+
+        const getShapeHitRadius = (shapePx) => {
+            if (!shapePx) return 8;
+            if (shapePx.typeSection === 'circ') return (Number(shapePx.diameterPx) || 0) / 2;
+            const halfWidth = (Number(shapePx.widthPx) || 0) / 2;
+            const halfHeight = (Number(shapePx.heightPx) || 0) / 2;
+            return Math.hypot(halfWidth, halfHeight);
+        };
+
+        const datasetData = datasetDataRaw
+            .map((point) => {
+                const shapeMainPx = buildShapePx(point.shapeMain);
+                const shapeHybridExtremesPx = point.hasHybridShape
+                    ? point.shapeHybridExtremes.map((shape) => buildShapePx(shape)).filter(Boolean).slice(0, 2)
+                    : [];
+                const hitShapes = shapeHybridExtremesPx.length ? shapeHybridExtremesPx : [shapeMainPx];
+                const hitRadius = hitShapes.reduce((acc, shapePx) => Math.max(acc, getShapeHitRadius(shapePx)), 8);
+                return Object.assign({}, point, {
+                    r: Math.max(6, Math.min(42, Math.round(hitRadius + 2))),
+                    shapeMainPx,
+                    shapeHybridExtremesPx
+                });
+            })
             .sort((a, b) => {
                 if (a.x !== b.x) return a.x - b.x;
                 if (a.y !== b.y) return a.y - b.y;
                 return (a.epaisseur || 0) - (b.epaisseur || 0);
             });
 
-        const epaisseurs = datasetData
-            .map((point) => Number(point.epaisseur) || 0)
+        const hasCircularPoints = datasetData.some((point) => point && point.typeSection === 'circ');
+
+        // Les sections circulaires pilotent le gradient via le diamètre, les rectangulaires via l'épaisseur.
+        const getThicknessDimension = (point) => {
+            if (point && point.typeSection === 'circ') return Number(point.diametre) || 0;
+            return Number(point && point.epaisseur) || 0;
+        };
+
+        const thicknessDimensions = datasetData
+            .map((point) => getThicknessDimension(point))
             .filter((value) => Number.isFinite(value) && value > 0);
-        const minEpaisseur = epaisseurs.length ? Math.min(...epaisseurs) : 0;
-        const maxEpaisseur = epaisseurs.length ? Math.max(...epaisseurs) : 0;
+        const minThicknessDimension = thicknessDimensions.length ? Math.min(...thicknessDimensions) : 0;
+        const maxThicknessDimension = thicknessDimensions.length ? Math.max(...thicknessDimensions) : 0;
 
         const getThicknessRatio = (value) => {
-            if (!Number.isFinite(value) || maxEpaisseur <= minEpaisseur) return 0.55;
-            return Math.max(0, Math.min(1, (value - minEpaisseur) / (maxEpaisseur - minEpaisseur)));
+            if (!Number.isFinite(value) || maxThicknessDimension <= minThicknessDimension) return 0.55;
+            return Math.max(0, Math.min(1, (value - minThicknessDimension) / (maxThicknessDimension - minThicknessDimension)));
         };
 
         const getThicknessColor = (value) => {
@@ -17485,7 +17638,11 @@ renderRadar() {
             return `rgba(${r},${g},${b},0.88)`;
         };
 
-        const pointColors = datasetData.map((point) => getThicknessColor(Number(point.epaisseur) || 0));
+        const pointColors = datasetData.map((point) => getThicknessColor(getThicknessDimension(point)));
+        datasetData.forEach((point, index) => {
+            point.shapeColor = pointColors[index];
+        });
+        const invisiblePointColors = datasetData.map(() => 'rgba(0,0,0,0)');
 
         const tooltipTitle = (rawPoint) => {
             const value = String(rawPoint?.tooltipTitle || 'Pièce').trim();
@@ -17820,29 +17977,67 @@ renderRadar() {
             }
         };
 
-        const scatterMultipleDashedBorderPlugin = {
-            id: 'scatterMultipleDashedBorder',
+        const scatterSectionShapesPlugin = {
+            id: 'scatterSectionShapes',
             afterDatasetsDraw(chart) {
                 const dataset = chart?.data?.datasets?.[0];
                 const meta = chart.getDatasetMeta(0);
                 if (!dataset || !meta || !Array.isArray(meta.data)) return;
 
                 const chartCtx = chart.ctx;
-                chartCtx.save();
-                chartCtx.strokeStyle = '#000000';
-                chartCtx.lineWidth = 0.75;
-                chartCtx.setLineDash([2, 2]);
+                const drawShape = (cx, cy, shapePx, { color, dashed }) => {
+                    if (!shapePx) return;
+                    chartCtx.save();
+                    chartCtx.fillStyle = color;
+                    chartCtx.strokeStyle = '#000000';
+                    chartCtx.lineWidth = 1;
+                    chartCtx.setLineDash(dashed ? [3, 2] : []);
+
+                    if (shapePx.typeSection === 'circ') {
+                        const radius = (Number(shapePx.diameterPx) || 0) / 2;
+                        if (radius <= 0) {
+                            chartCtx.restore();
+                            return;
+                        }
+                        chartCtx.beginPath();
+                        chartCtx.arc(cx, cy, radius, 0, Math.PI * 2);
+                        chartCtx.fill();
+                        chartCtx.stroke();
+                        chartCtx.restore();
+                        return;
+                    }
+
+                    const width = Number(shapePx.widthPx) || 0;
+                    const height = Number(shapePx.heightPx) || 0;
+                    if (width <= 0 || height <= 0) {
+                        chartCtx.restore();
+                        return;
+                    }
+                    chartCtx.beginPath();
+                    chartCtx.rect(cx - (width / 2), cy - (height / 2), width, height);
+                    chartCtx.fill();
+                    chartCtx.stroke();
+                    chartCtx.restore();
+                };
 
                 meta.data.forEach((element, index) => {
                     const raw = dataset.data && dataset.data[index] ? dataset.data[index] : null;
-                    if (!raw || !raw.hasMesuresMultiples || !element) return;
-                    const radius = Number.isFinite(raw.r) ? raw.r : 8;
-                    chartCtx.beginPath();
-                    chartCtx.arc(element.x, element.y, radius + 1, 0, Math.PI * 2);
-                    chartCtx.stroke();
-                });
+                    if (!raw || !element) return;
 
-                chartCtx.restore();
+                    const fillColor = String(raw.shapeColor || 'rgba(125, 157, 214, 0.88)');
+                    const isDashed = !!raw.hasMesuresMultiples;
+
+                    if (raw.hasHybridShape && Array.isArray(raw.shapeHybridExtremesPx) && raw.shapeHybridExtremesPx.length === 2) {
+                        const orderedShapes = [...raw.shapeHybridExtremesPx]
+                            .sort((a, b) => (Number(b?.areaPx2) || 0) - (Number(a?.areaPx2) || 0));
+                        orderedShapes.forEach((shapePx) => {
+                            drawShape(element.x, element.y, shapePx, { color: fillColor, dashed: isDashed });
+                        });
+                        return;
+                    }
+
+                    drawShape(element.x, element.y, raw.shapeMainPx, { color: fillColor, dashed: isDashed });
+                });
             }
         };
 
@@ -17861,13 +18056,15 @@ renderRadar() {
             scale.setAttribute('aria-hidden', 'false');
         }
         if (scaleTitle) {
-            scaleTitle.textContent = tr('editor.scatterDims.scaleTitle', 'Épaisseur (mm)');
+            scaleTitle.textContent = hasCircularPoints
+                ? tr('editor.scatterDims.scaleTitleMixed', 'Épaisseur / Diamètre (mm)')
+                : tr('editor.scatterDims.scaleTitle', 'Épaisseur (mm)');
         }
-        if (scaleMin) scaleMin.textContent = formatMm(minEpaisseur);
-        if (scaleMax) scaleMax.textContent = formatMm(maxEpaisseur);
+        if (scaleMin) scaleMin.textContent = formatMm(minThicknessDimension);
+        if (scaleMax) scaleMax.textContent = formatMm(maxThicknessDimension);
         if (scaleBar) {
-            const lowColor = getThicknessColor(minEpaisseur || 0);
-            const highColor = getThicknessColor(maxEpaisseur || minEpaisseur || 0);
+            const lowColor = getThicknessColor(minThicknessDimension || 0);
+            const highColor = getThicknessColor(maxThicknessDimension || minThicknessDimension || 0);
             scaleBar.style.setProperty('--scatter-dims-low', lowColor);
             scaleBar.style.setProperty('--scatter-dims-high', highColor);
         }
@@ -17875,14 +18072,17 @@ renderRadar() {
         if (!this.scatterDimsChart) {
             this.scatterDimsChart = new Chart(ctx, {
                 type: 'bubble',
-                plugins: [scatterTypeLabelsPlugin, scatterMultipleDashedBorderPlugin],
+                plugins: [scatterTypeLabelsPlugin, scatterSectionShapesPlugin],
                 data: {
                     datasets: [
                         {
                             data: datasetData,
-                            backgroundColor: pointColors,
-                            borderColor: '#000000',
-                            borderWidth: 1
+                            backgroundColor: invisiblePointColors,
+                            borderColor: 'rgba(0,0,0,0)',
+                            borderWidth: 0,
+                            hoverBackgroundColor: invisiblePointColors,
+                            hoverBorderColor: 'rgba(0,0,0,0)',
+                            hoverBorderWidth: 0
                         }
                     ]
                 },
@@ -17950,15 +18150,20 @@ renderRadar() {
             });
         } else {
             this.scatterDimsChart.data.datasets[0].data = datasetData;
-            this.scatterDimsChart.data.datasets[0].backgroundColor = pointColors;
+            this.scatterDimsChart.data.datasets[0].backgroundColor = invisiblePointColors;
+            this.scatterDimsChart.data.datasets[0].borderColor = 'rgba(0,0,0,0)';
+            this.scatterDimsChart.data.datasets[0].borderWidth = 0;
+            this.scatterDimsChart.data.datasets[0].hoverBackgroundColor = invisiblePointColors;
+            this.scatterDimsChart.data.datasets[0].hoverBorderColor = 'rgba(0,0,0,0)';
+            this.scatterDimsChart.data.datasets[0].hoverBorderWidth = 0;
             if (!Array.isArray(this.scatterDimsChart.config.plugins)) {
                 this.scatterDimsChart.config.plugins = [];
             }
             if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterTypeLabels')) {
                 this.scatterDimsChart.config.plugins.push(scatterTypeLabelsPlugin);
             }
-            if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterMultipleDashedBorder')) {
-                this.scatterDimsChart.config.plugins.push(scatterMultipleDashedBorderPlugin);
+            if (!this.scatterDimsChart.config.plugins.some((plugin) => plugin && plugin.id === 'scatterSectionShapes')) {
+                this.scatterDimsChart.config.plugins.push(scatterSectionShapesPlugin);
             }
             this.scatterDimsChart.options.maintainAspectRatio = false;
             this.scatterDimsChart.options.scales.x.title.text = xTitle;
@@ -18072,6 +18277,9 @@ renderRadar() {
         grid.className = 'orientation-lot-grid';
 
         const info = lot.allotissement || lot.allot || {};
+        const studyStatus = (this.data && this.data.meta && this.data.meta.statutEtude)
+            ? this.data.meta.statutEtude
+            : '';
 
         const formatGroupedValue = (value, digits = 0) => {
             const num = parseFloat(value);
@@ -18131,7 +18339,8 @@ renderRadar() {
             { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
             { label: 'PCO2 du lot', value: pco2LotLabel },
             { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
-            { label: 'Critères défavorables', value: unfavorable, fallback: 'Aucun' }
+            { label: 'Critères défavorables', value: unfavorable, fallback: 'Aucun' },
+            { label: 'Statut de l\'étude', value: studyStatus }
         );
 
         fieldDefs.forEach((f) => {
