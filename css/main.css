@@ -582,8 +582,12 @@ body:not(.day-mode) .mes-eval-loading {
 }
 
 .accueil-collapsible {
-    display: grid;
-    gap: var(--space-12);
+    display: block;
+}
+
+.accueil-collapsible-shell.accueil-collapsible-shell--with-alert {
+    position: relative;
+    --acc-summary-height: 40px;
 }
 
 .accueil-collapsible-summary {
@@ -603,15 +607,36 @@ body:not(.day-mode) .mes-eval-loading {
 
 .accueil-collapsible-summary--with-alert {
     justify-content: flex-start;
+    min-height: var(--acc-summary-height);
+    padding-right: 88px;
+    min-width: 0;
 }
 
-.accueil-collapsible-summary--with-alert .lot-alert-btn--destination,
-.accueil-collapsible-summary--with-alert .lot-alert-btn--operation-reference,
-.accueil-collapsible-summary--with-alert .lot-alert-btn--diagnostiqueur,
-.accueil-collapsible-summary--with-alert .lot-alert-btn--contacts,
-.accueil-collapsible-summary--with-alert .lot-alert-btn--contexte-technique {
+.accueil-collapsible-summary--with-alert::after {
     margin-left: auto;
-    margin-right: 6px;
+    margin-right: 52px;
+}
+
+.accueil-collapsible-shell--with-alert > .accueil-collapsible-alert-action {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    position: absolute;
+    top: calc(var(--acc-summary-height) / 2);
+    transform: translateY(-50%);
+    right: 10px;
+    z-index: 1;
+}
+
+.accueil-collapsible-alert-action .lot-alert-btn--destination,
+.accueil-collapsible-alert-action .lot-alert-btn--operation-reference,
+.accueil-collapsible-alert-action .lot-alert-btn--diagnostiqueur,
+.accueil-collapsible-alert-action .lot-alert-btn--contacts,
+.accueil-collapsible-alert-action .lot-alert-btn--contexte-technique {
+    margin-right: 0;
 }
 
 .accueil-collapsible-summary::-webkit-details-marker {
@@ -631,6 +656,14 @@ body:not(.day-mode) .mes-eval-loading {
 .accueil-collapsible-body {
     display: grid;
     gap: var(--space-12);
+}
+
+.accueil-collapsible:not(.accueil-collapsible--with-alert) > .accueil-collapsible-body {
+    margin-top: var(--space-12);
+}
+
+.accueil-collapsible.accueil-collapsible--with-alert > .accueil-collapsible-body {
+    margin-top: var(--space-12);
 }
 
 body.day-mode .accueil-collapsible-summary {
@@ -1388,6 +1421,26 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding: 10px;
     margin-top: -1px;
     background-color: rgba(255, 255, 255, 0.45);
+}
+
+/* Override robuste: summary Accueil avec alerte (statique + dynamique) */
+.accueil-collapsible.accueil-collapsible--with-alert > summary.accueil-collapsible-summary--with-alert {
+    position: relative;
+    justify-content: flex-start;
+    padding-right: 96px;
+}
+
+.accueil-collapsible.accueil-collapsible--with-alert > summary.accueil-collapsible-summary--with-alert::after {
+    position: absolute;
+    top: 50%;
+    right: 52px;
+    margin-right: 0;
+    margin-left: 0;
+    transform: translateY(-50%);
+}
+
+.accueil-collapsible.accueil-collapsible--with-alert[open] > summary.accueil-collapsible-summary--with-alert::after {
+    transform: translateY(-50%) rotate(90deg);
 }
 
 .lot-inline-grid {
@@ -3470,6 +3523,25 @@ body.day-mode .lot-group--collapsible summary:hover {
     border-bottom: 1px solid var(--color-border);
 }
 
+.modal-header {
+    display: grid;
+    grid-template-columns: 32px minmax(0, 1fr) 32px;
+    align-items: start;
+    column-gap: var(--space-8);
+}
+
+.modal-header > h1,
+.modal-header > h2,
+.modal-header > h3 {
+    grid-column: 2;
+    margin: 0;
+    min-width: 0;
+    text-align: center;
+    line-height: 1.1;
+    word-break: normal;
+    overflow-wrap: anywhere;
+}
+
 .modal-footer {
     border-top: 1px solid var(--color-border);
     border-bottom: none;
@@ -3487,11 +3559,13 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .modal-close {
+    grid-column: 3;
+    justify-self: end;
     background: none;
     border: none;
     font-size: var(--font-size-xl);
     cursor: pointer;
-    margin-left: auto;
+    margin-left: 0;
 }
 
 /* Inspection */
@@ -3922,9 +3996,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .bio-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) 56px 72px minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 46px;
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -4125,9 +4196,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .mech-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -4304,9 +4372,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .usage-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -4483,9 +4548,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .denat-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -4661,9 +4723,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .debit-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -4837,9 +4896,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .geo-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -5005,9 +5061,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .essence-row {
     display: grid;
-    grid-template-columns: auto auto minmax(0, 1.4fr) minmax(0, 1.4fr) minmax(0, 1.4fr) auto minmax(0, 2.2fr);
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -5184,9 +5237,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .ancien-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) 56px 72px minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 46px;
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -5266,280 +5316,6 @@ body.day-mode .lot-group--collapsible summary:hover {
     cursor: pointer;
 }
 
-/* Wrapper boutons amortissement : empile reset + alerte + info en colonne 7 */
-.ancien-amort-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.ancien-amort-btn-stack .ancien-reset-btn,
-.ancien-amort-btn-stack .lot-alert-btn,
-.ancien-amort-btn-stack .ancien-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-.bio-confidence-btn-stack,
-.ancien-confidence-btn-stack,
-.traces-confidence-btn-stack,
-.provenance-confidence-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.bio-confidence-btn-stack .bio-reset-btn,
-.bio-confidence-btn-stack .lot-alert-btn,
-.bio-confidence-btn-stack .bio-info-small-btn,
-.ancien-confidence-btn-stack .ancien-reset-btn,
-.ancien-confidence-btn-stack .lot-alert-btn,
-.ancien-confidence-btn-stack .ancien-info-small-btn,
-.traces-confidence-btn-stack .traces-reset-btn,
-.traces-confidence-btn-stack .lot-alert-btn,
-.traces-confidence-btn-stack .traces-info-small-btn,
-.provenance-confidence-btn-stack .provenance-reset-btn,
-.provenance-confidence-btn-stack .lot-alert-btn,
-.provenance-confidence-btn-stack .provenance-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-.mech-confidence-btn-stack,
-.usage-confidence-btn-stack,
-.denat-confidence-btn-stack,
-.essence-confidence-btn-stack {
-    grid-column: 6;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.mech-confidence-btn-stack .mech-reset-btn,
-.mech-confidence-btn-stack .lot-alert-btn,
-.mech-confidence-btn-stack .mech-info-small-btn,
-.usage-confidence-btn-stack .usage-reset-btn,
-.usage-confidence-btn-stack .lot-alert-btn,
-.usage-confidence-btn-stack .usage-info-small-btn,
-.denat-confidence-btn-stack .denat-reset-btn,
-.denat-confidence-btn-stack .lot-alert-btn,
-.denat-confidence-btn-stack .denat-info-small-btn,
-.essence-confidence-btn-stack .essence-reset-btn,
-.essence-confidence-btn-stack .lot-alert-btn,
-.essence-confidence-btn-stack .essence-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons massivité : empile reset + alerte + info */
-.geo-massivite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.geo-massivite-btn-stack .geo-reset-btn,
-.geo-massivite-btn-stack .lot-alert-btn,
-.geo-massivite-btn-stack .geo-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons volumétrie : empile reset + alerte + info */
-.debit-volumetrie-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.debit-volumetrie-btn-stack .debit-reset-btn,
-.debit-volumetrie-btn-stack .lot-alert-btn,
-.debit-volumetrie-btn-stack .debit-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons regularite : empile reset + alerte + info */
-.debit-regularite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.debit-regularite-btn-stack .debit-reset-btn,
-.debit-regularite-btn-stack .lot-alert-btn,
-.debit-regularite-btn-stack .debit-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons stabilite : empile reset + alerte + info */
-.debit-stabilite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.debit-stabilite-btn-stack .debit-reset-btn,
-.debit-stabilite-btn-stack .lot-alert-btn,
-.debit-stabilite-btn-stack .debit-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons artisanalite : empile reset + alerte + info */
-.debit-artisanalite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.debit-artisanalite-btn-stack .debit-reset-btn,
-.debit-artisanalite-btn-stack .lot-alert-btn,
-.debit-artisanalite-btn-stack .debit-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons industrialite : empile reset + alerte + info */
-.geo-industrialite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.geo-industrialite-btn-stack .geo-reset-btn,
-.geo-industrialite-btn-stack .lot-alert-btn,
-.geo-industrialite-btn-stack .geo-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons inclusivite : empile reset + alerte + info */
-.geo-inclusivite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.geo-inclusivite-btn-stack .geo-reset-btn,
-.geo-inclusivite-btn-stack .lot-alert-btn,
-.geo-inclusivite-btn-stack .geo-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons feu : empile reset + alerte + info */
-.mech-feu-btn-stack {
-    grid-column: 6;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.mech-feu-btn-stack .mech-reset-btn,
-.mech-feu-btn-stack .lot-alert-btn,
-.mech-feu-btn-stack .mech-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
-/* Wrapper boutons naturalite : empile reset + alerte + info */
-.denat-naturalite-btn-stack {
-    grid-column: 6;
-    grid-row: 1 / -1;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    align-items: center;
-    align-self: stretch;
-    gap: 0;
-}
-
-.denat-naturalite-btn-stack .denat-reset-btn,
-.denat-naturalite-btn-stack .lot-alert-btn,
-.denat-naturalite-btn-stack .denat-info-small-btn {
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    flex-shrink: 0;
-}
-
 /* Traces */
 
 .traces-card {
@@ -5591,9 +5367,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .traces-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) 56px 72px minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 46px;
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -5769,9 +5542,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .provenance-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) 56px 72px minmax(0, 1.2fr) minmax(0, 1.2fr) minmax(0, 1.2fr) 46px;
-    align-items: center;
-    gap: var(--space-8);
     padding: var(--space-8);
     border-radius: var(--radius-base);
     background-color: rgba(255, 255, 255, 0.06);
@@ -6099,48 +5869,6 @@ body.day-mode .lot-group--collapsible summary:hover {
     max-width: none;
 }
 
-@media (min-width: 601px) and (max-width: 1024px) {
-    :is(
-        .bio-row,
-        .mech-row,
-        .usage-row,
-        .denat-row,
-        .debit-row,
-        .geo-row,
-        .essence-row,
-        .ancien-row,
-        .traces-row,
-        .provenance-row
-    ) {
-        grid-template-columns: minmax(0, 2.2fr) 56px 72px minmax(0, 1.2fr) 42px;
-        column-gap: var(--space-6);
-    }
-
-    .inspection-row {
-        grid-template-columns: minmax(0, 2.2fr) 72px minmax(0, 1.2fr) 42px;
-        column-gap: var(--space-6);
-    }
-}
-
-/* Swap slider position to left for notation rows */
-.bio-slider-wrapper,
-.mech-slider-wrapper,
-.usage-slider-wrapper,
-.denat-slider-wrapper,
-.debit-slider-wrapper,
-.geo-slider-wrapper,
-.essence-slider-wrapper,
-.ancien-slider-wrapper,
-.traces-slider-wrapper,
-.provenance-slider-wrapper,
-.inspection-slider-wrapper {
-    grid-column: 1;
-    /* Align all sliders sur le gabarit du statut : piste resserrée pour centrer le thumb et les labels */
-    /* Align all sliders : track = 2/3 × scale → dots extrêmes centrés sur les colonnes label */
-    --statut-slider-scale-width: 86%;
-    --statut-slider-track-width: calc(var(--statut-slider-scale-width) * 2 / 3);
-}
-
 /* Superpose l'overlay ligne+points et le slider (notation) comme pour Statut */
 :is(
     .bio-slider-wrapper,
@@ -6315,161 +6043,6 @@ body.day-mode .lot-group--collapsible summary:hover {
     grid-column: 1;
     justify-self: center;
     width: var(--statut-slider-scale-width, 100%);
-}
-
-.bio-value-label-box,
-.mech-value-label-box,
-.usage-value-label-box,
-.denat-value-label-box,
-.debit-value-label-box,
-.geo-value-label-box,
-.essence-value-label-box,
-.ancien-value-label-box,
-.traces-value-label-box,
-.provenance-value-label-box,
-.inspection-value-box,
-.bio-reset-btn,
-.mech-reset-btn,
-.usage-reset-btn,
-.denat-reset-btn,
-.debit-reset-btn,
-.geo-reset-btn,
-.essence-reset-btn,
-.ancien-reset-btn,
-.traces-reset-btn,
-.provenance-reset-btn,
-.inspection-reset-btn,
-.inspection-ignore-btn,
-.bio-label-box,
-.mech-label-box,
-.usage-label-box,
-.denat-label-box,
-.debit-label-box,
-.geo-label-box,
-.essence-label-box,
-.ancien-label-box,
-.traces-label-box,
-.provenance-label-box,
-.inspection-label-box,
-.bio-level-box,
-.mech-level-box,
-.usage-level-box,
-.denat-level-box,
-.debit-level-box,
-.geo-level-box,
-.essence-level-box,
-.ancien-level-box,
-.traces-level-box,
-.provenance-level-box,
-.bio-intensity-box,
-.mech-intensity-box,
-.usage-intensity-box,
-.denat-intensity-box,
-.debit-intensity-box,
-.geo-intensity-box,
-.essence-intensity-box,
-.ancien-intensity-box,
-.traces-intensity-box,
-.provenance-intensity-box,
-.inspection-intensity-box,
-.bio-info-small-btn,
-.mech-info-small-btn,
-.usage-info-small-btn,
-.denat-info-small-btn,
-.debit-info-small-btn,
-.geo-info-small-btn,
-.essence-info-small-btn,
-.ancien-info-small-btn,
-.traces-info-small-btn,
-.provenance-info-small-btn,
-.inspection-info-small-btn {
-    /* Reset overrides to allow explicit grid area ordering if needed */
-    grid-column: auto;
-}
-
-.bio-value-label-box,
-.mech-value-label-box,
-.usage-value-label-box,
-.denat-value-label-box,
-.debit-value-label-box,
-.geo-value-label-box,
-.essence-value-label-box,
-.ancien-value-label-box,
-.traces-value-label-box,
-.provenance-value-label-box,
-.inspection-value-box {
-    grid-column: 2;
-}
-
-.bio-reset-btn,
-.mech-reset-btn,
-.usage-reset-btn,
-.denat-reset-btn,
-.debit-reset-btn,
-.geo-reset-btn,
-.essence-reset-btn,
-.ancien-reset-btn,
-.traces-reset-btn,
-.provenance-reset-btn,
-.inspection-reset-btn,
-.inspection-ignore-btn {
-    grid-column: 3;
-}
-
-.bio-label-box,
-.mech-label-box,
-.usage-label-box,
-.denat-label-box,
-.debit-label-box,
-.geo-label-box,
-.essence-label-box,
-.ancien-label-box,
-.traces-label-box,
-.provenance-label-box,
-.inspection-label-box {
-    grid-column: 4;
-}
-
-.bio-level-box,
-.mech-level-box,
-.usage-level-box,
-.denat-level-box,
-.debit-level-box,
-.geo-level-box,
-.essence-level-box,
-.ancien-level-box,
-.traces-level-box,
-.provenance-level-box,
-.inspection-value-box {
-    grid-column: 5;
-}
-
-.bio-intensity-box,
-.mech-intensity-box,
-.usage-intensity-box,
-.denat-intensity-box,
-.debit-intensity-box,
-.geo-intensity-box,
-.essence-intensity-box,
-.ancien-intensity-box,
-.traces-intensity-box,
-.provenance-intensity-box,
-.inspection-intensity-box {
-    grid-column: 6;
-}
-
-.bio-info-small-btn,
-.mech-info-small-btn,
-.usage-info-small-btn,
-.denat-info-small-btn,
-.debit-info-small-btn,
-.geo-info-small-btn,
-.essence-info-small-btn,
-.ancien-info-small-btn,
-.traces-info-small-btn,
-.provenance-info-small-btn,
-.inspection-info-small-btn {
-    grid-column: 7;
 }
 
 /* Sliders de notation unifiés (hors Inspection) */
@@ -8131,276 +7704,6 @@ body.day-mode .lot-group--collapsible summary:hover {
             background-color: #152d6e;
         }
  
-@media (max-width: 600px) {
-
-  .bio-row,
-  .mech-row,
-  .usage-row,
-  .denat-row,
-  .traces-row,
-  .provenance-row,
-  .debit-row,
-  .geo-row,
-  .essence-row,
-  .ancien-row {
-    display: grid;
-        /* 4 colonnes : Slider (large) | valeur / reset | critère | info */
-    grid-template-columns:
-      minmax(120px, 2fr)   /* col 1 : slider */
-      minmax(52px, 52px)   /* col 2 : valeur / reset */
-            minmax(0, 1.4fr)     /* col 3 : critère */
-            minmax(0, 0.6fr)     /* col 4 : info */
-    ;
-    grid-template-areas:
-            "slider val label info"
-            "slider reset label info";
-    align-items: center;
-    column-gap: var(--slider-col-gap);
-    row-gap: var(--space-6);
-    padding: var(--space-6);
-  }
-
-        /* Wrappers boutons alerte en mobile : utilise la zone "info" */
-    .ancien-amort-btn-stack,
-    .mech-feu-btn-stack,
-    .geo-massivite-btn-stack,
-    .geo-industrialite-btn-stack,
-    .geo-inclusivite-btn-stack,
-    .debit-volumetrie-btn-stack,
-    .debit-regularite-btn-stack,
-    .debit-stabilite-btn-stack,
-    .debit-artisanalite-btn-stack,
-    .denat-naturalite-btn-stack {
-        grid-area: info;
-    gap: 2px;
-  }
-
-    .inspection-row {
-        grid-template-areas:
-                        "slider reset label info"
-                        "slider reset label info";
-    }
-
-    /* Colonne 1 : valeur en haut, reset en bas */
-    .bio-value-label-box,
-    .mech-value-label-box,
-    .usage-value-label-box,
-    .denat-value-label-box,
-    .traces-value-label-box,
-    .provenance-value-label-box,
-    .debit-value-label-box,
-    .geo-value-label-box,
-    .essence-value-label-box,
-    .ancien-value-label-box {
-    grid-area: val;
-    padding: 2px 4px;
-        font-size: 8px;
-        text-align: center;
-        justify-content: center;   /* valeur */
-    }
-
-    .bio-reset-btn,
-    .mech-reset-btn,
-    .usage-reset-btn,
-    .denat-reset-btn,
-    .traces-reset-btn,
-    .provenance-reset-btn,
-    .debit-reset-btn,
-    .geo-reset-btn,
-    .essence-reset-btn,
-    .ancien-reset-btn {
-    grid-area: reset;
-    padding: 2px 4px;
-        font-size: 8px;
-        text-align: center;
-        justify-content: center; /* bouton Réinitialiser */
-    }
-
-    .inspection-reset-btn,
-    .inspection-ignore-btn {
-        padding: 2px 4px;
-        font-size: 8px;
-        text-align: center;
-        justify-content: center;
-    }
-
-    .inspection-ignore-reset {
-        grid-area: reset;
-        gap: 2px;
-    }
-
-    /* Colonne 2 : critère en haut, niveau en bas */
-    .bio-label-box,
-    .mech-label-box,
-    .usage-label-box,
-    .denat-label-box,
-    .traces-label-box,
-    .provenance-label-box,
-    .debit-label-box,
-    .geo-label-box,
-    .essence-label-box,
-    .ancien-label-box {
-    grid-area: label;
-    padding: 2px 4px;
-        font-size: 12px;
-        text-align: center;
-        justify-content: center; 
-    }  /* Purge, Expansion… */
-
-    .inspection-label-box {
-        grid-area: label;
-        padding: 2px 4px;
-        font-size: 12px;
-        text-align: center;
-        justify-content: center;
-    }
-
-    .bio-level-box,
-    .mech-level-box,
-    .usage-level-box,
-    .denat-level-box,
-    .traces-level-box,
-    .provenance-level-box,
-    .debit-level-box,
-    .geo-level-box,
-    .essence-level-box,
-    .ancien-level-box {
-    grid-area: level;
-    padding: 2px 4px;
-        font-size: 10px;
-        text-align: center;
-        justify-content: center;  /* Forte / Moyenne… */
-    }
-
-    .inspection-value-box {
-        grid-area: level;
-        padding: 2px 4px;
-        font-size: 10px;
-        text-align: center;
-        justify-content: center;
-    }
-
-    /* Colonne 3 : note en haut, info en bas */
-    .bio-intensity-box,
-    .mech-intensity-box,
-    .usage-intensity-box,
-    .denat-intensity-box,
-    .traces-intensity-box,
-    .provenance-intensity-box,
-    .debit-intensity-box,
-    .geo-intensity-box,
-    .essence-intensity-box,
-    .ancien-intensity-box {
-        grid-area: intensity;
-        justify-self: center;
-        min-width: 36px;         
-        max-width: 48px;
-        padding: 2px 4px;
-        font-size: 12px;
-        font-weight: var(--font-weight-semibold);
-        text-align: center;
-        justify-content: center;
-    }
-
-    .inspection-intensity-box {
-        grid-area: intensity;
-        justify-self: center;
-        min-width: 36px;
-        max-width: 48px;
-        padding: 2px 4px;
-        font-size: 12px;
-        font-weight: var(--font-weight-semibold);
-        text-align: center;
-        justify-content: center;
-    }
-
-    .bio-info-small-btn,
-    .mech-info-small-btn,
-    .usage-info-small-btn,
-    .denat-info-small-btn,
-    .traces-info-small-btn,
-    .provenance-info-small-btn,
-    .debit-info-small-btn,
-    .geo-info-small-btn,
-    .essence-info-small-btn,
-    .ancien-info-small-btn {
-        grid-area: info;
-        justify-self: center;
-        min-width: 36px;         
-        max-width: 48px;
-        padding: 2px 4px;
-        font-size: 12px;
-        text-align: center;
-        justify-content: center;
-    }
-
-    .inspection-info-small-btn {
-        grid-area: info;
-        justify-self: center;
-        min-width: 36px;
-        max-width: 48px;
-        padding: 2px 4px;
-        font-size: 12px;
-        text-align: center;
-        justify-content: center;
-    }
-
-  /* Col 4 : slider sur les deux lignes */
-  .bio-slider-wrapper,
-  .mech-slider-wrapper,
-  .usage-slider-wrapper,
-  .denat-slider-wrapper,
-  .traces-slider-wrapper,
-  .provenance-slider-wrapper,
-  .debit-slider-wrapper,
-  .geo-slider-wrapper,
-  .essence-slider-wrapper,
-    .ancien-slider-wrapper,
-    .inspection-slider-wrapper {
-    grid-area: slider;      /* reste dans la colonne du slider */
-    width: 100%;
-    display: grid;
-        grid-template-rows: auto 32px; /* 1 = labels, 2 = slider */
-        row-gap: var(--space-4);
-        align-items: end;
-  }
-
-  .bio-slider,
-  .mech-slider,
-  .usage-slider,
-  .denat-slider,
-  .traces-slider,
-  .provenance-slider,
-  .debit-slider,
-  .geo-slider,
-  .essence-slider,
-    .ancien-slider,
-    .inspection-slider {
-    justify-self: stretch;  /* le slider suit toute la largeur de la colonne */
-  }
-
-    .bio-slider-scale,
-    .mech-slider-scale,
-    .usage-slider-scale,
-    .denat-slider-scale,
-    .traces-slider-scale,
-    .provenance-slider-scale,
-    .debit-slider-scale,
-    .geo-slider-scale,
-    .essence-slider-scale,
-    .ancien-slider-scale {
-        margin-top: 0;
-        justify-self: stretch;
-        text-align: center;
-    }
-
-    .inspection-slider-scale {
-        margin-top: 0;
-        justify-self: stretch;
-        text-align: center;
-    }
-}
-
 /* Harmonisation finale: mêmes espacements verticaux pour tous les sliders de notation */
 :is(
     .bio-slider-wrapper,
@@ -8774,6 +8077,16 @@ body:not(.day-mode) .mesures-accordion-chevron {
 
 body:not(.day-mode) .mesures-accordion > summary:hover {
     background-color: #323842;
+}
+
+body:not(.day-mode) .mesures-accordion-actions {
+    background-color: #2a3038;
+    border-color: var(--color-border);
+}
+
+body:not(.day-mode) .mesures-accordion-shell--with-actions > .mesures-accordion-actions {
+    background-color: transparent;
+    border-color: transparent;
 }
 
 body:not(.day-mode) .mesures-accordion[open] > .mesures-inline-widget {
@@ -9227,257 +8540,6 @@ body.day-mode .evalop-column-title {
     .cards-grid .card { min-height: 520px; }
 }
 
-/* Force mobile-style internal layout for cards inside the grid */
-.cards-grid :is(
-    .bio-row,
-    .mech-row,
-    .usage-row,
-    .denat-row,
-    .traces-row,
-    .provenance-row,
-    .debit-row,
-    .geo-row,
-    .essence-row,
-    .ancien-row
-) {
-    display: grid;
-    grid-template-columns:
-      minmax(120px, 2fr)
-      minmax(52px, 52px)
-      minmax(0, 1.4fr)
-      minmax(0, 0.6fr);
-    grid-template-areas:
-            "slider val label info"
-            "slider reset label info";
-    align-items: center;
-    column-gap: var(--space-6);
-    row-gap: var(--space-6);
-    padding: var(--space-6);
-}
-
-.cards-grid .inspection-row {
-    grid-template-areas:
-    "slider reset label info"
-    "slider reset label info";
-}
-
-.cards-grid .bio-value-label-box,
-.cards-grid .mech-value-label-box,
-.cards-grid .usage-value-label-box,
-.cards-grid .denat-value-label-box,
-.cards-grid .traces-value-label-box,
-.cards-grid .provenance-value-label-box,
-.cards-grid .debit-value-label-box,
-.cards-grid .geo-value-label-box,
-.cards-grid .essence-value-label-box,
-.cards-grid .ancien-value-label-box {
-    grid-area: val;
-    padding: 2px 4px;
-    font-size: 8px;
-    text-align: center;
-    justify-content: center;
-}
-
-.cards-grid .bio-reset-btn,
-.cards-grid .mech-reset-btn,
-.cards-grid .usage-reset-btn,
-.cards-grid .denat-reset-btn,
-.cards-grid .traces-reset-btn,
-.cards-grid .provenance-reset-btn,
-.cards-grid .debit-reset-btn,
-.cards-grid .geo-reset-btn,
-.cards-grid .essence-reset-btn,
-.cards-grid .ancien-reset-btn,
-.cards-grid .inspection-reset-btn,
-.cards-grid .inspection-ignore-btn {
-    grid-area: reset;
-    padding: 2px 4px;
-    font-size: 8px;
-    text-align: center;
-    justify-content: center;
-}
-.cards-grid .inspection-ignore-reset { grid-area: reset; gap: 2px; }
-
-.cards-grid .bio-label-box,
-.cards-grid .mech-label-box,
-.cards-grid .usage-label-box,
-.cards-grid .denat-label-box,
-.cards-grid .traces-label-box,
-.cards-grid .provenance-label-box,
-.cards-grid .debit-label-box,
-.cards-grid .geo-label-box,
-.cards-grid .essence-label-box,
-.cards-grid .ancien-label-box,
-.cards-grid .inspection-label-box {
-    grid-area: label;
-    padding: 2px 4px;
-    font-size: 12px;
-    text-align: center;
-    justify-content: center;
-}
-
-.cards-grid .bio-level-box,
-.cards-grid .mech-level-box,
-.cards-grid .usage-level-box,
-.cards-grid .denat-level-box,
-.cards-grid .traces-level-box,
-.cards-grid .provenance-level-box,
-.cards-grid .debit-level-box,
-.cards-grid .geo-level-box,
-.cards-grid .essence-level-box,
-.cards-grid .ancien-level-box,
-.cards-grid .inspection-value-box {
-    grid-area: level;
-    padding: 2px 4px;
-    font-size: 10px;
-    text-align: center;
-    justify-content: center;
-}
-.cards-grid .mech-intensity-box,
-.cards-grid .usage-intensity-box,
-.cards-grid .denat-intensity-box,
-.cards-grid .traces-intensity-box,
-.cards-grid .provenance-intensity-box,
-.cards-grid .debit-intensity-box,
-.cards-grid .geo-intensity-box,
-.cards-grid .essence-intensity-box,
-.cards-grid .ancien-intensity-box,
-.cards-grid .inspection-intensity-box {
-    grid-area: intensity;
-    justify-self: center;
-    min-width: 36px;
-    max-width: 48px;
-    padding: 2px 4px;
-    font-size: 12px;
-    font-weight: var(--font-weight-semibold);
-    text-align: center;
-    justify-content: center;
-}
-
-.cards-grid .bio-info-small-btn,
-.cards-grid .mech-info-small-btn,
-.cards-grid .usage-info-small-btn,
-.cards-grid .denat-info-small-btn,
-.cards-grid .traces-info-small-btn,
-.cards-grid .provenance-info-small-btn,
-.cards-grid .debit-info-small-btn,
-.cards-grid .geo-info-small-btn,
-.cards-grid .essence-info-small-btn,
-.cards-grid .ancien-info-small-btn,
-.cards-grid .inspection-info-small-btn {
-    grid-area: info;
-    justify-self: center;
-    min-width: 36px;
-    max-width: 48px;
-    padding: 2px 4px;
-    font-size: 12px;
-    text-align: center;
-    justify-content: center;
-}
-
-/* Wrapper boutons amortissement en vue grille de cartes */
-.cards-grid .ancien-amort-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons feu en vue grille de cartes */
-.cards-grid .mech-feu-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons massivité en vue grille de cartes */
-.cards-grid .geo-massivite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons industrialité en vue grille de cartes */
-.cards-grid .geo-industrialite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons inclusivité en vue grille de cartes */
-.cards-grid .geo-inclusivite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons volumétrie en vue grille de cartes */
-.cards-grid .debit-volumetrie-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons regularite en vue grille de cartes */
-.cards-grid .debit-regularite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons stabilite en vue grille de cartes */
-.cards-grid .debit-stabilite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons artisanalite en vue grille de cartes */
-.cards-grid .debit-artisanalite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-/* Wrapper boutons naturalite en vue grille de cartes */
-.cards-grid .denat-naturalite-btn-stack {
-    grid-column: 3;
-    grid-row: 1 / -1;
-    gap: 2px;
-}
-
-.cards-grid .bio-slider-wrapper,
-.cards-grid .mech-slider-wrapper,
-.cards-grid .usage-slider-wrapper,
-.cards-grid .denat-slider-wrapper,
-.cards-grid .traces-slider-wrapper,
-.cards-grid .provenance-slider-wrapper,
-.cards-grid .debit-slider-wrapper,
-.cards-grid .geo-slider-wrapper,
-.cards-grid .essence-slider-wrapper,
-.cards-grid .ancien-slider-wrapper,
-.cards-grid .inspection-slider-wrapper {
-    grid-area: slider;
-    width: 100%;
-    display: grid;
-    grid-template-rows: auto 32px;
-    row-gap: var(--space-4);
-    align-items: end;
-}
-
-.cards-grid .bio-slider,
-.cards-grid .mech-slider,
-.cards-grid .usage-slider,
-.cards-grid .denat-slider,
-.cards-grid .traces-slider,
-.cards-grid .provenance-slider,
-.cards-grid .debit-slider,
-.cards-grid .geo-slider,
-.cards-grid .essence-slider,
-.cards-grid .ancien-slider,
-.cards-grid .inspection-slider {
-    justify-self: stretch;
-}
-
 /* Les sliders de notation enrichis en JS reprennent le gabarit inspection :
    piste et crans sur toute la largeur, libellés centrés sur 3 colonnes. */
 :is(
@@ -9836,7 +8898,7 @@ body.day-mode .evalop-column-title {
     opacity: 1;
 }
 
-/* Réagencement de base des lignes (affiné ensuite par section) */
+/* Réagencement unifié des lignes de notation */
 :is(
     .bio-row,
     .mech-row,
@@ -9850,45 +8912,19 @@ body.day-mode .evalop-column-title {
     .ancien-row
 ) {
     display: grid;
-    grid-template-columns:
-      minmax(120px, 2fr)
-      minmax(0, 1.45fr)
-    minmax(64px, 0.78fr);
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-rows: 30px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) 30px;
     grid-template-areas:
-      "slider label info"
-      "slider value reset";
-    align-items: center;
-    column-gap: var(--space-6);
-    row-gap: var(--space-6);
-}
-
-/* Bloc notation : en-tête critère horizontale + ruban valeur vertical gauche */
-:is(
-    .bio-row,
-    .mech-row,
-    .usage-row,
-    .denat-row,
-    .traces-row,
-    .provenance-row,
-    .debit-row,
-    .geo-row,
-    .essence-row,
-    .ancien-row
-) {
-    grid-template-columns: 32px minmax(0, 1fr) 32px;
-    grid-template-rows: 32px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(32px, auto);
-    grid-template-areas:
-        "value label  reset"
-        "value slider ."
-        "value slider ."
-        "value slider ."
-        "value slider info";
+        "val label reset"
+        "val slider ."
+        "val slider ."
+        "val slider ."
+        "val slider info";
     align-items: stretch;
     column-gap: var(--space-8);
     row-gap: var(--space-4);
 }
 
-/* Même logique en cards-grid (les règles cards sont plus spécifiques) */
 .cards-grid :is(
     .bio-row,
     .mech-row,
@@ -9901,7 +8937,7 @@ body.day-mode .evalop-column-title {
     .essence-row,
     .ancien-row
 ) {
-    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-columns: 26px minmax(0, 1fr) 28px;
     grid-template-rows: 30px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(30px, auto);
     grid-template-areas:
         "val label  reset"
@@ -9917,8 +8953,8 @@ body.day-mode .evalop-column-title {
 /* Inspection (hors Intégrité) : grille 3 colonnes avec spacer gauche
    pour aligner verticalement avec la colonne "ignore" de l'Intégrité. */
 .inspection-row:not([data-inspection-field="integrite"]) {
-    grid-template-columns: 32px minmax(0, 1fr) 32px;
-    grid-template-rows: 32px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(32px, auto);
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-rows: 30px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(30px, auto);
     grid-template-areas:
         "spacer label  reset"
         "spacer slider ."
@@ -9931,8 +8967,8 @@ body.day-mode .evalop-column-title {
 }
 
 .cards-grid .inspection-row:not([data-inspection-field="integrite"]) {
-    grid-template-columns: 30px minmax(0, 1fr) 30px;
-    grid-template-rows: 30px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(30px, auto);
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    grid-template-rows: 28px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(28px, auto);
     grid-template-areas:
         "spacer label  reset"
         "spacer slider ."
@@ -10460,9 +9496,12 @@ body.day-mode .evalop-column-title {
     .ancien-reset-btn
 ) {
     grid-area: reset;
-    justify-self: stretch;
-    width: 100%;
-    min-width: 0;
+    justify-self: end;
+    align-self: start;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
 }
 
 .cards-grid :is(
@@ -10478,9 +9517,17 @@ body.day-mode .evalop-column-title {
     .ancien-info-small-btn
 ) {
     grid-area: info;
-    justify-self: stretch;
-    width: 100%;
-    min-width: 0;
+    justify-self: end;
+    align-self: end;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+}
+
+.cards-grid .inspection-ignore-reset {
+    grid-area: reset;
+    gap: 2px;
 }
 
 :is(
@@ -10528,7 +9575,7 @@ body.day-mode .evalop-column-title {
     .ancien-value-label-box,
     .inspection-value-box
 ) {
-    grid-area: value;
+    grid-area: val;
 }
 
 :is(
@@ -10591,6 +9638,31 @@ body.day-mode .evalop-column-title {
 }
 
 :is(
+    .bio-row,
+    .mech-row,
+    .usage-row,
+    .denat-row,
+    .traces-row,
+    .provenance-row,
+    .debit-row,
+    .geo-row,
+    .essence-row,
+    .ancien-row
+) > .lot-alert-btn {
+    grid-column: 3;
+    grid-row: 2 / span 3;
+    justify-self: end;
+    align-self: center;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+    padding: 0;
+    margin: 0;
+    z-index: 1;
+}
+
+:is(
     .bio-reset-btn,
     .mech-reset-btn,
     .usage-reset-btn,
@@ -10634,10 +9706,10 @@ body.day-mode .evalop-column-title {
 ) {
     justify-self: center;
     align-self: center;
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    min-height: 32px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
     padding: 0;
     line-height: 1;
     margin: 0;
@@ -10680,10 +9752,10 @@ body.day-mode .evalop-column-title {
 .inspection-row:not([data-inspection-field="integrite"]) .inspection-reset-btn,
 .inspection-row:not([data-inspection-field="integrite"]) .inspection-info-small-btn {
     justify-self: end;
-    width: 32px;
-    min-width: 32px;
-    height: 32px;
-    min-height: 32px;
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
     padding: 0;
     line-height: 1;
     margin: 0;
@@ -10699,10 +9771,10 @@ body.day-mode .evalop-column-title {
 
 .cards-grid .inspection-row:not([data-inspection-field="integrite"]) .inspection-reset-btn,
 .cards-grid .inspection-row:not([data-inspection-field="integrite"]) .inspection-info-small-btn {
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
-    min-height: 30px;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
 }
 
 .cards-grid :is(
@@ -10727,10 +9799,28 @@ body.day-mode .evalop-column-title {
     .essence-info-small-btn,
     .ancien-info-small-btn
 ) {
-    width: 30px;
-    min-width: 30px;
-    height: 30px;
-    min-height: 30px;
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+}
+
+.cards-grid :is(
+    .bio-row,
+    .mech-row,
+    .usage-row,
+    .denat-row,
+    .traces-row,
+    .provenance-row,
+    .debit-row,
+    .geo-row,
+    .essence-row,
+    .ancien-row
+) > .lot-alert-btn {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
 }
 
 .inspection-row:not([data-inspection-field="integrite"]) .inspection-slider-wrapper,
@@ -10876,8 +9966,8 @@ body.day-mode .evalop-column-title {
 
 /* Cas Inspection Intégrité : ruban "Ignoré" toujours visible */
 .inspection-row[data-inspection-field="integrite"] {
-    grid-template-columns: 32px minmax(0, 1fr) 32px;
-    grid-template-rows: 32px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(32px, auto);
+    grid-template-columns: 30px minmax(0, 1fr) 30px;
+    grid-template-rows: 30px minmax(20px, auto) minmax(20px, auto) minmax(30px, auto) minmax(30px, auto);
     grid-template-areas:
       "ignore label actions"
       "ignore slider actions"
@@ -10890,8 +9980,8 @@ body.day-mode .evalop-column-title {
 }
 
 .cards-grid .inspection-row[data-inspection-field="integrite"] {
-    grid-template-columns: 30px minmax(0, 1fr) 30px;
-    grid-template-rows: 30px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(30px, auto);
+    grid-template-columns: 28px minmax(0, 1fr) 28px;
+    grid-template-rows: 28px minmax(18px, auto) minmax(18px, auto) minmax(28px, auto) minmax(28px, auto);
 }
 
 /* Encart "Ignoré" : ruban vertical toujours visible */
@@ -11135,6 +10225,24 @@ body.day-mode .inspection-ignore-box {
     border-color: var(--color-border) !important;
 }
 
+.ancien-row[data-note-tone="high"]:not(.ancien-row--disabled) .ancien-value-label-box {
+    background: #009E73 !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+.ancien-row[data-note-tone="mid"]:not(.ancien-row--disabled) .ancien-value-label-box {
+    background: #E69F00 !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
+.ancien-row[data-note-tone="low"]:not(.ancien-row--disabled) .ancien-value-label-box {
+    background: #D55E00 !important;
+    color: var(--color-text) !important;
+    border-color: var(--color-border) !important;
+}
+
 .inspection-row:not([data-inspection-field="integrite"]):not(.inspection-row--disabled)[data-note-tone="high"] .inspection-spacer-box {
     background: #009E73 !important;
     color: var(--color-text) !important;
@@ -11211,8 +10319,8 @@ body.day-mode .inspection-ignore-box {
 ) {
     width: 100%;
     min-width: 0;
-    height: 32px;
-    min-height: 32px;
+    height: 30px;
+    min-height: 30px;
     padding: 0;
     line-height: 1;
 }
@@ -11226,38 +10334,115 @@ body.day-mode .inspection-ignore-box {
     ) {
         width: 100%;
         min-width: 0;
-        height: 30px;
-        min-height: 30px;
+        height: 28px;
+        min-height: 28px;
         padding: 0;
         line-height: 1;
     }
 }
 
-/* Boutons reset notation en icône */
-.btn-reset {
+/* Conteneur dédié des actions de ligne (reset / ignorer) */
+.row-action-group {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    margin-left: 0;
+    padding-left: 0;
+    flex-shrink: 0;
+}
+
+:is(
+    .inspection-row,
+    .bio-row,
+    .mech-row,
+    .usage-row,
+    .denat-row,
+    .debit-row,
+    .geo-row,
+    .essence-row,
+    .ancien-row,
+    .traces-row,
+    .provenance-row
+) > .row-action-group {
+    grid-area: reset;
+    justify-self: end;
+    align-self: start;
+}
+
+.row-action-group .btn-ignore,
+.row-action-group .btn-reset {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
+    padding: 0;
+    line-height: 1;
+    font-size: 0;
+    overflow: hidden;
 }
 
-.btn-reset svg {
-    width: 18px;
-    height: 18px;
+.row-action-group .btn-ignore svg,
+.row-action-group .btn-reset svg {
+    width: 16px;
+    height: 16px;
     display: block;
 }
 
-.btn-ignore {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
+.inspection-row[data-inspection-field="integrite"] .inspection-ignore-reset .btn-ignore svg,
+.inspection-row[data-inspection-field="integrite"] .inspection-ignore-reset .btn-reset svg {
+    width: 16px;
+    height: 16px;
+    display: block;
 }
 
-.btn-ignore svg {
-    width: 18px;
-    height: 18px;
-    display: block;
+.inspection-row:not([data-inspection-field="integrite"]) > .row-action-group .btn-ignore,
+.inspection-row:not([data-inspection-field="integrite"]) > .row-action-group .btn-reset {
+    width: 30px;
+    min-width: 30px;
+    height: 30px;
+    min-height: 30px;
+}
+
+.cards-grid .inspection-row:not([data-inspection-field="integrite"]) > .row-action-group .btn-ignore,
+.cards-grid .inspection-row:not([data-inspection-field="integrite"]) > .row-action-group .btn-reset {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
+}
+
+.cards-grid :is(
+    .bio-row,
+    .mech-row,
+    .usage-row,
+    .denat-row,
+    .debit-row,
+    .geo-row,
+    .essence-row,
+    .ancien-row,
+    .traces-row,
+    .provenance-row
+) > .row-action-group .btn-ignore,
+.cards-grid :is(
+    .bio-row,
+    .mech-row,
+    .usage-row,
+    .denat-row,
+    .debit-row,
+    .geo-row,
+    .essence-row,
+    .ancien-row,
+    .traces-row,
+    .provenance-row
+) > .row-action-group .btn-reset {
+    width: 28px;
+    min-width: 28px;
+    height: 28px;
+    min-height: 28px;
 }
 
 .sr-only {
@@ -11464,6 +10649,16 @@ body.day-mode .inspection-ignore-box {
     display: block;
 }
 
+.mesures-accordion.mesures-accordion--with-actions {
+    margin-top: 0;
+}
+
+.mesures-accordion-shell.mesures-accordion-shell--with-actions {
+    position: relative;
+    --mesures-summary-height: 34px;
+    margin-top: 10px;
+}
+
 .mesures-accordion > summary {
     display: flex;
     align-items: center;
@@ -11479,6 +10674,12 @@ body.day-mode .inspection-ignore-box {
     background-color: #F4F4F4;
     user-select: none;
     transition: background-color 0.15s;
+}
+
+.mesures-accordion-shell--with-actions > .mesures-accordion.mesures-accordion--with-actions > summary {
+    border-radius: var(--radius-base);
+    min-height: var(--mesures-summary-height);
+    padding-right: 74px;
 }
 
 .mesures-accordion-title-text {
@@ -11508,7 +10709,7 @@ body.day-mode .inspection-ignore-box {
     align-items: center;
 }
 
-.mesures-accordion[open] > summary {
+.mesures-accordion.mesures-accordion--with-actions[open] > summary {
     border-radius: var(--radius-base) var(--radius-base) 0 0;
 }
 
@@ -11516,7 +10717,29 @@ body.day-mode .inspection-ignore-box {
     transform: rotate(90deg);
 }
 
-.mesures-accordion[open] > .mesures-inline-widget {
+.mesures-accordion-shell--with-actions > .mesures-accordion-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 3px;
+    min-width: 48px;
+    height: var(--mesures-summary-height);
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background-color: transparent;
+    position: absolute;
+    top: calc(var(--mesures-summary-height) / 2);
+    transform: translateY(-50%);
+    right: 8px;
+    z-index: 1;
+}
+
+.mesures-accordion-shell--with-actions > .mesures-accordion-actions {
+    border-radius: 0;
+}
+
+.mesures-accordion.mesures-accordion--with-actions[open] > .mesures-inline-widget {
     border: 1px solid var(--color-border);
     border-top: none;
     border-radius: 0 0 var(--radius-base) var(--radius-base);
@@ -11820,9 +11043,9 @@ body.day-mode .inspection-ignore-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-right: 5px;
+    width: 20px;
+    height: 20px;
+    margin-right: 0;
     padding: 0;
     background-color: var(--bleu-crai);
     border: none;
@@ -11841,9 +11064,9 @@ body.day-mode .inspection-ignore-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-right: 5px;
+    width: 20px;
+    height: 20px;
+    margin-right: 0;
     padding: 0;
     background-color: var(--bleu-crai);
     border: none;
@@ -11856,6 +11079,11 @@ body.day-mode .inspection-ignore-box {
 
 .mesures-accordion-info-btn:hover {
     background-color: #162e72;
+}
+
+.mesures-accordion-actions .mesures-accordion-reset-btn,
+.mesures-accordion-actions .mesures-accordion-info-btn {
+    margin-right: 0;
 }
 
 /* ============================================================

@@ -452,12 +452,10 @@
             <!-- Métadonnées de l’opération -->
             <section class="accueil-dashboard" data-i18n-aria-label="editor.meta.dashboardAria" aria-label="Informations d'accueil">
                 <article class="accueil-panel">
-                    <details class="accueil-collapsible" data-ui-collapsible="reference-operation">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="reference-operation">
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryRefOp">Référence de l'opération</span>
-                            <button type="button" class="lot-alert-btn lot-alert-btn--operation-reference" data-alert-operation-reference="true" data-operation-reference-alert-btn>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            </button>
                         </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
@@ -517,15 +515,19 @@
                             </div>
                         </div>
                     </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--operation-reference" data-alert-operation-reference="true" data-operation-reference-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
                 </article>
 
                 <article class="accueil-panel">
-                    <details class="accueil-collapsible" data-ui-collapsible="diagnostiqueur">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="diagnostiqueur">
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryDiagnostician">Diagnostiqueur</span>
-                            <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            </button>
                         </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
@@ -561,15 +563,19 @@
                             </div>
                         </div>
                     </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
                 </article>
 
                 <article class="accueil-panel">
-                    <details class="accueil-collapsible" data-ui-collapsible="contacts">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="contacts">
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryContacts">Contacts de l'opération</span>
-                            <button type="button" class="lot-alert-btn lot-alert-btn--contacts" data-alert-contacts="true" data-contacts-alert-btn>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            </button>
                         </summary>
                         <div class="accueil-collapsible-body">
                             <section class="accueil-subsection">
@@ -679,15 +685,19 @@
                             </section>
                         </div>
                     </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--contacts" data-alert-contacts="true" data-contacts-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
                 </article>
 
                 <article class="accueil-panel">
-                    <details class="accueil-collapsible" data-ui-collapsible="contexte-technique">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="contexte-technique">
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryTechnical">Contexte technique</span>
-                            <button type="button" class="lot-alert-btn lot-alert-btn--contexte-technique" data-alert-contexte-technique="true" data-contexte-technique-alert-btn>
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            </button>
                         </summary>
                         <div class="accueil-collapsible-body">
                             <div class="accueil-meta">
@@ -741,6 +751,12 @@
                             </div>
                         </div>
                     </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--contexte-technique" data-alert-contexte-technique="true" data-contexte-technique-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
                 </article>
 
                 <article class="accueil-panel">
@@ -950,57 +966,58 @@
             </div>
 
             <!-- Modale aide mesures multiples -->
-<div class="modal-backdrop hidden" id="mesuresInfoModalBackdrop" aria-hidden="true">
+<div class="modal-backdrop hidden" id="mesuresInfoModalBackdrop" aria-hidden="true" inert>
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mesuresInfoModalTitle" style="max-width:640px;">
         <header class="modal-header">
             <h2 id="mesuresInfoModalTitle">Mesures multiples — Méthode et fondements</h2>
             <button class="modal-close" type="button" id="btnCloseMesuresInfoModal">&times;</button>
         </header>
-        <div class="modal-body" style="font-size:0.88rem; line-height:1.55;">
+        <div class="modal-body detail-modal-content" style="font-size:0.88rem; line-height:1.55;">
 
             <!-- 1. Principe -->
-            <h3 style="margin-top:0; margin-bottom:4px; font-size:0.95rem;">Principe général</h3>
-            <p>Les <strong>mesures multiples</strong> permettent de relever les sections transversales de la pièce en plusieurs points le long de sa longueur, afin d'obtenir un calcul de volume plus précis qu'avec une section unique. Cette approche est directement inspirée des méthodes de cubature des billons de bois utilisées en mensuration forestière.</p>
+            <h3 class="detail-modal-subtitle" style="margin-top:0;">Principe général</h3>
+            <div class="detail-modal-instruction"><p>Les <strong>mesures multiples</strong> permettent de relever les sections transversales de la pièce en plusieurs points le long de sa longueur, afin d'obtenir un calcul de volume plus précis qu'avec une section unique. Cette approche est directement inspirée des méthodes de cubature des billons de bois utilisées en mensuration forestière.</p></div>
 
             <!-- 2. Activation -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Activation des points de mesure</h3>
-            <p>Cliquez sur les flèches (▼) au-dessus de la barre pour activer ou désactiver chaque point de mesure. Les deux extrémités sont toujours actives. Les points intermédiaires (quart 1, milieu, quart 3) sont optionnels. Chaque point actif indique la distance à laquelle mesurer depuis l'extrémité 1.</p>
+            <h3 class="detail-modal-subtitle">Activation des points de mesure</h3>
+            <div class="detail-modal-paragraph"><p>Cliquez sur les flèches (▼) au-dessus de la barre pour activer ou désactiver chaque point de mesure. Les deux extrémités sont toujours actives. Les points intermédiaires (quart 1, milieu, quart 3) sont optionnels. Chaque point actif indique la distance à laquelle mesurer depuis l'extrémité 1.</p></div>
 
             <!-- 3. Positionnement -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Positionnement libre</h3>
-            <p>Par défaut, les points intermédiaires sont positionnés à 25 %, 50 % et 75 % de la longueur totale. Vous pouvez les déplacer librement en saisissant une distance en mm (la longueur de la pièce doit être renseignée au préalable).</p>
+            <h3 class="detail-modal-subtitle">Positionnement libre</h3>
+            <div class="detail-modal-paragraph"><p>Par défaut, les points intermédiaires sont positionnés à 25 %, 50 % et 75 % de la longueur totale. Vous pouvez les déplacer librement en saisissant une distance en mm (la longueur de la pièce doit être renseignée au préalable).</p></div>
 
             <!-- 4. Type de section -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Type de section</h3>
-            <p>Chaque point peut être mesuré en section rectangulaire (largeur <em>L</em> × épaisseur <em>E</em>) ou circulaire (diamètre <em>ø</em>). Utilisez le bouton <strong>ø</strong> pour basculer entre les deux modes.</p>
+            <h3 class="detail-modal-subtitle">Type de section</h3>
+            <div class="detail-modal-paragraph"><p>Chaque point peut être mesuré en section rectangulaire (largeur <em>L</em> × épaisseur <em>E</em>) ou circulaire (diamètre <em>ø</em>). Utilisez le bouton <strong>ø</strong> pour basculer entre les deux modes.</p></div>
 
             <!-- 5. Périmètre -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Mesure du périmètre (optionnelle)</h3>
-            <p>Pour les sections rectangulaires, il est possible de relever le <strong>périmètre réel</strong> <em>P</em> à l'aide d'un mètre ruban enroulé autour de la pièce. Ce relevé est optionnel et complémentaire à <em>L</em> et <em>E</em> : il capture les arrondis, chanfreins et irrégularités de surface qui réduisent la section effective par rapport à un rectangle théorique plein. Lorsqu'il est renseigné, un <strong>facteur de forme périmétrique</strong> <em>k<sub>P</sub></em> est appliqué :</p>
-            <p style="text-align:center; font-family:serif; margin:6px 0;">
+            <h3 class="detail-modal-subtitle">Mesure du périmètre (optionnelle)</h3>
+            <div class="detail-modal-paragraph"><p>Pour les sections rectangulaires, il est possible de relever le <strong>périmètre réel</strong> <em>P</em> à l'aide d'un mètre ruban enroulé autour de la pièce. Ce relevé est optionnel et complémentaire à <em>L</em> et <em>E</em> : il capture les arrondis, chanfreins et irrégularités de surface qui réduisent la section effective par rapport à un rectangle théorique plein. Lorsqu'il est renseigné, un <strong>facteur de forme périmétrique</strong> <em>k<sub>P</sub></em> est appliqué :</p></div>
+            <div class="detail-modal-paragraph"><p style="text-align:center; font-family:serif; margin:6px 0;">
                 <em>k<sub>P</sub></em> = <em>P</em> / <em>P</em><sub>théo</sub> &nbsp;&nbsp; avec &nbsp;&nbsp; <em>P</em><sub>théo</sub> = 2(<em>L</em> + <em>E</em>)
-            </p>
-            <p>Ce facteur linéaire est cohérent avec la géométrie du <strong>rectangle à coins arrondis</strong> (Lemonis, 2020), où la perte d'aire est due aux quatre angles, pas à une réduction homothétique de l'ensemble de la section. Sur des cas de validation (modèles SketchUp), il réduit l'erreur de volume de ±15 % à moins de 2 % par rapport à la surface L×E brute.</p>
+            </p></div>
+            <div class="detail-modal-paragraph"><p>Ce facteur linéaire est cohérent avec la géométrie du <strong>rectangle à coins arrondis</strong> (Lemonis, 2020), où la perte d'aire est due aux quatre angles, pas à une réduction homothétique de l'ensemble de la section. Sur des cas de validation (modèles SketchUp), il réduit l'erreur de volume de ±15 % à moins de 2 % par rapport à la surface L×E brute.</p></div>
 
             <!-- 6. Calcul du volume -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Calcul du volume — Formule des trapèzes</h3>
-            <p>Le volume est calculé par <strong>intégration trapézoïdale</strong> (règle des trapèzes) entre chaque paire de sections consécutives actives :</p>
-            <p style="text-align:center; font-family:serif; margin:6px 0;">
+            <h3 class="detail-modal-subtitle">Calcul du volume — Formule des trapèzes</h3>
+            <div class="detail-modal-paragraph"><p>Le volume est calculé par <strong>intégration trapézoïdale</strong> (règle des trapèzes) entre chaque paire de sections consécutives actives :</p></div>
+            <div class="detail-modal-paragraph"><p style="text-align:center; font-family:serif; margin:6px 0;">
                 V = &sum;<sub>i</sub> (S<sub>i</sub> + S<sub>i+1</sub>) / 2 &times; (x<sub>i+1</sub> &minus; x<sub>i</sub>)
-            </p>
-            <p>où <em>S<sub>i</sub></em> est la surface de la section au point <em>i</em> (en m²) et <em>x<sub>i</sub></em> sa position en mm depuis l'extrémité 1. Il s'agit de l'équivalent discret de la <strong>formule de Smalian généralisée</strong> : chaque tronçon est assimilé à un prisme tronqué entre deux sections consécutives (Briggs, 1994 ; Ângelo et al., 2000).</p>
-            <p>Lorsque les cinq points sont actifs (deux extrémités + trois intermédiaires), la prise en compte du point médian correspond à la <strong>formule de Newton–Simpson</strong> :</p>
-            <p style="text-align:center; font-family:serif; margin:6px 0;">
+            </p></div>
+            <div class="detail-modal-paragraph"><p>où <em>S<sub>i</sub></em> est la surface de la section au point <em>i</em> (en m²) et <em>x<sub>i</sub></em> sa position en mm depuis l'extrémité 1. Il s'agit de l'équivalent discret de la <strong>formule de Smalian généralisée</strong> : chaque tronçon est assimilé à un prisme tronqué entre deux sections consécutives (Briggs, 1994 ; Ângelo et al., 2000).</p></div>
+            <div class="detail-modal-paragraph"><p>Lorsque les cinq points sont actifs (deux extrémités + trois intermédiaires), la prise en compte du point médian correspond à la <strong>formule de Newton–Simpson</strong> :</p></div>
+            <div class="detail-modal-paragraph"><p style="text-align:center; font-family:serif; margin:6px 0;">
                 V = L &times; (S<sub>1</sub> + 4 S<sub>m</sub> + S<sub>2</sub>) / 6
-            </p>
-            <p>reconnue comme la plus précise des formules classiques de cubature (Ângelo et al., 2000 ; Mohd-Jamil et al., 2019). Dans VALOBOIS, les cinq points sont traités par intégration continue, ce qui généralise cette règle à des positions libres.</p>
+            </p></div>
+            <div class="detail-modal-paragraph"><p>reconnue comme la plus précise des formules classiques de cubature (Ângelo et al., 2000 ; Mohd-Jamil et al., 2019). Dans VALOBOIS, les cinq points sont traités par intégration continue, ce qui généralise cette règle à des positions libres.</p></div>
 
             <!-- 7. Biais de forme et non-circularité -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Biais de forme et sections non idéales</h3>
-            <p>L'hypothèse d'une section géométriquement parfaite (rectangle plein ou cercle parfait) surestime systématiquement l'aire et donc le volume réel. Ce biais est documenté tant pour les sections circulaires (Pulkkinen, 2012 ; Nogueira et al., 2006) que pour les sections rectangulaires à arêtes émoussées. Pour les arbres tropicaux à grandes sections, la surestimation du volume peut atteindre 11 % en moyenne et jusqu'à 30 % pour les grandes tiges (Nogueira et al., 2006). La mesure du périmètre permet de corriger ce biais en capturant la forme effective de la section, sans recourir à un modèle géométrique complexe.</p>
+            <h3 class="detail-modal-subtitle">Biais de forme et sections non idéales</h3>
+            <div class="detail-modal-paragraph"><p>L'hypothèse d'une section géométriquement parfaite (rectangle plein ou cercle parfait) surestime systématiquement l'aire et donc le volume réel. Ce biais est documenté tant pour les sections circulaires (Pulkkinen, 2012 ; Nogueira et al., 2006) que pour les sections rectangulaires à arêtes émoussées. Pour les arbres tropicaux à grandes sections, la surestimation du volume peut atteindre 11 % en moyenne et jusqu'à 30 % pour les grandes tiges (Nogueira et al., 2006). La mesure du périmètre permet de corriger ce biais en capturant la forme effective de la section, sans recourir à un modèle géométrique complexe.</p></div>
 
             <!-- 8. Bibliographie -->
-            <h3 style="margin-bottom:4px; font-size:0.95rem;">Références bibliographiques</h3>
+            <details class="detail-modal-references" open>
+            <summary>Références et ressources</summary>
             <div style="font-size:0.82rem; line-height:1.6; color: var(--color-text-secondary, #555);">
                 <p style="margin:3px 0; padding-left:1.4em; text-indent:-1.4em;">
                     Ângelo, H., Hosokawa, R. T., &amp; Nogueira, J. C. B. (2000). Testing accuracy of log volume calculation procedures against water displacement techniques (xylometer). <em>Canadian Journal of Forest Research</em>, <em>30</em>(6), 990–997. <a href="https://doi.org/10.1139/x00-006" target="_blank" rel="noopener">https://doi.org/10.1139/x00-006</a>
@@ -1021,6 +1038,7 @@
                     Pulkkinen, M. (2012). On non-circularity of tree stem cross-sections: Effect of diameter selection on cross-section area estimation, Bitterlich sampling and stem volume estimation in Scots pine. <em>Silva Fennica</em>, <em>46</em>(5B), article 924. <a href="https://doi.org/10.14214/sf.924" target="_blank" rel="noopener">https://doi.org/10.14214/sf.924</a>
                 </p>
             </div>
+            </details>
 
         </div>
         <footer class="modal-footer">
@@ -1828,17 +1846,15 @@
                             <div class="bio-intensity-box" data-intensity="confianceBio">
                                 ...
                             </div>
-                            <div class="bio-confidence-btn-stack">
-                                <button class="bio-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="bio-info-small-btn" type="button" data-info="confianceBio" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="bio-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="bio-info-small-btn" type="button" data-info="confianceBio" data-i18n="editor.common.info">info</button>
                             <div class="bio-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="bio-slider"
                                     data-slider="confianceBio">
@@ -1938,17 +1954,15 @@
                             <div class="mech-intensity-box" data-intensity="feuMech">
                                 ...
                             </div>
-                            <div class="mech-feu-btn-stack">
-                                <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--mech-feu" type="button" data-alert-feu-state="none" data-mech-feu-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="mech-info-small-btn" type="button" data-info="feuMech" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--mech-feu" type="button" data-alert-feu-state="none" data-mech-feu-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="mech-info-small-btn" type="button" data-info="feuMech" data-i18n="editor.common.info">info</button>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="feuMech">
@@ -2022,17 +2036,15 @@
                             <div class="mech-intensity-box" data-intensity="confianceMech">
                                 ...
                             </div>
-                            <div class="mech-confidence-btn-stack">
-                                <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="mech-info-small-btn" type="button" data-info="confianceMech" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="mech-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="mech-info-small-btn" type="button" data-info="confianceMech" data-i18n="editor.common.info">info</button>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="confianceMech">
@@ -2107,17 +2119,15 @@
                             <div class="usage-intensity-box" data-intensity="confianceUsage">
                                 ...
                             </div>
-                            <div class="usage-confidence-btn-stack">
-                                <button class="usage-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="usage-info-small-btn" type="button" data-info="confianceUsage" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="usage-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="usage-info-small-btn" type="button" data-info="confianceUsage" data-i18n="editor.common.info">info</button>
                             <div class="usage-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="usage-slider"
                                     data-slider="confianceUsage">
@@ -2367,17 +2377,15 @@
                             <div class="denat-intensity-box" data-intensity="confianceDenat">
                                 ...
                             </div>
-                            <div class="denat-confidence-btn-stack">
-                                <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="denat-info-small-btn" type="button" data-info="confianceDenat" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="denat-info-small-btn" type="button" data-info="confianceDenat" data-i18n="editor.common.info">info</button>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="confianceDenat">
@@ -2401,17 +2409,15 @@
                             <div class="denat-intensity-box" data-intensity="naturaliteDenat">
                                 ...
                             </div>
-                            <div class="denat-naturalite-btn-stack">
-                                <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--denat-naturalite" type="button" data-alert-naturalite-state="none" data-denat-naturalite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="denat-info-small-btn" type="button" data-info="naturaliteDenat" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="denat-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--denat-naturalite" type="button" data-alert-naturalite-state="none" data-denat-naturalite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="denat-info-small-btn" type="button" data-info="naturaliteDenat" data-i18n="editor.common.info">info</button>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="naturaliteDenat">
@@ -2486,17 +2492,15 @@
                             <div class="debit-intensity-box" data-intensity="regulariteDebit">
                                 ...
                             </div>
-                            <div class="debit-regularite-btn-stack">
-                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--debit-regularite" type="button" data-alert-regularite-state="none" data-debit-regularite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="debit-info-small-btn" type="button" data-info="regulariteDebit" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--debit-regularite" type="button" data-alert-regularite-state="none" data-debit-regularite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="debit-info-small-btn" type="button" data-info="regulariteDebit" data-i18n="editor.common.info">info</button>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="regulariteDebit">
@@ -2520,17 +2524,15 @@
                             <div class="debit-intensity-box" data-intensity="volumetrieDebit">
                                 ...
                             </div>
-                            <div class="debit-volumetrie-btn-stack">
-                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--debit-volumetrie" type="button" data-alert-volumetrie-state="none" data-debit-volumetrie-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="debit-info-small-btn" type="button" data-info="volumetrieDebit" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--debit-volumetrie" type="button" data-alert-volumetrie-state="none" data-debit-volumetrie-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="debit-info-small-btn" type="button" data-info="volumetrieDebit" data-i18n="editor.common.info">info</button>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="volumetrieDebit">
@@ -2554,17 +2556,15 @@
                             <div class="debit-intensity-box" data-intensity="stabiliteDebit">
                                 ...
                             </div>
-                            <div class="debit-stabilite-btn-stack">
-                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--debit-stabilite" type="button" data-alert-stabilite-state="none" data-debit-stabilite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="debit-info-small-btn" type="button" data-info="stabiliteDebit" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--debit-stabilite" type="button" data-alert-stabilite-state="none" data-debit-stabilite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="debit-info-small-btn" type="button" data-info="stabiliteDebit" data-i18n="editor.common.info">info</button>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="stabiliteDebit">
@@ -2588,17 +2588,15 @@
                             <div class="debit-intensity-box" data-intensity="artisanaliteDebit">
                                 ...
                             </div>
-                            <div class="debit-artisanalite-btn-stack">
-                                <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--debit-artisanalite" type="button" data-alert-artisanalite-state="none" data-debit-artisanalite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="debit-info-small-btn" type="button" data-info="artisanaliteDebit" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="debit-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--debit-artisanalite" type="button" data-alert-artisanalite-state="none" data-debit-artisanalite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="debit-info-small-btn" type="button" data-info="artisanaliteDebit" data-i18n="editor.common.info">info</button>
                             <div class="debit-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="debit-slider"
                                     data-slider="artisanaliteDebit">
@@ -2723,17 +2721,15 @@
                             <div class="geo-intensity-box" data-intensity="massiviteGeo">
                                 ...
                             </div>
-                            <div class="geo-massivite-btn-stack">
-                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--geo-massivite" type="button" data-alert-massivite-state="none" data-geo-massivite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="geo-info-small-btn" type="button" data-info="massiviteGeo" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--geo-massivite" type="button" data-alert-massivite-state="none" data-geo-massivite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="geo-info-small-btn" type="button" data-info="massiviteGeo" data-i18n="editor.common.info">info</button>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="massiviteGeo">
@@ -2782,17 +2778,15 @@
                             <div class="geo-intensity-box" data-intensity="industrialiteGeo">
                                 ...
                             </div>
-                            <div class="geo-industrialite-btn-stack">
-                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--geo-industrialite" type="button" data-alert-industrialite-state="none" data-geo-industrialite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="geo-info-small-btn" type="button" data-info="industrialiteGeo" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--geo-industrialite" type="button" data-alert-industrialite-state="none" data-geo-industrialite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="geo-info-small-btn" type="button" data-info="industrialiteGeo" data-i18n="editor.common.info">info</button>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="industrialiteGeo">
@@ -2816,17 +2810,15 @@
                             <div class="geo-intensity-box" data-intensity="inclusiviteGeo">
                                 ...
                             </div>
-                            <div class="geo-inclusivite-btn-stack">
-                                <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--geo-inclusivite" type="button" data-alert-inclusivite-state="none" data-geo-inclusivite-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="geo-info-small-btn" type="button" data-info="inclusiviteGeo" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="geo-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--geo-inclusivite" type="button" data-alert-inclusivite-state="none" data-geo-inclusivite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="geo-info-small-btn" type="button" data-info="inclusiviteGeo" data-i18n="editor.common.info">info</button>
                             <div class="geo-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="geo-slider"
                                     data-slider="inclusiviteGeo">
@@ -2901,17 +2893,15 @@
                             <div class="essence-intensity-box" data-intensity="confianceEssence">
                                 ...
                             </div>
-                            <div class="essence-confidence-btn-stack">
-                                <button class="essence-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="essence-info-small-btn" type="button" data-info="confianceEssence" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="essence-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="essence-info-small-btn" type="button" data-info="confianceEssence" data-i18n="editor.common.info">info</button>
                             <div class="essence-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="essence-slider"
                                     data-slider="confianceEssence">
@@ -3087,17 +3077,15 @@
                             <div class="ancien-intensity-box" data-intensity="confianceAncien">
                                 ...
                             </div>
-                            <div class="ancien-confidence-btn-stack">
-                                <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="ancien-info-small-btn" type="button" data-info="confianceAncien" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="ancien-info-small-btn" type="button" data-info="confianceAncien" data-i18n="editor.common.info">info</button>
                             <div class="ancien-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="ancien-slider"
                                     data-slider="confianceAncien">
@@ -3121,17 +3109,15 @@
                             <div class="ancien-intensity-box" data-intensity="amortissementAncien">
                                 ...
                             </div>
-                            <div class="ancien-amort-btn-stack">
-                                <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--ancien-amortissement" type="button" data-alert-amortissement-state="none" data-ancien-amortissement-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="ancien-info-small-btn" type="button" data-info="amortissementAncien" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="ancien-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--ancien-amortissement" type="button" data-alert-amortissement-state="none" data-ancien-amortissement-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="ancien-info-small-btn" type="button" data-info="amortissementAncien" data-i18n="editor.common.info">info</button>
                             <div class="ancien-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="ancien-slider"
                                     data-slider="amortissementAncien">
@@ -3281,17 +3267,15 @@
                             <div class="traces-intensity-box" data-intensity="confianceTraces">
                                 ...
                             </div>
-                            <div class="traces-confidence-btn-stack">
-                                <button class="traces-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="traces-info-small-btn" type="button" data-info="confianceTraces" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="traces-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="traces-info-small-btn" type="button" data-info="confianceTraces" data-i18n="editor.common.info">info</button>
                             <div class="traces-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="traces-slider"
                                     data-slider="confianceTraces">
@@ -3467,17 +3451,15 @@
                             <div class="provenance-intensity-box" data-intensity="confianceProv">
                                 ...
                             </div>
-                            <div class="provenance-confidence-btn-stack">
-                                <button class="provenance-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-                                        <line x1="12" y1="9" x2="12" y2="13"></line>
-                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
-                                    </svg>
-                                </button>
-                                <button class="provenance-info-small-btn" type="button" data-info="confianceProv" data-i18n="editor.common.info">info</button>
-                            </div>
+                            <button class="provenance-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="lot-alert-btn lot-alert-btn--confidence" type="button" data-alert-confidence-state="none" data-confidence-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                            </button>
+                            <button class="provenance-info-small-btn" type="button" data-info="confianceProv" data-i18n="editor.common.info">info</button>
                             <div class="provenance-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="provenance-slider"
                                     data-slider="confianceProv">

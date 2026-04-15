@@ -4531,6 +4531,7 @@ class ValoboisApp {
     _bindMesuresInlineWidget(containerEl, piece, lot, context) {
         // Toggle accordéon uniquement via le chevron — bindé une seule fois sur le <details>
         const accordionDetails = containerEl.closest('.mesures-accordion');
+        const accordionShell = accordionDetails ? accordionDetails.closest('.mesures-accordion-shell') : null;
         if (accordionDetails && !accordionDetails.dataset.chevronBound) {
             accordionDetails.dataset.chevronBound = '1';
             // Mémoriser l'état ouvert/fermé pour survivre aux re-renders
@@ -4549,8 +4550,8 @@ class ValoboisApp {
                     }
                 });
             }
-            // Bouton Réinitialiser (dans le summary, hors containerEl — bindé une seule fois)
-            const resetBtn = accordionDetails.querySelector('.mesures-reset-btn');
+            // Bouton Réinitialiser (hors summary — bindé une seule fois)
+            const resetBtn = (accordionShell || accordionDetails).querySelector('.mesures-reset-btn');
             if (resetBtn) {
                 resetBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -4564,11 +4565,12 @@ class ValoboisApp {
                     });
                 });
             }
-            // Bouton Info mesures (dans le summary, hors containerEl — bindé une seule fois)
-            const infoBtn = accordionDetails.querySelector('.mesures-info-btn');
+            // Bouton Info mesures (hors summary — bindé une seule fois)
+            const infoBtn = (accordionShell || accordionDetails).querySelector('.mesures-info-btn');
             if (infoBtn) {
                 infoBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
+                    this._lastMesuresInfoTrigger = infoBtn;
                     this.openMesuresInfoModal();
                 });
             }
@@ -5266,13 +5268,13 @@ class ValoboisApp {
                 badgeEl.textContent = String(n);
                 badgeEl.classList.toggle('mesures-accordion-badge--incomplete', isIncomplete);
             } else {
-                const resetBtnEl = summaryEl.querySelector('.mesures-accordion-reset-btn');
+                const chevronEl = summaryEl.querySelector('.mesures-accordion-chevron');
                 const badge = document.createElement('span');
                 badge.className = 'mesures-accordion-badge';
                 badge.textContent = String(n);
                 if (isIncomplete) badge.classList.add('mesures-accordion-badge--incomplete');
-                if (resetBtnEl) {
-                    resetBtnEl.after(badge);
+                if (chevronEl) {
+                    summaryEl.insertBefore(badge, chevronEl);
                 } else {
                     summaryEl.appendChild(badge);
                 }
@@ -7225,16 +7227,31 @@ class ValoboisApp {
     openMesuresInfoModal() {
         const backdrop = document.getElementById('mesuresInfoModalBackdrop');
         if (backdrop) {
+            backdrop.removeAttribute('inert');
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
+            const closeBtn = document.getElementById('btnCloseMesuresInfoModal');
+            if (closeBtn && typeof closeBtn.focus === 'function') {
+                closeBtn.focus();
+            }
         }
     }
 
     closeMesuresInfoModal() {
         const backdrop = document.getElementById('mesuresInfoModalBackdrop');
         if (backdrop) {
+            const activeEl = document.activeElement;
+            if (activeEl && backdrop.contains(activeEl) && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+            }
+            backdrop.setAttribute('inert', '');
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
+
+            const trigger = this._lastMesuresInfoTrigger;
+            if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+                trigger.focus();
+            }
         }
     }
 
@@ -7400,7 +7417,20 @@ deleteLot(index) {
     this.render();
 }
 
+    getOrCreateActionGroup(parentRow) {
+        if (!parentRow) return null;
+
+        const existingGroup = parentRow.querySelector(':scope > .row-action-group');
+        if (existingGroup) return existingGroup;
+
+        const group = document.createElement('div');
+        group.className = 'row-action-group';
+        parentRow.appendChild(group);
+        return group;
+    }
+
     setupNotationResetIcons() {
+        const RESET_ICON_VERSION = '2';
         const resetSelector = [
             '.bio-reset-btn',
             '.mech-reset-btn',
@@ -7413,6 +7443,20 @@ deleteLot(index) {
             '.traces-reset-btn',
             '.provenance-reset-btn',
             '.inspection-reset-btn'
+        ].join(', ');
+
+        const rowSelector = [
+            '.inspection-row',
+            '.bio-row',
+            '.mech-row',
+            '.usage-row',
+            '.denat-row',
+            '.debit-row',
+            '.geo-row',
+            '.essence-row',
+            '.ancien-row',
+            '.traces-row',
+            '.provenance-row'
         ].join(', ');
 
         const iconMarkup = `
@@ -7436,17 +7480,49 @@ deleteLot(index) {
 `;
 
         document.querySelectorAll(resetSelector).forEach((btn) => {
-            if (btn.dataset.iconifiedReset === '1') return;
+            const parentRow = btn.closest(rowSelector);
+            if (!parentRow) return;
+
+            const isIntegriteRow = parentRow.matches('.inspection-row[data-inspection-field="integrite"]');
+            if (isIntegriteRow) {
+                const integriteGroup = parentRow.querySelector(':scope > .inspection-ignore-reset');
+                if (integriteGroup && btn.parentElement !== integriteGroup) {
+                    integriteGroup.appendChild(btn);
+                }
+            } else {
+                const group = this.getOrCreateActionGroup(parentRow);
+                if (group && btn.parentElement !== group) {
+                    group.appendChild(btn);
+                }
+            }
+
             btn.classList.add('btn-reset');
+
+            if (btn.dataset.iconifiedReset === '1' && btn.dataset.iconVersionReset === RESET_ICON_VERSION) return;
             btn.setAttribute('aria-label', 'Réinitialiser le formulaire');
             btn.setAttribute('title', 'Réinitialiser');
             btn.innerHTML = iconMarkup;
             btn.dataset.iconifiedReset = '1';
+            btn.dataset.iconVersionReset = RESET_ICON_VERSION;
         });
     }
 
         setupInspectionIgnoreIcons() {
+                const IGNORE_ICON_VERSION = '2';
                 const ignoreSelector = '.inspection-ignore-btn';
+                const rowSelector = [
+                        '.inspection-row',
+                        '.bio-row',
+                        '.mech-row',
+                        '.usage-row',
+                        '.denat-row',
+                        '.debit-row',
+                        '.geo-row',
+                        '.essence-row',
+                        '.ancien-row',
+                        '.traces-row',
+                        '.provenance-row'
+                ].join(', ');
                 const iconMarkup = `
     <svg
         aria-hidden="true"
@@ -7461,19 +7537,37 @@ deleteLot(index) {
         stroke-linecap="round"
         stroke-linejoin="round"
     >
-        <circle cx="12" cy="12" r="8" />
-        <path d="M8.5 15.5 15.5 8.5" />
+        <circle cx="12" cy="12" r="9" />
+        <line x1="5.5" y1="18.5" x2="18.5" y2="5.5" />
     </svg>
     <span class="sr-only">Ignorer</span>
 `;
 
                 document.querySelectorAll(ignoreSelector).forEach((btn) => {
-                        if (btn.dataset.iconifiedIgnore === '1') return;
+                    const parentRow = btn.closest(rowSelector);
+                    if (!parentRow) return;
+
+                    const isIntegriteRow = parentRow.matches('.inspection-row[data-inspection-field="integrite"]');
+                    if (isIntegriteRow) {
+                        const integriteGroup = parentRow.querySelector(':scope > .inspection-ignore-reset');
+                        if (integriteGroup && btn.parentElement !== integriteGroup) {
+                            integriteGroup.appendChild(btn);
+                        }
+                    } else {
+                        const group = this.getOrCreateActionGroup(parentRow);
+                        if (group && btn.parentElement !== group) {
+                            group.appendChild(btn);
+                        }
+                    }
+
                         btn.classList.add('btn-ignore');
+
+                    if (btn.dataset.iconifiedIgnore === '1' && btn.dataset.iconVersionIgnore === IGNORE_ICON_VERSION) return;
                         btn.setAttribute('aria-label', 'Ignorer ce critere');
                         btn.setAttribute('title', 'Ignorer');
                         btn.innerHTML = iconMarkup;
                         btn.dataset.iconifiedIgnore = '1';
+                        btn.dataset.iconVersionIgnore = IGNORE_ICON_VERSION;
                 });
         }
 
@@ -9701,6 +9795,7 @@ Une visibilité et une accessibilité faible vaut pour des conditions de diagnos
 
     Une instrumentation forte vaut pour l’usage de dispositifs permettant :
     • le classement mécanique des pièces bois à l’aide machine,
+    • la prise de mesures multiples sur les pièces incluant le périmètre des sections,
     • et pour les précédents niveaux.`,
             integrite: `Intégrité générale.
 
@@ -11305,6 +11400,7 @@ closeEvalOpModal() {
         ).length >= 2 : false;
         const mesuresResetBtnDp = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
         const mesuresInfoBtnDp = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
+        const mesuresActionsDp = `<div class="mesures-accordion-actions" data-default-piece-id="${defaultPieceId}">${mesuresInfoBtnDp}${mesuresResetBtnDp}</div>`;
 
         const resetIconMarkup = `
             <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -11411,12 +11507,15 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <details class="mesures-accordion"${_accOpenDp ? ' open' : ''}>
-                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresInfoBtnDp}${mesuresResetBtnDp}${mesuresBadgeDp}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
-                        <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
-                            ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
-                        </div>
-                    </details>
+                    <div class="mesures-accordion-shell mesures-accordion-shell--with-actions">
+                        <details class="mesures-accordion mesures-accordion--with-actions"${_accOpenDp ? ' open' : ''}>
+                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresBadgeDp}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
+                            <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
+                                ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
+                            </div>
+                        </details>
+                        ${mesuresActionsDp}
+                    </div>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
@@ -11602,6 +11701,7 @@ closeEvalOpModal() {
         ).length >= 2 : false;
         const mesuresResetBtnP = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
         const mesuresInfoBtnP = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
+        const mesuresActionsP = `<div class="mesures-accordion-actions" data-piece-index="${pieceIndex}">${mesuresInfoBtnP}${mesuresResetBtnP}</div>`;
 
         const _locSitKeyP = `loc-sit:${lot.id}:piece:${pieceIndex}`;
         const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation);
@@ -11690,12 +11790,15 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <details class="mesures-accordion"${_accOpenP ? ' open' : ''}>
-                        <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresInfoBtnP}${mesuresResetBtnP}${mesuresBadgeP}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
-                        <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
-                            ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
-                        </div>
-                    </details>
+                    <div class="mesures-accordion-shell mesures-accordion-shell--with-actions">
+                        <details class="mesures-accordion mesures-accordion--with-actions"${_accOpenP ? ' open' : ''}>
+                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresBadgeP}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
+                            <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
+                                ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
+                            </div>
+                        </details>
+                        ${mesuresActionsP}
+                    </div>
                 </div>
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
@@ -12503,23 +12606,27 @@ closeEvalOpModal() {
                             </div>
                         </div>
                     </div>
-                    <details class="lot-group lot-group--collapsible accueil-collapsible">
-                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
-                            <span>Destination du lot</span>
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                        <details class="lot-group lot-group--collapsible accueil-collapsible accueil-collapsible--with-alert">
+                            <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                                <span>Destination du lot</span>
+                            </summary>
+                            <div class="lot-group-content">
+                                <div class="lot-field-block">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.destination ?? ''}" placeholder="Entreprise" data-lot-input="destination">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.destinationAdresse || ''}" placeholder="Adresse" data-lot-input="destinationAdresse">
+                                    <input type="text" class="lot-input" value="${lot.allotissement.destinationContact || ''}" placeholder="Personne contact" data-lot-input="destinationContact">
+                                    <input type="email" class="lot-input" value="${lot.allotissement.destinationMail || ''}" placeholder="Mail" data-lot-input="destinationMail">
+                                    <input type="tel" class="lot-input" value="${lot.allotissement.destinationTelephone || ''}" placeholder="Téléphone" data-lot-input="destinationTelephone">
+                                </div>
+                            </div>
+                        </details>
+                        <div class="accueil-collapsible-alert-action">
                             <button type="button" class="lot-alert-btn lot-alert-btn--destination" data-alert-destination="${hasDestinationAlert ? 'true' : 'false'}" data-lot-destination-alert-btn>
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             </button>
-                        </summary>
-                        <div class="lot-group-content">
-                            <div class="lot-field-block">
-                                <input type="text" class="lot-input" value="${lot.allotissement.destination ?? ''}" placeholder="Entreprise" data-lot-input="destination">
-                                <input type="text" class="lot-input" value="${lot.allotissement.destinationAdresse || ''}" placeholder="Adresse" data-lot-input="destinationAdresse">
-                                <input type="text" class="lot-input" value="${lot.allotissement.destinationContact || ''}" placeholder="Personne contact" data-lot-input="destinationContact">
-                                <input type="email" class="lot-input" value="${lot.allotissement.destinationMail || ''}" placeholder="Mail" data-lot-input="destinationMail">
-                                <input type="tel" class="lot-input" value="${lot.allotissement.destinationTelephone || ''}" placeholder="Téléphone" data-lot-input="destinationTelephone">
-                            </div>
                         </div>
-                    </details>
+                    </div>
                 </div>
             </div>
         `;
@@ -13925,6 +14032,61 @@ closeEvalOpModal() {
                 input.addEventListener('blur', updatePieceField);
             });
         });
+
+        this.ensurePieceCardLabelAssociations();
+    }
+
+    ensurePieceCardLabelAssociations() {
+        const pieceRail = document.getElementById('pieceRail');
+        if (!pieceRail) return;
+
+        const toSafeToken = (value) => String(value || '')
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '-')
+            .replace(/^-+|-+$/g, '') || 'field';
+
+        pieceRail.querySelectorAll('.piece-card').forEach((card, cardIndex) => {
+            const cardToken = card.dataset.defaultPieceId
+                ? `default-${toSafeToken(card.dataset.defaultPieceId)}`
+                : card.dataset.pieceIndex != null
+                    ? `piece-${toSafeToken(card.dataset.pieceIndex)}`
+                    : `card-${cardIndex + 1}`;
+
+            card.querySelectorAll('label.lot-field-label').forEach((label, labelIndex) => {
+                if (label.hasAttribute('for')) return;
+
+                const sibling = label.nextElementSibling;
+                if (!sibling) return;
+
+                const controls = sibling.matches('input, textarea, select')
+                    ? [sibling]
+                    : Array.from(sibling.querySelectorAll('input, textarea, select'));
+
+                if (controls.length !== 1) {
+                    const replacement = document.createElement('span');
+                    replacement.className = label.className;
+                    replacement.innerHTML = label.innerHTML;
+                    for (const { name, value } of Array.from(label.attributes)) {
+                        if (name !== 'class' && name !== 'for') replacement.setAttribute(name, value);
+                    }
+                    label.replaceWith(replacement);
+                    return;
+                }
+
+                const field = controls[0];
+                if (!field.id) {
+                    const dataName = field.dataset.defaultPieceInput
+                        || field.dataset.pieceInput
+                        || field.dataset.defaultPieceDisplay
+                        || field.dataset.pieceDisplay
+                        || field.getAttribute('name')
+                        || field.getAttribute('placeholder')
+                        || `field-${labelIndex + 1}`;
+                    field.id = `pc-${cardToken}-${toSafeToken(dataName)}-${labelIndex + 1}`;
+                }
+                label.setAttribute('for', field.id);
+            });
+        });
     }
         
 renderInspection() {
@@ -13967,15 +14129,30 @@ getInspectionToneFromLevel(level) {
     return null;
 }
 
+normalizeNumericScore(value) {
+    if (value == null) return null;
+    if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+
+    const normalized = String(value)
+        .trim()
+        .replace(/−/g, '-')
+        .replace(/,/g, '.');
+
+    if (!normalized) return null;
+
+    const parsed = parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
 getNoteToneFromIntensity(intensityMap, intensity) {
     if (!intensityMap || intensity == null) return null;
     const values = Array.from(new Set(Object.values(intensityMap)
-        .map((v) => parseFloat(v))
+        .map((v) => this.normalizeNumericScore(v))
         .filter((v) => Number.isFinite(v))))
         .sort((a, b) => b - a);
 
     if (!values.length) return null;
-    const value = parseFloat(intensity);
+    const value = this.normalizeNumericScore(intensity);
     if (!Number.isFinite(value)) return null;
 
     const max = values[0];
@@ -13997,6 +14174,12 @@ setRowNoteTone(row, tone) {
 
 setRowNoteToneFromIntensity(row, intensityMap, intensity) {
     this.setRowNoteTone(row, this.getNoteToneFromIntensity(intensityMap, intensity));
+}
+
+setRowNoteToneFromCriterion(row, intensityMap, criterion = null) {
+    const toneFromIntensity = this.getNoteToneFromIntensity(intensityMap, criterion && criterion.valeur != null ? criterion.valeur : null);
+    const toneFromLevel = this.getInspectionToneFromLevel(criterion && criterion.niveau ? criterion.niveau : null);
+    this.setRowNoteTone(row, toneFromIntensity || toneFromLevel);
 }
 
 getClientXFromEvent(event) {
@@ -15800,7 +15983,7 @@ updateAncienRow(row, key, lot) {
     const intensityMaps = {
         confianceAncien: { Forte: 3, Moyenne: 2, Faible: 1 },
         amortissementAncien: { Fort: 3, Moyen: 1, Faible: -3 },
-        vieillissementAncien: { Fort: -3, Moyen: 1, Faible: 3 },
+        vieillissementAncien: { Forte: -3, Moyenne: 1, Faible: 3 },
         microhistoireAncien: { Forte: 3, Moyenne: 2, Faible: 1 },
         demontabiliteAncien: { Forte: 3, Moyenne: 2, Faible: -3 }
     };
@@ -15836,7 +16019,7 @@ updateAncienRow(row, key, lot) {
             }
 
             row.classList.remove('ancien-row--disabled');
-            this.setRowNoteToneFromIntensity(row, intensityMaps[key], intensity);
+            this.setRowNoteToneFromCriterion(row, intensityMaps[key], lot.ancien[key]);
             this.saveData();
             const activeLot = this.getCurrentLot(); // On récupère le lot actuel
             if (activeLot) {
@@ -15926,7 +16109,7 @@ updateAncienRow(row, key, lot) {
     } else {
         row.classList.remove('ancien-row--disabled');
     }
-    this.setRowNoteToneFromIntensity(row, intensityMaps[key], current && current.valeur != null ? current.valeur : null);
+    this.setRowNoteToneFromCriterion(row, intensityMaps[key], current);
 }
 
     /* ---- Traces ---- */
