@@ -11,11 +11,6 @@
                 optionFr: 'Français',
                 optionEn: 'English',
             },
-            theme: {
-                toggleTitle: 'Basculer entre mode jour et mode nuit',
-                modeNight: 'Mode nuit',
-                modeDay: 'Mode jour',
-            },
             auth: {
                 header: {
                     myEvaluations: 'Mes évaluations',
@@ -85,11 +80,6 @@
             lang: {
                 optionFr: 'Français',
                 optionEn: 'English',
-            },
-            theme: {
-                toggleTitle: 'Switch between day and night mode',
-                modeNight: 'Night mode',
-                modeDay: 'Day mode',
             },
             auth: {
                 header: {

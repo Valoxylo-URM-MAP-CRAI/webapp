@@ -52,49 +52,7 @@
         el.hidden = true;
     }
 
-    function applyBodyThemeFromStorage() {
-        try {
-            if (localStorage.getItem('valoboisTheme') !== 'night') {
-                document.body.classList.add('day-mode');
-            } else {
-                document.body.classList.remove('day-mode');
-            }
-        } catch (e) {
-            /* ignore */
-        }
-    }
-
-    function syncThemeToggleLabel() {
-        var btn = document.getElementById('btnThemeToggle');
-        if (!btn) return;
-        btn.setAttribute('title', t('theme.toggleTitle'));
-        var label = document.getElementById('btnThemeToggleLabel');
-        var isDay = document.body.classList.contains('day-mode');
-        var text = isDay ? t('theme.modeNight') : t('theme.modeDay');
-        if (label) label.textContent = text;
-        else btn.textContent = text;
-    }
-
-    function initThemeToggle() {
-        applyBodyThemeFromStorage();
-        syncThemeToggleLabel();
-        var btn = document.getElementById('btnThemeToggle');
-        if (!btn) return;
-        btn.addEventListener('click', function () {
-            var isDay = document.body.classList.toggle('day-mode');
-            syncThemeToggleLabel();
-            try {
-                localStorage.setItem('valoboisTheme', isDay ? 'day' : 'night');
-            } catch (e) {
-                /* ignore */
-            }
-        });
-        window.addEventListener('valobois:langchange', syncThemeToggleLabel);
-    }
-
     document.addEventListener('DOMContentLoaded', function () {
-        initThemeToggle();
-
         var auth = typeof getValoboisAuth === 'function' ? getValoboisAuth() : null;
         var errEl = document.getElementById('authError');
         var tabSignIn = document.getElementById('tabSignIn');

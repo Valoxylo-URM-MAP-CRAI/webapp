@@ -8878,31 +8878,6 @@ deleteLot(index) {
         this.setupNotationResetIcons();
                 this.setupInspectionIgnoreIcons();
 
-        // Bouton mode jour / nuit
-        const btnThemeToggle = document.getElementById('btnThemeToggle');
-        const syncThemeToggleLabel = () => {
-            if (!btnThemeToggle) return;
-            btnThemeToggle.setAttribute('title', t('theme.toggleTitle'));
-            const modeLabel = document.getElementById('btnThemeToggleLabel');
-            const isDay = document.body.classList.contains('day-mode');
-            const labelText = isDay ? t('theme.modeNight') : t('theme.modeDay');
-            if (modeLabel) modeLabel.textContent = labelText;
-            else btnThemeToggle.textContent = labelText;
-        };
-        if (btnThemeToggle) {
-            const savedTheme = localStorage.getItem('valoboisTheme');
-            if (savedTheme !== 'night') {
-                document.body.classList.add('day-mode');
-            }
-            syncThemeToggleLabel();
-            btnThemeToggle.addEventListener('click', () => {
-                const isDay = document.body.classList.toggle('day-mode');
-                syncThemeToggleLabel();
-                localStorage.setItem('valoboisTheme', isDay ? 'day' : 'night');
-            });
-            window.addEventListener('valobois:langchange', syncThemeToggleLabel);
-        }
-
         window.addEventListener('valobois:langchange', () => {
             this.renderScatterDims();
         });
