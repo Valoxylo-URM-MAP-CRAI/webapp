@@ -37,6 +37,16 @@
                 deleteFailed: 'Suppression impossible. Vérifiez votre connexion ou les droits Firestore.',
                 loadListFailed:
                     'Impossible de charger la liste. Si le message mentionne un index, créez l’index Firestore indiqué dans la console.',
+                share: 'Partager',
+                shareAria: 'Partager l’évaluation « {title} »',
+                shareModalTitle: 'Membres (e-mails)',
+                shareModalHint:
+                    'Une ligne ou une adresse par ligne, séparées par des virgules ou des espaces. Les personnes invitées pourront modifier l’évaluation, pas la supprimer. Elles doivent se connecter avec le même e-mail.',
+                shareModalEmailsLabel: 'Adresses e-mail',
+                shareModalCancel: 'Annuler',
+                shareModalSave: 'Enregistrer',
+                shareSaveFailed: 'Enregistrement du partage impossible. Vérifiez la connexion ou les règles Firestore.',
+                sharedBadge: 'Partagée',
             },
             authPage: {
                 backLink: '← Retour à l’évaluation',
@@ -122,6 +132,16 @@
                 deleteFailed: 'Could not delete. Check your connection or Firestore rules.',
                 loadListFailed:
                     'Could not load the list. If the message mentions an index, create the Firestore index indicated in the console.',
+                share: 'Share',
+                shareAria: 'Share evaluation “{title}”',
+                shareModalTitle: 'Members (email addresses)',
+                shareModalHint:
+                    'One address per line, or separated by commas or spaces. Invitees can edit the evaluation but not delete it. They must sign in with the same email.',
+                shareModalEmailsLabel: 'Email addresses',
+                shareModalCancel: 'Cancel',
+                shareModalSave: 'Save',
+                shareSaveFailed: 'Could not save sharing. Check your connection or Firestore rules.',
+                sharedBadge: 'Shared',
             },
             authPage: {
                 backLink: '← Back to evaluation',

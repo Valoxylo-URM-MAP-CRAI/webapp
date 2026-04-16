@@ -512,15 +512,105 @@ body.day-mode .auth-tab[aria-selected='true'] {
 .mes-eval-item-actions {
     flex-shrink: 0;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-8);
     padding: var(--space-8) var(--space-12);
     border-left: 1px solid var(--color-border);
 }
 
+.mes-eval-share-btn,
 .mes-eval-delete-btn {
     padding: 6px 10px;
     font-size: var(--font-size-sm);
     white-space: nowrap;
+}
+
+.mes-eval-item-title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-8);
+    min-width: 0;
+}
+
+.mes-eval-shared-badge {
+    font-size: 0.72rem;
+    font-weight: var(--font-weight-medium);
+    padding: 2px 8px;
+    border-radius: var(--radius-base);
+    background-color: rgba(0, 0, 0, 0.06);
+    color: inherit;
+    opacity: 0.9;
+}
+
+.mes-eval-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-16);
+    background-color: rgba(0, 0, 0, 0.45);
+}
+
+/* L’attribut HTML hidden doit gagner sur display:flex ci-dessus (sinon Annuler / fermeture ne masquent pas l’overlay). */
+.mes-eval-modal[hidden] {
+    display: none !important;
+}
+
+.mes-eval-modal-panel {
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow: auto;
+    padding: var(--space-16);
+    margin: 0;
+}
+
+.mes-eval-modal-title {
+    margin: 0 0 var(--space-8);
+    font-size: var(--font-size-lg);
+}
+
+.mes-eval-modal-hint {
+    font-size: var(--font-size-sm);
+    margin: 0 0 var(--space-12);
+    opacity: 0.9;
+}
+
+.mes-eval-modal-label {
+    display: block;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--space-8);
+}
+
+.mes-eval-modal-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: var(--space-8);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    resize: vertical;
+    min-height: 120px;
+    margin-bottom: var(--space-8);
+}
+
+.mes-eval-modal-error {
+    margin: 0 0 var(--space-8);
+}
+
+.mes-eval-modal-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    justify-content: flex-end;
+    margin-top: var(--space-8);
 }
 
 .mes-eval-item-link {
