@@ -280,6 +280,7 @@ const DEFAULT_PSET_CONFIG = {
 
 class ValoboisApp {
     constructor() {
+        if (typeof window !== 'undefined') window.__valoboisApp = this;
         this.storageKey = 'valobois_v1';
         this.storageBackupKey = 'valobois_v1_backup';
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */

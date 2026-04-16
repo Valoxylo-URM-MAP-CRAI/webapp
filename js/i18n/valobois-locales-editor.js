@@ -156,6 +156,14 @@
             apropos: {
                 title: 'À propos',
             },
+            tabs: {
+                tablistAria: 'Sections de l’évaluation',
+                general: 'Général',
+                lots: 'Lots',
+                notation: 'Notation',
+                analyse: 'Analyse',
+                synthese: 'Synthèse',
+            },
             lot: {
                 numbered: 'Lot {n}',
                 newLot: 'Nouveau lot',
@@ -475,6 +483,14 @@
                 evalOp: 'Operation summary',
             },
             apropos: { title: 'About' },
+            tabs: {
+                tablistAria: 'Evaluation sections',
+                general: 'General',
+                lots: 'Lots',
+                notation: 'Scoring',
+                analyse: 'Analysis',
+                synthese: 'Summary',
+            },
             lot: { numbered: 'Lot {n}', newLot: 'New lot', generic: 'Lot' },
             piece: { numbered: 'Piece {n}' },
             inspection: {
