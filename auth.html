@@ -42,6 +42,33 @@
             </p>
 
             <p id="authError" class="auth-error" role="alert" hidden></p>
+            <p id="authSuccess" class="auth-success" role="status" hidden></p>
+
+            <div id="authResetPasswordPanel" class="hidden">
+                <p id="authResetPasswordIntro" class="auth-reset-intro" data-i18n="authPage.resetPasswordIntro">
+                    Choisissez un nouveau mot de passe pour votre compte.
+                </p>
+                <p id="authResetInvalidFallback" class="auth-reset-invalid-fallback hidden" role="status">
+                    <a class="btn btn-primary btn-full" href="auth.html" data-i18n="authPage.goToLogin">Aller à la connexion</a>
+                </p>
+                <form id="formResetPassword" class="auth-form">
+                    <label class="auth-label" for="resetNewPassword" data-i18n="authPage.resetPasswordNewLabel">Nouveau mot de passe</label>
+                    <input class="auth-input" type="password" id="resetNewPassword" name="new-password" required
+                        minlength="6" autocomplete="new-password">
+
+                    <label class="auth-label" for="resetNewPasswordConfirm" data-i18n="authPage.resetPasswordConfirmLabel">Confirmer le mot de passe</label>
+                    <input class="auth-input" type="password" id="resetNewPasswordConfirm" name="new-password-confirm" required
+                        minlength="6" autocomplete="new-password">
+
+                    <button type="submit" class="btn btn-primary btn-full auth-submit" data-i18n="authPage.resetPasswordSubmit">Enregistrer le mot de passe</button>
+                </form>
+                <div id="authResetPasswordSuccess" class="hidden" role="status">
+                    <p class="auth-success" data-i18n="authPage.resetPasswordDone">
+                        Votre mot de passe a été mis à jour. Vous pouvez vous connecter.
+                    </p>
+                    <a class="btn btn-primary btn-full auth-submit" href="auth.html" data-i18n="authPage.goToLogin">Aller à la connexion</a>
+                </div>
+            </div>
 
             <div id="authLoggedInPanel" class="auth-logged-in hidden" role="status">
                 <p class="auth-logged-in-text"><span data-i18n="authPage.loggedInIntro">Connecté en tant que </span><strong id="authLoggedInEmail"></strong>.</p>
@@ -68,6 +95,9 @@
                         <label class="auth-label" for="signInPassword" data-i18n="authPage.labelPassword">Mot de passe</label>
                         <input class="auth-input" type="password" id="signInPassword" name="password" required
                             autocomplete="current-password">
+
+                        <button type="button" class="auth-forgot-link" id="btnForgotPassword"
+                            data-i18n="authPage.forgotPassword">Mot de passe oublié</button>
 
                         <button type="submit" class="btn btn-primary btn-full auth-submit" data-i18n="authPage.submitSignIn">Se connecter</button>
                     </form>

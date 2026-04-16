@@ -53,6 +53,19 @@
                 labelPassword: 'Mot de passe',
                 submitSignIn: 'Se connecter',
                 submitSignUp: 'Créer le compte',
+                forgotPassword: 'Mot de passe oublié',
+                forgotPasswordEmailRequired: 'Saisissez votre adresse e-mail.',
+                forgotPasswordEmailSent:
+                    'Si un compte existe pour cette adresse, un e-mail avec un lien de réinitialisation a été envoyé.',
+                resetPasswordIntro: 'Choisissez un nouveau mot de passe pour votre compte.',
+                resetPasswordNewLabel: 'Nouveau mot de passe',
+                resetPasswordConfirmLabel: 'Confirmer le mot de passe',
+                resetPasswordSubmit: 'Enregistrer le mot de passe',
+                resetPasswordDone:
+                    'Votre mot de passe a été mis à jour. Vous pouvez vous connecter.',
+                goToLogin: 'Aller à la connexion',
+                resetLinkInvalid: 'Ce lien de réinitialisation est invalide ou incomplet.',
+                resetPasswordMismatch: 'Les mots de passe ne correspondent pas.',
                 firebaseNotConfigured:
                     'Firebase n’est pas configuré. Renseignez js/config/firebase-config.js (voir commentaires en tête du fichier).',
                 unknownError: 'Erreur inconnue.',
@@ -70,6 +83,8 @@
                 networkFailed: 'Problème de réseau. Vérifiez votre connexion.',
                 operationNotAllowed:
                     'La connexion par e-mail n’est pas activée sur ce projet Firebase.',
+                expiredActionCode: 'Ce lien a expiré. Demandez un nouvel e-mail de réinitialisation.',
+                invalidActionCode: 'Ce lien n’est plus valide. Demandez un nouvel e-mail de réinitialisation.',
             },
         },
         en: {
@@ -123,6 +138,18 @@
                 labelPassword: 'Password',
                 submitSignIn: 'Sign in',
                 submitSignUp: 'Create account',
+                forgotPassword: 'Forgot password?',
+                forgotPasswordEmailRequired: 'Enter your email address.',
+                forgotPasswordEmailSent:
+                    'If an account exists for this address, an email with a reset link has been sent.',
+                resetPasswordIntro: 'Choose a new password for your account.',
+                resetPasswordNewLabel: 'New password',
+                resetPasswordConfirmLabel: 'Confirm password',
+                resetPasswordSubmit: 'Save new password',
+                resetPasswordDone: 'Your password has been updated. You can sign in.',
+                goToLogin: 'Go to sign in',
+                resetLinkInvalid: 'This reset link is invalid or incomplete.',
+                resetPasswordMismatch: 'Passwords do not match.',
                 firebaseNotConfigured:
                     'Firebase is not configured. Fill in js/config/firebase-config.js (see comments at the top of the file).',
                 unknownError: 'Unknown error.',
@@ -139,6 +166,8 @@
                 tooManyRequests: 'Too many attempts. Try again later.',
                 networkFailed: 'Network problem. Check your connection.',
                 operationNotAllowed: 'Email sign-in is not enabled for this Firebase project.',
+                expiredActionCode: 'This link has expired. Request a new password reset email.',
+                invalidActionCode: 'This link is no longer valid. Request a new password reset email.',
             },
         },
     };

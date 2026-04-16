@@ -14,7 +14,25 @@
         'auth/too-many-requests': 'authErrors.tooManyRequests',
         'auth/network-request-failed': 'authErrors.networkFailed',
         'auth/operation-not-allowed': 'authErrors.operationNotAllowed',
+        'auth/expired-action-code': 'authErrors.expiredActionCode',
+        'auth/invalid-action-code': 'authErrors.invalidActionCode',
     };
+
+    function getPasswordResetUrlState() {
+        try {
+            var u = new URL(window.location.href);
+            if (u.searchParams.get('mode') !== 'resetPassword') {
+                return { isPasswordResetUrl: false, oobCode: null };
+            }
+            var code = u.searchParams.get('oobCode');
+            return {
+                isPasswordResetUrl: true,
+                oobCode: code && String(code).length ? String(code) : null,
+            };
+        } catch (e) {
+            return { isPasswordResetUrl: false, oobCode: null };
+        }
+    }
 
     function redirectAfterAuth() {
         var target = REDIRECT;
@@ -52,9 +70,33 @@
         el.hidden = true;
     }
 
+    function showSuccess(el, i18nKey) {
+        if (!el) return;
+        el.dataset.valoboisAuthSuccess = i18nKey;
+        el.textContent = t(i18nKey);
+        el.hidden = false;
+    }
+
+    function clearSuccess(el) {
+        if (!el) return;
+        delete el.dataset.valoboisAuthSuccess;
+        el.textContent = '';
+        el.hidden = true;
+    }
+
     document.addEventListener('DOMContentLoaded', function () {
+        var urlResetState = getPasswordResetUrlState();
+        var isPasswordResetUrl = urlResetState.isPasswordResetUrl;
+        var passwordResetOobCode = urlResetState.oobCode;
+
         var auth = typeof getValoboisAuth === 'function' ? getValoboisAuth() : null;
         var errEl = document.getElementById('authError');
+        var successEl = document.getElementById('authSuccess');
+        var resetPanel = document.getElementById('authResetPasswordPanel');
+        var formResetPassword = document.getElementById('formResetPassword');
+        var resetSuccessBlock = document.getElementById('authResetPasswordSuccess');
+        var resetIntro = document.getElementById('authResetPasswordIntro');
+        var resetInvalidFallback = document.getElementById('authResetInvalidFallback');
         var tabSignIn = document.getElementById('tabSignIn');
         var tabSignUp = document.getElementById('tabSignUp');
         var panelSignIn = document.getElementById('panelSignIn');
@@ -64,8 +106,16 @@
         var configHint = document.getElementById('authConfigHint');
 
         window.addEventListener('valobois:langchange', function () {
-            if (!errEl || errEl.hidden || !errEl.dataset.valoboisAuthErr) return;
-            showError(errEl, { code: errEl.dataset.valoboisAuthErr });
+            if (errEl && !errEl.hidden && errEl.dataset.valoboisAuthErr) {
+                showError(errEl, { code: errEl.dataset.valoboisAuthErr });
+            }
+            if (
+                successEl &&
+                !successEl.hidden &&
+                successEl.dataset.valoboisAuthSuccess
+            ) {
+                successEl.textContent = t(successEl.dataset.valoboisAuthSuccess);
+            }
         });
 
         if (!auth) {
@@ -94,6 +144,11 @@
         var loggedEmailEl = document.getElementById('authLoggedInEmail');
 
         function updateLoggedInUI(user) {
+            if (isPasswordResetUrl) {
+                if (loggedPanel) loggedPanel.classList.add('hidden');
+                if (formsBlock) formsBlock.classList.add('hidden');
+                return;
+            }
             if (user && user.email) {
                 if (loggedEmailEl) loggedEmailEl.textContent = user.email;
                 if (loggedPanel) loggedPanel.classList.remove('hidden');
@@ -106,8 +161,49 @@
 
         auth.onAuthStateChanged(updateLoggedInUI);
 
+        if (isPasswordResetUrl && resetPanel) {
+            resetPanel.classList.remove('hidden');
+            if (formsBlock) formsBlock.classList.add('hidden');
+            if (loggedPanel) loggedPanel.classList.add('hidden');
+            if (!passwordResetOobCode) {
+                if (resetIntro) resetIntro.classList.add('hidden');
+                if (formResetPassword) formResetPassword.classList.add('hidden');
+                if (resetInvalidFallback) resetInvalidFallback.classList.remove('hidden');
+                showError(errEl, { message: t('authPage.resetLinkInvalid') });
+            }
+        }
+
+        if (formResetPassword && passwordResetOobCode && auth) {
+            formResetPassword.addEventListener('submit', function (e) {
+                e.preventDefault();
+                clearError(errEl);
+                var p1 = document.getElementById('resetNewPassword');
+                var p2 = document.getElementById('resetNewPasswordConfirm');
+                var pw1 = p1 && p1.value ? p1.value : '';
+                var pw2 = p2 && p2.value ? p2.value : '';
+                if (pw1 !== pw2) {
+                    showError(errEl, {
+                        message: t('authPage.resetPasswordMismatch'),
+                    });
+                    return;
+                }
+                auth
+                    .confirmPasswordReset(passwordResetOobCode, pw1)
+                    .then(function () {
+                        clearError(errEl);
+                        if (formResetPassword) formResetPassword.classList.add('hidden');
+                        if (resetIntro) resetIntro.classList.add('hidden');
+                        if (resetSuccessBlock) resetSuccessBlock.classList.remove('hidden');
+                    })
+                    .catch(function (err) {
+                        showError(errEl, err);
+                    });
+            });
+        }
+
         function setTab(signIn) {
             clearError(errEl);
+            clearSuccess(successEl);
             if (tabSignIn) tabSignIn.setAttribute('aria-selected', signIn ? 'true' : 'false');
             if (tabSignUp) tabSignUp.setAttribute('aria-selected', signIn ? 'false' : 'true');
             if (panelSignIn) panelSignIn.classList.toggle('hidden', !signIn);
@@ -129,6 +225,7 @@
             formSignIn.addEventListener('submit', function (e) {
                 e.preventDefault();
                 clearError(errEl);
+                clearSuccess(successEl);
                 var email = document.getElementById('signInEmail');
                 var password = document.getElementById('signInPassword');
                 var em = email && email.value ? email.value.trim() : '';
@@ -148,6 +245,7 @@
             formSignUp.addEventListener('submit', function (e) {
                 e.preventDefault();
                 clearError(errEl);
+                clearSuccess(successEl);
                 var email = document.getElementById('signUpEmail');
                 var password = document.getElementById('signUpPassword');
                 var em = email && email.value ? email.value.trim() : '';
@@ -164,9 +262,39 @@
         }
 
         var btnSignOut = document.getElementById('btnSignOut');
+        var btnForgotPassword = document.getElementById('btnForgotPassword');
+        if (btnForgotPassword) {
+            btnForgotPassword.addEventListener('click', function () {
+                clearError(errEl);
+                clearSuccess(successEl);
+                var email = document.getElementById('signInEmail');
+                var em = email && email.value ? email.value.trim() : '';
+                if (!em) {
+                    showError(errEl, {
+                        message: t('authPage.forgotPasswordEmailRequired'),
+                    });
+                    return;
+                }
+                var actionSettings = {
+                    url: new URL('auth.html', window.location.href).href,
+                    handleCodeInApp: false,
+                };
+                auth
+                    .sendPasswordResetEmail(em, actionSettings)
+                    .then(function () {
+                        clearError(errEl);
+                        showSuccess(successEl, 'authPage.forgotPasswordEmailSent');
+                    })
+                    .catch(function (err) {
+                        showError(errEl, err);
+                    });
+            });
+        }
+
         if (btnSignOut) {
             btnSignOut.addEventListener('click', function () {
                 clearError(errEl);
+                clearSuccess(successEl);
                 auth
                     .signOut()
                     .then(function () {
@@ -182,6 +310,8 @@
             });
         }
 
-        setTab(true);
+        if (!isPasswordResetUrl) {
+            setTab(true);
+        }
     });
 })();
