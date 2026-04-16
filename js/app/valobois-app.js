@@ -2099,6 +2099,54 @@ class ValoboisApp {
         }
     }
 
+    getVieillissementAlertState(lot) {
+        const details = this.collectVieillissementAlertContributors(lot);
+        if (!details.hasMinimumData || !details.businessLevel) return 'none';
+
+        // Mapping visuel inverse: Vieillissement fort (défavorable) => low (rouge).
+        if (details.businessLevel === 'Forte') return 'low';
+        if (details.businessLevel === 'Moyenne') return 'medium';
+        return 'strong';
+    }
+
+    getIntegriteBioAlertState(lot) {
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const niveau = normalize(lot?.bio?.integriteBio?.niveau ?? '');
+        return niveau === 'faible' ? 'active' : 'none';
+    }
+
+    openAncienVieillissementAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('ancienDetailModalBackdrop');
+        const titleEl = document.getElementById('ancienDetailModalTitle');
+        const contentEl = document.getElementById('ancienDetailModalContent');
+
+        const details = this.collectVieillissementAlertContributors(lot);
+        const message = this.buildVieillissementAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Vieillissement';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openBioIntegriteAlertModal(alertState) {
+        const backdrop  = document.getElementById('bioDetailModalBackdrop');
+        const titleEl   = document.getElementById('bioDetailModalTitle');
+        const contentEl = document.getElementById('bioDetailModalContent');
+
+        if (titleEl) titleEl.textContent = 'Alerte Intégrité biologique';
+        this.renderDetailModalContent(contentEl, this.buildIntegriteBioAlertModalMessage());
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
     /**
      * Mappe la valeur d'Epaisseur aux etats d'alerte de Massivite.
      * @param {string|number} epaisseurValue - Valeur en mm
@@ -2237,6 +2285,137 @@ class ValoboisApp {
 
     getLotHumiditeDetailSummary(lot) {
         return this.getLotNumericDetailSummary(lot, 'humidite', 12);
+    }
+
+    collectHumiditeUsageAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) {
+            return {
+                entries: [],
+                averageHumidity: null,
+                hasData: false,
+                lotLabel: null,
+            };
+        }
+
+        const parsePercent = (raw) => {
+            const normalized = this.normalizeAllotissementNumericInput(raw);
+            if (!normalized) return null;
+            const num = parseFloat(normalized);
+            return Number.isFinite(num) ? num : null;
+        };
+
+        const entries = [];
+
+        const detailedPieces = Array.isArray(targetLot.pieces) ? targetLot.pieces : [];
+        detailedPieces.forEach((piece, index) => {
+            const raw = piece && piece.humidite;
+            const parsed = parsePercent(raw);
+            if (!Number.isFinite(parsed)) return;
+
+            const pieceName = String(piece && piece.nom ? piece.nom : '').trim();
+            const sourceLabel = pieceName || `Pièce ${index + 1}`;
+            entries.push({ sourceLabel, value: parsed });
+        });
+
+        const defaultPieces = this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false });
+        defaultPieces.forEach((defaultPiece, index) => {
+            const raw = defaultPiece && defaultPiece.humidite;
+            const parsed = parsePercent(raw);
+            if (!Number.isFinite(parsed)) return;
+
+            const pieceName = String(defaultPiece && defaultPiece.nom ? defaultPiece.nom : '').trim();
+            const sourceLabel = pieceName || `Pièce par défaut ${index + 1}`;
+            entries.push({ sourceLabel, value: parsed });
+        });
+
+        const values = entries.map((entry) => entry.value).filter((value) => Number.isFinite(value));
+        const averageHumidity = values.length
+            ? values.reduce((sum, value) => sum + value, 0) / values.length
+            : null;
+
+        const lotIndex = (this.data.lots || []).indexOf(targetLot);
+        const lotLabel = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant';
+
+        return {
+            entries,
+            averageHumidity,
+            hasData: Number.isFinite(averageHumidity),
+            lotLabel,
+        };
+    }
+
+    getHumiditeUsageAlertState(lot) {
+        const details = this.collectHumiditeUsageAlertContributors(lot);
+        if (!details.hasData) return 'none';
+        if (details.averageHumidity >= 22) return 'strong';
+        if (details.averageHumidity <= 8) return 'low';
+        return 'medium';
+    }
+
+    collectMasseVolEssenceAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot || !targetLot.allotissement) {
+            return {
+                density: null,
+                source: null,
+                hasData: false,
+                measuredStatus: 'none',
+            };
+        }
+
+        const measured = this.getMeasuredLotDensityDisplay(targetLot);
+        const parseValue = (raw) => {
+            const normalized = this.normalizeAllotissementNumericInput(raw);
+            if (!normalized) return null;
+            const num = parseFloat(normalized);
+            return Number.isFinite(num) ? num : null;
+        };
+
+        const measuredDensity = measured && measured.status === 'full' ? parseValue(measured.value) : null;
+        const calculatedDensity = parseValue(targetLot.allotissement.masseVolumique);
+
+        if (Number.isFinite(measuredDensity)) {
+            return {
+                density: measuredDensity,
+                source: 'Masse volumique moyenne mesurée du lot',
+                hasData: true,
+                measuredStatus: measured.status || 'none',
+                measuredValue: measured.value || null,
+                measuredUnit: measured.unit || 'kg/m3',
+                calculatedValue: calculatedDensity,
+            };
+        }
+
+        if (Number.isFinite(calculatedDensity)) {
+            return {
+                density: calculatedDensity,
+                source: 'Masse volumique théorique moyenne du lot',
+                hasData: true,
+                measuredStatus: measured && measured.status ? measured.status : 'none',
+                measuredValue: measured && measured.value ? measured.value : null,
+                measuredUnit: measured && measured.unit ? measured.unit : 'kg/m3',
+                calculatedValue: calculatedDensity,
+            };
+        }
+
+        return {
+            density: null,
+            source: null,
+            hasData: false,
+            measuredStatus: measured && measured.status ? measured.status : 'none',
+            measuredValue: measured && measured.value ? measured.value : null,
+            measuredUnit: measured && measured.unit ? measured.unit : 'kg/m3',
+            calculatedValue: null,
+        };
+    }
+
+    getMasseVolEssenceAlertState(lot) {
+        const details = this.collectMasseVolEssenceAlertContributors(lot);
+        if (!details.hasData) return 'none';
+        if (details.density > 750) return 'strong';
+        if (details.density >= 450) return 'medium';
+        return 'low';
     }
 
     getLotNumericDetailSummary(lot, fieldName, fallbackValue) {
@@ -2431,6 +2610,14 @@ class ValoboisApp {
         return 'low';
     }
 
+    getMacroHistoireAlertState(lot) {
+        const details = this.collectMacroHistoireAlertContributors(lot);
+        if (!details.hasMinimumData) return 'none';
+        if (details.score >= 6 && details.availableCount >= 3) return 'strong';
+        if (details.score >= 2) return 'medium';
+        return 'low';
+    }
+
     openMechFeuAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('mechDetailModalBackdrop');
         const titleEl = document.getElementById('mechDetailModalTitle');
@@ -2440,6 +2627,57 @@ class ValoboisApp {
         const message = this.buildFeuMechAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Feu';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openProvMacroHistoireAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('provenanceDetailModalBackdrop');
+        const titleEl = document.getElementById('provenanceDetailModalTitle');
+        const contentEl = document.getElementById('provenanceDetailModalContent');
+
+        const details = this.collectMacroHistoireAlertContributors(lot);
+        const message = this.buildMacroHistoireAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Macro-histoire';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openUsageHumiditeAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('usageHumiditeAlertModalBackdrop');
+        const titleEl = document.getElementById('usageHumiditeAlertModalTitle');
+        const contentEl = document.getElementById('usageHumiditeAlertModalContent');
+
+        const details = this.collectHumiditeUsageAlertContributors(lot);
+        const message = this.buildHumiditeUsageAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Humidité';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openEssenceMasseVolAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('essenceDetailModalBackdrop');
+        const titleEl = document.getElementById('essenceDetailModalTitle');
+        const contentEl = document.getElementById('essenceDetailModalContent');
+
+        const details = this.collectMasseVolEssenceAlertContributors(lot);
+        const message = this.buildMasseVolEssenceAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Masse volumique';
         this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
@@ -3164,6 +3402,55 @@ class ValoboisApp {
         };
     }
 
+    collectMacroHistoireAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+
+        const values = {
+            amortissement: String(targetLot?.ancien?.amortissementAncien?.niveau || '').trim() || null,
+            reputation: String(targetLot?.provenance?.reputationProv?.niveau || '').trim() || null,
+            microhistoire: String(targetLot?.ancien?.microhistoireAncien?.niveau || '').trim() || null,
+            rareteComm: String(targetLot?.essence?.rareteHistEssence?.niveau || '').trim() || null,
+        };
+
+        const normalize = (value) => String(value || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const normalizedValues = {
+            amortissement: normalize(values.amortissement),
+            reputation: normalize(values.reputation),
+            microhistoire: normalize(values.microhistoire),
+            rareteComm: normalize(values.rareteComm),
+        };
+
+        const scoreMap = {
+            fort: 2,
+            forte: 2,
+            moyen: 1,
+            moyenne: 1,
+            faible: 0,
+        };
+
+        let availableCount = 0;
+        let score = 0;
+        Object.values(normalizedValues).forEach((level) => {
+            if (!level || scoreMap[level] == null) return;
+            availableCount += 1;
+            score += scoreMap[level];
+        });
+
+        return {
+            values,
+            normalizedValues,
+            score,
+            availableCount,
+            hasMinimumData: availableCount >= 2,
+        };
+    }
+
     buildFeuMechAlertModalMessage(alertState, details) {
         if (!details || !details.hasMinimumData || alertState === 'none') {
             return [
@@ -3202,6 +3489,172 @@ class ValoboisApp {
         } else {
             lines.push('Une tenue au feu « faible » est recommandée : combinaison défavorable ou signal critique détecté [+1].');
         }
+
+        lines.push('');
+        lines.push('Références et ressources.');
+        lines.push('Logique du calcul du score Feu : somme pondérée des critères renseignés.');
+        lines.push('Pondérations Volumétrie : Forte +2, Moyenne +1, Faible -2.');
+        lines.push('Pondérations Humidité : Forte +0, Moyenne +2, Faible -2.');
+        lines.push('Pondérations Massivité : Forte +2, Moyenne +1, Faible -2.');
+        lines.push('Pondérations Masse volumique : Forte +2, Moyenne +1, Faible -1.');
+        lines.push('Pondérations Expansion biologique : Forte -3, Moyenne +0, Faible +2.');
+        lines.push('Score agrégé = somme des pondérations disponibles.');
+        lines.push('Signaux critiques : Expansion biologique forte ; Volumétrie faible + Massivité faible ; Humidité faible + facteur aggravant.');
+        lines.push('Règle d’état du bouton : fort si au moins 4 critères disponibles et score >= 6 sans signal critique, moyen si score >= 2, faible sinon.');
+
+        return lines.join('\n');
+    }
+
+    buildMacroHistoireAlertModalMessage(alertState, details) {
+        if (!details || !details.hasMinimumData || alertState === 'none') {
+            return [
+                'Alerte Macro-histoire non déterminable.',
+                '',
+                'Au moins 2 critères sont requis : Amortissement, Réputation, Micro-histoire, Rareté commerciale.',
+                '',
+                'La macro-histoire forte est suggérée par la combinaison des critères renseignés, pas imposée.'
+            ].join('\n');
+        }
+
+        const labelOrMissing = (value) => value || 'Non renseigné';
+        const scoreLabelMap = {
+            fort: '+2',
+            forte: '+2',
+            moyen: '+1',
+            moyenne: '+1',
+            faible: '+0',
+        };
+        const scoreLabel = (normalizedValue) => scoreLabelMap[normalizedValue] || '—';
+        const lines = [
+            'Macro-histoire.',
+            '',
+            'Proposition basée sur une combinaison pondérée des contributeurs du critère Macro-histoire.',
+            '',
+            'Données utilisées.',
+            `Amortissement : ${labelOrMissing(details.values.amortissement)} (${scoreLabel(details.normalizedValues.amortissement)})`,
+            `Réputation : ${labelOrMissing(details.values.reputation)} (${scoreLabel(details.normalizedValues.reputation)})`,
+            `Micro-histoire : ${labelOrMissing(details.values.microhistoire)} (${scoreLabel(details.normalizedValues.microhistoire)})`,
+            `Rareté commerciale : ${labelOrMissing(details.values.rareteComm)} (${scoreLabel(details.normalizedValues.rareteComm)})`,
+            `Score agrégé : ${details.score}`,
+            ''
+        ];
+
+        if (alertState === 'strong') {
+            lines.push('Une macro-histoire « forte » est suggérée : combinaison globalement favorable des contributeurs [+3].');
+        } else if (alertState === 'medium') {
+            lines.push('Une macro-histoire « moyenne » est suggérée : configuration intermédiaire des contributeurs [+2].');
+        } else {
+            lines.push('Une macro-histoire « faible » est suggérée : combinaison encore insuffisante ou peu favorable des contributeurs [+1].');
+        }
+
+        lines.push('');
+        lines.push('Références et ressources.');
+        lines.push('Logique du calcul du score Macro-histoire : somme pondérée des critères renseignés.');
+        lines.push('Pondérations Amortissement : Fort +2, Moyen +1, Faible +0.');
+        lines.push('Pondérations Réputation : Forte +2, Moyenne +1, Faible +0.');
+        lines.push('Pondérations Micro-histoire : Forte +2, Moyenne +1, Faible +0.');
+        lines.push('Pondérations Rareté commerciale : Forte +2, Moyenne +1, Faible +0.');
+        lines.push('Score agrégé = somme des pondérations disponibles.');
+        lines.push('Règle d’état du bouton : none si moins de 2 contributeurs disponibles, fort si score >= 6 et au moins 3 contributeurs disponibles, moyen si score >= 2, faible sinon.');
+        lines.push('La macro-histoire forte est suggérée par la combinaison des critères renseignés, pas imposée.');
+
+        return lines.join('\n');
+    }
+
+    buildHumiditeUsageAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer l\'humidité.',
+                '',
+                'Renseigner au moins une humidité dans un formulaire de pièce ou de pièce par défaut.'
+            ].join('\n');
+        }
+
+        const levelLabel = alertState === 'strong' ? 'Forte' : alertState === 'medium' ? 'Moyenne' : 'Faible';
+        const formatPercent = (value) => Number(value).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 1,
+            maximumFractionDigits: 1,
+        }) + ' %';
+
+        const entries = Array.isArray(details.entries) ? details.entries : [];
+        let conclusionLine = '';
+
+        if (alertState === 'strong') {
+            conclusionLine = `Une alerte humidité « ${levelLabel.toLowerCase()} » est détectée : moyenne d'humidité élevée.`;
+        } else if (alertState === 'medium') {
+            conclusionLine = `Une alerte humidité « ${levelLabel.toLowerCase()} » est détectée : moyenne d'humidité intermédiaire.`;
+        } else {
+            conclusionLine = `Une alerte humidité « ${levelLabel.toLowerCase()} » est détectée : moyenne d'humidité basse.`;
+        }
+
+        const lines = [
+            conclusionLine,
+            '',
+            'Proposition basée sur la moyenne des humidités renseignées (formulaires pièces et pièces par défaut).',
+            '',
+            'Données utilisées.',
+            `Lot analysé : ${details.lotLabel || 'Lot courant'}`,
+            `Nombre de formulaires avec humidité renseignée : ${entries.length}`,
+            `Humidité moyenne : ${formatPercent(details.averageHumidity)}`
+        ];
+
+        lines.push('');
+        lines.push('Liste des humidités renseignées pour ce lot.');
+        entries.forEach((entry) => {
+            lines.push(`- ${entry.sourceLabel} : ${formatPercent(entry.value)}`);
+        });
+
+        lines.push('');
+        lines.push('Logique de l\'alerte Humidité.');
+        lines.push('- Forte : moyenne des humidités ≥ 22 %');
+        lines.push('- Moyenne : moyenne des humidités strictement comprise entre 8 % et 22 %');
+        lines.push('- Faible : moyenne des humidités ≤ 8 %');
+
+        return lines.join('\n');
+    }
+
+    buildMasseVolEssenceAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la masse volumique.',
+                '',
+                'Vérifier qu\'une masse volumique calculée ou mesurée du lot est disponible.'
+            ].join('\n');
+        }
+
+        const levelLabel = alertState === 'strong' ? 'Forte' : alertState === 'medium' ? 'Moyenne' : 'Faible';
+        const formatDensity = (value) => Number(value).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: Number.isInteger(Number(value)) ? 0 : 1,
+            maximumFractionDigits: 1,
+        }) + ' kg/m3';
+
+        const lines = [
+            `Une alerte masse volumique « ${levelLabel.toLowerCase()} » est détectée.`,
+            '',
+            'Proposition basée sur la masse volumique calculée ou mesurée du lot.',
+            '',
+            'Données utilisées.',
+            `Source retenue : ${details.source || 'Non définie'}`,
+            `Valeur retenue : ${formatDensity(details.density)}`
+        ];
+
+        if (details.measuredStatus === 'partial') {
+            lines.push('Note : la masse volumique mesurée est incomplète, utilisation de la valeur théorique/calculée du lot.');
+        }
+
+        if (Number.isFinite(details.calculatedValue)) {
+            lines.push(`Masse volumique théorique moyenne lot : ${formatDensity(details.calculatedValue)}`);
+        }
+
+        if (details.measuredStatus === 'full' && details.measuredValue) {
+            lines.push(`Masse volumique moyenne mesurée lot : ${details.measuredValue} ${details.measuredUnit || 'kg/m3'}`);
+        }
+
+        lines.push('');
+        lines.push('Logique de l\'alerte Masse volumique.');
+        lines.push('- Forte : masse volumique > 750 kg/m3');
+        lines.push('- Moyenne : masse volumique comprise entre 450 et 750 kg/m3');
+        lines.push('- Faible : masse volumique < 450 kg/m3');
 
         return lines.join('\n');
     }
@@ -3336,6 +3789,143 @@ class ValoboisApp {
         };
     }
 
+    collectVieillissementAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const empty = {
+            evalYear: null,
+            serviceYear: null,
+            durationYears: null,
+            values: {
+                deformationGeo: null,
+                expositionBio: null,
+                expositionMech: null,
+                integriteBio: null,
+                humiditeUsage: null
+            },
+            availableCount: 0,
+            hasMinimumData: false,
+            missingData: [],
+            score: null,
+            businessLevel: null
+        };
+
+        if (!targetLot || !targetLot.allotissement) {
+            empty.missingData = ['durée d\'usage', 'déformation', 'exposition biologique', 'exposition mécanique', 'intégrité biologique', 'humidité'];
+            return empty;
+        }
+
+        const extractYear = (str) => {
+            if (!str) return null;
+            const m = String(str).match(/\b(\d{4})\b/);
+            return m ? parseInt(m[1], 10) : null;
+        };
+
+        const evalYear = extractYear(this.data.meta && this.data.meta.date);
+        const serviceYearRaw = targetLot.allotissement._avgServiceYear != null
+            ? String(targetLot.allotissement._avgServiceYear)
+            : '';
+        const serviceYear = extractYear(serviceYearRaw);
+
+        const durationYears = (Number.isFinite(evalYear) && Number.isFinite(serviceYear) && evalYear > serviceYear)
+            ? (evalYear - serviceYear)
+            : null;
+
+        const values = {
+            deformationGeo: String(targetLot?.geo?.deformationGeo?.niveau || '').trim() || null,
+            expositionBio: String(targetLot?.bio?.exposition?.niveau || '').trim() || null,
+            expositionMech: String(targetLot?.mech?.expositionMech?.niveau || '').trim() || null,
+            integriteBio: String(targetLot?.bio?.integriteBio?.niveau || '').trim() || null,
+            humiditeUsage: String(targetLot?.usage?.humiditeUsage?.niveau || '').trim() || null
+        };
+
+        // lValues : niveaux en minuscules pour le scoring — values reste intact pour l'affichage.
+        const lValues = {};
+        Object.keys(values).forEach((key) => {
+            lValues[key] = values[key] ? String(values[key]).toLowerCase() : null;
+        });
+
+        const availableCount = Object.values(values).filter(Boolean).length;
+        const hasMinimumData = Number.isFinite(durationYears) && availableCount >= 2;
+
+        // Nouvelle logique ascendante (plus c'est bon, plus le score est haut)
+        const scoreMaps = {
+            deformationGeo: { 'forte': 0, 'moyenne': 1, 'faible': 2 },
+            expositionBio: { 'forte': 0, 'moyenne': 1, 'faible': 2 },
+            expositionMech: { 'forte': 0, 'moyenne': 1, 'faible': 2 },
+            integriteBio: { 'forte': 2, 'moyenne': 1, 'faible': 0 },
+            humiditeUsage: { 'forte': 0, 'moyenne': 2, 'faible': 1 }
+        };
+
+        let score = null;
+        let businessLevel = null;
+
+        if (hasMinimumData) {
+            // Règle prioritaire : intégrité bio faible = score 0
+            if (lValues.integriteBio === 'faible') {
+                score = 0;
+                businessLevel = 'Forte';
+            } else {
+                score = 0;
+                // Durée d'usage
+                if (durationYears > 150) {
+                    score += 0;
+                } else if (durationYears >= 51) {
+                    score += 1;
+                } else if (durationYears >= 0) {
+                    score += 2;
+                }
+                // Déformation
+                if (lValues.deformationGeo && scoreMaps.deformationGeo[lValues.deformationGeo] != null) {
+                    score += scoreMaps.deformationGeo[lValues.deformationGeo];
+                }
+                // Exposition biologique
+                if (lValues.expositionBio && scoreMaps.expositionBio[lValues.expositionBio] != null) {
+                    score += scoreMaps.expositionBio[lValues.expositionBio];
+                }
+                // Exposition mécanique
+                if (lValues.expositionMech && scoreMaps.expositionMech[lValues.expositionMech] != null) {
+                    score += scoreMaps.expositionMech[lValues.expositionMech];
+                }
+                // Intégrité biologique (déjà traité)
+                if (lValues.integriteBio && lValues.integriteBio !== 'faible' && scoreMaps.integriteBio[lValues.integriteBio] != null) {
+                    score += scoreMaps.integriteBio[lValues.integriteBio];
+                }
+                // Humidité
+                if (lValues.humiditeUsage && scoreMaps.humiditeUsage[lValues.humiditeUsage] != null) {
+                    score += scoreMaps.humiditeUsage[lValues.humiditeUsage];
+                }
+                // Seuils adaptés à la nouvelle échelle
+                if (score >= 9) {
+                    businessLevel = 'Faible';
+                } else if (score >= 5) {
+                    businessLevel = 'Moyenne';
+                } else {
+                    businessLevel = 'Forte';
+                }
+            }
+        }
+
+        const missingData = [];
+        if (!Number.isFinite(durationYears)) missingData.push('durée d\'usage');
+        if (!values.deformationGeo) missingData.push('déformation');
+        if (!values.expositionBio) missingData.push('exposition biologique');
+        if (!values.expositionMech) missingData.push('exposition mécanique');
+        if (!values.integriteBio) missingData.push('intégrité biologique');
+        if (!values.humiditeUsage) missingData.push('humidité');
+
+        return {
+            evalYear,
+            serviceYear,
+            durationYears,
+            values,
+            availableCount,
+            hasMinimumData,
+            missingData,
+            score,
+            businessLevel
+        };
+    }
+
     buildAmortissementAlertModalMessage(alertState, details) {
         if (alertState === 'none' || !details || !details.hasData) {
             const missingParts = [];
@@ -3383,6 +3973,96 @@ class ValoboisApp {
         ];
 
         return lines.join('\n');
+    }
+
+    buildVieillissementAlertModalMessage(alertState, details) {
+        if (!details || !details.hasMinimumData || !details.businessLevel || alertState === 'none') {
+            const lines = [
+                'Impossible d\'évaluer le vieillissement.',
+                '',
+                'Règle minimale requise : durée d\'usage + au moins 2 autres contributeurs.'
+            ];
+
+            if (details && Array.isArray(details.missingData) && details.missingData.length > 0) {
+                lines.push('');
+                lines.push('Données manquantes :');
+                details.missingData.forEach((part) => lines.push(`- ${part}`));
+            }
+
+            return lines.join('\n');
+        }
+
+        const labelOrMissing = (value) => value
+            ? value.charAt(0).toUpperCase() + value.slice(1)
+            : 'Non renseigné';
+        const durationLabel = Number.isFinite(details.durationYears)
+            ? `${Math.round(details.durationYears)} ans`
+            : 'Non déterminée';
+
+        // Affichage explicite de la règle d'intégrité bio
+        if (details.values && String(details.values.integriteBio || '').toLowerCase() === 'faible') {
+            return [
+                `Vieillissement (niveau métier) : Forte`,
+                '',
+                'Données utilisées.',
+                `Durée d'usage estimée : ${durationLabel} (${details.evalYear || '?'} - ${details.serviceYear || '?'})`,
+                `Déformation : ${labelOrMissing(details.values.deformationGeo)}`,
+                `Exposition biologique : ${labelOrMissing(details.values.expositionBio)}`,
+                `Exposition mécanique : ${labelOrMissing(details.values.expositionMech)}`,
+                `Intégrité biologique : FAIBLE (rédhibitoire)`,
+                `Humidité : ${labelOrMissing(details.values.humiditeUsage)}`,
+                `Score agrégé : 0 (intégrité biologique faible)`,
+                '',
+                'Règle métier :',
+                'Si l’intégrité biologique est faible, le vieillissement est automatiquement considéré comme « fort » quel que soit le reste des critères.'
+            ].join('\n');
+        }
+
+        const lines = [
+            `Vieillissement (niveau métier) : ${details.businessLevel}`,
+            '',
+            'Données utilisées.',
+            `Durée d'usage estimée : ${durationLabel} (${details.evalYear || '?'} - ${details.serviceYear || '?'})`,
+            `Déformation : ${labelOrMissing(details.values.deformationGeo)}`,
+            `Exposition biologique : ${labelOrMissing(details.values.expositionBio)}`,
+            `Exposition mécanique : ${labelOrMissing(details.values.expositionMech)}`,
+            `Intégrité biologique : ${labelOrMissing(details.values.integriteBio)}`,
+            `Humidité : ${labelOrMissing(details.values.humiditeUsage)}`,
+            `Score agrégé : ${details.score}`,
+            '',
+            'Logique appliquée (notation naturelle) :',
+            "- Durée d'usage : >150 ans = 0, 51-149 ans = +1, ≤50 ans = +2.",
+            '- Déformation : forte = 0, moyenne = +1, faible = +2.',
+            '- Exposition biologique : forte = 0, moyenne = +1, faible = +2.',
+            '- Exposition mécanique : forte = 0, moyenne = +1, faible = +2.',
+            '- Intégrité biologique : forte = +2, moyenne = +1, faible = 0 (rédhibitoire).',
+            '- Humidité : forte = 0, moyenne = +2, faible = +1.',
+            '- Niveau métier : Faible si score ≥ 9, Moyenne si score ≥ 5, sinon Forte.',
+            '',
+        
+        ];
+
+        return lines.join('\n');
+    }
+
+    buildIntegriteBioAlertModalMessage() {
+        return [
+            'Intégrité biologique — Faible',
+            '',
+            '⚠ Exclusion du réemploi.',
+            "L'intégrité biologique étant jugée faible, ces pièces sont exclues du réemploi. "
+            + "Elles peuvent néanmoins faire l'objet d'une réutilisation, d'un recyclage ou "
+            + "d'une valorisation énergétique en dernier recours. "
+            + 'Pour un usage en structure, une purge forte est nécessaire.',
+            '',
+            "Effet sur l'orientation :",
+            "L'orientation du lot est automatiquement plafonnée à 'Réutilisation' "
+            + "même si le score calculé atteint le seuil 'Réemploi'.",
+            '',
+            'Logique appliquée :',
+            '- Intégrité biologique Faible → orientation max = Réutilisation',
+            '- Intégrité biologique Moyenne ou Forte → pas de plafonnement',
+        ].join('\n');
     }
 
     parsePositiveAlertDimensionValue(value) {
@@ -3747,6 +4427,73 @@ class ValoboisApp {
 
         const state = this.getFeuMechAlertState(targetLot);
         alertBtn.dataset.alertFeuState = state;
+    }
+
+    refreshMacroHistoireAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.provenance-row[data-provenance-field="macroProv"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-provenance-macro-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getMacroHistoireAlertState(targetLot);
+        alertBtn.dataset.alertMacroState = state;
+    }
+
+    refreshVieillissementAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.ancien-row[data-ancien-field="vieillissementAncien"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-ancien-vieillissement-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getVieillissementAlertState(targetLot);
+        alertBtn.dataset.alertVieillissementState = state;
+    }
+
+    refreshIntegriteBioAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.bio-row[data-bio-field="integriteBio"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-bio-integrite-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertIntegriteBioState = this.getIntegriteBioAlertState(targetLot);
+    }
+
+    refreshHumiditeUsageAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return;
+
+        const row = document.querySelector('.usage-row[data-usage-field="humiditeUsage"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-usage-humidite-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getHumiditeUsageAlertState(targetLot);
+        alertBtn.dataset.alertHumiditeState = state;
+    }
+
+    refreshMasseVolEssenceAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return;
+
+        const row = document.querySelector('.essence-row[data-essence-field="masseVolEssence"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-essence-massevol-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getMasseVolEssenceAlertState(targetLot);
+        alertBtn.dataset.alertMassevolState = state;
     }
 
     formatMasseDisplay(valueKgRaw) {
@@ -7808,6 +8555,7 @@ deleteLot(index) {
                 if (activeLot) {
                     this.computeOrientation(activeLot);
                     this.refreshAllConfidenceAlertButtons(activeLot);
+                    this.refreshVieillissementAlertButton(activeLot);
                 }
             };
 
@@ -8495,6 +9243,19 @@ deleteLot(index) {
             humiditeValuesCloseFooter.addEventListener('click', () => this.closeHumiditeValuesModal());
             humiditeValuesBackdrop.addEventListener('click', (e) => {
                 if (e.target === humiditeValuesBackdrop) this.closeHumiditeValuesModal();
+            });
+        }
+
+        // Modale alerte Humidité (usage)
+        const usageHumiditeAlertBackdrop = document.getElementById('usageHumiditeAlertModalBackdrop');
+        const usageHumiditeAlertClose = document.getElementById('btnCloseUsageHumiditeAlertModal');
+        const usageHumiditeAlertCloseFooter = document.getElementById('btnCloseUsageHumiditeAlertModalFooter');
+
+        if (usageHumiditeAlertBackdrop && usageHumiditeAlertClose && usageHumiditeAlertCloseFooter) {
+            usageHumiditeAlertClose.addEventListener('click', () => this.closeUsageHumiditeAlertModal());
+            usageHumiditeAlertCloseFooter.addEventListener('click', () => this.closeUsageHumiditeAlertModal());
+            usageHumiditeAlertBackdrop.addEventListener('click', (e) => {
+                if (e.target === usageHumiditeAlertBackdrop) this.closeUsageHumiditeAlertModal();
             });
         }
 
@@ -9511,6 +10272,14 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         }
     }
 
+    closeUsageHumiditeAlertModal() {
+        const b = document.getElementById('usageHumiditeAlertModalBackdrop');
+        if (b) {
+            b.classList.add('hidden');
+            b.setAttribute('aria-hidden', 'true');
+        }
+    }
+
     openInspectionModal() {
         const b = document.getElementById('inspectionModalBackdrop');
         if (b) {
@@ -9613,6 +10382,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const modalRoot = contentEl.closest('.modal');
         const modalTitleEl = modalRoot ? modalRoot.querySelector('.modal-header h2') : null;
         const modalTitleNormalized = this.normalizeDetailTitle(modalTitleEl ? modalTitleEl.textContent : '');
+        const modalTitleWithoutAlertPrefixNormalized = modalTitleNormalized.replace(/^alerte/, '');
 
         const text = (rawText || 'À renseigner').toString().trim();
         if (!text) {
@@ -9692,6 +10462,21 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 const remaining = currentBlock.split('\n').slice(1).join('\n').trim();
                 if (remaining) {
                     currentBlock = remaining;
+                }
+            }
+
+            // Cas des modales "Alerte X": si un bloc démarre par "X." (ex: "Feu."),
+            // on considère ce libellé comme doublon du titre et on le retire.
+            if (
+                modalTitleWithoutAlertPrefixNormalized &&
+                firstLineNormalized &&
+                firstLineNormalized === modalTitleWithoutAlertPrefixNormalized
+            ) {
+                const remaining = currentBlock.split('\n').slice(1).join('\n').trim();
+                if (remaining) {
+                    currentBlock = remaining;
+                } else {
+                    return '';
                 }
             }
 
@@ -11601,7 +12386,7 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-field-block">
-                            <label class="lot-field-label">Intégrité lot</label>
+                            <label class="lot-field-label">Intégrité du lot</label>
                             <input type="text" class="lot-input" value="${integrityLabel}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="integriteLot">
                         </div>
                     </div>
@@ -11884,7 +12669,7 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-field-block">
-                            <label class="lot-field-label">Intégrité lot</label>
+                            <label class="lot-field-label">Intégrité du lot</label>
                             <input type="text" class="lot-input" value="${integrityLabel}" readonly data-piece-display="integriteLot">
                         </div>
                     </div>
@@ -12542,7 +13327,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Intégrité lot</label>
+                                <label class="lot-field-label">Intégrité du lot</label>
                                 <input type="text" class="lot-input" value="${lotIntegrityLabel}" readonly data-display="integriteLot">
                             </div>
                         </div>
@@ -12891,6 +13676,10 @@ closeEvalOpModal() {
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
             this.refreshFeuMechAlertButton(lot);
+            this.refreshMacroHistoireAlertButton(lot);
+            this.refreshVieillissementAlertButton(lot);
+            this.refreshHumiditeUsageAlertButton(lot);
+            this.refreshMasseVolEssenceAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -13625,6 +14414,10 @@ closeEvalOpModal() {
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
             this.refreshFeuMechAlertButton(lot);
+            this.refreshMacroHistoireAlertButton(lot);
+            this.refreshVieillissementAlertButton(lot);
+            this.refreshHumiditeUsageAlertButton(lot);
+            this.refreshMasseVolEssenceAlertButton(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -13939,6 +14732,9 @@ closeEvalOpModal() {
                 this.refreshArtisanaliteAlertButton(lot);
                 this.refreshIndustrialiteAlertButton(lot);
                 this.refreshFeuMechAlertButton(lot);
+                this.refreshVieillissementAlertButton(lot);
+                this.refreshHumiditeUsageAlertButton(lot);
+                this.refreshMasseVolEssenceAlertButton(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -14536,6 +15332,7 @@ updateBioRow(row, key, lot) {
     const resetBtn       = row.querySelector('.bio-reset-btn');
     const infoBtn        = row.querySelector('.bio-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
+    const integriteBioAlertBtn = key === 'integriteBio' ? row.querySelector('[data-bio-integrite-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -14593,6 +15390,12 @@ updateBioRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            if (key === 'exposition' || key === 'integriteBio') {
+                this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'integriteBio') {
+                this.refreshIntegriteBioAlertButton(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
@@ -14630,6 +15433,12 @@ updateBioRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            if (key === 'exposition' || key === 'integriteBio') {
+                this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'integriteBio') {
+                this.refreshIntegriteBioAlertButton(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
@@ -14646,6 +15455,15 @@ updateBioRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (integriteBioAlertBtn) {
+        this.refreshIntegriteBioAlertButton(lot);
+        integriteBioAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshIntegriteBioAlertButton(lot);
+            this.openBioIntegriteAlertModal(integriteBioAlertBtn.dataset.alertIntegriteBioState || 'none');
         };
     }
 
@@ -14752,6 +15570,9 @@ updateMechRow(row, key, lot) {
             // SECURITÉ : Utiliser "lot" (le paramètre) ou "activeLot"
             const activeLot = this.getCurrentLot();
             if (activeLot) this.computeOrientation(activeLot);
+            if (key === 'expositionMech') {
+                this.refreshVieillissementAlertButton(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
@@ -14795,6 +15616,9 @@ updateMechRow(row, key, lot) {
 
             if (feuAlertBtn) {
                 this.refreshFeuMechAlertButton(lot);
+            }
+            if (key === 'expositionMech') {
+                this.refreshVieillissementAlertButton(lot);
             }
 
             this.refreshConfidenceAlertButton(row, key, lot);
@@ -14894,6 +15718,7 @@ updateUsageRow(row, key, lot) {
     const resetBtn = row.querySelector('.usage-reset-btn');
     const infoBtn = row.querySelector('.usage-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
+    const humiditeAlertBtn = key === 'humiditeUsage' ? row.querySelector('[data-usage-humidite-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-usage-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -14954,6 +15779,12 @@ updateUsageRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'humiditeUsage') {
+                this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'humiditeUsage') {
+                this.refreshHumiditeUsageAlertButton(lot);
+            }
 
         };
     }
@@ -14996,6 +15827,12 @@ updateUsageRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'humiditeUsage') {
+                this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'humiditeUsage') {
+                this.refreshHumiditeUsageAlertButton(lot);
+            }
 
         };
     }
@@ -15010,6 +15847,16 @@ updateUsageRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (humiditeAlertBtn) {
+        this.refreshHumiditeUsageAlertButton(lot);
+        humiditeAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshHumiditeUsageAlertButton(lot);
+            const alertState = humiditeAlertBtn.dataset.alertHumiditeState || 'none';
+            this.openUsageHumiditeAlertModal(alertState, lot);
         };
     }
 
@@ -15458,6 +16305,7 @@ updateProvenanceRow(row, key, lot) {
     const resetBtn = row.querySelector('.provenance-reset-btn');
     const infoBtn = row.querySelector('.provenance-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
+    const macroAlertBtn = key === 'macroProv' ? row.querySelector('[data-provenance-macro-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-provenance-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15518,6 +16366,9 @@ updateProvenanceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'macroProv' || key === 'reputationProv') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
             this.renderSeuils();
             this.renderEvalOp();
 
@@ -15561,6 +16412,9 @@ updateProvenanceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'macroProv' || key === 'reputationProv') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
 
         };
     }
@@ -15575,6 +16429,16 @@ updateProvenanceRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (macroAlertBtn) {
+        this.refreshMacroHistoireAlertButton(lot);
+        macroAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshMacroHistoireAlertButton(lot);
+            const alertState = macroAlertBtn.dataset.alertMacroState || 'none';
+            this.openProvMacroHistoireAlertModal(alertState, lot);
         };
     }
 
@@ -15756,6 +16620,8 @@ updateGeoRow(row, key, lot) {
         if (inclusiviteAlertBtn) {
             this.refreshInclusiviteAlertButton(lot);
         }
+
+        this.refreshVieillissementAlertButton(lot);
     };
 
     updateGeoAlertBtns();
@@ -15845,6 +16711,7 @@ updateEssenceRow(row, key, lot) {
     const resetBtn = row.querySelector('.essence-reset-btn');
     const infoBtn = row.querySelector('.essence-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
+    const masseVolAlertBtn = key === 'masseVolEssence' ? row.querySelector('[data-essence-massevol-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-essence-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15902,6 +16769,12 @@ updateEssenceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'masseVolEssence') {
+                this.refreshMasseVolEssenceAlertButton(lot);
+            }
+            if (key === 'rareteHistEssence') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
             this.renderSeuils();
             this.renderEvalOp();
         };
@@ -15944,6 +16817,12 @@ updateEssenceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'masseVolEssence') {
+                this.refreshMasseVolEssenceAlertButton(lot);
+            }
+            if (key === 'rareteHistEssence') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
 
         };
     }
@@ -15958,6 +16837,16 @@ updateEssenceRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (masseVolAlertBtn) {
+        this.refreshMasseVolEssenceAlertButton(lot);
+        masseVolAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshMasseVolEssenceAlertButton(lot);
+            const alertState = masseVolAlertBtn.dataset.alertMassevolState || 'none';
+            this.openEssenceMasseVolAlertModal(alertState, lot);
         };
     }
 
@@ -16027,7 +16916,8 @@ updateAncienRow(row, key, lot) {
     const resetBtn = row.querySelector('.ancien-reset-btn');
     const infoBtn = row.querySelector('.ancien-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
-    const alertBtn = key === 'amortissementAncien' ? row.querySelector('[data-ancien-amortissement-alert-btn]') : null;
+    const amortissementAlertBtn = key === 'amortissementAncien' ? row.querySelector('[data-ancien-amortissement-alert-btn]') : null;
+    const vieillissementAlertBtn = key === 'vieillissementAncien' ? row.querySelector('[data-ancien-vieillissement-alert-btn]') : null;
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
     const levelToLabelFM = { 1: 'Fort', 2: 'Moyen', 3: 'Faible' };
@@ -16080,6 +16970,10 @@ updateAncienRow(row, key, lot) {
             this.renderSeuils();
             this.renderEvalOp();
             updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
+            updateVieillissementAlertBtn(); // MÀJ couleur alerte Vieillissement
+            if (key === 'amortissementAncien' || key === 'microhistoireAncien') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
@@ -16116,6 +17010,10 @@ updateAncienRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             updateAmortAlertBtn(); // MÀJ couleur alerte Amortissement
+            updateVieillissementAlertBtn(); // MÀJ couleur alerte Vieillissement
+            if (key === 'amortissementAncien' || key === 'microhistoireAncien') {
+                this.refreshMacroHistoireAlertButton(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
         };
     }
@@ -16135,24 +17033,39 @@ updateAncienRow(row, key, lot) {
 
     // Gestion du bouton alerte Amortissement biologique (seulement pour amortissementAncien)
     const updateAmortAlertBtn = () => {
-        if (!alertBtn) return;
+        if (!amortissementAlertBtn) return;
         const amortValue = this.computeAmortissementBiologique(
             lot.allotissement && lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '',
             lot.allotissement && lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : ''
         );
         const state = this.getAmortissementAlertState(amortValue);
-        alertBtn.dataset.alertAmortissementState = state;
+        amortissementAlertBtn.dataset.alertAmortissementState = state;
     };
 
-    if (alertBtn) {
+    const updateVieillissementAlertBtn = () => {
+        if (!vieillissementAlertBtn) return;
+        this.refreshVieillissementAlertButton(lot);
+    };
+
+    if (amortissementAlertBtn) {
         // Appel initial pour mettre à jour l'état du bouton
         updateAmortAlertBtn();
         
         // Gestionnaire de clic pour ouvrir la modale d'alerte personnalisee
-        alertBtn.onclick = (e) => {
+        amortissementAlertBtn.onclick = (e) => {
             e.stopPropagation();
-            const alertState = alertBtn.dataset.alertAmortissementState || 'none';
+            const alertState = amortissementAlertBtn.dataset.alertAmortissementState || 'none';
             this.openAncienAmortissementAlertModal(alertState, lot);
+        };
+    }
+
+    if (vieillissementAlertBtn) {
+        updateVieillissementAlertBtn();
+        vieillissementAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshVieillissementAlertButton(lot);
+            const alertState = vieillissementAlertBtn.dataset.alertVieillissementState || 'none';
+            this.openAncienVieillissementAlertModal(alertState, lot);
         };
     }
 
@@ -19064,6 +19977,14 @@ renderRadar() {
             code = threshold.code;
         }
 
+        // Plafonnement : integriteBio Faible → orientation max = Réutilisation
+        const _normInteg = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        if (_normInteg(lot?.bio?.integriteBio?.niveau) === 'faible' && code === 'reemploi') {
+            label = 'Réutilisation';
+            code  = 'reutilisation';
+        }
+
         lot.orientationLabel = label;
         lot.orientationCode = code;
 
@@ -20065,6 +20986,39 @@ renderRadar() {
         };
     }
 
+    getPdfLocaleCode() {
+        const locale = ((typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : 'fr') || 'fr').toString().toLowerCase();
+        return locale.startsWith('en') ? 'en' : 'fr';
+    }
+
+    getPdfText(_key, frValue, enValue) {
+        return this.getPdfLocaleCode() === 'en' ? enValue : frValue;
+    }
+
+    getPdfDocInfo(kind = 'synthese', lotLabel = '') {
+        const meta = this.data.meta || {};
+        const operation = this.sanitizePdfText(meta.operation || '', { fallback: '' });
+        const ref = this.sanitizePdfText(this.getReferenceGisement(meta) || '', { fallback: '' });
+        const suffix = kind === 'lot' && lotLabel
+            ? (' - ' + this.sanitizePdfText(lotLabel, { fallback: '' }))
+            : '';
+        const titleBase = this.getPdfText('pdf.meta.titleBase', 'VALOBOIS - Evaluation', 'VALOBOIS - Assessment');
+        const title = [titleBase, operation].filter(Boolean).join(' - ') + suffix;
+        const subjectBase = this.getPdfText('pdf.meta.subjectBase', 'Export PDF VALOBOIS', 'VALOBOIS PDF export');
+        return {
+            title,
+            author: 'VALOBOIS',
+            subject: [subjectBase, ref].filter(Boolean).join(' - '),
+            keywords: this.getPdfText(
+                'pdf.meta.keywords',
+                'VALOBOIS, bois, réemploi, évaluation, PDF',
+                'VALOBOIS, timber, reuse, assessment, PDF'
+            ),
+            creator: 'VALOBOIS',
+            producer: 'pdfmake'
+        };
+    }
+
     getPdfmakeStyles() {
         const f = this.getPdfFontScale();
         return {
@@ -20083,7 +21037,7 @@ renderRadar() {
         const c = this.getPdfmakeColors();
         const content = [];
         if (titleText) {
-            content.push({ text: titleText, style: 'cardTitle' });
+            content.push({ text: this.sanitizePdfText(titleText), style: 'cardTitle' });
         }
         if (Array.isArray(bodyContent)) {
             content.push(...bodyContent);
@@ -20166,21 +21120,32 @@ renderRadar() {
         const fontSize = options.fontSize || f.table;
         const cellStyle = options.cellStyle || 'tableCell';
         const widths = options.widths || headers.map(() => '*');
+        const noWrapColumns = Array.isArray(options.noWrapColumns) ? options.noWrapColumns : [];
+        const columnAlignments = Array.isArray(options.columnAlignments) ? options.columnAlignments : [];
+        const padding = options.padding || {};
+        const paddingLeft = padding.left == null ? 3 : padding.left;
+        const paddingRight = padding.right == null ? 3 : padding.right;
+        const paddingTop = padding.top == null ? 2 : padding.top;
+        const paddingBottom = padding.bottom == null ? 2 : padding.bottom;
 
-        const headRow = headers.map((h) => ({
+        const headRow = headers.map((h, colIdx) => ({
             text: this.sanitizePdfText(h, { fallback: '' }),
             bold: true,
             fontSize,
             color: c.labelColor,
-            fillColor: c.headerBg
+            fillColor: c.headerBg,
+            noWrap: noWrapColumns.includes(colIdx),
+            alignment: columnAlignments[colIdx] || 'left'
         }));
 
         const bodyRows = (dataRows.length ? dataRows : [headers.map(() => '—')]).map((row, rowIdx) =>
-            row.map((cell) => ({
+            row.map((cell, colIdx) => ({
                 text: this.sanitizePdfText(cell == null || cell === '' ? '—' : String(cell)),
                 style: cellStyle,
                 fontSize,
-                fillColor: rowIdx % 2 === 1 ? c.altRowBg : null
+                fillColor: rowIdx % 2 === 1 ? c.altRowBg : null,
+                noWrap: noWrapColumns.includes(colIdx),
+                alignment: columnAlignments[colIdx] || 'left'
             }))
         );
 
@@ -20195,10 +21160,10 @@ renderRadar() {
                 hLineWidth: () => 0.4,
                 vLineWidth: () => 0,
                 hLineColor: () => '#eee7db',
-                paddingLeft: () => 3,
-                paddingRight: () => 3,
-                paddingTop: () => 2,
-                paddingBottom: () => 2
+                paddingLeft: () => paddingLeft,
+                paddingRight: () => paddingRight,
+                paddingTop: () => paddingTop,
+                paddingBottom: () => paddingBottom
             }
         };
     }
@@ -20469,17 +21434,29 @@ renderRadar() {
             }
         }
 
-        return {
-            label: lot && lot.orientationLabel ? lot.orientationLabel : label,
-            code: lot && lot.orientationCode ? lot.orientationCode : code,
-            percentage,
-            average,
-            scores
-        };
+        const resolvedLabel = (lot && lot.orientationLabel) ? lot.orientationLabel : label;
+        const resolvedCode  = (lot && lot.orientationCode)  ? lot.orientationCode  : code;
+
+        // Plafonnement : integriteBio Faible → orientation max = Réutilisation
+        const _normPdf = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        let finalLabel = resolvedLabel;
+        let finalCode  = resolvedCode;
+        if (_normPdf(lot?.bio?.integriteBio?.niveau) === 'faible' && finalCode === 'reemploi') {
+            finalLabel = 'Réutilisation';
+            finalCode  = 'reutilisation';
+        }
+
+        return { label: finalLabel, code: finalCode, percentage, average, scores };
     }
 
-    getPdfOperationSummary() {
-        const lots = this.data.lots || [];
+    getPdfOperationSummary(lotIndices = null) {
+        const allLots = this.data.lots || [];
+        const lotEntries = Array.isArray(lotIndices) && lotIndices.length
+            ? lotIndices
+                .map((index) => ({ index, lot: allLots[index] }))
+                .filter((entry) => Number.isInteger(entry.index) && entry.lot)
+            : allLots.map((lot, index) => ({ index, lot }));
         let volReemploi = 0;
         let priceReemploi = 0;
         let volReutil = 0;
@@ -20498,7 +21475,7 @@ renderRadar() {
         };
         const lotsCirculaires = [];
 
-        lots.forEach((lot, index) => {
+        lotEntries.forEach(({ lot, index }) => {
             const allotissement = lot.allotissement || {};
             const volume = parseFloat(allotissement.volumeLot) || 0;
             const price = parseFloat(allotissement.prixLot) || 0;
@@ -20637,11 +21614,187 @@ renderRadar() {
         };
     }
 
+    getPdfLotMultipleMeasurementsSummary(lot) {
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const detailedPieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
+        const allPieces = [];
+
+        defaultPieces.forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            allPieces.push({ piece, sourceType: 'default', sourceIndex: index });
+        });
+        detailedPieces.forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            allPieces.push({ piece, sourceType: 'detail', sourceIndex: index });
+        });
+
+        let totalSections = 0;
+        let piecesWithMm = 0;
+        let validPieces = 0;
+
+        allPieces.forEach(({ piece }) => {
+            const mm = piece && piece.mesuresMultiples;
+            if (!mm || mm.active !== true || !Array.isArray(mm.sections)) return;
+            const validSections = mm.sections.filter((section) => this.isValidMesuresMultiplesSection(section));
+            if (!validSections.length) return;
+            piecesWithMm += 1;
+            totalSections += validSections.length;
+            if (validSections.length >= 2) {
+                validPieces += 1;
+            }
+        });
+
+        return {
+            hasValid: validPieces > 0,
+            validPieces,
+            piecesWithMm,
+            totalSections
+        };
+    }
+
+    collectPdfMultipleMeasurementsRows(lotIndices = []) {
+        const rows = [];
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data.lots && this.data.lots[lotIndex];
+            if (!lot) return;
+
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+            const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+
+            const pushPieceRows = (piece, sourceLabel, quantityLabel = '—') => {
+                if (!piece || typeof piece !== 'object') return;
+                const mm = piece.mesuresMultiples;
+                if (!mm || mm.active !== true || !Array.isArray(mm.sections) || !mm.sections.length) return;
+
+                const validSections = mm.sections
+                    .filter((section) => this.isValidMesuresMultiplesSection(section))
+                    .map((section) => ({ section, posNum: Number(section && section.position) }))
+                    .sort((a, b) => {
+                        const aVal = Number.isFinite(a.posNum) ? a.posNum : Number.MAX_SAFE_INTEGER;
+                        const bVal = Number.isFinite(b.posNum) ? b.posNum : Number.MAX_SAFE_INTEGER;
+                        return aVal - bVal;
+                    });
+
+                if (!validSections.length) return;
+
+                const pieceLabel = (piece.nom || sourceLabel || '—').toString();
+                const volEnrichi = Number.isFinite(parseFloat(piece.volumePieceEnrichi))
+                    ? this.formatPdfDecimal(parseFloat(piece.volumePieceEnrichi), 4, 4)
+                    : '—';
+
+                const cvL = Number.isFinite(parseFloat(piece.mmCvLargeurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmCvLargeurIntra) * 100, 1, 1)
+                    : '—';
+                const cvE = Number.isFinite(parseFloat(piece.mmCvEpaisseurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmCvEpaisseurIntra) * 100, 1, 1)
+                    : '—';
+                const dL = Number.isFinite(parseFloat(piece.mmDeltaLargeurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmDeltaLargeurIntra), 0, 0)
+                    : '—';
+                const dE = Number.isFinite(parseFloat(piece.mmDeltaEpaisseurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmDeltaEpaisseurIntra), 0, 0)
+                    : '—';
+                const hasIntraMetric = cvL !== '—' || cvE !== '—' || dL !== '—' || dE !== '—';
+                const intraLabel = hasIntraMetric ? `CV ${cvL}/${cvE}% | Δ ${dL}/${dE}` : '—';
+
+                validSections.forEach(({ section }) => {
+                    const type = ((section && section.typeSection) || '').toString().toLowerCase();
+                    const diam = parseFloat(section && section.diametre);
+                    const larg = parseFloat(section && section.largeur);
+                    const ep = parseFloat(section && section.epaisseur);
+                    const per = parseFloat(section && section.perimetre);
+
+                    const isCirc = type === 'circ' || type === 'circle' || (Number.isFinite(diam) && diam > 0 && !(Number.isFinite(larg) && larg > 0 && Number.isFinite(ep) && ep > 0));
+                    const sectionLabel = isCirc ? 'Circ' : 'Rect';
+                    const dimsLabel = isCirc
+                        ? (Number.isFinite(diam) ? ('ø' + this.formatPdfDecimal(diam, 0, 0)) : '—')
+                        : ((Number.isFinite(larg) ? this.formatPdfDecimal(larg, 0, 0) : '—') + ' × ' + (Number.isFinite(ep) ? this.formatPdfDecimal(ep, 0, 0) : '—'));
+
+                    const positionKey = ((section && section.position) || '').toString().toLowerCase();
+                    const positionLabelMap = {
+                        extremite1: 'E1',
+                        quart1: 'Q1',
+                        milieu: 'M',
+                        quart3: 'Q3',
+                        extremite2: 'E2'
+                    };
+                    let posLabel = positionLabelMap[positionKey] || this._getPositionDisplayLabel(positionKey, section && section.isCustom === true) || '—';
+                    if (Number.isFinite(parseFloat(section && section.position))) {
+                        posLabel += ` ${this.formatPdfDecimal(parseFloat(section.position), 0, 0)}mm`;
+                    }
+
+                    rows.push([
+                        lotLabel,
+                        sourceLabel + (quantityLabel !== '—' ? ` ×${quantityLabel}` : ''),
+                        pieceLabel,
+                        posLabel,
+                        sectionLabel,
+                        dimsLabel,
+                        Number.isFinite(per) ? this.formatPdfDecimal(per, 0, 0) : '—',
+                        volEnrichi,
+                        intraLabel
+                    ]);
+                });
+            };
+
+            defaultPieces.forEach((piece, index) => {
+                const qty = Math.max(0, Math.floor(parseFloat((piece && piece.quantite) || 0) || 0));
+                pushPieceRows(piece, 'Défaut ' + (index + 1), qty > 0 ? String(qty) : '—');
+            });
+
+            detailedPieces.forEach((piece, index) => {
+                pushPieceRows(piece, 'Détail ' + (index + 1), '1');
+            });
+        });
+
+        return rows;
+    }
+
+    buildPdfMultipleMeasurementsAnnexContent(lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const rows = this.collectPdfMultipleMeasurementsRows(lotIndices);
+
+        if (!rows.length) return [];
+
+        const headers = [
+            tpdf('pdf.mmAnnex.lot', 'Lot', 'Lot'),
+            tpdf('pdf.mmAnnex.source', 'Source', 'Source'),
+            tpdf('pdf.mmAnnex.piece', 'Pièce', 'Piece'),
+            tpdf('pdf.mmAnnex.position', 'Position', 'Position'),
+            tpdf('pdf.mmAnnex.section', 'Section', 'Section'),
+            tpdf('pdf.mmAnnex.dimensions', 'Dimensions (mm)', 'Dimensions (mm)'),
+            tpdf('pdf.mmAnnex.perimeter', 'Périmètre (mm)', 'Perimeter (mm)'),
+            tpdf('pdf.mmAnnex.enrichedVol', 'Vol. enrichi (m³)', 'Enriched vol. (m³)'),
+            tpdf('pdf.mmAnnex.intra', 'Intra (CV/Δ)', 'Intra (CV/Δ)')
+        ];
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.title.mmAnnex', 'Annexe technique — Mesures multiples', 'Technical annex — Multiple measurements')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            this.pdfCard(tpdf('pdf.card.mmAnnex', 'Détail pièces et sections', 'Piece and section details'), [
+                this.pdfDataTable(headers, rows, {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 1, 3, 4, 5, 6, 7, 8],
+                    columnAlignments: ['left', 'left', 'left', 'left', 'left', 'right', 'right', 'right', 'left'],
+                    padding: { left: 3.5, right: 3.5, top: 2.5, bottom: 2.5 }
+                })
+            ])
+        ];
+    }
+
     /* ═══════ pdfmake — document definitions ═══════ */
 
-    buildPdfOperationEvalContent() {
+    buildPdfOperationEvalContent(lotIndices = null) {
         const f = this.getPdfFontScale();
-        const opSummary = this.getPdfOperationSummary();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const opSummary = this.getPdfOperationSummary(lotIndices);
         const rows = opSummary.orientations.map((item) => [
             item.label,
             this.formatPdfVolume(item.volume),
@@ -20651,37 +21804,61 @@ renderRadar() {
         ]);
 
         const summaryPairs = [
-            { label: 'Volume circulaire', value: this.formatPdfVolume(opSummary.volCirculaire) },
-            { label: 'Bilan monétaire', value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
-            { label: 'Circularité', value: this.formatPdfPercent(opSummary.circularite) },
-            { label: 'Lots circulaires', value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
+            { label: tpdf('pdf.summary.circularVolume', 'Volume circulaire', 'Circular volume'), value: this.formatPdfVolume(opSummary.volCirculaire) },
+            { label: tpdf('pdf.summary.financialBalance', 'Bilan monétaire', 'Financial balance'), value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
+            { label: tpdf('pdf.summary.circularity', 'Circularité', 'Circularity'), value: this.formatPdfPercent(opSummary.circularite) },
+            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
         ];
 
         return [
-            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part', 'Lots'], rows, {
+            this.pdfDataTable([
+                tpdf('pdf.table.orientation', 'Orientation', 'Orientation'),
+                tpdf('pdf.table.volume', 'Volume', 'Volume'),
+                tpdf('pdf.table.price', 'Prix', 'Price'),
+                tpdf('pdf.table.share', 'Part', 'Share'),
+                tpdf('pdf.table.lots', 'Lots', 'Lots')
+            ], rows, {
                 fontSize: f.tableCompact,
-                widths: ['*', 'auto', 'auto', 'auto', 'auto']
+                widths: ['auto', 'auto', 'auto', 'auto', '*'],
+                noWrapColumns: [0, 1, 2, 3],
+                columnAlignments: ['left', 'right', 'right', 'right', 'left'],
+                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
             }),
             { text: '', margin: [0, 4, 0, 0] },
             this.pdfKeyValueGrid(summaryPairs, 4)
         ];
     }
 
-    buildPdfSynthesisDocDef() {
+    buildPdfLotsSummaryCardContent(lotEntries = null) {
         const f = this.getPdfFontScale();
-        const meta = this.data.meta || {};
-        const lots = this.data.lots || [];
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const allLots = this.data.lots || [];
 
-        const metaPairs = [
-            { label: 'Référence gisement', value: this.getReferenceGisement(meta) || '—' },
-            { label: 'Opération', value: meta.operation || '—' },
-            { label: 'Diagnostiqueur', value: meta.diagnostiqueurContact || '—' },
-            { label: 'Localisation', value: meta.localisation || '—' },
-            { label: 'Date', value: meta.date || '—' }
+        const resolvedEntries = Array.isArray(lotEntries)
+            ? lotEntries.filter((entry) => entry && Number.isInteger(entry.index) && entry.lot)
+            : allLots.map((lot, index) => ({ lot, index }));
+
+        const lotIdentityHeaders = [
+            tpdf('pdf.lot.lot', 'Lot', 'Lot'),
+            tpdf('pdf.lot.type', 'Type', 'Type'),
+            tpdf('pdf.lot.product', 'Produit', 'Product'),
+            tpdf('pdf.lot.species', 'Essence', 'Species'),
+            tpdf('pdf.lot.volume', 'Volume', 'Volume'),
+            tpdf('pdf.lot.price', 'Prix', 'Price'),
+            tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'),
+            tpdf('pdf.lot.rate', 'Taux', 'Rate')
         ];
 
-        const lotHeaders = ['Lot', 'Type', 'Produit', 'Essence', 'Volume', 'Prix', 'Orientation', 'Taux', 'Éco', 'Écolo', 'Méca', 'Hist', 'Esth'];
-        const lotRows = lots.map((lot, index) => {
+        const lotScoreHeaders = [
+            tpdf('pdf.lot.lot', 'Lot', 'Lot'),
+            tpdf('pdf.lot.scoreEco', 'Éco', 'Eco'),
+            tpdf('pdf.lot.scoreEcolo', 'Écolo', 'Ecol'),
+            tpdf('pdf.lot.scoreMeca', 'Méca', 'Mech'),
+            tpdf('pdf.lot.scoreHist', 'Hist', 'Hist'),
+            tpdf('pdf.lot.scoreEsth', 'Esth', 'Aes')
+        ];
+
+        const lotIdentityRows = resolvedEntries.map(({ lot, index }) => {
             const allotissement = lot.allotissement || {};
             const orientation = this.getPdfOrientationSummary(lot);
             return [
@@ -20692,10 +21869,108 @@ renderRadar() {
                 this.formatPdfVolume(allotissement.volumeLot),
                 this.formatPdfCurrency(allotissement.prixLot),
                 orientation.label,
-                this.formatPdfPercent(orientation.percentage),
+                this.formatPdfPercent(orientation.percentage)
+            ];
+        });
+
+        const lotScoreRows = resolvedEntries.map(({ lot, index }) => {
+            const orientation = this.getPdfOrientationSummary(lot);
+            return [
+                this.getPdfLotLabel(lot, index),
                 ...this.getPdfCategoryDefinitions().map((c) => this.formatPdfDecimal(parseFloat(orientation.scores[c.key]) || 0, 0, 0) + '/30')
             ];
         });
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.lots.identitySection', 'Données lot', 'Lot data')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            this.pdfDataTable(
+                lotIdentityHeaders,
+                lotIdentityRows.length ? lotIdentityRows : [lotIdentityHeaders.map(() => '—')],
+                {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 4, 5, 6, 7],
+                    columnAlignments: ['left', 'left', 'left', 'left', 'right', 'right', 'left', 'right'],
+                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                }
+            ),
+            { text: '', margin: [0, 4, 0, 0] },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.lots.scoreSection', 'Scores de valeur', 'Value scores')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            this.pdfDataTable(
+                lotScoreHeaders,
+                lotScoreRows.length ? lotScoreRows : [lotScoreHeaders.map(() => '—')],
+                {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 1, 2, 3, 4, 5],
+                    columnAlignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                }
+            )
+        ];
+    }
+
+    buildPdfSelectedLotsCoverContent(validLotIndices) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+        const lots = this.data.lots || [];
+        const selectedLotEntries = validLotIndices
+            .map((index) => ({ index, lot: lots[index] }))
+            .filter((entry) => Number.isInteger(entry.index) && entry.lot);
+        const evalContent = this.buildPdfOperationEvalContent(validLotIndices);
+
+        const selectedLots = validLotIndices.map((idx) => {
+            const lot = lots[idx] || {};
+            return this.getPdfLotLabel(lot, idx);
+        });
+
+        const metaPairs = [
+            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
+            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
+            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
+            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
+            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' },
+            { label: tpdf('pdf.cover.lotsCount', 'Nombre de lots exportés', 'Exported lots count'), value: String(validLotIndices.length) }
+        ];
+
+        return [
+            { text: this.sanitizePdfText(tpdf('pdf.title.synthesis.cover', 'Synthèse de l\'évaluation', 'Assessment summary')), style: 'title', margin: [0, 0, 0, 10] },
+            this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [
+                this.pdfKeyValueGrid(metaPairs, 3)
+            ]),
+            this.pdfCard(tpdf('pdf.cover.selectedLots', 'Lots inclus', 'Included lots'), [
+                {
+                    text: this.sanitizePdfText(selectedLots.length ? selectedLots.join(' • ') : '—'),
+                    fontSize: f.body,
+                    color: '#1f2937'
+                }
+            ]),
+            this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent(selectedLotEntries)),
+            this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\'opération', 'Operation evaluation'), evalContent)
+        ];
+    }
+
+    buildPdfSynthesisDocDef() {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+
+        const metaPairs = [
+            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
+            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
+            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
+            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
+            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' }
+        ];
 
         const evalContent = this.buildPdfOperationEvalContent();
 
@@ -20703,25 +21978,21 @@ renderRadar() {
             pageSize: 'A4',
             pageOrientation: 'portrait',
             pageMargins: [20, 24, 20, 30],
+            info: this.getPdfDocInfo('synthese'),
             defaultStyle: { font: 'Roboto', fontSize: f.body },
             styles: this.getPdfmakeStyles(),
             footer: (currentPage, pageCount) => ({
-                text: 'Page ' + currentPage + ' / ' + pageCount,
+                text: tpdf('pdf.footer.page', 'Page', 'Page') + ' ' + currentPage + ' / ' + pageCount,
                 alignment: 'center',
                 fontSize: f.footer,
                 color: '#464646',
                 margin: [0, 8, 0, 0]
             }),
             content: [
-                { text: 'Synthèse de l\u2019évaluation', style: 'title' },
-                this.pdfCard('Fiche de l\'opération', [this.pdfKeyValueGrid(metaPairs, 5)]),
-                this.pdfCard('Synthèse des lots', [
-                    this.pdfDataTable(lotHeaders,
-                        lotRows.length ? lotRows : [lotHeaders.map(() => '—')],
-                        { fontSize: f.tableCompact, widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'] }
-                    )
-                ]),
-                this.pdfCard('Évaluation de l\u2019opération', evalContent)
+                { text: this.sanitizePdfText(tpdf('pdf.title.synthesis', 'Synthèse de l\u2019évaluation', 'Assessment summary')), style: 'title' },
+                this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [this.pdfKeyValueGrid(metaPairs, 5)]),
+                this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent()),
+                this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\u2019opération', 'Operation evaluation'), evalContent)
             ]
         };
     }
@@ -20854,31 +22125,15 @@ renderRadar() {
 
     buildPdfActiveLotDocDef(lotIndex) {
         const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const currentLot = this.data.lots && this.data.lots[lotIndex];
         if (!currentLot) return null;
 
         // Page geometry (pdfmake uses points, A4 height ≈ 841.89 pt)
         const MM_TO_PT = 72 / 25.4;
         const pageMargins = [10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT];
-        const PAGE_HEIGHT_PT = 841.89;
-        const usableHeightPt = PAGE_HEIGHT_PT - pageMargins[1] - pageMargins[3];
-
-        // Layout presets to compact blocks only when necessary
+        // Layout preset fixe: même structure visuelle pour tous les lots.
         const layoutPresets = {
-            base: {
-                cardPadding: [5, 4, 5, 4],
-                blockGap: 4,
-                kvRowHeight: 18,
-                tableRowHeight: 12,
-                tableCompactRowHeight: 11,
-                notationRowHeight: 11,
-                notationFont: f.notation,
-                sectionTitleFont: f.sectionTitle,
-                gaugeBarWidth: 48,
-                gaugeGapWidth: 8,
-                gaugeHeight: 110,
-                radarVisualSize: 210
-            },
             compact: {
                 cardPadding: [4, 3, 4, 3],
                 blockGap: 3,
@@ -20889,140 +22144,12 @@ renderRadar() {
                 notationFont: Math.max(5, f.notation - 0.4),
                 sectionTitleFont: Math.max(7, f.sectionTitle - 0.4),
                 gaugeBarWidth: 44,
-                gaugeGapWidth: 7,
                 gaugeHeight: 96,
                 radarVisualSize: 190
-            },
-            ultra: {
-                cardPadding: [3, 3, 3, 3],
-                blockGap: 2,
-                kvRowHeight: 15,
-                tableRowHeight: 10.5,
-                tableCompactRowHeight: 9.8,
-                notationRowHeight: 9.6,
-                notationFont: Math.max(5, f.notation - 0.8),
-                sectionTitleFont: Math.max(6.6, f.sectionTitle - 0.7),
-                gaugeBarWidth: 42,
-                gaugeGapWidth: 6,
-                gaugeHeight: 88,
-                radarVisualSize: 175
             }
         };
+        const preset = layoutPresets.compact;
 
-        const lineHeight = (size, factor = 1.15) => size * factor;
-        const estimateTextLines = (text, charsPerLine = 70) => {
-            const t = (text || '').trim();
-            if (!t) return 0;
-            return Math.max(1, Math.ceil(t.length / charsPerLine));
-        };
-
-        const estimateHeights = (preset, moveVisuals) => {
-            const titleHeight = lineHeight(f.smallTitle, 1.05) + 2;
-
-            // Opération card
-            const metaRows = Math.ceil(5 / 2); // 5 pairs on 2 cols
-            const commentLines = estimateTextLines((this.data.meta && this.data.meta.commentaires) || '');
-            const commentHeight = commentLines
-                ? 4 /* label top */ + lineHeight(f.label, 1.05) + commentLines * lineHeight(f.label, 1.3) + 1
-                : 0;
-            const cardTitleH = lineHeight(f.cardTitle, 1.1) + 1;
-            const cardPadV = preset.cardPadding[1] + preset.cardPadding[3];
-            const opCardHeight = cardTitleH + cardPadV + metaRows * preset.kvRowHeight + commentHeight;
-
-            // Évaluation card (table + grid)
-            const evalTableRows = 1 /* header */ + 4; // 4 orientations
-            const evalTableHeight = evalTableRows * preset.tableCompactRowHeight;
-            const evalSummaryHeight = preset.kvRowHeight; // single row grid
-            const evalCardHeight = cardTitleH + cardPadV + evalTableHeight + 4 /* spacer */ + evalSummaryHeight;
-
-            // Inspection card (3 rows + header)
-            const inspectionRowsCount = 1 + 3;
-            const inspectionHeight = cardTitleH + cardPadV + inspectionRowsCount * preset.tableRowHeight + preset.blockGap;
-
-            // Lot card (8 pairs -> 4 rows)
-            const lotRows = Math.ceil(8 / 2);
-            const lotHeight = cardTitleH + cardPadV + lotRows * preset.kvRowHeight + preset.blockGap;
-
-            // Gauges
-            const gaugeLabelsHeight = lineHeight(f.gaugeValue, 1.2) + lineHeight(f.gaugeLabel, 1.05) * 2;
-            const gaugesHeight = cardTitleH + (preset.cardPadding[1] + preset.cardPadding[3]) + preset.gaugeHeight + gaugeLabelsHeight + preset.blockGap;
-
-            // Radar
-            const radarHeight = cardTitleH + (preset.cardPadding[1] + preset.cardPadding[3]) + preset.radarVisualSize + preset.blockGap;
-
-            // Notation grid: 10 sections => 5 rows in 2 cols
-            const sectionTitleHeight = lineHeight(preset.sectionTitleFont, 1.05) + 2;
-            const sectionTableHeight = (1 + 5) * preset.notationRowHeight + 4; // header + 5 rows + padding
-            const sectionHeight = sectionTitleHeight + sectionTableHeight;
-            const notationHeight = 5 * sectionHeight + 6; // 5 rows of sections + table padding overhead
-
-            const visualsHeight = gaugesHeight + radarHeight;
-            const opEvalHeight = opCardHeight + preset.blockGap + evalCardHeight + preset.blockGap;
-            const leftHeight = opEvalHeight + inspectionHeight + lotHeight + (moveVisuals ? 0 : visualsHeight);
-            const leftWithoutVisualsHeight = opEvalHeight + inspectionHeight + lotHeight;
-            const mainHeight = Math.max(leftHeight, notationHeight);
-
-            return {
-                titleHeight,
-                leftHeight,
-                leftWithoutVisualsHeight,
-                notationHeight,
-                visualsHeight,
-                mainHeight,
-                totalHeight: titleHeight + mainHeight
-            };
-        };
-
-        const pickPreset = () => {
-            let presetKey = 'base';
-            let moveVisuals = false;
-            let metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
-
-            const switchPreset = (key) => {
-                presetKey = key;
-                metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
-            };
-
-            // 1) Try compacting
-            if (metrics.totalHeight > usableHeightPt) {
-                switchPreset('compact');
-            }
-
-            // 2) Move visuals if height still high
-            if (metrics.totalHeight > usableHeightPt && metrics.visualsHeight > 0) {
-                moveVisuals = true;
-                metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
-            }
-
-            // 3) Ultra compact if needed
-            if (metrics.totalHeight > usableHeightPt) {
-                switchPreset('ultra');
-                if (metrics.totalHeight > usableHeightPt && metrics.visualsHeight > 0 && !moveVisuals) {
-                    moveVisuals = true;
-                    metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
-                } else if (metrics.totalHeight > usableHeightPt && moveVisuals) {
-                    metrics = estimateHeights(layoutPresets[presetKey], moveVisuals);
-                }
-            }
-
-            // 4) If top + main still exceeds, fallback to page breaking between blocks
-            let forcePageBreakBeforeMain = false;
-            let forceStackLayout = false;
-            if (metrics.totalHeight > usableHeightPt) {
-                forcePageBreakBeforeMain = true;
-                // Ensure main block alone fits; otherwise stack layout will handle breaks per block
-                if (metrics.mainHeight > usableHeightPt) {
-                    forceStackLayout = true;
-                }
-            }
-
-            return { presetKey, moveVisuals, metrics, forcePageBreakBeforeMain, forceStackLayout };
-        };
-
-        const { presetKey, moveVisuals, metrics, forcePageBreakBeforeMain, forceStackLayout } = pickPreset();
-        const preset = layoutPresets[presetKey];
-
-        const meta = this.data.meta || {};
         const allotissement = currentLot.allotissement || {};
         const integrity = currentLot.inspection && currentLot.inspection.integrite;
 
@@ -21030,22 +22157,6 @@ renderRadar() {
         const cardPadding = preset.cardPadding;
         const notationFontSize = preset.notationFont;
         const sectionTitleFontSize = preset.sectionTitleFont;
-
-        // ── Opération card ──
-        const metaPairs = [
-            { label: 'Référence gisement', value: this.getReferenceGisement(meta) || '—' },
-            { label: 'Opération', value: meta.operation || '—' },
-            { label: 'Diagnostiqueur', value: meta.diagnostiqueurContact || '—' },
-            { label: 'Localisation', value: meta.localisation || '—' },
-            { label: 'Date', value: meta.date || '—' }
-        ];
-        const metaContent = [this.pdfKeyValueGrid(metaPairs, 2)];
-        if (meta.commentaires && meta.commentaires.trim()) {
-            metaContent.push(
-                { text: 'COMMENTAIRES', style: 'kvLabel', margin: [0, 4, 0, 1] },
-                { text: meta.commentaires, fontSize: f.label, lineHeight: 1.3 }
-            );
-        }
 
         // ── Fiche lot card ──
         const hasDetailDimensions = this.getLotQuantityFromDetail(currentLot) > 0;
@@ -21063,16 +22174,66 @@ renderRadar() {
             dimensionsValue = [displayLongueur, displayLargeur, displayEpaisseur].map((v) => v || '0').join(' × ');
         }
 
+        const similarityStrategy = (allotissement.similarityStrategy || this.getSimilarityStrategy(currentLot) || '').toString().toLowerCase();
+        const similarityStrategyLabel = similarityStrategy === 'multiple'
+            ? tpdf('pdf.lot.similarityStrategy.multiple', 'Multiple', 'Multiple')
+            : similarityStrategy === 'single'
+                ? tpdf('pdf.lot.similarityStrategy.single', 'Unique', 'Single')
+                : '—';
+
+        const mmProfileKey = (allotissement.mmGeometryProfile || this.getLotMultipleMeasurementsGeometryProfile(currentLot) || '').toString().toLowerCase();
+        const mmProfileLabel = mmProfileKey === 'rect-present'
+            ? tpdf('pdf.lot.mmProfile.rectPresent', 'Rectangulaire présent', 'Rectangular present')
+            : mmProfileKey === 'circle-only'
+                ? tpdf('pdf.lot.mmProfile.circleOnly', 'Circulaire uniquement', 'Circular only')
+                : mmProfileKey === 'none'
+                    ? tpdf('pdf.lot.mmProfile.none', 'Aucun', 'None')
+                    : '—';
+
+        const formatPercentMetric = (value, fractionDigits = 0) => {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? this.formatPdfDecimal(n, fractionDigits, fractionDigits) + ' %' : '—';
+        };
+
+        const formatScoreMetric = (value) => {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? this.formatPdfDecimal(n, 0, 0) : '—';
+        };
+
+        const conformiteRaw = allotissement.conformiteLot;
+        const conformiteTaux = conformiteRaw && typeof conformiteRaw === 'object'
+            ? conformiteRaw.tauxConformite
+            : conformiteRaw;
+
+        const medoideLabel = allotissement.medoideLabel ? String(allotissement.medoideLabel) : '—';
+        const medoideScore = formatPercentMetric(allotissement.medoideScore, 0);
+        const scoreMinPieceLabel = allotissement.scoreMinPieceLabel ? String(allotissement.scoreMinPieceLabel) : '—';
+        const scoreMinDelta = formatScoreMetric(allotissement.scoreMinDelta);
+        const mmSummary = this.getPdfLotMultipleMeasurementsSummary(currentLot);
+        const mmValidLabel = mmSummary.hasValid
+            ? tpdf('pdf.common.yes', 'Oui', 'Yes') + ` (${this.formatPdfDecimal(mmSummary.validPieces, 0, 0)})`
+            : tpdf('pdf.common.no', 'Non', 'No');
+        const mmSectionsLabel = mmSummary.totalSections > 0 ? this.formatPdfDecimal(mmSummary.totalSections, 0, 0) : '—';
+
         const lotPairs = [
-            { label: 'Type de pièces', value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
-            { label: 'Type de produit', value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
-            { label: 'Essence', value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
-            { label: 'Quantité', value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
-            { label: 'Dimensions moyennes (mm) (L × l × e)', value: dimensionsValue },
-            { label: 'Volume lot', value: this.formatPdfVolume(allotissement.volumeLot) },
-            { label: 'Prix marché /m³', value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
-            { label: 'Coeff. intégrité', value: integrity && integrity.ignore ? 'Ignoré' : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
-            { label: 'Prix lot', value: this.formatPdfCurrency(allotissement.prixLot) }
+            { label: tpdf('pdf.lot.pieceType', 'Type de pièces', 'Piece type'), value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
+            { label: tpdf('pdf.lot.productType', 'Type de produit', 'Product type'), value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
+            { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
+            { label: tpdf('pdf.lot.quantity', 'Quantité', 'Quantity'), value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
+            { label: tpdf('pdf.lot.avgDims', 'Dimensions moyennes (mm) (L × l × e)', 'Average dimensions (mm) (L × W × T)'), value: dimensionsValue },
+            { label: tpdf('pdf.lot.volumeLot', 'Volume lot', 'Lot volume'), value: this.formatPdfVolume(allotissement.volumeLot) },
+            { label: tpdf('pdf.lot.marketPrice', 'Prix marché /m³', 'Market price /m³'), value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
+            { label: tpdf('pdf.lot.integrityCoeff', 'Coeff. intégrité', 'Integrity coeff.'), value: integrity && integrity.ignore ? tpdf('pdf.common.ignored', 'Ignoré', 'Ignored') : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
+            { label: tpdf('pdf.lot.lotPrice', 'Prix lot', 'Lot price'), value: this.formatPdfCurrency(allotissement.prixLot) },
+            { label: tpdf('pdf.lot.similarityStrategy', 'Stratégie similarité', 'Similarity strategy'), value: similarityStrategyLabel },
+            { label: tpdf('pdf.lot.mmProfile', 'Profil géométrie MM', 'MM geometry profile'), value: mmProfileLabel },
+            { label: tpdf('pdf.lot.similarityRate', 'Taux similarité', 'Similarity rate'), value: formatPercentMetric(allotissement.tauxSimilarite, 0) },
+            { label: tpdf('pdf.lot.conformityRate', 'Taux conformité', 'Conformity rate'), value: formatPercentMetric(conformiteTaux, 0) },
+            { label: tpdf('pdf.lot.dispersionScore', 'Dispersion scores', 'Score dispersion'), value: formatPercentMetric(allotissement.dispersionScores, 0) },
+            { label: tpdf('pdf.lot.medoid', 'Pièce médoïde', 'Medoid piece'), value: medoideLabel + ' (' + medoideScore + ')' },
+            { label: tpdf('pdf.lot.minPieceDelta', 'Pièce min / Delta', 'Min piece / Delta'), value: scoreMinPieceLabel + ' (Δ ' + scoreMinDelta + ')' },
+            { label: tpdf('pdf.lot.mmValid', 'Mesures multiples valides', 'Valid multiple measurements'), value: mmValidLabel },
+            { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel }
         ];
 
         // ── Inspection card ──
@@ -21083,65 +22244,39 @@ renderRadar() {
                 return [rowDef.label, rv.niveau, rv.note];
             });
 
-        // ── Évaluation opération card (version adaptée demi-largeur) ──
-        const opSummary = this.getPdfOperationSummary();
-        const evalRows = opSummary.orientations.map((item) => [
-            item.label,
-            this.formatPdfVolume(item.volume),
-            this.formatPdfCurrency(item.price),
-            this.formatPdfPercent(item.part)
-        ]);
-        const evalSummaryPairs = [
-            { label: 'Volume circulaire', value: this.formatPdfVolume(opSummary.volCirculaire) },
-            { label: 'Bilan monétaire', value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
-            { label: 'Circularité', value: this.formatPdfPercent(opSummary.circularite) },
-            { label: 'Lots circulaires', value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
-        ];
-        const evalContent = [
-            this.pdfDataTable(['Orientation', 'Volume', 'Prix', 'Part'], evalRows, {
-                fontSize: f.tableCompact,
-                widths: ['*', '*', '*', '*']
-            }),
-            { text: '', margin: [0, 4, 0, 0] },
-            this.pdfKeyValueGrid(evalSummaryPairs, 2)
-        ];
-
-
         // ── Labels & Jauges (colonnes individuelles) ──
         let jaugesData = null;
-        const seuilsSource = document.getElementById('seuils-section');
-        if (seuilsSource) {
-            const labels = seuilsSource.querySelectorAll('.seuils-label');
-            const percents = seuilsSource.querySelectorAll('.seuils-percent');
-            const scores = seuilsSource.querySelectorAll('.seuils-score-box');
-            if (labels.length) {
-                jaugesData = [];
-                labels.forEach((lbl, i) => {
-                    const labelStr = (lbl.textContent || '').trim();
-                    const percentStr = percents[i] ? (percents[i].textContent || '').trim() : '';
-                    const scoreStr = scores[i] ? (scores[i].textContent || '').trim() : '';
-                    const percentVal = percentStr === "…" ? 0 : parseInt(percentStr) || 0;
-                    
-                    let color = '#cccccc';
-                    if (percentVal > 0) {
-                        const threshold = this.getOrientationThresholdForPercent(percentVal);
-                        if (threshold && threshold.color) color = threshold.color;
-                    }
-
-                    jaugesData.push({
-                        labelStr,
-                        percentStr,
-                        scoreStr,
-                        percentVal,
-                        color
-                    });
-                });
-            }
+        const categoryDefs = this.getPdfCategoryDefinitions();
+        const categoryScores = this.getValueScoresForLot(currentLot);
+        if (Array.isArray(categoryDefs) && categoryDefs.length) {
+            jaugesData = categoryDefs.map((category) => {
+                const rawScore = parseFloat(categoryScores[category.key]);
+                const safeScore = Number.isFinite(rawScore) ? Math.max(0, rawScore) : 0;
+                const percentVal = Math.max(0, Math.min(100, Math.round((safeScore / 30) * 100)));
+                let color = '#cccccc';
+                if (percentVal > 0) {
+                    const threshold = this.getOrientationThresholdForPercent(percentVal);
+                    if (threshold && threshold.color) color = threshold.color;
+                }
+                return {
+                    labelStr: category.label,
+                    percentStr: this.formatPdfDecimal(percentVal, 0, 0) + '%',
+                    scoreStr: this.formatPdfDecimal(safeScore, 0, 0) + '/30',
+                    percentVal,
+                    color
+                };
+            });
         }
 
         // ── Radar (vecteur SVG) ──
         const radarScores = this.getValueScoresForLot(currentLot);
-        const radarLabels = ['Économique', 'Écologique', 'Mécanique', 'Historique', 'Esthétique'];
+        const radarLabels = [
+            tpdf('pdf.axis.economic', 'Économique', 'Economic'),
+            tpdf('pdf.axis.ecological', 'Écologique', 'Ecological'),
+            tpdf('pdf.axis.mechanical', 'Mécanique', 'Mechanical'),
+            tpdf('pdf.axis.historical', 'Historique', 'Historical'),
+            tpdf('pdf.axis.aesthetic', 'Esthétique', 'Aesthetic')
+        ];
         const toRadarPercent = (score) => Math.min(100, Math.max(0, Math.round(((score || 0) / 30) * 100)));
         const radarValues = [
             toRadarPercent(radarScores.economique),
@@ -21161,21 +22296,28 @@ renderRadar() {
             thresholdLevels: radarThresholdLevels
         });
 
-        const operationCard = this.pdfCard('Fiche de l\'opération', metaContent, { margin: [0, 0, 0, 0], padding: cardPadding, unbreakable: true });
-        const evalCard = this.pdfCard('Évaluation de l\'opération', evalContent, { margin: [0, 0, 0, 0], padding: cardPadding, unbreakable: true });
-        const inspectionCard = this.pdfCard('Inspection', [
-            this.pdfDataTable(['Critère', 'Niveau', 'Note'], inspectionRows, { fontSize: f.table })
+        const inspectionCard = this.pdfCard(tpdf('pdf.card.inspection', 'Inspection', 'Inspection'), [
+            this.pdfDataTable([
+                tpdf('pdf.table.criteria', 'Critère', 'Criterion'),
+                tpdf('pdf.table.level', 'Niveau', 'Level'),
+                tpdf('pdf.table.note', 'Note', 'Score')
+            ], inspectionRows, {
+                fontSize: f.table,
+                columnAlignments: ['left', 'left', 'right'],
+                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+            })
         ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
-        const lotCard = this.pdfCard('Fiche du lot', [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
+        const lotCard = this.pdfCard(tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'), [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
 
         const pageWidthPt = 595.28; // A4 width in points
         const usableWidthPt = pageWidthPt - pageMargins[0] - pageMargins[2];
         const columnGapPt = 8;
-        const halfWidth = Math.floor((usableWidthPt - columnGapPt) / 2);
+        const leftWidth = Math.floor((usableWidthPt - columnGapPt) * 0.52);
+        const rightWidth = usableWidthPt - columnGapPt - leftWidth;
 
         // ── Contraindre les visuels à halfWidth ──
         const visualPad = cardPadding[0] + cardPadding[2] + 2; // padding horizontal total + marge table
-        const maxVisualContentWidth = halfWidth - visualPad;
+        const maxVisualContentWidth = leftWidth - visualPad;
 
         // Build Gauges Card with horizontal stacked layout
         const buildGaugesStacked = (totalAvailableWidth) => {
@@ -21239,7 +22381,7 @@ renderRadar() {
 
         // Titre pleine largeur
         const topCards = [
-            { text: this.getPdfLotLabel(currentLot, lotIndex), style: 'smallTitle' }
+            { text: this.sanitizePdfText(this.getPdfLotLabel(currentLot, lotIndex)), style: 'smallTitle' }
         ];
 
         // ── Bottom grid: 10 notation sections in 5-col layout ──
@@ -21248,9 +22390,9 @@ renderRadar() {
         const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
         const notationCells = notationSections.map((sectionDef) => {
             const headRow = [
-                    { text: this.sanitizePdfText('Critère'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
-                    { text: this.sanitizePdfText('Niveau'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
-                    { text: this.sanitizePdfText('Note'), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg }
+                    { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText(tpdf('pdf.table.level', 'Niveau', 'Level')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText(tpdf('pdf.table.note', 'Note', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg }
             ];
             const dataRows = sectionDef.rows.map((rowDef, rowIdx) => {
                 const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
@@ -21313,23 +22455,19 @@ renderRadar() {
             unbreakable: true
         };
 
-        // Colonne gauche unifiée : Opération + Évaluation + Inspection + Lot + Visuels
+        // Colonne gauche unifiée : Inspection + Lot + Visuels
         const fullLeftStack = [
-            operationCard,
-            { text: '', margin: [0, blockGapPt, 0, 0] },
-            evalCard,
-            { text: '', margin: [0, blockGapPt, 0, 0] },
             ...mainLeftStack
         ];
 
         const mainColumns = {
             columns: [
                 {
-                    width: halfWidth,
+                    width: leftWidth,
                     stack: fullLeftStack
                 },
                 {
-                    width: halfWidth,
+                    width: rightWidth,
                     stack: [
                         notationGrid,
                         ...(visualBlocks.length ? [
@@ -21343,50 +22481,17 @@ renderRadar() {
             unbreakable: true // Force l'ensemble à rester sur la même page
         };
 
-        // Fallback: stacked layout when columns still too tall
-        const stackedBlocks = [];
-        const mainLeftStackHeight = metrics.leftHeight;
-        const notationHeight = metrics.notationHeight;
-        const visualsHeight = metrics.visualsHeight;
-
-        const needsBreakBeforeLeft = metrics.titleHeight + mainLeftStackHeight > usableHeightPt;
-        const remainingAfterLeft = usableHeightPt - mainLeftStackHeight;
-        const needsBreakBeforeNotation = (needsBreakBeforeLeft ? usableHeightPt : remainingAfterLeft) < notationHeight;
-        const remainingAfterNotation = usableHeightPt - notationHeight;
-        // On désactive le saut de page forcé pour les blocs visuels pour les garder groupés
-        const needsBreakBeforeVisuals = false; 
-
-        if (forceStackLayout) {
-            stackedBlocks.push({ stack: fullLeftStack, margin: [0, 0, 0, blockGapPt], pageBreak: needsBreakBeforeLeft ? 'before' : undefined });
-            stackedBlocks.push({ ...notationGrid, pageBreak: needsBreakBeforeNotation ? 'before' : undefined });
-            if (visualBlocks.length) {
-                stackedBlocks.push({
-                    columns: [
-                        { width: halfWidth, text: '' },
-                        { width: halfWidth, stack: visualBlocks }
-                    ],
-                    columnGap: columnGapPt,
-                    margin: [0, blockGapPt, 0, 0],
-                    unbreakable: true
-                });
-            }
-        }
-
-        const content = [...topCards];
-        if (forceStackLayout) {
-            content.push(...stackedBlocks);
-        } else {
-            content.push({ ...mainColumns, pageBreak: forcePageBreakBeforeMain ? 'before' : undefined });
-        }
+        const content = [...topCards, mainColumns];
 
         return {
             pageSize: 'A4',
             pageOrientation: 'portrait',
             pageMargins,
+            info: this.getPdfDocInfo('lot', this.getPdfLotLabel(currentLot, lotIndex)),
             defaultStyle: { font: 'Roboto', fontSize: f.body },
             styles: this.getPdfmakeStyles(),
             footer: (currentPage, pageCount) => ({
-                text: 'Page ' + currentPage + ' / ' + pageCount,
+                text: tpdf('pdf.footer.page', 'Page', 'Page') + ' ' + currentPage + ' / ' + pageCount,
                 alignment: 'center',
                 fontSize: f.footer,
                 color: '#464646',
@@ -22257,7 +23362,7 @@ renderRadar() {
         }
     }
 
-    async exportSelectedLotsToPdf(lotIndices) {
+    exportSelectedLotsToPdf(lotIndices) {
         const validLotIndices = Array.isArray(lotIndices) ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index]) : [];
         if (!validLotIndices.length) {
             alert('Aucun lot valide sélectionné pour l\u2019export.');
@@ -22269,17 +23374,11 @@ renderRadar() {
             return;
         }
 
-        const previousLotIndex = this.currentLotIndex;
-
         try {
             const docDefPages = [];
 
             for (let i = 0; i < validLotIndices.length; i++) {
                 const lotIndex = validLotIndices[i];
-                this.currentLotIndex = lotIndex;
-                this.render();
-                await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
                 const lotDocDef = this.buildPdfActiveLotDocDef(lotIndex);
                 if (!lotDocDef) continue;
                 docDefPages.push(lotDocDef);
@@ -22292,16 +23391,30 @@ renderRadar() {
 
             // Merge all lot doc definitions into a single document
             const mergedContent = [];
+            const includeCoverPage = validLotIndices.length > 1;
+
+            if (includeCoverPage) {
+                const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
+                mergedContent.push(...coverContent);
+            }
+
             docDefPages.forEach((dd, idx) => {
-                if (idx > 0) {
+                if ((includeCoverPage && idx === 0) || idx > 0) {
                     mergedContent.push({ text: '', pageBreak: 'before' });
                 }
                 mergedContent.push(...(Array.isArray(dd.content) ? dd.content : [dd.content]));
             });
 
+            const mmAnnexContent = this.buildPdfMultipleMeasurementsAnnexContent(validLotIndices);
+            if (mmAnnexContent.length) {
+                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push(...mmAnnexContent);
+            }
+
             const mergedDocDef = {
                 ...docDefPages[0],
-                content: mergedContent
+                content: mergedContent,
+                info: this.getPdfDocInfo(includeCoverPage ? 'lots-selectionnes' : 'lot-selectionne')
             };
 
             const stamp = new Date().toISOString().slice(0, 10);
@@ -22310,9 +23423,6 @@ renderRadar() {
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
-        } finally {
-            this.currentLotIndex = previousLotIndex;
-            this.render();
         }
     }
 

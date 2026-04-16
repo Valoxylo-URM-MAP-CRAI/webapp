@@ -2504,6 +2504,29 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: none;
 }
 
+.lot-alert-btn--ancien-vieillissement[data-alert-vieillissement-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--ancien-vieillissement[data-alert-vieillissement-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--ancien-vieillissement[data-alert-vieillissement-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--ancien-vieillissement[data-alert-vieillissement-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
 .lot-alert-btn--geo-massivite[data-alert-massivite-state="strong"] {
     opacity: 1;
     pointer-events: auto;
@@ -2693,6 +2716,63 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: auto;
 }
 
+.lot-alert-btn--bio-integrite[data-alert-integrite-bio-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--bio-integrite[data-alert-integrite-bio-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--provenance-macro[data-alert-macro-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--provenance-macro[data-alert-macro-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--provenance-macro[data-alert-macro-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--provenance-macro[data-alert-macro-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--essence-massevol[data-alert-massevol-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--essence-massevol[data-alert-massevol-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--essence-massevol[data-alert-massevol-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--essence-massevol[data-alert-massevol-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
 .lot-alert-btn--confidence[data-alert-confidence-state="strong"] {
     opacity: 1;
     pointer-events: auto;
@@ -2714,6 +2794,29 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-alert-btn--confidence[data-alert-confidence-state="none"] {
     opacity: 0.3;
     pointer-events: none;
+}
+
+.lot-alert-btn--usage-humidite[data-alert-humidite-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--usage-humidite[data-alert-humidite-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--usage-humidite[data-alert-humidite-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--usage-humidite[data-alert-humidite-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
 }
 
 .lot-prix-group-header {
