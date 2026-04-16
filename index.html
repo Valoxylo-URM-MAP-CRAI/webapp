@@ -1766,6 +1766,17 @@
                                 ...
                             </div>
                             <button class="bio-info-small-btn" type="button" data-info="purge" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--bio-purge"
+                                    type="button"
+                                    data-alert-purge-bio-state="none"
+                                    data-bio-purge-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="bio-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="bio-slider"
                                     data-slider="purge">
@@ -1791,6 +1802,17 @@
                                 ...
                             </div>
                             <button class="bio-info-small-btn" type="button" data-info="expansion" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--bio-expansion"
+                                    type="button"
+                                    data-alert-expansion-state="none"
+                                    data-bio-expansion-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="bio-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="bio-slider"
                                     data-slider="expansion">
@@ -1926,6 +1948,9 @@
                             <div class="detail-modal-content" id="bioDetailModalContent">À renseigner</div>
                         </div>
                         <footer class="modal-footer">
+                            <button class="btn btn-secondary" type="button" id="btnIgnoreBioDetailModal" hidden>
+                                Ignorer
+                            </button>
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseBioDetailModalFooter">
                                 J’ai compris
                             </button>
@@ -1960,6 +1985,17 @@
                                 ...
                             </div>
                             <button class="mech-info-small-btn" type="button" data-info="purgeMech" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--mech-purge"
+                                    type="button"
+                                    data-alert-purge-mech-state="none"
+                                    data-mech-purge-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="purgeMech">
@@ -2017,6 +2053,17 @@
                                 ...
                             </div>
                             <button class="mech-info-small-btn" type="button" data-info="integriteMech" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--mech-integrite"
+                                    type="button"
+                                    data-alert-integrite-mech-state="none"
+                                    data-mech-integrite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="mech-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="mech-slider"
                                     data-slider="integriteMech">
@@ -2365,6 +2412,17 @@
                                 ...
                             </div>
                             <button class="denat-info-small-btn" type="button" data-info="contaminationDenat" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--denat-contamination"
+                                    type="button"
+                                    data-alert-contamination-state="none"
+                                    data-denat-contamination-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="contaminationDenat">
@@ -2496,6 +2554,9 @@
                             <div class="detail-modal-content" id="denatDetailModalContent">À renseigner</div>
                         </div>
                         <footer class="modal-footer">
+                            <button class="btn btn-secondary" type="button" id="btnIgnoreDenatDetailModal" hidden>
+                                Ignorer
+                            </button>
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseDenatDetailModalFooter">
                                 J’ai compris
                             </button>
@@ -3376,6 +3437,17 @@
                                 ...
                             </div>
                             <button class="traces-info-small-btn" type="button" data-info="alterationTraces" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--traces-alteration"
+                                    type="button"
+                                    data-alert-alteration-state="none"
+                                    data-traces-alteration-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="traces-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="traces-slider"
                                     data-slider="alterationTraces">
@@ -3470,6 +3542,57 @@
                         <footer class="modal-footer">
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseTracesDetailModalFooter">
                                 J’ai compris
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+
+                <!-- Modale alerte Altération -->
+                <div class="modal-backdrop hidden" id="alterationAlertModalBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alterationAlertModalTitle">
+                        <header class="modal-header">
+                            <h2 id="alterationAlertModalTitle" class="text-center">Altération forte</h2>
+                            <button class="modal-close" type="button" id="btnCloseAlterationAlertModal">×</button>
+                        </header>
+                        <div class="modal-body">
+                            <div class="detail-modal-content" id="alterationAlertModalContent"></div>
+                        </div>
+                        <footer class="modal-footer modal-footer--alteration-alert">
+                            <button class="btn btn-secondary" type="button" id="btnIgnoreAlterationAlert">
+                                Ignorer
+                            </button>
+                            <button class="btn btn-warning" type="button" id="btnRevisionAlterationAlert">
+                                Révision
+                            </button>
+                            <button class="btn btn-primary" type="button" id="btnCloseAlterationAlertFooter">
+                                J’ai compris
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+
+                <!-- Modale révision Altération -->
+                <div class="modal-backdrop hidden" id="alterationRevisionModalBackdrop" aria-hidden="true">
+                    <div class="modal modal--wide" role="dialog" aria-modal="true" aria-labelledby="alterationRevisionModalTitle">
+                        <header class="modal-header">
+                            <h2 id="alterationRevisionModalTitle" class="text-center">Révision des notations</h2>
+                            <button class="modal-close" type="button" id="btnCloseAlterationRevisionModal">×</button>
+                        </header>
+                        <div class="modal-body">
+                            <p style="font-size:0.85rem;margin-bottom:12px;">Sélectionnez les groupes de critères à réinitialiser, puis choisissez l’orientation à forcer.</p>
+                            <div id="alterationRevisionGroups" style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px;"></div>
+                            <label style="font-size:0.85rem;font-weight:600;display:block;margin-bottom:6px;">Orientation forcée</label>
+                            <select id="alterationRevisionOrientation" class="alteration-revision-select">
+                                <option value="">Calculée automatiquement</option>
+                                <option value="reemploi">Réemploi</option>
+                                <option value="reutilisation">Réutilisation</option>
+                                <option value="recyclage">Recyclage</option>
+                                <option value="combustion">Combustion</option>
+                            </select>
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-primary btn-full" type="button" id="btnConfirmAlterationRevision">
+                                Confirmer et dégriser
                             </button>
                         </footer>
                     </div>

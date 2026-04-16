@@ -1281,6 +1281,7 @@ class ValoboisApp {
             provenance: {
                 confianceProv: null, transportProv: null, reputationProv: null, macroProv: null, territorialiteProv: null
             },
+            locked: { reason: null, ignoredBy: null, alterationIgnoredBy: null, alterationForcedOrientation: null },
             defaultPiece,
             defaultPieces: [defaultPiece],
             pieces: [],
@@ -1490,6 +1491,9 @@ class ValoboisApp {
         data.lots.forEach((lot) => {
             this.normalizeLotEssenceFields(lot);
             this.normalizeLotAllotissementFields(lot);
+            lot.locked = lot.locked || { reason: null, ignoredBy: null, alterationIgnoredBy: null, alterationForcedOrientation: null };
+            lot.locked.alterationIgnoredBy        = lot.locked.alterationIgnoredBy        ?? null;
+            lot.locked.alterationForcedOrientation = lot.locked.alterationForcedOrientation ?? null;
         });
 
         return data;
@@ -2116,6 +2120,126 @@ class ValoboisApp {
         return niveau === 'faible' ? 'active' : 'none';
     }
 
+    getIntegriteMechAlertState(lot) {
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const niveau = normalize(lot?.mech?.integriteMech?.niveau ?? '');
+        return niveau === 'faible' ? 'active' : 'none';
+    }
+
+    getPurgeAlertState(lot) {
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const niveau = normalize(lot?.bio?.integriteBio?.niveau ?? '');
+        return niveau === 'faible' ? 'active' : 'none';
+    }
+
+    getLockState(lot) {
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const expansion = normalize(lot?.bio?.expansion?.niveau ?? '');
+        const contamination = normalize(lot?.denat?.contaminationDenat?.niveau ?? '');
+        if (expansion === 'forte') return { locked: true, reason: 'expansion-forte' };
+        if (contamination === 'forte') return { locked: true, reason: 'contamination-forte' };
+        return { locked: false, reason: null };
+    }
+
+    isLockIgnored(lot) {
+        const { reason } = this.getLockState(lot);
+        if (!reason) return false;
+        return (lot?.locked?.ignoredBy ?? null) === reason;
+    }
+
+    refreshGlobalLockState(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const { locked, reason } = targetLot
+            ? this.getLockState(targetLot)
+            : { locked: false, reason: null };
+        const ignored  = targetLot ? this.isLockIgnored(targetLot) : false;
+        const isActive = locked && !ignored;
+
+        const allRows = document.querySelectorAll(
+            '.bio-row, .mech-row, .usage-row, .denat-row, .debit-row, ' +
+            '.geo-row, .essence-row, .ancien-row, .traces-row, .provenance-row'
+        );
+
+        allRows.forEach(row => {
+            const isException = isActive && (
+                (row.classList.contains('bio-row')   && row.dataset.bioField   === 'expansion') ||
+                (row.classList.contains('denat-row') && row.dataset.denatField === 'contaminationDenat')
+            );
+            if (isActive && !isException) {
+                row.classList.add('notation-locked');
+            } else {
+                row.classList.remove('notation-locked');
+            }
+        });
+    }
+
+    getAlterationLockState(lot) {
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const alteration = normalize(lot?.traces?.alterationTraces?.niveau ?? '');
+        if (alteration === 'forte') return { locked: true, reason: 'alteration-forte' };
+        return { locked: false, reason: null };
+    }
+
+    isAlterationLockIgnored(lot) {
+        const { reason } = this.getAlterationLockState(lot);
+        if (!reason) return false;
+        return (lot?.locked?.alterationIgnoredBy ?? null) === reason;
+    }
+
+    refreshAlterationAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.traces-row[data-traces-field="alterationTraces"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-traces-alteration-alert-btn]');
+        if (!alertBtn) return;
+
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        alertBtn.dataset.alertAlterationState =
+            normalize(targetLot?.traces?.alterationTraces?.niveau ?? '') === 'forte' ? 'active' : 'none';
+    }
+
+    refreshAlterationLockState(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const { locked } = targetLot
+            ? this.getAlterationLockState(targetLot)
+            : { locked: false };
+        const ignored  = targetLot ? this.isAlterationLockIgnored(targetLot) : false;
+        const isActive = locked && !ignored;
+
+        // Le hard-lock prend le dessus : si hard-lock actif, soft-lock inutile (rows déjà pointer-events:none)
+        const hardLockActive = targetLot ? (() => {
+            const { locked: hLocked } = this.getLockState(targetLot);
+            const hIgnored = this.isLockIgnored(targetLot);
+            return hLocked && !hIgnored;
+        })() : false;
+
+        const allRows = document.querySelectorAll(
+            '.bio-row, .mech-row, .usage-row, .denat-row, .debit-row, ' +
+            '.geo-row, .essence-row, .ancien-row, .traces-row, .provenance-row'
+        );
+
+        allRows.forEach(row => {
+            const isException = (
+                (row.classList.contains('bio-row')   && row.dataset.bioField   === 'expansion') ||
+                (row.classList.contains('denat-row') && row.dataset.denatField === 'contaminationDenat') ||
+                (row.classList.contains('traces-row') && row.dataset.tracesField === 'alterationTraces')
+            );
+            if (isActive && !isException && !hardLockActive) {
+                row.classList.add('notation-soft-locked');
+            } else {
+                row.classList.remove('notation-soft-locked');
+            }
+        });
+    }
+
     openAncienVieillissementAlertModal(alertState, lot = null) {
         const backdrop = document.getElementById('ancienDetailModalBackdrop');
         const titleEl = document.getElementById('ancienDetailModalTitle');
@@ -2145,6 +2269,260 @@ class ValoboisApp {
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
         }
+    }
+
+    openMechIntegriteAlertModal(alertState) {
+        const backdrop  = document.getElementById('mechDetailModalBackdrop');
+        const titleEl   = document.getElementById('mechDetailModalTitle');
+        const contentEl = document.getElementById('mechDetailModalContent');
+
+        if (titleEl) titleEl.textContent = 'Alerte Intégrité mécanique';
+        this.renderDetailModalContent(contentEl, this.buildIntegriteMechAlertModalMessage());
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openPurgeAlertModal() {
+        const backdrop  = document.getElementById('bioDetailModalBackdrop');
+        const titleEl   = document.getElementById('bioDetailModalTitle');
+        const contentEl = document.getElementById('bioDetailModalContent');
+
+        if (titleEl) titleEl.textContent = 'Alerte Purge nécessaire';
+        this.renderDetailModalContent(contentEl, this.buildPurgeAlertModalMessage());
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openBioExpansionAlertModal() {
+        const backdrop  = document.getElementById('bioDetailModalBackdrop');
+        const titleEl   = document.getElementById('bioDetailModalTitle');
+        const contentEl = document.getElementById('bioDetailModalContent');
+        const footer    = backdrop?.querySelector('.modal-footer');
+        const btnIgnore = document.getElementById('btnIgnoreBioDetailModal');
+
+        if (titleEl) titleEl.textContent = 'Alerte Expansion biologique';
+        this.renderDetailModalContent(contentEl, this.buildExpansionAlertModalMessage());
+
+        const lot = this.getCurrentLot();
+        if (btnIgnore) {
+            btnIgnore.removeAttribute('hidden');
+            if (footer) footer.classList.add('modal-footer--with-ignore');
+            btnIgnore.onclick = () => {
+                if (lot) {
+                    if (!lot.locked) lot.locked = { reason: null, ignoredBy: null };
+                    lot.locked.ignoredBy = this.getLockState(lot).reason;
+                    this.saveData();
+                    this.refreshGlobalLockState(lot);
+                    this.computeOrientation(lot);
+                }
+                this.closeBioDetailModal();
+            };
+        }
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openDenatContaminationAlertModal() {
+        const backdrop  = document.getElementById('denatDetailModalBackdrop');
+        const titleEl   = document.getElementById('denatDetailModalTitle');
+        const contentEl = document.getElementById('denatDetailModalContent');
+        const footer    = backdrop?.querySelector('.modal-footer');
+        const btnIgnore = document.getElementById('btnIgnoreDenatDetailModal');
+
+        if (titleEl) titleEl.textContent = 'Alerte Contamination';
+        this.renderDetailModalContent(contentEl, this.buildContaminationAlertModalMessage());
+
+        const lot = this.getCurrentLot();
+        if (btnIgnore) {
+            btnIgnore.removeAttribute('hidden');
+            if (footer) footer.classList.add('modal-footer--with-ignore');
+            btnIgnore.onclick = () => {
+                if (lot) {
+                    if (!lot.locked) lot.locked = { reason: null, ignoredBy: null };
+                    lot.locked.ignoredBy = this.getLockState(lot).reason;
+                    this.saveData();
+                    this.refreshGlobalLockState(lot);
+                    this.computeOrientation(lot);
+                }
+                this.closeDenatDetailModal();
+            };
+        }
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    buildAlterationAlertMessage() {
+        return [
+            'Altération forte détectée',
+            '',
+            '⚠ Notation gelée.',
+            "Une altération forte des bois a été constatée. Les notations existantes peuvent être caduques "
+            + "car les dégradations biologiques et mécaniques sont potentiellement sous-évaluées.",
+            '',
+            "Actions possibles :",
+            "- Ignorer : débloquer la notation sans modifier les notes actuelles.",
+            "- Révision : réinitialiser les groupes de critères souhaités et choisir une orientation forcée.",
+        ].join('\n');
+    }
+
+    openAlterationAlertModal() {
+        const backdrop  = document.getElementById('alterationAlertModalBackdrop');
+        const contentEl = document.getElementById('alterationAlertModalContent');
+        if (contentEl) this.renderDetailModalContent(contentEl, this.buildAlterationAlertMessage());
+
+        const lot = this.getCurrentLot();
+
+        const btnIgnore   = document.getElementById('btnIgnoreAlterationAlert');
+        const btnRevision = document.getElementById('btnRevisionAlterationAlert');
+        const btnClose    = document.getElementById('btnCloseAlterationAlertFooter');
+        const btnCloseX   = document.getElementById('btnCloseAlterationAlertModal');
+
+        if (btnIgnore) {
+            btnIgnore.onclick = () => {
+                if (lot) {
+                    if (!lot.locked) lot.locked = {};
+                    lot.locked.alterationIgnoredBy = 'alteration-forte';
+                    this.saveData();
+                    this.refreshAlterationLockState(lot);
+                    this.computeOrientation(lot);
+                }
+                this.closeAlterationAlertModal();
+            };
+        }
+        if (btnRevision) {
+            btnRevision.onclick = () => {
+                this.closeAlterationAlertModal();
+                this.openAlterationRevisionModal();
+            };
+        }
+        const closeFn = () => this.closeAlterationAlertModal();
+        if (btnClose)  btnClose.onclick  = closeFn;
+        if (btnCloseX) btnCloseX.onclick = closeFn;
+        if (backdrop) {
+            backdrop.onclick = (e) => { if (e.target === backdrop) closeFn(); };
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeAlterationAlertModal() {
+        const backdrop = document.getElementById('alterationAlertModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    openAlterationRevisionModal() {
+        const backdrop  = document.getElementById('alterationRevisionModalBackdrop');
+        const groupsEl  = document.getElementById('alterationRevisionGroups');
+        const selectEl  = document.getElementById('alterationRevisionOrientation');
+        const btnConfirm = document.getElementById('btnConfirmAlterationRevision');
+        const btnCloseX  = document.getElementById('btnCloseAlterationRevisionModal');
+        const lot = this.getCurrentLot();
+
+        // Groupes de critères réinitialisables (label + sections + champs)
+        const groups = [
+            { id: 'bio',        label: 'Dégradation biologique',  section: 'bio',      fields: ['purge','expansion','integriteBio','exposition','confianceBio'] },
+            { id: 'mech',       label: 'Dégradation mécanique',   section: 'mech',     fields: ['integriteMech','fractureMech','deformationMech','surfaceMech','confianceMech'] },
+            { id: 'usage',      label: 'Qualité d\'usage',         section: 'usage',    fields: ['confianceUsage','durabiliteUsage','classementUsage','humiditeUsage','aspectUsage'] },
+            { id: 'denat',      label: 'Dénaturation',             section: 'denat',    fields: ['depollutionDenat','contaminationDenat','durabiliteConfDenat','confianceDenat','naturaliteDenat'] },
+            { id: 'debit',      label: 'Qualité de débit',         section: 'debit',    fields: ['regulariteDebit','volumetrieDebit','stabiliteDebit','artisanaliteDebit','rusticiteDebit'] },
+            { id: 'geo',        label: 'Géométrie',                section: 'geo',      fields: ['adaptabiliteGeo','massiviteGeo','deformationGeo','industrialiteGeo','inclusiviteGeo'] },
+            { id: 'essence',    label: 'Essence',                  section: 'essence',  fields: ['confianceEssence','rareteEcoEssence','masseVolEssence','rareteHistEssence','singulariteEssence'] },
+            { id: 'ancien',     label: 'Ancien usage',             section: 'ancien',   fields: ['confianceAncien','amortissementAncien','vieillissementAncien','microhistoireAncien','demontabiliteAncien'] },
+            { id: 'tracesOther',label: 'Traces (hors Altération)', section: 'traces',   fields: ['confianceTraces','etiquetageTraces','documentationTraces','singularitesTraces'] },
+            { id: 'provenance', label: 'Provenance',               section: 'provenance',fields: ['confianceProv','transportProv','reputationProv','macroProv','territorialiteProv'] },
+        ];
+
+        if (groupsEl) {
+            groupsEl.innerHTML = '';
+            groups.forEach(g => {
+                const label = document.createElement('label');
+                label.className = 'alteration-revision-group';
+                const cb = document.createElement('input');
+                cb.type = 'checkbox';
+                cb.value = g.id;
+                cb.id = 'altRevCb_' + g.id;
+                const span = document.createElement('span');
+                span.textContent = g.label;
+                label.appendChild(cb);
+                label.appendChild(span);
+                groupsEl.appendChild(label);
+            });
+        }
+
+        if (selectEl) selectEl.value = lot?.locked?.alterationForcedOrientation || '';
+
+        if (btnConfirm) {
+            btnConfirm.onclick = () => {
+                if (!lot) { this.closeAlterationRevisionModal(); return; }
+                // Récupérer cases cochées
+                const checkedIds = Array.from(groupsEl?.querySelectorAll('input[type="checkbox"]:checked') || []).map(cb => cb.value);
+                // Réinitialiser les champs sélectionnés
+                checkedIds.forEach(gid => {
+                    const g = groups.find(x => x.id === gid);
+                    if (!g) return;
+                    const sec = lot[g.section];
+                    if (!sec) return;
+                    g.fields.forEach(f => { sec[f] = null; });
+                });
+                // Orientation forcée
+                const forced = selectEl?.value || null;
+                if (!lot.locked) lot.locked = {};
+                lot.locked.alterationForcedOrientation = forced || null;
+                lot.locked.alterationIgnoredBy = 'alteration-forte';
+                this.saveData();
+                this.refreshAlterationLockState(lot);
+                this.computeOrientation(lot);
+                this.render();
+                this.closeAlterationRevisionModal();
+            };
+        }
+
+        const closeFn = () => this.closeAlterationRevisionModal();
+        if (btnCloseX) btnCloseX.onclick = closeFn;
+        if (backdrop) {
+            backdrop.onclick = (e) => { if (e.target === backdrop) closeFn(); };
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    closeAlterationRevisionModal() {
+        const backdrop = document.getElementById('alterationRevisionModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    setupAlterationSoftLockInterceptor() {
+        // Un seul listener délégué sur document (évite les doublons via flag)
+        if (this.__alterationSoftLockInterceptorInstalled) return;
+        this.__alterationSoftLockInterceptorInstalled = true;
+
+        document.addEventListener('click', (e) => {
+            const row = e.target.closest('.notation-soft-locked');
+            if (!row) return;
+            // Ne pas bloquer les boutons Réinitialiser et Info de la row elle-même
+            if (e.target.closest('.traces-reset-btn, .traces-info-small-btn, [data-traces-alteration-alert-btn]')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this.openAlterationAlertModal();
+        }, true); // capture phase pour intercepter avant les handlers natifs
     }
 
     /**
@@ -4065,6 +4443,71 @@ class ValoboisApp {
         ].join('\n');
     }
 
+    buildIntegriteMechAlertModalMessage() {
+        return [
+            'Intégrité mécanique — Faible',
+            '',
+            '⚠ Exclusion du réemploi.',
+            "L'intégrité mécanique étant jugée faible, ces pièces sont exclues du réemploi. "
+            + "Elles peuvent néanmoins faire l'objet d'une réutilisation, d'un recyclage ou "
+            + "d'une valorisation énergétique en dernier recours.",
+            '',
+            "Effet sur l'orientation :",
+            "L'orientation du lot est automatiquement plafonnée à 'Réutilisation' "
+            + "même si le score calculé atteint le seuil 'Réemploi'.",
+            '',
+            'Logique appliquée :',
+            '- Intégrité mécanique Faible → orientation max = Réutilisation',
+            '- Intégrité mécanique Moyenne ou Forte → pas de plafonnement',
+        ].join('\n');
+    }
+
+    buildPurgeAlertModalMessage() {
+        return [
+            'Purge — Intégrité biologique Faible',
+            '',
+            '⚠ Purge forte requise.',
+            "L'intégrité biologique des bois étant jugée faible, ces pièces doivent faire l'objet "
+            + "d'une purge forte pour être réutilisées ou recyclées.",
+        ].join('\n');
+    }
+
+    buildExpansionAlertModalMessage() {
+        return [
+            'Expansion biologique — Forte',
+            '',
+            '⚠ Combustion uniquement.',
+            "Une expansion biologique forte indique une colonisation fongique ou parasitaire massive. "
+            + "Ces pièces sont exclues du réemploi, de la réutilisation et du recyclage. "
+            + "Seule la combustion est possible et attribuée automatiquement.",
+            '',
+            "Effet sur l'orientation :",
+            "L'orientation du lot est automatiquement forcée à 'Combustion' quelles que soient les autres notes.",
+            '',
+            'Logique appliquée :',
+            '- Expansion biologique Forte → orientation = Combustion (forçage)',
+            '- Expansion biologique Moyenne ou Faible → pas de forçage',
+        ].join('\n');
+    }
+
+    buildContaminationAlertModalMessage() {
+        return [
+            'Contamination — Forte',
+            '',
+            '⚠ Combustion uniquement.',
+            "Une contamination forte (produits de traitement, métaux lourds, substances dangereuses) "
+            + "exclut tout réemploi, réutilisation et recyclage. Seule la combustion est possible et "
+            + "attribuée automatiquement, sous réserve des conditions réglementaires d'inénération.",
+            '',
+            "Effet sur l'orientation :",
+            "L'orientation du lot est automatiquement forcée à 'Combustion' quelles que soient les autres notes.",
+            '',
+            'Logique appliquée :',
+            '- Contamination Forte → orientation = Combustion (forçage)',
+            '- Contamination Moyenne ou Faible → pas de forçage',
+        ].join('\n');
+    }
+
     parsePositiveAlertDimensionValue(value) {
         const normalized = String(value == null ? '' : value)
             .replace(/,/g, '.')
@@ -4468,6 +4911,77 @@ class ValoboisApp {
         if (!alertBtn) return;
 
         alertBtn.dataset.alertIntegriteBioState = this.getIntegriteBioAlertState(targetLot);
+    }
+
+    refreshIntegriteMechAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.mech-row[data-mech-field="integriteMech"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-mech-integrite-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertIntegriteMechState = this.getIntegriteMechAlertState(targetLot);
+    }
+
+    refreshPurgeBioAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.bio-row[data-bio-field="purge"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-bio-purge-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertPurgeBioState = this.getPurgeAlertState(targetLot);
+    }
+
+    refreshPurgeMechAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.mech-row[data-mech-field="purgeMech"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-mech-purge-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertPurgeMechState = this.getPurgeAlertState(targetLot);
+    }
+
+    refreshExpansionAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.bio-row[data-bio-field="expansion"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-bio-expansion-alert-btn]');
+        if (!alertBtn) return;
+
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        alertBtn.dataset.alertExpansionState =
+            normalize(targetLot?.bio?.expansion?.niveau ?? '') === 'forte' ? 'active' : 'none';
+    }
+
+    refreshContaminationAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.denat-row[data-denat-field="contaminationDenat"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-denat-contamination-alert-btn]');
+        if (!alertBtn) return;
+
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        alertBtn.dataset.alertContaminationState =
+            normalize(targetLot?.denat?.contaminationDenat?.niveau ?? '') === 'forte' ? 'active' : 'none';
     }
 
     refreshHumiditeUsageAlertButton(lot) {
@@ -10759,6 +11273,12 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
             b.classList.add('hidden');
             b.setAttribute('aria-hidden', 'true');
         }
+        const btnIgnore = document.getElementById('btnIgnoreBioDetailModal');
+        if (btnIgnore) {
+            btnIgnore.setAttribute('hidden', '');
+            const footer = b?.querySelector('.modal-footer');
+            if (footer) footer.classList.remove('modal-footer--with-ignore');
+        }
     }
 
 openMechModal() {
@@ -11158,6 +11678,12 @@ closeDenatDetailModal() {
     if (backdrop) {
         backdrop.classList.add('hidden');
         backdrop.setAttribute('aria-hidden', 'true');
+    }
+    const btnIgnore = document.getElementById('btnIgnoreDenatDetailModal');
+    if (btnIgnore) {
+        btnIgnore.setAttribute('hidden', '');
+        const footer = backdrop?.querySelector('.modal-footer');
+        if (footer) footer.classList.remove('modal-footer--with-ignore');
     }
 }
 
@@ -12083,6 +12609,9 @@ closeEvalOpModal() {
         this.renderOrientation();
         this.renderEvalOp();
         this.setupNotationResetConfirmations();
+        this.refreshGlobalLockState(this.getCurrentLot());
+        this.refreshAlterationLockState(this.getCurrentLot());
+        this.setupAlterationSoftLockInterceptor();
 
         document.querySelectorAll('.bio-slider, .mech-slider, .usage-slider, .denat-slider, .debit-slider, .geo-slider, .essence-slider, .ancien-slider, .traces-slider, .provenance-slider, .inspection-slider').forEach((slider) => {
             if (typeof slider.__refreshActiveSliderLabel === 'function') {
@@ -15333,6 +15862,8 @@ updateBioRow(row, key, lot) {
     const infoBtn        = row.querySelector('.bio-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const integriteBioAlertBtn = key === 'integriteBio' ? row.querySelector('[data-bio-integrite-alert-btn]') : null;
+    const purgeBioAlertBtn = key === 'purge' ? row.querySelector('[data-bio-purge-alert-btn]') : null;
+    const expansionAlertBtn = key === 'expansion' ? row.querySelector('[data-bio-expansion-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15395,6 +15926,15 @@ updateBioRow(row, key, lot) {
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
+                this.refreshPurgeBioAlertButton(lot);
+                this.refreshPurgeMechAlertButton(lot);
+            }
+            if (key === 'expansion') {
+                if (lot.locked?.ignoredBy === 'expansion-forte') {
+                    lot.locked.ignoredBy = null;
+                }
+                this.refreshExpansionAlertButton(lot);
+                this.refreshGlobalLockState(lot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
@@ -15438,6 +15978,15 @@ updateBioRow(row, key, lot) {
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
+                this.refreshPurgeBioAlertButton(lot);
+                this.refreshPurgeMechAlertButton(lot);
+            }
+            if (key === 'expansion') {
+                if (lot.locked?.ignoredBy === 'expansion-forte') {
+                    lot.locked.ignoredBy = null;
+                }
+                this.refreshExpansionAlertButton(lot);
+                this.refreshGlobalLockState(lot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
@@ -15464,6 +16013,22 @@ updateBioRow(row, key, lot) {
             e.stopPropagation();
             this.refreshIntegriteBioAlertButton(lot);
             this.openBioIntegriteAlertModal(integriteBioAlertBtn.dataset.alertIntegriteBioState || 'none');
+        };
+    }
+
+    if (purgeBioAlertBtn) {
+        this.refreshPurgeBioAlertButton(lot);
+        purgeBioAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openPurgeAlertModal();
+        };
+    }
+
+    if (expansionAlertBtn) {
+        this.refreshExpansionAlertButton(lot);
+        expansionAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openBioExpansionAlertModal();
         };
     }
 
@@ -15532,6 +16097,8 @@ updateMechRow(row, key, lot) {
     const infoBtn = row.querySelector('.mech-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const feuAlertBtn = key === 'feuMech' ? row.querySelector('[data-mech-feu-alert-btn]') : null;
+    const integriteMechAlertBtn = key === 'integriteMech' ? row.querySelector('[data-mech-integrite-alert-btn]') : null;
+    const purgeMechAlertBtn = key === 'purgeMech' ? row.querySelector('[data-mech-purge-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-mech-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15572,6 +16139,9 @@ updateMechRow(row, key, lot) {
             if (activeLot) this.computeOrientation(activeLot);
             if (key === 'expositionMech') {
                 this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'integriteMech') {
+                this.refreshIntegriteMechAlertButton(lot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
         };
@@ -15620,6 +16190,9 @@ updateMechRow(row, key, lot) {
             if (key === 'expositionMech') {
                 this.refreshVieillissementAlertButton(lot);
             }
+            if (key === 'integriteMech') {
+                this.refreshIntegriteMechAlertButton(lot);
+            }
 
             this.refreshConfidenceAlertButton(row, key, lot);
 
@@ -15646,6 +16219,23 @@ updateMechRow(row, key, lot) {
             this.refreshFeuMechAlertButton(lot);
             const alertState = feuAlertBtn.dataset.alertFeuState || 'none';
             this.openMechFeuAlertModal(alertState, lot);
+        };
+    }
+
+    if (integriteMechAlertBtn) {
+        this.refreshIntegriteMechAlertButton(lot);
+        integriteMechAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshIntegriteMechAlertButton(lot);
+            this.openMechIntegriteAlertModal(integriteMechAlertBtn.dataset.alertIntegriteMechState || 'none');
+        };
+    }
+
+    if (purgeMechAlertBtn) {
+        this.refreshPurgeMechAlertButton(lot);
+        purgeMechAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openPurgeAlertModal();
         };
     }
 
@@ -15930,6 +16520,7 @@ updateDenatRow(row, key, lot) {
     const infoBtn = row.querySelector('.denat-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const naturaliteAlertBtn = key === 'naturaliteDenat' ? row.querySelector('[data-denat-naturalite-alert-btn]') : null;
+    const contaminationAlertBtn = key === 'contaminationDenat' ? row.querySelector('[data-denat-contamination-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-denat-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -15991,6 +16582,13 @@ updateDenatRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
 
+            if (key === 'contaminationDenat') {
+                if (lot.locked?.ignoredBy === 'contamination-forte') {
+                    lot.locked.ignoredBy = null;
+                }
+                this.refreshContaminationAlertButton(lot);
+                this.refreshGlobalLockState(lot);
+            }
             updateNaturaliteAlertBtn();
             this.refreshConfidenceAlertButton(row, key, lot);
 
@@ -16035,6 +16633,13 @@ updateDenatRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
 
+            if (key === 'contaminationDenat') {
+                if (lot.locked?.ignoredBy === 'contamination-forte') {
+                    lot.locked.ignoredBy = null;
+                }
+                this.refreshContaminationAlertButton(lot);
+                this.refreshGlobalLockState(lot);
+            }
             updateNaturaliteAlertBtn();
             this.refreshConfidenceAlertButton(row, key, lot);
 
@@ -16051,6 +16656,14 @@ updateDenatRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (contaminationAlertBtn) {
+        this.refreshContaminationAlertButton(lot);
+        contaminationAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.openDenatContaminationAlertModal();
         };
     }
 
@@ -17200,6 +17813,14 @@ updateTracesRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            if (key === 'alterationTraces') {
+                if (lot.locked?.alterationIgnoredBy === 'alteration-forte') {
+                    lot.locked.alterationIgnoredBy = null;
+                    lot.locked.alterationForcedOrientation = null;
+                }
+                this.refreshAlterationAlertButton(lot);
+                this.refreshAlterationLockState(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
             this.renderSeuils();
             this.renderEvalOp();
@@ -17243,6 +17864,14 @@ updateTracesRow(row, key, lot) {
             if (activeLot) {
                 this.computeOrientation(activeLot);
             }
+            if (key === 'alterationTraces') {
+                if (lot.locked?.alterationIgnoredBy === 'alteration-forte') {
+                    lot.locked.alterationIgnoredBy = null;
+                    lot.locked.alterationForcedOrientation = null;
+                }
+                this.refreshAlterationAlertButton(lot);
+                this.refreshAlterationLockState(lot);
+            }
             this.refreshConfidenceAlertButton(row, key, lot);
 
         };
@@ -17259,6 +17888,18 @@ updateTracesRow(row, key, lot) {
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
         };
+    }
+
+    // Bouton alerte altération (sur la row alterationTraces)
+    if (key === 'alterationTraces') {
+        this.refreshAlterationAlertButton(lot);
+        const alterationAlertBtn = row.querySelector('[data-traces-alteration-alert-btn]');
+        if (alterationAlertBtn) {
+            alterationAlertBtn.onclick = (e) => {
+                e.stopPropagation();
+                this.openAlterationAlertModal();
+            };
+        }
     }
 
     if (!current) {
@@ -19984,6 +20625,25 @@ renderRadar() {
             label = 'Réutilisation';
             code  = 'reutilisation';
         }
+        // Plafonnement : integriteMech Faible → orientation max = Réutilisation
+        if (_normInteg(lot?.mech?.integriteMech?.niveau) === 'faible' && code === 'reemploi') {
+            label = 'Réutilisation';
+            code  = 'reutilisation';
+        }
+        // Forçage : altération Forte ignorée avec orientation forcée par révision
+        if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
+            const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
+            const forced = altMap[lot.locked.alterationForcedOrientation];
+            if (forced) { label = forced; code = lot.locked.alterationForcedOrientation; }
+        }
+        // Forçage : expansion Forte ou contamination Forte → Combustion (sauf si ignoré)
+        if (!this.isLockIgnored(lot)) {
+            if (_normInteg(lot?.bio?.expansion?.niveau) === 'forte') {
+                label = 'Combustion'; code = 'combustion';
+            } else if (_normInteg(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
+                label = 'Combustion'; code = 'combustion';
+            }
+        }
 
         lot.orientationLabel = label;
         lot.orientationCode = code;
@@ -21445,6 +22105,25 @@ renderRadar() {
         if (_normPdf(lot?.bio?.integriteBio?.niveau) === 'faible' && finalCode === 'reemploi') {
             finalLabel = 'Réutilisation';
             finalCode  = 'reutilisation';
+        }
+        // Plafonnement : integriteMech Faible → orientation max = Réutilisation
+        if (_normPdf(lot?.mech?.integriteMech?.niveau) === 'faible' && finalCode === 'reemploi') {
+            finalLabel = 'Réutilisation';
+            finalCode  = 'reutilisation';
+        }
+        // Forçage : altération Forte ignorée avec orientation forcée par révision
+        if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
+            const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
+            const forced = altMap[lot.locked.alterationForcedOrientation];
+            if (forced) { finalLabel = forced; finalCode = lot.locked.alterationForcedOrientation; }
+        }
+        // Forçage : expansion Forte ou contamination Forte → Combustion (sauf si ignoré)
+        if (!this.isLockIgnored(lot)) {
+            if (_normPdf(lot?.bio?.expansion?.niveau) === 'forte') {
+                finalLabel = 'Combustion'; finalCode = 'combustion';
+            } else if (_normPdf(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
+                finalLabel = 'Combustion'; finalCode = 'combustion';
+            }
         }
 
         return { label: finalLabel, code: finalCode, percentage, average, scores };

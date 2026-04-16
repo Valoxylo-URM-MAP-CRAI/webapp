@@ -2727,6 +2727,137 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: auto;
 }
 
+.lot-alert-btn--mech-integrite[data-alert-integrite-mech-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--mech-integrite[data-alert-integrite-mech-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--bio-purge[data-alert-purge-bio-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--bio-purge[data-alert-purge-bio-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--mech-purge[data-alert-purge-mech-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--mech-purge[data-alert-purge-mech-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--bio-expansion[data-alert-expansion-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--bio-expansion[data-alert-expansion-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--denat-contamination[data-alert-contamination-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--denat-contamination[data-alert-contamination-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.lot-alert-btn--traces-alteration[data-alert-alteration-state="active"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--traces-alteration[data-alert-alteration-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
+.notation-locked {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.45;
+    user-select: none;
+}
+
+/* Soft-lock altération : opacité réduite mais clics passants (interceptés par JS) */
+.notation-soft-locked {
+    position: relative;
+    opacity: 0.45;
+    user-select: none;
+}
+
+.modal-footer--with-ignore {
+    display: flex;
+    gap: 8px;
+}
+
+.modal-footer--with-ignore .btn {
+    flex: 1;
+}
+
+/* Footer 3 boutons pour modale alerte altération */
+.modal-footer--alteration-alert {
+    display: flex;
+    gap: 8px;
+}
+
+.modal-footer--alteration-alert .btn {
+    flex: 1;
+}
+
+/* Sélecteur orientation révision */
+.alteration-revision-select {
+    width: 100%;
+    padding: 6px 8px;
+    border-radius: var(--radius-base);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: var(--font-size-sm);
+}
+
+/* Modale large (révision) */
+.modal--wide {
+    width: 95%;
+    max-width: 480px;
+}
+
+/* Checkbox révision */
+.alteration-revision-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: var(--font-size-sm);
+}
+
+.alteration-revision-group input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
 .lot-alert-btn--provenance-macro[data-alert-macro-state="strong"] {
     opacity: 1;
     pointer-events: auto;
