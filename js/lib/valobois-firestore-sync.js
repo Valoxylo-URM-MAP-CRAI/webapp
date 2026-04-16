@@ -50,6 +50,53 @@
     /** Objet JSON { evalId, ownerUid } pour réinjecter ?eval= et ?owner=. */
     var SESSION_PENDING_EVAL = 'valobois_pending_eval';
 
+    /** Champs `ui` purement interface : jamais dans payloadJson. */
+    function stripUiOnlyFieldsFromCloudPayloadRoot(root) {
+        if (!root || typeof root !== 'object') return;
+        if (!root.ui || typeof root.ui !== 'object') return;
+        try {
+            delete root.ui.collapsibles;
+        } catch (e) {
+            /* ignore */
+        }
+        try {
+            delete root.ui.detailLotActiveCardByLot;
+        } catch (e2) {
+            /* ignore */
+        }
+    }
+
+    /**
+     * JSON écrit dans payloadJson : clone + retrait des champs UI non modèle sous `ui`.
+     * Ne jamais faire JSON.stringify(appInstance.data) directement (référence ou fallback oublié).
+     */
+    function buildPayloadJsonForCloud(appInstance) {
+        if (!appInstance || !appInstance.data) return '{}';
+        var root;
+        try {
+            if (typeof appInstance.prepareDataForCloudSnapshot === 'function') {
+                root = appInstance.prepareDataForCloudSnapshot();
+            } else {
+                root = JSON.parse(JSON.stringify(appInstance.data));
+            }
+        } catch (e) {
+            console.warn('Valobois buildPayloadJsonForCloud (prepare/clone)', e);
+            try {
+                root = JSON.parse(JSON.stringify(appInstance.data));
+            } catch (e2) {
+                console.warn('Valobois buildPayloadJsonForCloud (fallback)', e2);
+                return '{}';
+            }
+        }
+        stripUiOnlyFieldsFromCloudPayloadRoot(root);
+        try {
+            return JSON.stringify(root);
+        } catch (e3) {
+            console.warn('Valobois buildPayloadJsonForCloud (stringify)', e3);
+            return '{}';
+        }
+    }
+
     function isValidFirestoreUid(s) {
         if (s == null || typeof s !== 'string') return false;
         var t = s.trim();
@@ -314,6 +361,9 @@
 
         function applyRemoteData(appInstance, parsed) {
             if (!parsed || !parsed.lots || !Array.isArray(parsed.lots)) return;
+            if (typeof appInstance.sanitizeCloudPayloadBeforeApply === 'function') {
+                appInstance.sanitizeCloudPayloadBeforeApply(parsed);
+            }
             appInstance.data = parsed;
             appInstance.data.meta = appInstance.getDefaultMeta(appInstance.data.meta || {});
             appInstance.data.ui = appInstance.getDefaultUi(appInstance.data.ui || {});
@@ -324,6 +374,9 @@
             var n = appInstance.data.lots.length;
             if (typeof appInstance.currentLotIndex === 'number' && appInstance.currentLotIndex >= n) {
                 appInstance.currentLotIndex = Math.max(0, n - 1);
+            }
+            if (typeof appInstance.resetDetailLotActiveCardStore === 'function') {
+                appInstance.resetDetailLotActiveCardStore();
             }
             appInstance.render();
         }
@@ -337,7 +390,7 @@
             var ownerUid = getEvalOwnerUid(u);
             var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
             var payload = {
-                payloadJson: JSON.stringify(appInstance.data),
+                payloadJson: buildPayloadJsonForCloud(appInstance),
                 revision: rev,
                 updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                 operationName: operationNameFromApp(appInstance),
@@ -385,6 +438,9 @@
             }
             appInstance.data = appInstance.createInitialData();
             appInstance.currentLotIndex = 0;
+            if (typeof appInstance.resetDetailLotActiveCardStore === 'function') {
+                appInstance.resetDetailLotActiveCardStore();
+            }
             appInstance.render();
         }
 
@@ -436,7 +492,7 @@
                 setEvalAndOwnerInUrl(newId, '');
                 var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
                 var payload = {
-                    payloadJson: JSON.stringify(appInstance.data),
+                    payloadJson: buildPayloadJsonForCloud(appInstance),
                     revision: rev,
                     updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                     operationName: operationNameFromApp(appInstance),
@@ -462,7 +518,7 @@
                         var empty = appInstance.createInitialData();
                         applyRemoteData(appInstance, empty);
                         return evalRef(db, evalOwnerUid, evalId).set({
-                            payloadJson: JSON.stringify(appInstance.data),
+                            payloadJson: buildPayloadJsonForCloud(appInstance),
                             revision: Number(appInstance.data.meta && appInstance.data.meta.revision) || 0,
                             updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                             operationName: operationNameFromApp(appInstance),

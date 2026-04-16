@@ -304,6 +304,8 @@ class ValoboisApp {
         };
         /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
         this._accordionOpenStates = new Map();
+        /** Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage). */
+        this._detailLotActiveCardByLot = {};
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -778,7 +780,7 @@ class ValoboisApp {
             }
         }
 
-        this.setDetailLotActiveCardKey(lot, `piece:${lot.pieces.length - 1}`, { persist: false });
+        this.setDetailLotActiveCardKey(lot, `piece:${lot.pieces.length - 1}`);
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
         this.saveData();
@@ -799,7 +801,7 @@ class ValoboisApp {
             dp.quantite = String(currentDefaultQty + 1);
         }
 
-        this.setDetailLotActiveCardKey(lot, dp && dp.id ? `default:${dp.id}` : null, { persist: false });
+        this.setDetailLotActiveCardKey(lot, dp && dp.id ? `default:${dp.id}` : null);
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
         this.saveData();
@@ -872,7 +874,7 @@ class ValoboisApp {
                 if (mode === 'default') {
                     const clonedDefaultPiece = this.cloneDefaultPiece(lot, defaultPieceId);
                     if (!clonedDefaultPiece) return;
-                    this.setDetailLotActiveCardKey(lot, `default:${clonedDefaultPiece.id}`, { persist: false });
+                    this.setDetailLotActiveCardKey(lot, `default:${clonedDefaultPiece.id}`);
                     lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
                     this.recalculateLotAllotissement(lot);
                     this.saveData();
@@ -950,7 +952,7 @@ class ValoboisApp {
             ? `default:${nextDefault.id}`
             : (lot.pieces.length > 0 ? `piece:${Math.max(0, lot.pieces.length - 1)}` : null);
 
-        this.setDetailLotActiveCardKey(lot, nextCardKey, { persist: false });
+        this.setDetailLotActiveCardKey(lot, nextCardKey);
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
         this.recalculateLotAllotissement(lot);
         this.saveData();
@@ -1353,9 +1355,26 @@ class ValoboisApp {
         };
     }
 
+    /** Clone de `data` pour `payloadJson` nuage (sans muter l’état local). */
+    prepareDataForCloudSnapshot() {
+        const raw = JSON.parse(JSON.stringify(this.data));
+        if (raw.ui && typeof raw.ui === 'object') {
+            if (raw.ui.collapsibles != null) delete raw.ui.collapsibles;
+            if (raw.ui.detailLotActiveCardByLot != null) delete raw.ui.detailLotActiveCardByLot;
+        }
+        return raw;
+    }
+
+    /** Retire du payload distant les champs UI non modèle (`ui.collapsibles`, `ui.detailLotActiveCardByLot`). */
+    sanitizeCloudPayloadBeforeApply(parsed) {
+        if (!parsed || typeof parsed !== 'object') return;
+        if (parsed.ui && typeof parsed.ui === 'object') {
+            if (parsed.ui.collapsibles != null) delete parsed.ui.collapsibles;
+            if (parsed.ui.detailLotActiveCardByLot != null) delete parsed.ui.detailLotActiveCardByLot;
+        }
+    }
+
     getDefaultUi(existingUi = {}) {
-        const existingCollapsibles = (existingUi && existingUi.collapsibles) || {};
-        const existingDetailLotActiveCardByLot = (existingUi && existingUi.detailLotActiveCardByLot) || {};
         const normalizeStrategy = (raw) => {
             const key = ((raw || '') + '').toLowerCase();
             if (key === 'single' || key === 'multiple') return key;
@@ -1364,18 +1383,6 @@ class ValoboisApp {
             return 'single';
         };
         return {
-            collapsibles: {
-                apropos: false,
-                'reference-operation': false,
-                diagnostiqueur: false,
-                contacts: false,
-                'contexte-technique': false,
-                documents: false,
-                notes: false,
-                'lot-location-combination': false,
-                ...existingCollapsibles
-            },
-            detailLotActiveCardByLot: { ...existingDetailLotActiveCardByLot },
             // [ARCHIVE TECHNIQUE] Seuils historiques conservés pour compatibilité
             // des données locales et réutilisation future éventuelle.
             seuilsVariabilite: {
@@ -1545,6 +1552,7 @@ class ValoboisApp {
         this.persistenceMode = 'guest';
         this.data = this.loadGuestDataFromLocalStorage();
         this.currentLotIndex = 0;
+        this.resetDetailLotActiveCardStore();
         this.render();
     }
 
@@ -1576,11 +1584,14 @@ class ValoboisApp {
     }
 
     getDetailLotActiveCardStore() {
-        if (!this.data.ui) this.data.ui = this.getDefaultUi();
-        if (!this.data.ui.detailLotActiveCardByLot || typeof this.data.ui.detailLotActiveCardByLot !== 'object') {
-            this.data.ui.detailLotActiveCardByLot = {};
+        if (!this._detailLotActiveCardByLot || typeof this._detailLotActiveCardByLot !== 'object') {
+            this._detailLotActiveCardByLot = {};
         }
-        return this.data.ui.detailLotActiveCardByLot;
+        return this._detailLotActiveCardByLot;
+    }
+
+    resetDetailLotActiveCardStore() {
+        this._detailLotActiveCardByLot = {};
     }
 
     getDetailLotStorageKey(lot) {
@@ -1622,13 +1633,12 @@ class ValoboisApp {
         return normalized;
     }
 
-    setDetailLotActiveCardKey(lot, nextKey, { persist = true } = {}) {
+    setDetailLotActiveCardKey(lot, nextKey) {
         if (!lot) return null;
         const store = this.getDetailLotActiveCardStore();
         const storageKey = this.getDetailLotStorageKey(lot);
         const normalized = this.normalizeDetailLotActiveCardKey(lot, nextKey);
         store[storageKey] = normalized;
-        if (persist) this.saveData();
         return normalized;
     }
 
@@ -8425,11 +8435,10 @@ class ValoboisApp {
 
     setCurrentLotIndex(index) {
         this.currentLotIndex = index;
-        this.saveData();
-            const activeLot = this.getCurrentLot(); // On récupère le lot actuel
-            if (activeLot) {
-                this.computeOrientation(activeLot);
-            }
+        const activeLot = this.getCurrentLot();
+        if (activeLot) {
+            this.computeOrientation(activeLot);
+        }
         this.render();
     }
 
@@ -8708,7 +8717,7 @@ deleteLot(index) {
         const lot = this.createEmptyLot(0);
         this.data.lots.push(lot);
         this.currentLotIndex = 0;
-        this.setDetailLotActiveCardKey(lot, 'default', { persist: false });
+        this.setDetailLotActiveCardKey(lot, 'default');
     } else if (this.currentLotIndex >= this.data.lots.length) {
         this.currentLotIndex = this.data.lots.length - 1;
     }
@@ -8889,44 +8898,15 @@ deleteLot(index) {
         if (aproposBtn && aproposContent) {
             aproposBtn.addEventListener('click', () => {
                 const isHidden = aproposContent.hasAttribute('hidden');
-                if (!this.data.ui) this.data.ui = this.getDefaultUi();
-                if (!this.data.ui.collapsibles) this.data.ui.collapsibles = this.getDefaultUi().collapsibles;
                 if (isHidden) {
                     aproposContent.removeAttribute('hidden');
                     aproposBtn.setAttribute('aria-expanded', 'true');
-                    this.data.ui.collapsibles.apropos = true;
                 } else {
                     aproposContent.setAttribute('hidden', '');
                     aproposBtn.setAttribute('aria-expanded', 'false');
-                    this.data.ui.collapsibles.apropos = false;
                 }
-                this.saveData();
             });
         }
-
-        const accueilCollapsibles = document.querySelectorAll('[data-ui-collapsible]');
-        accueilCollapsibles.forEach((detailsEl) => {
-            detailsEl.addEventListener('toggle', () => {
-                const key = detailsEl.getAttribute('data-ui-collapsible');
-                if (!key) return;
-                if (!this.data.ui) this.data.ui = this.getDefaultUi();
-                if (!this.data.ui.collapsibles) this.data.ui.collapsibles = this.getDefaultUi().collapsibles;
-                this.data.ui.collapsibles[key] = detailsEl.open;
-                this.saveData();
-            });
-        });
-
-        // Persister aussi les details recrees dynamiquement (ex: panneau seuils-dest du lot)
-        document.addEventListener('toggle', (e) => {
-            const detailsEl = e.target;
-            if (!(detailsEl instanceof HTMLDetailsElement)) return;
-            const key = detailsEl.getAttribute('data-ui-collapsible');
-            if (!key) return;
-            if (!this.data.ui) this.data.ui = this.getDefaultUi();
-            if (!this.data.ui.collapsibles) this.data.ui.collapsibles = this.getDefaultUi().collapsibles;
-            this.data.ui.collapsibles[key] = detailsEl.open;
-            this.saveData();
-        }, true);
 
         const operationReferenceAlertBtn = document.querySelector('[data-operation-reference-alert-btn]');
         if (operationReferenceAlertBtn) {
@@ -12600,27 +12580,6 @@ closeEvalOpModal() {
         this.data.meta = this.getDefaultMeta(this.data.meta || {});
         this.data.ui = this.getDefaultUi(this.data.ui || {});
         const meta = this.data.meta;
-        const ui = this.data.ui;
-
-        document.querySelectorAll('[data-ui-collapsible]').forEach((detailsEl) => {
-            const key = detailsEl.getAttribute('data-ui-collapsible');
-            if (!key) return;
-            const shouldBeOpen = ui.collapsibles[key] !== false;
-            if (detailsEl.open !== shouldBeOpen) detailsEl.open = shouldBeOpen;
-        });
-
-        const aproposBtn = document.getElementById('btnAproposToggle');
-        const aproposContent = document.getElementById('aproposContent');
-        if (aproposBtn && aproposContent) {
-            const shouldShowApropos = ui.collapsibles.apropos === true;
-            if (shouldShowApropos) {
-                aproposContent.removeAttribute('hidden');
-                aproposBtn.setAttribute('aria-expanded', 'true');
-            } else {
-                aproposContent.setAttribute('hidden', '');
-                aproposBtn.setAttribute('aria-expanded', 'false');
-            }
-        }
 
         document.querySelectorAll('[data-meta-field]').forEach((el) => {
             const field = el.getAttribute('data-meta-field');
@@ -13390,7 +13349,7 @@ closeEvalOpModal() {
             </div>
             <div class="lot-form-grid mt-16">
                 <div class="lot-field-block lot-field-block--full">
-                    <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination" ${this.data?.ui?.collapsibles?.['lot-location-combination'] === true ? 'open' : ''}>
+                    <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination">
                         <summary class="lot-group-summary">
                             <span>Localisation - Situation</span>
                         </summary>
@@ -13657,7 +13616,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest" ${this.data?.ui?.collapsibles?.['seuils-dest'] === false ? '' : 'open'}>
+                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest" open>
                             <summary class="lot-group-summary">
                                 <span>Seuils de destination</span>
                             </summary>
@@ -13739,7 +13698,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </details>
-                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot" ${this.data?.ui?.collapsibles?.['conformite-lot'] === false ? '' : 'open'}>
+                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot" open>
                             <summary class="lot-group-summary">
                                 <span>Conformité du lot</span>
                             </summary>
@@ -14804,7 +14763,7 @@ closeEvalOpModal() {
             const newIdx = this.data.lots.length;
             const lot = this.createEmptyLot(newIdx);
             this.data.lots.push(lot);
-            this.setDetailLotActiveCardKey(lot, 'default', { persist: false });
+            this.setDetailLotActiveCardKey(lot, 'default');
             this.setCurrentLotIndex(newIdx);
         });
     }
@@ -14859,7 +14818,7 @@ closeEvalOpModal() {
                 const key = card.dataset.detailCardKey;
                 if (!key) return;
                 if (this.isDetailLotCardActive(lot, key)) return;
-                this.setDetailLotActiveCardKey(lot, key, { persist: true });
+                this.setDetailLotActiveCardKey(lot, key);
                 // Re-render pour réappliquer l'état visuel (grisé/réactivé) avant édition.
                 this.renderDetailLot();
             });
@@ -15154,7 +15113,7 @@ closeEvalOpModal() {
                 const defaultPiecesList = this.ensureDefaultPiecesData(lot);
                 const normalizedDefaultPiece = this.ensureDefaultPieceShape(newDefaultPiece, defaultPiecesList.length);
                 defaultPiecesList.push(normalizedDefaultPiece);
-                this.setDetailLotActiveCardKey(lot, `default:${normalizedDefaultPiece.id}`, { persist: false });
+                this.setDetailLotActiveCardKey(lot, `default:${normalizedDefaultPiece.id}`);
                 this.recalculateLotAllotissement(lot);
                 this.saveData();
                 this.renderAllotissement();
@@ -20841,6 +20800,7 @@ renderRadar() {
         if (typeof this.currentLotIndex === 'number' && this.currentLotIndex >= n) {
             this.currentLotIndex = Math.max(0, n - 1);
         }
+        this.resetDetailLotActiveCardStore();
         this.saveData();
         this.render();
         return true;
@@ -21013,6 +20973,7 @@ renderRadar() {
         }
         this.data = this.createInitialData();
         this.currentLotIndex = 0;
+        this.resetDetailLotActiveCardStore();
         if (typeof window.__valoboisResetFirestoreEvaluation === 'function') {
             window.__valoboisResetFirestoreEvaluation(this);
         }
