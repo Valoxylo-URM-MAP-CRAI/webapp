@@ -226,6 +226,49 @@
     text-align: right;
 }
 
+.auth-banner-sync {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    vertical-align: middle;
+}
+
+.auth-banner-sync-spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-text);
+    border-radius: 50%;
+    box-sizing: border-box;
+    animation: auth-banner-sync-spin 0.65s linear infinite;
+}
+
+.auth-banner-sync-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--color-text);
+    opacity: 0.85;
+}
+
+.auth-banner-sync-label {
+    font: inherit;
+    white-space: nowrap;
+}
+
+@keyframes auth-banner-sync-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 .auth-top-banner .auth-lang-select {
     flex-shrink: 0;
     max-width: 9rem;

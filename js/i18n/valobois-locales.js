@@ -22,6 +22,8 @@
                     signOut: 'Se déconnecter',
                     notSignedIn: 'Non connecté',
                     signIn: 'Connexion',
+                    cloudSaving: 'Sauvegarde…',
+                    cloudSaved: 'Sauvegardé',
                 },
             },
             mesEval: {
@@ -95,6 +97,8 @@
                     signOut: 'Sign out',
                     notSignedIn: 'Not signed in',
                     signIn: 'Sign in',
+                    cloudSaving: 'Saving…',
+                    cloudSaved: 'Saved',
                 },
             },
             mesEval: {

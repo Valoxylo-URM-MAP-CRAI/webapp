@@ -163,6 +163,11 @@
                 }
             }
             notifyPersistenceUi(app);
+            if (global.window) {
+                global.window.dispatchEvent(
+                    new CustomEvent('valobois:cloudsync', { detail: { state: 'hidden' } })
+                );
+            }
             return;
         }
 
@@ -177,12 +182,35 @@
         var scheduledTimer = null;
         var lastAuthUid = null;
         var deferredSaveApp = null;
+        var inFlightWrites = 0;
+
+        function emitCloudSyncState() {
+            if (!global.window) return;
+            var state = 'hidden';
+            if (
+                auth.currentUser &&
+                isIndexEditorPage() &&
+                app.persistenceMode === 'cloud'
+            ) {
+                if (loading) {
+                    state = 'hidden';
+                } else if (scheduledTimer != null || inFlightWrites > 0) {
+                    state = 'saving';
+                } else {
+                    state = 'saved';
+                }
+            }
+            global.window.dispatchEvent(
+                new CustomEvent('valobois:cloudsync', { detail: { state: state } })
+            );
+        }
 
         function cancelSchedule() {
             if (scheduledTimer) {
                 clearTimeout(scheduledTimer);
                 scheduledTimer = null;
             }
+            emitCloudSyncState();
         }
 
         function finishLoading() {
@@ -196,6 +224,7 @@
                     flushToFirestore(pending);
                 }, DEBOUNCE_MS);
             }
+            emitCloudSyncState();
         }
 
         function applyRemoteData(appInstance, parsed) {
@@ -227,10 +256,16 @@
                 updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                 operationName: operationNameFromApp(appInstance),
             };
-            evalRef(db, u.uid, evalId)
+            inFlightWrites++;
+            emitCloudSyncState();
+            return evalRef(db, u.uid, evalId)
                 .set(payload)
                 .catch(function (e) {
                     console.error('Valobois Firestore save', e);
+                })
+                .finally(function () {
+                    inFlightWrites--;
+                    emitCloudSyncState();
                 });
         }
 
@@ -246,6 +281,7 @@
                 scheduledTimer = null;
                 flushToFirestore(appInstance);
             }, DEBOUNCE_MS);
+            emitCloudSyncState();
         }
 
         function resetLocalDraftToBlank(appInstance) {
@@ -306,6 +342,7 @@
             }
 
             loading = true;
+            emitCloudSyncState();
 
             if (skipNewEvalIntent) {
                 resetLocalDraftToBlank(appInstance);
@@ -400,13 +437,22 @@
         };
 
         global.__valoboisResetFirestoreEvaluation = function (appInstance) {
+            var u = auth.currentUser;
+            if (!u || !db || !appInstance) {
+                cancelSchedule();
+                deferredSaveApp = null;
+                return;
+            }
+            var evalId = getEvalIdFromUrl();
+            if (!evalId) {
+                cancelSchedule();
+                deferredSaveApp = null;
+                return;
+            }
+            loading = true;
+            emitCloudSyncState();
             cancelSchedule();
             deferredSaveApp = null;
-            var u = auth.currentUser;
-            if (!u || !db || !appInstance) return;
-            var evalId = getEvalIdFromUrl();
-            if (!evalId) return;
-            loading = true;
             evalRef(db, u.uid, evalId)
                 .delete()
                 .then(function () {
