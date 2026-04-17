@@ -302,6 +302,8 @@ class ValoboisApp {
             pinch: null,
             lastTap: null
         };
+        this._analysisLotSelectorHandlersBound = false;
+        this._analysisLotSelectorOpenSectionKey = null;
         /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
         this._accordionOpenStates = new Map();
         /** Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage). */
@@ -310,6 +312,7 @@ class ValoboisApp {
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
         this.bindEvents();
+        this.setupAnalysisLotSelectorInteractions();
         this.render();
         if (typeof attachValoboisFirestoreSync === 'function') {
             attachValoboisFirestoreSync(this);
@@ -5407,6 +5410,170 @@ class ValoboisApp {
         return (parts[0] || '').toString().trim();
     }
 
+    getLotDisplayLabel(lot, lotIndex) {
+        const fallback = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot …';
+        if (!lot || typeof lot !== 'object') return fallback;
+        const lotName = (lot.nom || '').toString().trim();
+        return lotName || fallback;
+    }
+
+    getAnalysisLotSelectorConfig(sectionKey) {
+        const configs = {
+            seuils: { triggerId: 'seuilsActiveLotLabel', menuId: 'seuilsLotSelectorMenu' },
+            radar: { triggerId: 'radarActiveLotLabel', menuId: 'radarLotSelectorMenu' },
+            scatterDims: { triggerId: 'scatterDimsActiveLotLabel', menuId: 'scatterDimsLotSelectorMenu' }
+        };
+        return configs[sectionKey] || null;
+    }
+
+    getAllAnalysisLotSelectorConfigs() {
+        return ['seuils', 'radar', 'scatterDims']
+            .map((key) => ({ key, config: this.getAnalysisLotSelectorConfig(key) }))
+            .filter(({ config }) => !!config);
+    }
+
+    ensureAnalysisLotSelectorMenu(sectionKey) {
+        const cfg = this.getAnalysisLotSelectorConfig(sectionKey);
+        if (!cfg) return null;
+        const trigger = document.getElementById(cfg.triggerId);
+        if (!trigger) return null;
+
+        let menu = document.getElementById(cfg.menuId);
+        if (!menu) {
+            menu = document.createElement('ul');
+            menu.id = cfg.menuId;
+            menu.className = 'analysis-lot-selector-menu hidden';
+            menu.setAttribute('role', 'listbox');
+            menu.setAttribute('aria-hidden', 'true');
+            menu.dataset.analysisLotSelectorMenu = sectionKey;
+            if (trigger.parentElement) {
+                trigger.parentElement.appendChild(menu);
+            }
+        }
+
+        trigger.dataset.analysisLotSelectorTrigger = sectionKey;
+        trigger.dataset.analysisLotSelectorMenuId = cfg.menuId;
+        trigger.setAttribute('aria-haspopup', 'listbox');
+        trigger.setAttribute('aria-controls', cfg.menuId);
+        if (!trigger.hasAttribute('aria-expanded')) {
+            trigger.setAttribute('aria-expanded', 'false');
+        }
+
+        return { trigger, menu };
+    }
+
+    renderAnalysisLotSelector(sectionKey, lot, lotIndex) {
+        const refs = this.ensureAnalysisLotSelectorMenu(sectionKey);
+        if (!refs) return;
+        const { trigger, menu } = refs;
+        const lots = this.data.lots || [];
+
+        trigger.textContent = this.getLotDisplayLabel(lot, lotIndex);
+
+        menu.innerHTML = '';
+        lots.forEach((entry, idx) => {
+            const li = document.createElement('li');
+            li.className = 'analysis-lot-selector-item';
+
+            const optionBtn = document.createElement('button');
+            optionBtn.type = 'button';
+            optionBtn.className = 'analysis-lot-selector-option';
+            optionBtn.dataset.analysisLotSelectorOption = sectionKey;
+            optionBtn.dataset.analysisLotIndex = String(idx);
+            optionBtn.setAttribute('role', 'option');
+
+            const isActive = idx === lotIndex;
+            optionBtn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+            if (isActive) {
+                optionBtn.classList.add('is-active');
+            }
+            optionBtn.textContent = this.getLotDisplayLabel(entry, idx);
+
+            li.appendChild(optionBtn);
+            menu.appendChild(li);
+        });
+    }
+
+    closeAnalysisLotSelectorMenus({ focusTrigger = false } = {}) {
+        const openKey = this._analysisLotSelectorOpenSectionKey;
+
+        this.getAllAnalysisLotSelectorConfigs().forEach(({ config }) => {
+            const trigger = document.getElementById(config.triggerId);
+            const menu = document.getElementById(config.menuId);
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+            if (menu) {
+                menu.classList.add('hidden');
+                menu.setAttribute('aria-hidden', 'true');
+            }
+        });
+
+        this._analysisLotSelectorOpenSectionKey = null;
+
+        if (focusTrigger && openKey) {
+            const cfg = this.getAnalysisLotSelectorConfig(openKey);
+            const trigger = cfg ? document.getElementById(cfg.triggerId) : null;
+            if (trigger) trigger.focus();
+        }
+    }
+
+    toggleAnalysisLotSelector(sectionKey) {
+        const cfg = this.getAnalysisLotSelectorConfig(sectionKey);
+        if (!cfg) return;
+        const trigger = document.getElementById(cfg.triggerId);
+        const menu = document.getElementById(cfg.menuId);
+        if (!trigger || !menu) return;
+
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+        if (isOpen) {
+            this.closeAnalysisLotSelectorMenus({ focusTrigger: false });
+            return;
+        }
+
+        this.closeAnalysisLotSelectorMenus({ focusTrigger: false });
+        trigger.setAttribute('aria-expanded', 'true');
+        menu.classList.remove('hidden');
+        menu.setAttribute('aria-hidden', 'false');
+        this._analysisLotSelectorOpenSectionKey = sectionKey;
+    }
+
+    setupAnalysisLotSelectorInteractions() {
+        if (this._analysisLotSelectorHandlersBound) return;
+
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest('[data-analysis-lot-selector-trigger]');
+            if (trigger) {
+                event.preventDefault();
+                const sectionKey = trigger.dataset.analysisLotSelectorTrigger;
+                if (sectionKey) this.toggleAnalysisLotSelector(sectionKey);
+                return;
+            }
+
+            const option = event.target.closest('[data-analysis-lot-selector-option]');
+            if (option) {
+                event.preventDefault();
+                const nextIndex = parseInt(option.dataset.analysisLotIndex || '', 10);
+                if (Number.isInteger(nextIndex) && nextIndex >= 0 && nextIndex < (this.data.lots || []).length) {
+                    this.setCurrentLotIndex(nextIndex);
+                }
+                this.closeAnalysisLotSelectorMenus({ focusTrigger: true });
+                return;
+            }
+
+            if (event.target.closest('.analysis-lot-selector-menu')) {
+                return;
+            }
+
+            this.closeAnalysisLotSelectorMenus({ focusTrigger: false });
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Escape') return;
+            this.closeAnalysisLotSelectorMenus({ focusTrigger: true });
+        });
+
+        this._analysisLotSelectorHandlersBound = true;
+    }
+
     getLotOrientationCountedDisplay(lot, fieldName) {
         if (!lot || !lot.allotissement || !fieldName) return '';
 
@@ -5462,20 +5629,66 @@ class ValoboisApp {
     getLotUnfavorableCriteria(lot) {
         if (!lot) return '';
         const getVal = (entry) => {
-            if (!entry) return 0;
+            if (!entry) return null;
             if (typeof entry === 'number') return entry;
-            if (typeof entry === 'object') return parseFloat(entry.valeur) || 0;
-            return 0;
+            if (typeof entry === 'object') {
+                const v = parseFloat(entry.valeur);
+                return Number.isFinite(v) ? v : null;
+            }
+            return null;
         };
-        const checks = [
-            { section: 'bio',    field: 'expansion',          label: 'Expansion' },
-            { section: 'bio',    field: 'integriteBio',       label: 'Intégrité bio.' },
-            { section: 'mech',   field: 'integriteMech',      label: 'Intégrité méc.' },
-            { section: 'denat',  field: 'contaminationDenat', label: 'Contamination' },
-            { section: 'traces', field: 'alterationTraces',   label: 'Altération' },
+        // scale = [Forte, Moyenne, Faible]
+        const allCriteria = [
+            { section: 'bio',        field: 'purge',               label: 'Purge bio.',          scale: [-3, 1, 3] },
+            { section: 'bio',        field: 'expansion',           label: 'Expansion',           scale: [-10, -3, 3] },
+            { section: 'bio',        field: 'integriteBio',        label: 'Intégrité bio.',       scale: [3, 1, -10] },
+            { section: 'bio',        field: 'exposition',          label: 'Exposition bio.',      scale: [-3, 1, 3] },
+            { section: 'mech',       field: 'purgeMech',           label: 'Purge méc.',           scale: [-3, 1, 3] },
+            { section: 'mech',       field: 'feuMech',             label: 'Feu',                  scale: [3, 2, 1] },
+            { section: 'mech',       field: 'integriteMech',       label: 'Intégrité méc.',       scale: [3, -3, -10] },
+            { section: 'mech',       field: 'expositionMech',      label: 'Exposition méc.',      scale: [-3, 1, 3] },
+            { section: 'usage',      field: 'durabiliteUsage',     label: 'Durabilité',     scale: [3, 2, 1] },
+            { section: 'usage',      field: 'classementUsage',     label: 'Classement',     scale: [3, 2, 1] },
+            { section: 'usage',      field: 'humiditeUsage',       label: 'Humidité',       scale: [-3, 3, 1] },
+            { section: 'usage',      field: 'aspectUsage',         label: 'Aspect usage',         scale: [3, 2, 1] },
+            { section: 'denat',      field: 'depollutionDenat',    label: 'Dépollution',          scale: [-3, 1, 3] },
+            { section: 'denat',      field: 'contaminationDenat',  label: 'Contamination',        scale: [-10, 1, 3] },
+            { section: 'denat',      field: 'durabiliteConfDenat', label: 'Durabilité conf.',     scale: [1, 2, 3] },
+            { section: 'denat',      field: 'naturaliteDenat',     label: 'Naturalité',           scale: [3, 2, 1] },
+            { section: 'debit',      field: 'regulariteDebit',     label: 'Régularité',           scale: [3, 2, 1] },
+            { section: 'debit',      field: 'volumetrieDebit',     label: 'Volumétrie',           scale: [3, 2, 1] },
+            { section: 'debit',      field: 'stabiliteDebit',      label: 'Stabilité',            scale: [3, 2, 1] },
+            { section: 'debit',      field: 'artisanaliteDebit',   label: 'Artisanalité',         scale: [3, 2, 1] },
+            { section: 'debit',      field: 'rusticiteDebit',      label: 'Rusticité',            scale: [3, 2, 1] },
+            { section: 'geo',        field: 'adaptabiliteGeo',     label: 'Adaptabilité',         scale: [3, 2, 1] },
+            { section: 'geo',        field: 'massiviteGeo',        label: 'Massivité',            scale: [3, 2, 1] },
+            { section: 'geo',        field: 'deformationGeo',      label: 'Déformation',          scale: [-3, 1, 3] },
+            { section: 'geo',        field: 'industrialiteGeo',    label: 'Industrialité',        scale: [3, 2, 1] },
+            { section: 'geo',        field: 'inclusiviteGeo',      label: 'Inclusivité',          scale: [3, 2, 1] },
+            { section: 'essence',    field: 'rareteEcoEssence',    label: 'Rareté éco.',          scale: [3, 2, 1] },
+            { section: 'essence',    field: 'masseVolEssence',     label: 'Masse vol.',           scale: [3, 2, 1] },
+            { section: 'essence',    field: 'rareteHistEssence',   label: 'Rareté hist.',         scale: [3, 2, 1] },
+            { section: 'essence',    field: 'singulariteEssence',  label: 'Singularité ess.',     scale: [3, 2, 1] },
+            { section: 'ancien',     field: 'amortissementAncien', label: 'Amortissement',        scale: [3, 1, -3] },
+            { section: 'ancien',     field: 'vieillissementAncien',label: 'Vieillissement',       scale: [-3, 1, 3] },
+            { section: 'ancien',     field: 'microhistoireAncien', label: 'Micro-hist.',        scale: [3, 2, 1] },
+            { section: 'ancien',     field: 'demontabiliteAncien', label: 'Démontabilité',        scale: [3, 2, -3] },
+            { section: 'traces',     field: 'etiquetageTraces',    label: 'Étiquetage',           scale: [3, 2, 1] },
+            { section: 'traces',     field: 'alterationTraces',    label: 'Altération',           scale: [-10, 1, 3] },
+            { section: 'traces',     field: 'documentationTraces', label: 'Documentation',        scale: [3, 1, -3] },
+            { section: 'traces',     field: 'singularitesTraces',  label: 'Singularités tra.',    scale: [3, 2, 1] },
+            { section: 'provenance', field: 'transportProv',       label: 'Transport',            scale: [-3, 1, 3] },
+            { section: 'provenance', field: 'reputationProv',      label: 'Réputation',           scale: [3, 2, 1] },
+            { section: 'provenance', field: 'macroProv',           label: 'Macro-hist.',   scale: [3, 2, 1] },
+            { section: 'provenance', field: 'territorialiteProv',  label: 'Territorialité',       scale: [3, 2, 1] },
         ];
-        return checks
-            .filter(({ section, field }) => getVal(lot[section] && lot[section][field]) === -10)
+        return allCriteria
+            .map(({ section, field, label, scale }) => {
+                const value = getVal(lot[section] && lot[section][field]);
+                return { label, value, minScale: Math.min(...scale) };
+            })
+            .filter(({ value }) => value !== null)
+            .filter(({ value, minScale }) => value < 0 || value === minScale)
             .map(({ label }) => label)
             .join(', ');
     }
@@ -11322,7 +11535,7 @@ Une intégrité mécanique « forte » vaut pour une absence de dégradations ou
 Une intégrité mécanique « moyenne » vaut pour des bois disposant d’assemblages taillés dans la pièce (ex : entailles, poches, mortaises, encoches, mi-bois, percements de boulons, vis ou clous, de charbon*…), des fentes de séchage non traversantes [-3].
 Une intégrité mécanique « faible » vaut pour : des dégradations, qui ne sont pas des assemblages ou ne portent pas sur ceux-ci, réparties sur plus de la moitié de la longueur ou de la section de la pièce (ex : tronçonnage partiel, arrachements …); pour des signes de ruptures/cassures qui portent atteintes à la résistance mécanique générale de la pièce, des fentes traversantes ou décollement de cerne [-10].
 
-*Des bois ayant subi une combustion superficielle restent réutilisables dans la mesure où l’humidité n’est pas trop faible et l’état microscopique du bois est aussi évalué. Ne sont pas ici évaluées les dégradations mécaniques liées aux traitements, ni les dégradations internes des bois et/ou propres à leur croissance : nœuds et groupes de nœuds, échauffures, roulures, gélivures, pente de fil, bois de réaction ou de tension…(Voir : publication à propos).
+*Des bois ayant subi une combustion superficielle restent réutilisables dans la mesure où l’humidité n’est pas trop faible et l’état microscopique du bois est aussi évalué. Ne sont pas ici évaluées les dégradations mécaniques liées aux traitements, ni les dégradations internes des bois et/ou propres à leur croissance : nœuds et groupes de nœuds, échauffures, roulures, gélivures, pente de fil, bois de réaction ou de tension.
 
 Voir : Forest Wood Products Australia. (2025). FWPA standard G01.`,
         expositionMech: `Exposition mécanique.
@@ -18229,14 +18442,9 @@ renderSeuils() {
     const thresholdConfig = this.getOrientationThresholdConfig();
     const defaultThreshold = thresholdConfig[0];
 
-    const seuilsLotLabel = document.getElementById('seuilsActiveLotLabel');
     const lots = this.data.lots || [];
     const lotIndex = lots.indexOf(lot);
-    if (seuilsLotLabel) {
-        const defaultName = lotIndex >= 0 ? 'Lot ' + (lotIndex + 1) : 'Lot …';
-        const lotName = (lot.nom || '').trim();
-        seuilsLotLabel.textContent = lotName ? lotName : defaultName;
-    }
+    this.renderAnalysisLotSelector('seuils', lot, lotIndex);
     
     const rawScores = this.getRawValueScoresForLot(lot);
     const scores = this.getValueScoresForLot(lot);
@@ -18329,14 +18537,9 @@ renderRadar() {
     }));
     const thresholdValues = thresholdLevels.map((threshold) => threshold.value);
 
-    const radarLotLabel = document.getElementById('radarActiveLotLabel');
     const lots = this.data.lots || [];
     const lotIndex = lots.indexOf(lot);
-    if (radarLotLabel) {
-        const defaultName = lotIndex >= 0 ? 'Lot ' + (lotIndex + 1) : 'Lot …';
-        const lotName = (lot.nom || '').trim();
-        radarLotLabel.textContent = lotName ? lotName : defaultName;
-    }
+    this.renderAnalysisLotSelector('radar', lot, lotIndex);
 
     const scores = this.getValueScoresForLot(lot);
     const labels = ['Économique', 'Écologique', 'Mécanique', 'Historique', 'Esthétique'];
@@ -18484,7 +18687,6 @@ renderRadar() {
 
     renderScatterDims() {
         const section = document.getElementById('scatterDimsSection');
-        const lotLabel = document.getElementById('scatterDimsActiveLotLabel');
         const canvas = document.getElementById('scatterDimsChart');
         const wrapper = section ? section.querySelector('.scatter-dims-canvas-wrapper') : null;
         const scale = document.getElementById('scatterDimsScale');
@@ -18508,6 +18710,7 @@ renderRadar() {
 
         const lots = this.data.lots || [];
         const lotIndex = lots.indexOf(lot);
+        this.renderAnalysisLotSelector('scatterDims', lot, lotIndex);
         const lotStateKey = (lot && lot.id) ? `lot:${lot.id}` : `lot-index:${lotIndex >= 0 ? lotIndex : this.currentLotIndex}`;
         if (!this._scatterDimsInteractionStateByLot[lotStateKey]) {
             this._scatterDimsInteractionStateByLot[lotStateKey] = {
@@ -18517,12 +18720,6 @@ renderRadar() {
         }
         const scatterInteractionState = this._scatterDimsInteractionStateByLot[lotStateKey];
         this._scatterDimsCurrentLotStateKey = lotStateKey;
-
-        if (lotLabel) {
-            const defaultName = lotIndex >= 0 ? 'Lot ' + (lotIndex + 1) : 'Lot …';
-            const lotName = (lot.nom || '').trim();
-            lotLabel.textContent = lotName ? lotName : defaultName;
-        }
 
         if (!canvas) return;
         const ctx = canvas.getContext('2d');
@@ -19084,20 +19281,20 @@ renderRadar() {
                 };
             });
 
-        const getShapeMetricMm = (shape) => {
+        const getGaugeDimForShape = (shape) => {
             const normalized = normalizeSectionShape(shape);
-            if (normalized.typeSection === 'circ') return Math.max(0, normalized.diametre);
-            return Math.max(0, Math.max(normalized.largeur, normalized.epaisseur));
+            if (normalized.typeSection === 'circ') return normalized.diametre > 0 ? normalized.diametre : 0;
+            return normalized.epaisseur > 0 ? normalized.epaisseur : 0;
         };
 
-        const shapeMetrics = datasetDataRaw
+        const allGaugeDims = datasetDataRaw
             .flatMap((point) => {
                 const shapes = point.hasHybridShape ? point.shapeHybridExtremes : [point.shapeMain];
-                return shapes.map((shape) => getShapeMetricMm(shape));
+                return shapes.map((shape) => getGaugeDimForShape(shape));
             })
             .filter((value) => Number.isFinite(value) && value > 0);
-        const minShapeMetric = shapeMetrics.length ? Math.min(...shapeMetrics) : 1;
-        const maxShapeMetric = shapeMetrics.length ? Math.max(...shapeMetrics) : minShapeMetric;
+        const minShapeMetric = allGaugeDims.length ? Math.min(...allGaugeDims) : 1;
+        const maxShapeMetric = allGaugeDims.length ? Math.max(...allGaugeDims) : minShapeMetric;
 
         const shapeMetricToPx = (metricMm) => {
             const maxPx = 38;
@@ -19199,16 +19396,9 @@ renderRadar() {
         const hasCircularPoints = datasetData.some((point) => point && point.typeSection === 'circ');
 
         // Les sections circulaires pilotent le gradient via le diamètre, les rectangulaires via l'épaisseur.
-        const getThicknessDimension = (point) => {
-            if (point && point.typeSection === 'circ') return Number(point.diametre) || 0;
-            return Number(point && point.epaisseur) || 0;
-        };
-
-        const thicknessDimensions = datasetData
-            .map((point) => getThicknessDimension(point))
-            .filter((value) => Number.isFinite(value) && value > 0);
-        const minThicknessDimension = thicknessDimensions.length ? Math.min(...thicknessDimensions) : 0;
-        const maxThicknessDimension = thicknessDimensions.length ? Math.max(...thicknessDimensions) : 0;
+        // Pour la jauge, on utilise la même plage que ci-dessus (toutes dimensions confondues)
+        const minThicknessDimension = minShapeMetric;
+        const maxThicknessDimension = maxShapeMetric;
 
         const getThicknessRatio = (value) => {
             if (!Number.isFinite(value) || maxThicknessDimension <= minThicknessDimension) return 0.55;
@@ -19225,7 +19415,16 @@ renderRadar() {
             return `rgba(${r},${g},${b},0.88)`;
         };
 
-        const pointColors = datasetData.map((point) => getThicknessColor(getThicknessDimension(point)));
+        const getPointGradientMetric = (point) => {
+            if (!point) return 0;
+            const shapes = point.hasHybridShape ? point.shapeHybridExtremes : [point.shapeMain];
+            const dims = shapes
+                .map((shape) => getGaugeDimForShape(shape))
+                .filter((value) => Number.isFinite(value) && value > 0);
+            return dims.length ? Math.max(...dims) : 0;
+        };
+
+        const pointColors = datasetData.map((point) => getThicknessColor(getPointGradientMetric(point)));
         const withAlpha = (color, alpha) => {
             const match = /^rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)$/i.exec(String(color || '').trim());
             if (!match) return color;
@@ -20328,7 +20527,6 @@ renderRadar() {
 
     renderOrientation() {
         const section = document.getElementById('orientationSection');
-    const lotLabel = document.getElementById('orientationActiveLotLabel');
     const container = document.getElementById('orientationLotsContainer');
     const scrollbarThumb = document.getElementById('orientationScrollbarThumb');
 
@@ -20345,10 +20543,6 @@ renderRadar() {
     // Lot actif global (le même index que dans le reste de l’app)
     const currentLot = this.getCurrentLot();
     const activeIndex = currentLot ? lots.indexOf(currentLot) : 0;
-
-    if (lotLabel) {
-        lotLabel.textContent = activeIndex >= 0 ? 'Lot ' + (activeIndex + 1) : 'Lot …';
-    }
 
     container.innerHTML = '';
 
@@ -20439,6 +20633,8 @@ renderRadar() {
         const notationConfidenceEntries = this.getNotationConfidenceSummaryEntries(lot);
         const confidenceGeneral = this.getNotationConfidenceGeneralSummary(lot);
         const confidenceGeneralLabel = `${confidenceGeneral.level} (${confidenceGeneral.score}/${confidenceGeneral.maxScore})`;
+        const _confNorm = (confidenceGeneral.level || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const confidenceDotColor = _confNorm === 'forte' ? '#009E73' : _confNorm === 'moyenne' ? '#E69F00' : '#D55E00';
 
         const createOrientationField = (fieldDef) => {
             const wrapper = document.createElement('div');
@@ -20455,7 +20651,18 @@ renderRadar() {
             labelEl.textContent = fieldDef.label;
             const box = document.createElement('div');
             box.className = 'orientation-field-box';
-            box.innerHTML = `<span>${fieldDef.value || fieldDef.fallback || '—'}</span>`;
+            if (fieldDef.dot) {
+                box.classList.add('orientation-field-box--with-dot');
+                const dot = document.createElement('span');
+                dot.className = 'orientation-field-dot';
+                dot.style.backgroundColor = fieldDef.dot;
+                const textSpan = document.createElement('span');
+                textSpan.textContent = fieldDef.value || fieldDef.fallback || '—';
+                box.appendChild(dot);
+                box.appendChild(textSpan);
+            } else {
+                box.innerHTML = `<span>${fieldDef.value || fieldDef.fallback || '—'}</span>`;
+            }
             wrapper.appendChild(labelEl);
             wrapper.appendChild(box);
             return wrapper;
@@ -20464,10 +20671,24 @@ renderRadar() {
         const fieldDefs = [
             { label: 'Quantité', value: qtyLabel },
             { label: 'Statut de l\'étude', value: studyStatus },
-            { label: 'Type de pièce', value: typePiece },
-            { label: 'Essence', value: essence },
             { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
             { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
+
+            { label: 'Type de pièce', value: typePiece, className: 'orientation-field--type-piece' },
+            { label: 'Essence', value: essence, className: 'orientation-field--essence' },
+            {
+                label: 'Critères défavorables',
+                value: unfavorable,
+                fallback: 'Aucun',
+                className: 'orientation-field--unfavorable'
+            },
+            {
+                label: 'Confiance générale',
+                value: confidenceGeneralLabel,
+                dot: confidenceDotColor,
+                className: 'orientation-field--confidence-general'
+            },
+
             { label: 'PCO2 du lot (NF EN 16449)', value: pco2LotLabel },
             { label: masseLotOrientationLabel, value: masseLotOrientationValue }
         ];
@@ -20478,28 +20699,21 @@ renderRadar() {
             fieldDefs.push({ label: 'Surface du lot', value: surfaceLotLabel ? surfaceLotLabel + ' m2' : '' });
         }
 
-        fieldDefs.push(
-            {
-                label: 'Critères défavorables',
-                value: unfavorable,
-                fallback: 'Aucun',
-                className: 'orientation-field--unfavorable'
-            },
-            {
-                label: 'Confiance générale (score)',
-                value: confidenceGeneralLabel,
-                className: 'orientation-field--confidence-general'
-            }
-        );
-
         fieldDefs.forEach((f) => {
             grid.appendChild(createOrientationField(f));
         });
 
+        const actionToDotColor = (action) => {
+            const norm = (action || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            if (norm === 'a confirmer') return '#009E73';
+            if (norm === 'a completer') return '#E69F00';
+            return '#D55E00';
+        };
+
         const notationGrid = document.createElement('div');
         notationGrid.className = 'orientation-notation-grid';
         notationConfidenceEntries.forEach((item) => {
-            notationGrid.appendChild(createOrientationField({ label: item.label, value: item.action }));
+            notationGrid.appendChild(createOrientationField({ label: item.label, value: item.action, dot: actionToDotColor(item.action) }));
         });
         grid.appendChild(notationGrid);
 

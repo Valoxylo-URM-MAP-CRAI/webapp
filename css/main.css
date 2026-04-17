@@ -696,6 +696,11 @@ body.day-mode .auth-tab[aria-selected='true'] {
     opacity: 0.85;
 }
 
+.mes-eval-item-meta {
+    font-size: 0.78rem;
+    opacity: 0.7;
+}
+
 .mes-eval-empty {
     font-size: var(--font-size-sm);
     margin: 0;
@@ -1439,7 +1444,7 @@ body.day-mode .accueil-collapsible-summary:hover {
   display: flex;
     align-items: flex-start;
     justify-content: space-between;
-  gap: var(--space-8);
+    gap: var(--space-8);
 }
 
 .lot-card-header-left {
@@ -7201,31 +7206,23 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .orientation-header {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     align-items: center;
-    justify-content: space-between;
     gap: var(--space-8);
     margin-bottom: var(--space-16);
 }
 
 .orientation-title {
-    flex: 1;
+    grid-column: 2;
     text-align: center;
     color: var(--color-white);
     margin-bottom: 0;
 }
 
-.orientation-lot-badge {
-    padding: var(--space-4) var(--space-12);
-    background-color: var(--color-white);
-    color: var(--color-text);
-    border-radius: var(--radius-base);
-    border: 1px solid var(--color-border);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
-}
-
 .orientation-info-btn {
+    grid-column: 3;
+    justify-self: end;
     padding: var(--space-4) var(--space-12);
     background-color: var(--color-black);
     color: var(--color-white);
@@ -7289,18 +7286,18 @@ body.day-mode .lot-group--collapsible summary:hover {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-8);
-    margin-bottom: var(--space-8);
+    margin-bottom: var(--space-24);
 }
 
 .orientation-lot-name {
-    font-size: var(--font-size-sm);
+    font-size: var(--font-size-base);
     font-weight: var(--font-weight-semibold);
 }
 
 .orientation-lot-orientation {
     padding: 2px 8px;
     border-radius: 999px;
-    font-size: var(--font-size-xs);
+    font-size: 12px;
     font-weight: var(--font-weight-semibold);
     background-color: #E6E6E6;
     color: var(--color-text);
@@ -7351,6 +7348,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 @media (max-width: 700px) {
     .orientation-lot-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: var(--space-6);
     }
 
@@ -7360,11 +7358,19 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .orientation-field--unfavorable {
-    grid-column: 1;
+    grid-column: 1 / -1;
 }
 
 .orientation-field--confidence-general {
-    grid-column: 2;
+    grid-column: 1 / -1;
+}
+
+.orientation-field--type-piece {
+    grid-column: 1 / -1;
+}
+
+.orientation-field--essence {
+    grid-column: 1 / -1;
 }
 
 .orientation-field {
@@ -7373,7 +7379,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .orientation-field-label {
-    font-size: var(--font-size-xs);
+    font-size: 10px;
     color: var(--color-text);
     opacity: 0.85;
     padding: 0 2px;
@@ -7390,7 +7396,21 @@ body.day-mode .lot-group--collapsible summary:hover {
 .orientation-field-box span {
     display: block;
     font-weight: var(--font-weight-semibold);
-    font-size: var(--font-size-sm);
+    font-size: 12px;
+}
+
+.orientation-field-box--with-dot {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.orientation-field-dot {
+    flex-shrink: 0;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
 }
 
 /* Scrollbar custom en bas */
@@ -7430,6 +7450,8 @@ body.day-mode .lot-group--collapsible summary:hover {
             justify-content: space-between;
             gap: var(--space-8);
             margin-bottom: var(--space-16);
+            position: relative;
+            overflow: visible;
         }
 
         .seuils-title {
@@ -7441,12 +7463,19 @@ body.day-mode .lot-group--collapsible summary:hover {
 
         .seuils-lot-badge {
             padding: var(--space-4) var(--space-12);
-            background-color: var(--color-white);
-            color: var(--color-text);
+            background-color: var(--bleu-crai);
+            color: var(--color-white);
+            border-radius: var(--radius-base);
+            border: 1px solid var(--bleu-crai);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
             border-radius: var(--radius-base);
             border: 1px solid var(--color-border);
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            font-family: inherit;
         }
 
         .seuils-info-btn {
@@ -7523,6 +7552,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             background-color: #E6E6E6;
             color: var(--color-text);
             font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
             text-align: center;
             width: 100%;
         }
@@ -7565,6 +7595,8 @@ body.day-mode .lot-group--collapsible summary:hover {
             justify-content: space-between;
             gap: var(--space-8);
             margin-bottom: var(--space-8);
+            position: relative;
+            overflow: visible;
         }
 
         .radar-title {
@@ -7572,17 +7604,23 @@ body.day-mode .lot-group--collapsible summary:hover {
             text-align: center;
             margin-bottom: 0;
             color: var(--color-text);
-            font-size: var(--font-size-base);
         }
 
         .radar-lot-badge {
             padding: var(--space-4) var(--space-12);
-            background-color: var(--color-white);
-            color: var(--color-text);
+            background-color: var(--bleu-crai);
+            color: var(--color-white);
+            border-radius: var(--radius-base);
+            border: 1px solid var(--bleu-crai);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
             border-radius: var(--radius-base);
             border: 1px solid var(--color-border);
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            font-family: inherit;
         }
 
         .radar-info-btn {
@@ -7625,6 +7663,8 @@ body.day-mode .lot-group--collapsible summary:hover {
             justify-content: space-between;
             gap: var(--space-8);
             margin-bottom: var(--space-8);
+            position: relative;
+            overflow: visible;
         }
 
         .scatter-dims-title {
@@ -7632,17 +7672,67 @@ body.day-mode .lot-group--collapsible summary:hover {
             text-align: center;
             margin-bottom: 0;
             color: var(--color-text);
-            font-size: var(--font-size-base);
         }
 
         .scatter-dims-lot-badge {
             padding: var(--space-4) var(--space-12);
-            background-color: var(--color-white);
-            color: var(--color-text);
+            background-color: var(--bleu-crai);
+            color: var(--color-white);
+            border-radius: var(--radius-base);
+            border: 1px solid var(--bleu-crai);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            cursor: pointer;
             border-radius: var(--radius-base);
             border: 1px solid var(--color-border);
             font-size: var(--font-size-sm);
             font-weight: var(--font-weight-medium);
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        .analysis-lot-selector-menu {
+            position: absolute;
+            top: calc(100% + var(--space-4));
+            left: 0;
+            min-width: 160px;
+            margin: 0;
+            padding: 4px;
+            list-style: none;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-base);
+            background: var(--color-white);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.16);
+            z-index: 20;
+        }
+
+        .analysis-lot-selector-item {
+            margin: 0;
+            padding: 0;
+        }
+
+        .analysis-lot-selector-option {
+            width: 100%;
+            border: none;
+            background: transparent;
+            color: var(--color-text);
+            text-align: left;
+            font-size: var(--font-size-sm);
+            font-family: inherit;
+            font-weight: var(--font-weight-medium);
+            border-radius: calc(var(--radius-base) - 2px);
+            padding: 6px 8px;
+            cursor: pointer;
+        }
+
+        .analysis-lot-selector-option:hover,
+        .analysis-lot-selector-option:focus-visible {
+            background-color: #EDF3F6;
+            outline: none;
+        }
+
+        .analysis-lot-selector-option.is-active {
+            background-color: #E6E6E6;
         }
 
         .scatter-dims-info-btn {
@@ -7818,7 +7908,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 
         .evalop-title {
             margin-bottom: 0;
-            font-size: var(--font-size-base);
         }
 
         .evalop-info-btn {
@@ -7886,7 +7975,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             border-radius: var(--radius-sm);
             background-color: #E6E6E6;
             color: var(--color-text);
-            font-size: var(--font-size-base);
+            font-size: var(--font-size-sm);
             text-align: center;
             min-height: 30px;
             display: flex;
@@ -8296,6 +8385,8 @@ body.day-mode .traces-card,
 body.day-mode .provenance-card,
 body.day-mode .orientation-card,
 body.day-mode .seuils-card,
+body.day-mode .radar-card,
+body.day-mode .scatter-dims-card,
 body.day-mode .evalop-card {
     background-color: #FFFFFF;
     color: var(--color-text);

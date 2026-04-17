@@ -26,7 +26,8 @@
  *       return isSharedEditor()
  *         && request.resource.data.sharedEmails == resource.data.sharedEmails
  *         && request.resource.data.diff(resource.data).affectedKeys()
- *              .hasOnly(['payloadJson', 'revision', 'updatedAt', 'operationName']);
+ *              .hasOnly(['payloadJson', 'revision', 'updatedAt', 'operationName',
+ *                        'statutEtude', 'versionEtude', 'localisation', 'volumeTotal', 'bilanEconomique']);
  *     }
  *     match /users/{userId}/evaluations/{evalId} {
  *       allow read: if canReadEval(userId);
@@ -273,6 +274,36 @@
         return s || 'Sans nom';
     }
 
+    function computeVolumeTotal(lots) {
+        if (!Array.isArray(lots)) return 0;
+        var sum = 0;
+        for (var i = 0; i < lots.length; i++) {
+            sum += parseFloat(lots[i].allotissement && lots[i].allotissement.volumeLot) || 0;
+        }
+        return Math.round(sum * 1000) / 1000;
+    }
+
+    function computeBilanEconomique(lots) {
+        if (!Array.isArray(lots)) return 0;
+        var sum = 0;
+        for (var i = 0; i < lots.length; i++) {
+            sum += parseFloat(lots[i].allotissement && lots[i].allotissement.prixLotAjusteIntegrite) || 0;
+        }
+        return Math.round(sum);
+    }
+
+    function buildDenormalizedFields(appInstance) {
+        var meta = (appInstance && appInstance.data && appInstance.data.meta) || {};
+        var lots = (appInstance && appInstance.data && appInstance.data.lots) || [];
+        return {
+            statutEtude: Number(meta.statutEtude) || 0,
+            versionEtude: String(meta.versionEtude || '').trim(),
+            localisation: String(meta.localisation || '').trim(),
+            volumeTotal: computeVolumeTotal(lots),
+            bilanEconomique: computeBilanEconomique(lots),
+        };
+    }
+
     function notifyPersistenceUi(appInstance) {
         if (appInstance && typeof appInstance.refreshPersistenceUi === 'function') {
             appInstance.refreshPersistenceUi();
@@ -389,12 +420,12 @@
             if (!evalId) return;
             var ownerUid = getEvalOwnerUid(u);
             var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
-            var payload = {
+            var payload = Object.assign({
                 payloadJson: buildPayloadJsonForCloud(appInstance),
                 revision: rev,
                 updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                 operationName: operationNameFromApp(appInstance),
-            };
+            }, buildDenormalizedFields(appInstance));
             inFlightWrites++;
             emitCloudSyncState();
             return evalRef(db, ownerUid, evalId)
@@ -491,12 +522,12 @@
                 var newId = evalCollection(db, user.uid).doc().id;
                 setEvalAndOwnerInUrl(newId, '');
                 var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
-                var payload = {
+                var payload = Object.assign({
                     payloadJson: buildPayloadJsonForCloud(appInstance),
                     revision: rev,
                     updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                     operationName: operationNameFromApp(appInstance),
-                };
+                }, buildDenormalizedFields(appInstance));
                 evalRef(db, user.uid, newId)
                     .set(payload)
                     .then(function () {
@@ -517,12 +548,12 @@
                     if (!snap.exists) {
                         var empty = appInstance.createInitialData();
                         applyRemoteData(appInstance, empty);
-                        return evalRef(db, evalOwnerUid, evalId).set({
+                        return evalRef(db, evalOwnerUid, evalId).set(Object.assign({
                             payloadJson: buildPayloadJsonForCloud(appInstance),
                             revision: Number(appInstance.data.meta && appInstance.data.meta.revision) || 0,
                             updatedAt: global.firebase.firestore.FieldValue.serverTimestamp(),
                             operationName: operationNameFromApp(appInstance),
-                        });
+                        }, buildDenormalizedFields(appInstance)));
                     }
                     var d = snap.data() || {};
                     var parsed;

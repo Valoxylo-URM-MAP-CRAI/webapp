@@ -201,7 +201,7 @@
     function applyShareModalI18n(m) {
         if (!m) return;
         m.title.textContent = t('mesEval.shareModalTitle');
-        m.hint.textContent = t('mesEval.shareModalHint');
+        m.hint.innerHTML = t('mesEval.shareModalHint');
         m.label.textContent = t('mesEval.shareModalEmailsLabel');
         m.cancelBtn.textContent = t('mesEval.shareModalCancel');
         m.saveBtn.textContent = t('mesEval.shareModalSave');
@@ -430,6 +430,39 @@
                             dateSpan.className = 'mes-eval-item-date';
                             dateSpan.textContent = dateStr;
                             link.appendChild(dateSpan);
+                        }
+                        var metaParts = [];
+                        if (d.statutEtude != null) {
+                            var sIdx = Number(d.statutEtude);
+                            var sLabels = [
+                                t('mesEval.statut0'), t('mesEval.statut1'), t('mesEval.statut2'),
+                                t('mesEval.statut3'), t('mesEval.statut4'),
+                            ];
+                            if (sIdx >= 0 && sIdx <= 4) metaParts.push(sLabels[sIdx]);
+                        }
+                        var verStr = d.versionEtude != null ? String(d.versionEtude).trim() : '';
+                        if (verStr) metaParts.push(verStr);
+                        var locStr = d.localisation != null ? String(d.localisation).trim() : '';
+                        if (locStr) metaParts.push(locStr);
+                        if (metaParts.length) {
+                            var metaLine1 = document.createElement('span');
+                            metaLine1.className = 'mes-eval-item-meta';
+                            metaLine1.textContent = metaParts.join(' · ');
+                            link.appendChild(metaLine1);
+                        }
+                        var econParts = [];
+                        if (d.volumeTotal != null && d.volumeTotal > 0) {
+                            econParts.push((parseFloat(d.volumeTotal) || 0).toFixed(3) + ' m³');
+                        }
+                        if (d.bilanEconomique != null && d.bilanEconomique > 0) {
+                            var intlLocale = typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : 'fr-FR';
+                            econParts.push(Math.round(d.bilanEconomique).toLocaleString(intlLocale) + ' €');
+                        }
+                        if (econParts.length) {
+                            var metaLine2 = document.createElement('span');
+                            metaLine2.className = 'mes-eval-item-meta';
+                            metaLine2.textContent = econParts.join(' · ');
+                            link.appendChild(metaLine2);
                         }
                         main.appendChild(link);
 

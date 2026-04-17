@@ -41,12 +41,20 @@
                 shareAria: 'Partager l’évaluation « {title} »',
                 shareModalTitle: 'Membres (e-mails)',
                 shareModalHint:
-                    'Une ligne ou une adresse par ligne, séparées par des virgules ou des espaces. Les personnes invitées pourront modifier l’évaluation, pas la supprimer. Elles doivent se connecter avec le même e-mail.',
+                    'Renseigner la ou les adresses e-mail des comptes Valoxylo auxquels vous souhaitez partager votre évaluation.<br><br>' +
+                    'Une adresse e-mail par ligne, séparées par des virgules ou des espaces.<br><br>' +
+                    'Les évaluations partagées sont modifiables par les tiers, mais non supprimables.<br><br>' +
+                    'À noter : simple fonctionnalité de partage entre comptes, aucun e-mail ne sera envoyé à l\'adresse renseignée.',
                 shareModalEmailsLabel: 'Adresses e-mail',
                 shareModalCancel: 'Annuler',
                 shareModalSave: 'Enregistrer',
                 shareSaveFailed: 'Enregistrement du partage impossible. Vérifiez la connexion ou les règles Firestore.',
                 sharedBadge: 'Partagée',
+                statut0: 'Pré-diagnostic',
+                statut1: 'En cours',
+                statut2: 'Finalisé',
+                statut3: 'Révision',
+                statut4: 'Cloturé',
             },
             authPage: {
                 backLink: '← Retour à l’évaluation',
@@ -142,6 +150,11 @@
                 shareModalSave: 'Save',
                 shareSaveFailed: 'Could not save sharing. Check your connection or Firestore rules.',
                 sharedBadge: 'Shared',
+                statut0: 'Pre-diagnostic',
+                statut1: 'In progress',
+                statut2: 'Finalised',
+                statut3: 'Under revision',
+                statut4: 'Closed',
             },
             authPage: {
                 backLink: '← Back to evaluation',
