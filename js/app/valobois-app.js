@@ -278,6 +278,25 @@ const DEFAULT_PSET_CONFIG = {
     },
 };
 
+const PRICE_CATEGORY_PRESET_BASE_DEFINITIONS = [
+    { id: 'base-reemploi-bois-a', label: 'Réemploi - Bois A', defaultValue: '600', defaultUnit: 'm3' },
+    { id: 'base-reemploi-br12', label: 'Réemploi - BR1/BR2', defaultValue: '300', defaultUnit: 'm3' },
+    { id: 'base-reutilisation-bois-a', label: 'Réutilisation - Bois A', defaultValue: '300', defaultUnit: 'm3' },
+    { id: 'base-reutilisation-br12', label: 'Réutilisation - BR1/BR2', defaultValue: '300', defaultUnit: 'm3' },
+    { id: 'base-reutilisation-bois-c', label: 'Réutilisation - Bois C', defaultValue: '-150', defaultUnit: 't' },
+    { id: 'base-recyclage-bois-a', label: 'Recyclage - Bois A', defaultValue: '-30', defaultUnit: 't' },
+    { id: 'base-recyclage-bois-br1', label: 'Recyclage - Bois BR1', defaultValue: '-60', defaultUnit: 't' },
+    { id: 'base-recyclage-bois-br2', label: 'Recyclage - Bois BR2', defaultValue: '-90', defaultUnit: 't' },
+    { id: 'base-combustion-bois-a', label: 'Combustion - Bois A', defaultValue: '-30', defaultUnit: 't' },
+    { id: 'base-combustion-bois-br1', label: 'Combustion - Bois BR1', defaultValue: '-60', defaultUnit: 't' },
+    { id: 'base-combustion-bois-br2', label: 'Combustion - Bois BR2', defaultValue: '-90', defaultUnit: 't' },
+    { id: 'base-combustion-bois-c', label: 'Combustion - Bois C', defaultValue: '-150', defaultUnit: 't' },
+    { id: 'base-scie-entree', label: 'Bois entrée de scierie', defaultValue: '30', defaultUnit: 'm3' },
+    { id: 'base-scie-sortie', label: 'Bois sortie de scierie', defaultValue: '300', defaultUnit: 'm3' },
+    { id: 'base-grande-distribution', label: 'Bois grande distribution', defaultValue: '900', defaultUnit: 'm3' },
+    { id: 'base-gratuite-rep-pmcb', label: 'Gratuité REP PMCB', defaultValue: '0', defaultUnit: '' }
+];
+
 class ValoboisApp {
     constructor() {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
@@ -590,6 +609,7 @@ class ValoboisApp {
             epaisseur: '',
             diametre: '',
             prixUnite: '',
+            prixMode: '',
             prixMarche: '',
             masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
             masseVolumiqueMesuree: '',
@@ -626,6 +646,7 @@ class ValoboisApp {
         delete target.hauteur;
         if (target.diametre == null) target.diametre = '';
         if (target.prixUnite == null) target.prixUnite = '';
+        if (target.prixMode == null) target.prixMode = '';
         if (target.prixMarche == null) target.prixMarche = '';
         if (target.masseVolumique == null) target.masseVolumique = '';
         if (target.masseVolumiqueMesuree == null) target.masseVolumiqueMesuree = '';
@@ -718,6 +739,7 @@ class ValoboisApp {
         defaultPiece.epaisseur = '';
         defaultPiece.diametre = '';
         defaultPiece.prixUnite = '';
+        defaultPiece.prixMode = '';
         defaultPiece.prixMarche = '';
         defaultPiece.masseVolumique = String(DEFAULT_MASSE_VOLUMIQUE);
         defaultPiece.masseVolumiqueMesuree = '';
@@ -752,6 +774,7 @@ class ValoboisApp {
         piece.epaisseur = source.epaisseur !== '' && source.epaisseur != null ? source.epaisseur : (a.epaisseur || '');
         piece.diametre = source.diametre !== '' && source.diametre != null ? source.diametre : (a.diametre || '');
         piece.prixUnite = (source.prixUnite || a.prixUnite || 'm3').toLowerCase();
+        piece.prixMode = ((source.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
         piece.prixMarche = source.prixMarche !== '' && source.prixMarche != null ? source.prixMarche : (a.prixMarche || '');
         piece.masseVolumique = source.masseVolumique !== '' && source.masseVolumique != null
             ? source.masseVolumique
@@ -1060,6 +1083,7 @@ class ValoboisApp {
         delete allotissement.hauteur;
         if (allotissement.carboneBiogeniqueEstime == null) allotissement.carboneBiogeniqueEstime = '';
         if (allotissement.prixLotDirect == null) allotissement.prixLotDirect = false;
+        allotissement.prixMode = ((allotissement.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
         lot.pieces.forEach((piece) => {
             if (!piece || typeof piece !== 'object') return;
@@ -1068,6 +1092,7 @@ class ValoboisApp {
             if (piece.typeProduit == null) piece.typeProduit = '';
             if (piece.masseVolumiqueMesuree == null) piece.masseVolumiqueMesuree = '';
             if (piece.massePieceMesuree == null) piece.massePieceMesuree = '';
+            piece.prixMode = ((piece.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
             // Migration: hauteur → epaisseur
             if (piece.epaisseur == null) { piece.epaisseur = piece.hauteur != null ? piece.hauteur : ''; }
             delete piece.hauteur;
@@ -1236,6 +1261,7 @@ class ValoboisApp {
                 tukeyEpaisseur: null,
                 tukeyDiametre: null,
                 prixUnite: 'm3',
+                prixMode: '',
                 prixMarche: '',
                 surfacePiece: 0,
                 surfaceLot: 0,
@@ -1325,6 +1351,7 @@ class ValoboisApp {
             epaisseur: '',
             diametre: '',
             prixUnite: '',
+            prixMode: '',
             prixMarche: '',
             surfacePiece: 0,
             volumePiece: 0,
@@ -1410,7 +1437,435 @@ class ValoboisApp {
             },
             similarityStrategy: normalizeStrategy(existingUi?.similarityStrategy),
             similarityStrategyManuallySet: !!existingUi?.similarityStrategyManuallySet,
+            priceCategoryPresets: {
+                baseOverrides: { ...(existingUi?.priceCategoryPresets?.baseOverrides || {}) },
+                custom: Array.isArray(existingUi?.priceCategoryPresets?.custom)
+                    ? existingUi.priceCategoryPresets.custom.map((entry) => ({ ...(entry || {}) }))
+                    : []
+            }
         };
+    }
+
+    getPricePresetBaseDefinitions() {
+        return PRICE_CATEGORY_PRESET_BASE_DEFINITIONS.map((entry) => ({ ...entry }));
+    }
+
+    getPricePresetAllowedUnits() {
+        return ['', 't', 'm3', 'ml', 'm2'];
+    }
+
+    getPricePresetUnitLabel(unitRaw) {
+        const unit = ((unitRaw || '') + '').toLowerCase();
+        if (unit === 't' || unit === 'm3' || unit === 'ml' || unit === 'm2') return unit;
+        return '';
+    }
+
+    normalizePricePresetUnit(unitRaw, fallback = '') {
+        const allowed = this.getPricePresetAllowedUnits();
+        const unit = ((unitRaw || '') + '').toLowerCase().trim();
+        if (allowed.includes(unit)) return unit;
+        const normalizedFallback = ((fallback || '') + '').toLowerCase().trim();
+        return allowed.includes(normalizedFallback) ? normalizedFallback : '';
+    }
+
+    normalizePricePresetValue(valueRaw, fallback = '') {
+        const normalized = this.normalizeAllotissementNumericInput(valueRaw);
+        if (normalized !== '') return normalized;
+        const fallbackNormalized = this.normalizeAllotissementNumericInput(fallback);
+        return fallbackNormalized;
+    }
+
+    normalizePriceCategoryPresets(ui = this.data?.ui) {
+        if (!ui || typeof ui !== 'object') return;
+        const baseDefs = this.getPricePresetBaseDefinitions();
+        const rawState = (ui.priceCategoryPresets && typeof ui.priceCategoryPresets === 'object')
+            ? ui.priceCategoryPresets
+            : {};
+        const rawOverrides = (rawState.baseOverrides && typeof rawState.baseOverrides === 'object')
+            ? rawState.baseOverrides
+            : {};
+        const normalizedOverrides = {};
+
+        baseDefs.forEach((baseDef) => {
+            const rawOverride = rawOverrides[baseDef.id];
+            if (!rawOverride || typeof rawOverride !== 'object') return;
+
+            const candidateValue = this.normalizePricePresetValue(rawOverride.value, '');
+            const candidateUnit = this.normalizePricePresetUnit(rawOverride.unit, '');
+            const nextValue = candidateValue !== '' ? candidateValue : baseDef.defaultValue;
+            const nextUnit = candidateUnit !== '' ? candidateUnit : baseDef.defaultUnit;
+
+            if (nextValue !== baseDef.defaultValue || nextUnit !== baseDef.defaultUnit) {
+                normalizedOverrides[baseDef.id] = {
+                    value: nextValue,
+                    unit: nextUnit
+                };
+            }
+        });
+
+        const rawCustom = Array.isArray(rawState.custom) ? rawState.custom : [];
+        const normalizedCustom = [];
+
+        rawCustom.forEach((entry, index) => {
+            if (!entry || typeof entry !== 'object') return;
+            const id = (entry.id == null ? '' : String(entry.id)).trim() || `preset-custom-${Date.now()}-${index}`;
+            const label = (entry.label == null ? '' : String(entry.label)).trim();
+            const value = this.normalizePricePresetValue(entry.value, '');
+            const unit = this.normalizePricePresetUnit(entry.unit, 'm3');
+            if (!label && value === '') return;
+            normalizedCustom.push({
+                id,
+                label,
+                value,
+                unit
+            });
+        });
+
+        ui.priceCategoryPresets = {
+            baseOverrides: normalizedOverrides,
+            custom: normalizedCustom
+        };
+    }
+
+    getPriceCategoryPresetsState() {
+        if (!this.data || typeof this.data !== 'object') return { baseOverrides: {}, custom: [] };
+        if (!this.data.ui || typeof this.data.ui !== 'object') {
+            this.data.ui = this.getDefaultUi();
+        }
+        this.normalizePriceCategoryPresets(this.data.ui);
+        return this.data.ui.priceCategoryPresets;
+    }
+
+    buildEffectivePricePresetList() {
+        const state = this.getPriceCategoryPresetsState();
+        const baseDefs = this.getPricePresetBaseDefinitions();
+
+        const baseRows = baseDefs.map((baseDef) => {
+            const override = (state.baseOverrides && state.baseOverrides[baseDef.id]) || null;
+            const value = override && override.value != null ? String(override.value) : baseDef.defaultValue;
+            const unit = override && override.unit != null ? String(override.unit) : baseDef.defaultUnit;
+            return {
+                id: baseDef.id,
+                label: baseDef.label,
+                value,
+                unit,
+                isBase: true,
+                defaultValue: baseDef.defaultValue,
+                defaultUnit: baseDef.defaultUnit
+            };
+        });
+
+        const customRows = Array.isArray(state.custom)
+            ? state.custom.map((entry) => ({
+                id: entry.id,
+                label: (entry.label || '') + '',
+                value: (entry.value || '') + '',
+                unit: this.normalizePricePresetUnit(entry.unit, 'm3'),
+                isBase: false
+            }))
+            : [];
+
+        return baseRows.concat(customRows);
+    }
+
+    getEffectivePriceCategoryPresets() {
+        return this.buildEffectivePricePresetList();
+    }
+
+    getPricePresetById(presetIdRaw) {
+        const presetId = ((presetIdRaw || '') + '').trim();
+        if (!presetId) return null;
+        return this.getEffectivePriceCategoryPresets().find((preset) => preset && preset.id === presetId) || null;
+    }
+
+    formatPricePresetAmountLabel(valueRaw, unitRaw) {
+        const normalizedValue = this.normalizeAllotissementNumericInput(valueRaw);
+        const valueNum = parseFloat(normalizedValue || '0');
+        const absValue = Math.abs(Number.isFinite(valueNum) ? valueNum : 0);
+        const sign = valueNum > 0 ? '+' : valueNum < 0 ? '-' : '';
+        const absDisplay = this.formatAllotissementNumericDisplay(String(absValue || 0));
+        const unit = this.normalizePricePresetUnit(unitRaw, '');
+        const unitSuffix = unit ? ` / ${unit}` : '';
+        return `${sign}${absDisplay} €${unitSuffix}`;
+    }
+
+    getPricePresetOptionLabel(preset) {
+        if (!preset) return '';
+        return `${preset.label}`;
+    }
+
+    getLotOrientationFamilyLabel(lot) {
+        const codeRaw = ((lot && lot.orientationCode) || '') + '';
+        const code = codeRaw
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim();
+        if (code === 'reemploi') return 'Réemploi';
+        if (code === 'reutilisation') return 'Réutilisation';
+        if (code === 'recyclage') return 'Recyclage';
+        if (code === 'combustion') return 'Combustion';
+
+        const orientationRaw = ((lot && (lot.orientationLabel || lot.orientation)) || '') + '';
+        const normalized = orientationRaw
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+        if (normalized.includes('reemploi')) return 'Réemploi';
+        if (normalized.includes('reutilisation')) return 'Réutilisation';
+        if (normalized.includes('recyclage')) return 'Recyclage';
+        if (normalized.includes('combustion')) return 'Combustion';
+        return '';
+    }
+
+    getPriceOrientationPlaceholderLabel(lot) {
+        const family = this.getLotOrientationFamilyLabel(lot);
+        return family || "Prix à l'orientation";
+    }
+
+    getAllowedBasePresetIdsForOrientationFamily(familyRaw) {
+        const family = ((familyRaw || '') + '').toLowerCase();
+        const map = {
+            'réemploi': new Set([
+                'base-reemploi-bois-a',
+                'base-reemploi-br12',
+                'base-scie-entree',
+                'base-scie-sortie',
+                'base-grande-distribution'
+            ]),
+            'réutilisation': new Set([
+                'base-reutilisation-bois-a',
+                'base-reutilisation-br12',
+                'base-reutilisation-bois-c',
+                'base-scie-entree',
+                'base-scie-sortie',
+                'base-grande-distribution'
+            ]),
+            'recyclage': new Set([
+                'base-recyclage-bois-a',
+                'base-recyclage-bois-br1',
+                'base-recyclage-bois-br2',
+                'base-gratuite-rep-pmcb'
+            ]),
+            'combustion': new Set([
+                'base-combustion-bois-a',
+                'base-combustion-bois-br1',
+                'base-combustion-bois-br2',
+                'base-combustion-bois-c'
+            ])
+        };
+        return map[family] || null;
+    }
+
+    isPricePresetAllowedForLot(preset, lot) {
+        if (!preset) return false;
+        const family = this.getLotOrientationFamilyLabel(lot);
+        const allowedBaseIds = this.getAllowedBasePresetIdsForOrientationFamily(family);
+        if (!allowedBaseIds) return true;
+
+        const presetId = ((preset.id || '') + '').trim();
+        if (!presetId.startsWith('base-')) return true;
+        return allowedBaseIds.has(presetId);
+    }
+
+    getFilteredPricePresetsForLot(lot) {
+        const presets = this.getEffectivePriceCategoryPresets();
+        return presets.filter((preset) => this.isPricePresetAllowedForLot(preset, lot));
+    }
+
+    renderPricePresetSelectOptions(selectEl, selectedPresetId = '', placeholder = "Prix à l'orientation", lot = null) {
+        if (!selectEl) return;
+        const selectedId = ((selectedPresetId || '') + '').trim();
+        const presets = this.getFilteredPricePresetsForLot(lot);
+        const hasSelected = selectedId && presets.some((preset) => preset.id === selectedId);
+        const optionsHtml = [`<option value="">${this.escapeHtml(placeholder)}</option>`]
+            .concat(presets.map((preset) => {
+                const isSelected = hasSelected && preset.id === selectedId ? ' selected' : '';
+                return `<option value="${this.escapeHtml(preset.id)}"${isSelected}>${this.escapeHtml(this.getPricePresetOptionLabel(preset))}</option>`;
+            }))
+            .join('');
+        selectEl.innerHTML = optionsHtml;
+    }
+
+    applyPricePresetToPricingEntity(entity, presetIdRaw) {
+        if (!entity || typeof entity !== 'object') return false;
+        const preset = this.getPricePresetById(presetIdRaw);
+        if (!preset) return false;
+
+        entity.prixMarche = this.normalizeAllotissementNumericInput(preset.value);
+        entity.prixOrientationPresetId = preset.id;
+
+        const presetUnit = this.normalizePricePresetUnit(preset.unit, '');
+        if (presetUnit === 't') {
+            entity.prixMode = 't';
+            return true;
+        }
+        if (presetUnit === 'ml' || presetUnit === 'm2' || presetUnit === 'm3') {
+            entity.prixUnite = presetUnit;
+            entity.prixMode = '';
+            return true;
+        }
+        entity.prixMode = '';
+        return true;
+    }
+
+    syncPricePresetAssignmentsAcrossLots() {
+        if (!this.data || !Array.isArray(this.data.lots)) return false;
+
+        let hasAnyChange = false;
+
+        const applyPresetIfLinked = (entity, lot) => {
+            if (!entity || typeof entity !== 'object') return false;
+            const presetId = ((entity.prixOrientationPresetId || '') + '').trim();
+            if (!presetId) return false;
+
+            const preset = this.getPricePresetById(presetId);
+            if (!preset || !this.isPricePresetAllowedForLot(preset, lot)) {
+                entity.prixOrientationPresetId = '';
+                return true;
+            }
+
+            const beforePrixMarche = (entity.prixMarche == null ? '' : String(entity.prixMarche));
+            const beforePrixUnite = (entity.prixUnite == null ? '' : String(entity.prixUnite));
+            const beforePrixMode = (entity.prixMode == null ? '' : String(entity.prixMode));
+
+            const applied = this.applyPricePresetToPricingEntity(entity, preset.id);
+            if (!applied) {
+                entity.prixOrientationPresetId = '';
+                return true;
+            }
+
+            const afterPrixMarche = (entity.prixMarche == null ? '' : String(entity.prixMarche));
+            const afterPrixUnite = (entity.prixUnite == null ? '' : String(entity.prixUnite));
+            const afterPrixMode = (entity.prixMode == null ? '' : String(entity.prixMode));
+            return beforePrixMarche !== afterPrixMarche
+                || beforePrixUnite !== afterPrixUnite
+                || beforePrixMode !== afterPrixMode;
+        };
+
+        this.data.lots.forEach((lot) => {
+            if (!lot || !lot.allotissement) return;
+
+            let lotChanged = false;
+            if (applyPresetIfLinked(lot.allotissement, lot)) lotChanged = true;
+
+            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+            defaultPieces.forEach((defaultPiece) => {
+                if (applyPresetIfLinked(defaultPiece, lot)) lotChanged = true;
+            });
+
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => {
+                    if (applyPresetIfLinked(piece, lot)) lotChanged = true;
+                });
+            }
+
+            if (lotChanged) {
+                this.recalculateLotAllotissement(lot);
+                hasAnyChange = true;
+            }
+        });
+
+        if (hasAnyChange) {
+            this.saveData();
+        }
+        return hasAnyChange;
+    }
+
+    generatePricePresetCustomId() {
+        const rand = Math.random().toString(36).slice(2, 8);
+        return `preset-custom-${Date.now().toString(36)}-${rand}`;
+    }
+
+    setBasePricePresetValue(baseId, rawValue) {
+        const state = this.getPriceCategoryPresetsState();
+        const baseDef = this.getPricePresetBaseDefinitions().find((entry) => entry.id === baseId);
+        if (!baseDef) return;
+
+        const override = state.baseOverrides[baseId] && typeof state.baseOverrides[baseId] === 'object'
+            ? state.baseOverrides[baseId]
+            : {};
+        const nextValue = this.normalizePricePresetValue(rawValue, baseDef.defaultValue) || baseDef.defaultValue;
+        const nextUnit = this.normalizePricePresetUnit(override.unit, baseDef.defaultUnit) || baseDef.defaultUnit;
+
+        if (nextValue === baseDef.defaultValue && nextUnit === baseDef.defaultUnit) {
+            delete state.baseOverrides[baseId];
+        } else {
+            state.baseOverrides[baseId] = { value: nextValue, unit: nextUnit };
+        }
+        this.saveData();
+    }
+
+    setBasePricePresetUnit(baseId, rawUnit) {
+        const state = this.getPriceCategoryPresetsState();
+        const baseDef = this.getPricePresetBaseDefinitions().find((entry) => entry.id === baseId);
+        if (!baseDef) return;
+
+        const override = state.baseOverrides[baseId] && typeof state.baseOverrides[baseId] === 'object'
+            ? state.baseOverrides[baseId]
+            : {};
+        const nextValue = this.normalizePricePresetValue(override.value, baseDef.defaultValue) || baseDef.defaultValue;
+        const nextUnit = this.normalizePricePresetUnit(rawUnit, baseDef.defaultUnit) || baseDef.defaultUnit;
+
+        if (nextValue === baseDef.defaultValue && nextUnit === baseDef.defaultUnit) {
+            delete state.baseOverrides[baseId];
+        } else {
+            state.baseOverrides[baseId] = { value: nextValue, unit: nextUnit };
+        }
+        this.saveData();
+    }
+
+    resetBasePricePreset(baseId) {
+        const state = this.getPriceCategoryPresetsState();
+        const baseDef = this.getPricePresetBaseDefinitions().find((entry) => entry.id === baseId);
+        if (!baseDef) return;
+        if (state.baseOverrides && Object.prototype.hasOwnProperty.call(state.baseOverrides, baseId)) {
+            delete state.baseOverrides[baseId];
+            this.saveData();
+        }
+    }
+
+    addCustomPricePreset(payload = {}) {
+        const state = this.getPriceCategoryPresetsState();
+        const label = ((payload.label || '') + '').trim();
+        const value = this.normalizePricePresetValue(payload.value, '0');
+        const unit = this.normalizePricePresetUnit(payload.unit, 'm3');
+        if (!label) return false;
+        state.custom.push({
+            id: this.generatePricePresetCustomId(),
+            label,
+            value,
+            unit
+        });
+        this.saveData();
+        return true;
+    }
+
+    updateCustomPricePreset(customId, patch = {}) {
+        const state = this.getPriceCategoryPresetsState();
+        const index = state.custom.findIndex((entry) => entry && entry.id === customId);
+        if (index < 0) return;
+        const current = state.custom[index] || {};
+        const next = { ...current };
+
+        if (Object.prototype.hasOwnProperty.call(patch, 'label')) {
+            next.label = ((patch.label || '') + '').trim();
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'value')) {
+            next.value = this.normalizePricePresetValue(patch.value, '');
+        }
+        if (Object.prototype.hasOwnProperty.call(patch, 'unit')) {
+            next.unit = this.normalizePricePresetUnit(patch.unit, 'm3');
+        }
+
+        state.custom[index] = next;
+        this.saveData();
+    }
+
+    deleteCustomPricePreset(customId) {
+        const state = this.getPriceCategoryPresetsState();
+        state.custom = state.custom.filter((entry) => entry && entry.id !== customId);
+        this.saveData();
     }
 
     getDefaultMeta(existingMeta = {}) {
@@ -1494,6 +1949,7 @@ class ValoboisApp {
 
         data.meta = this.getDefaultMeta(data.meta || {});
         data.ui = this.getDefaultUi(data.ui || {});
+        this.normalizePriceCategoryPresets(data.ui);
         data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
         if (!data.lots.length) {
             data.lots = [this.createEmptyLot(0)];
@@ -2082,13 +2538,13 @@ class ValoboisApp {
     /**
      * Mappe la valeur d'Amortissement biologique aux états d'alerte.
      * @param {string|number} amortissementValue - Valeur retournée par computeAmortissementBiologique()
-     * @returns {string} État: 'strong' (>= 1), 'medium' (> 0.5 && < 1), 'low' (<= 0.5), ou 'none' (indisponible)
+     * @returns {string} État: 'strong' (>= 1), 'medium' (> 0.5 && < 1), 'low' (<= 0.5), ou 'missing' (indisponible)
      */
     getAmortissementAlertState(amortissementValue) {
         const num = parseFloat(String(amortissementValue || '').replace(/,/, '.'));
         
         if (!isFinite(num) || amortissementValue === '—' || amortissementValue === null || amortissementValue === '') {
-            return 'none';
+            return 'missing';
         }
         
         if (num >= 1) {
@@ -2275,9 +2731,16 @@ class ValoboisApp {
         const backdrop  = document.getElementById('bioDetailModalBackdrop');
         const titleEl   = document.getElementById('bioDetailModalTitle');
         const contentEl = document.getElementById('bioDetailModalContent');
+        const tr = (key, fallback) => {
+            if (typeof t === 'function') {
+                const translated = t(key);
+                if (translated && translated !== key) return translated;
+            }
+            return fallback;
+        };
 
-        if (titleEl) titleEl.textContent = 'Alerte Intégrité biologique';
-        this.renderDetailModalContent(contentEl, this.buildIntegriteBioAlertModalMessage());
+        if (titleEl) titleEl.textContent = tr('editor.alerts.bioIntegriteTitle', 'Alerte Intégrité biologique');
+        this.renderDetailModalContent(contentEl, this.buildIntegriteBioAlertModalMessage(this.getCurrentLot()));
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -2369,6 +2832,34 @@ class ValoboisApp {
                 }
                 this.closeDenatDetailModal();
             };
+        }
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openDenatDurabiliteAlertModal() {
+        const backdrop  = document.getElementById('denatDetailModalBackdrop');
+        const titleEl   = document.getElementById('denatDetailModalTitle');
+        const contentEl = document.getElementById('denatDetailModalContent');
+        const footer    = backdrop?.querySelector('.modal-footer');
+        const btnIgnore = document.getElementById('btnIgnoreDenatDetailModal');
+        const tr = (key, fallback) => {
+            if (typeof t === 'function') {
+                const translated = t(key);
+                if (translated && translated !== key) return translated;
+            }
+            return fallback;
+        };
+
+        if (titleEl) titleEl.textContent = tr('editor.alerts.denatDurabiliteTitle', 'Alerte Durabilité conférée');
+        this.renderDetailModalContent(contentEl, this.buildDenatDurabiliteAlertModalMessage());
+
+        if (btnIgnore) {
+            btnIgnore.setAttribute('hidden', '');
+            if (footer) footer.classList.remove('modal-footer--with-ignore');
         }
 
         if (backdrop) {
@@ -3324,7 +3815,7 @@ class ValoboisApp {
     }
 
     buildVolumetrieAlertModalMessage(alertState, details) {
-        if (alertState === 'none' || !details || !details.hasData) {
+        if (alertState === 'none' || alertState === 'missing' || !details || !details.hasData) {
             return [
                 'Impossible d\'évaluer la volumétrie.',
                 '',
@@ -4139,8 +4630,81 @@ class ValoboisApp {
         return lines.join('\n');
     }
 
+    getDetailLotFormLabel(pieceLike, index, isDefault = false) {
+        const rawName = pieceLike && typeof pieceLike.nom === 'string'
+            ? pieceLike.nom.trim()
+            : '';
+        if (rawName) return rawName;
+        return isDefault ? `Pièce par défaut ${index + 1}` : `Pièce ${index + 1}`;
+    }
+
+    collectAmortissementMissingFormsByField(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const missingByField = {
+            ageArbre: [],
+            dateMiseEnService: []
+        };
+        if (!targetLot) return missingByField;
+
+        const extractYear = (str) => {
+            if (!str) return null;
+            const m = String(str).match(/\b(\d{4})\b/);
+            return m ? parseInt(m[1], 10) : null;
+        };
+
+        (Array.isArray(targetLot.pieces) ? targetLot.pieces : []).forEach((piece, index) => {
+            const formLabel = this.getDetailLotFormLabel(piece, index, false);
+            const age = parseFloat(piece && piece.ageArbre);
+            if (!Number.isFinite(age) || age <= 0) {
+                missingByField.ageArbre.push(formLabel);
+            }
+            const serviceYear = extractYear(piece && piece.dateMiseEnService);
+            if (!Number.isFinite(serviceYear)) {
+                missingByField.dateMiseEnService.push(formLabel);
+            }
+        });
+
+        this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false }).forEach((defaultPiece, index) => {
+            const formLabel = this.getDetailLotFormLabel(defaultPiece, index, true);
+            const age = parseFloat(defaultPiece && defaultPiece.ageArbre);
+            if (!Number.isFinite(age) || age <= 0) {
+                missingByField.ageArbre.push(formLabel);
+            }
+            const serviceYear = extractYear(defaultPiece && defaultPiece.dateMiseEnService);
+            if (!Number.isFinite(serviceYear)) {
+                missingByField.dateMiseEnService.push(formLabel);
+            }
+        });
+
+        missingByField.ageArbre = Array.from(new Set(missingByField.ageArbre));
+        missingByField.dateMiseEnService = Array.from(new Set(missingByField.dateMiseEnService));
+        return missingByField;
+    }
+
+    formatMissingPieceFormsSummaryFromMissingDetails(missingDetails, maxVisible = 5) {
+        const formNames = [];
+        (Array.isArray(missingDetails) ? missingDetails : []).forEach((entry) => {
+            if (!entry || !Array.isArray(entry.forms)) return;
+            entry.forms.forEach((name) => {
+                const trimmed = String(name || '').trim();
+                if (trimmed) formNames.push(trimmed);
+            });
+        });
+
+        const unique = Array.from(new Set(formNames));
+        if (!unique.length) return '';
+
+        const safeMax = Math.max(1, parseInt(maxVisible, 10) || 5);
+        const visible = unique.slice(0, safeMax);
+        const remaining = Math.max(0, unique.length - visible.length);
+        return remaining > 0
+            ? `${visible.join(', ')}, ... (+${remaining})`
+            : visible.join(', ');
+    }
+
     collectAmortissementAlertContributors(lot) {
         const targetLot = lot || this.getCurrentLot();
+        const missingFormsByField = this.collectAmortissementMissingFormsByField(targetLot);
         if (!targetLot || !targetLot.allotissement) {
             return {
                 ageArbre: null,
@@ -4148,7 +4712,23 @@ class ValoboisApp {
                 evalYear: null,
                 serviceYear: null,
                 calculatedAmortissement: null,
-                hasData: false
+                hasData: false,
+                missingDetails: [
+                    {
+                        field: 'ageArbre',
+                        label: "Âge de l'arbre",
+                        section: 'Allotissement',
+                        form: 'Détail du lot > Formulaires pièces',
+                        forms: missingFormsByField.ageArbre
+                    },
+                    {
+                        field: 'dateMiseEnService',
+                        label: 'Année de mise en service',
+                        section: 'Allotissement',
+                        form: 'Détail du lot > Formulaires pièces',
+                        forms: missingFormsByField.dateMiseEnService
+                    }
+                ]
             };
         }
 
@@ -4171,18 +4751,41 @@ class ValoboisApp {
         const age = parseFloat(ageArbreValue);
         const calculatedAmortissement = this.computeAmortissementBiologique(ageArbreValue, dateMiseEnServiceValue);
 
+        // Construction du détail des champs manquants
+        const missingDetails = [];
+        if (ageArbreValue === '' || !Number.isFinite(age) || age <= 0) {
+            missingDetails.push({
+                field: 'ageArbre',
+                label: "Âge de l'arbre",
+                section: 'Allotissement',
+                form: 'Détail du lot > Formulaires pièces',
+                forms: missingFormsByField.ageArbre
+            });
+        }
+        if (dateMiseEnServiceValue === '') {
+            missingDetails.push({
+                field: 'dateMiseEnService',
+                label: 'Année de mise en service',
+                section: 'Allotissement',
+                form: 'Détail du lot > Formulaires pièces',
+                forms: missingFormsByField.dateMiseEnService
+            });
+        }
+
         return {
             ageArbre: ageArbreValue || null,
             dateMiseEnService: dateMiseEnServiceValue || null,
             evalYear,
             serviceYear,
             calculatedAmortissement,
-            hasData: ageArbreValue !== '' && dateMiseEnServiceValue !== '' && Number.isFinite(age) && age > 0
+            hasData: ageArbreValue !== '' && dateMiseEnServiceValue !== '' && Number.isFinite(age) && age > 0,
+            missingDetails
         };
     }
 
     collectVieillissementAlertContributors(lot) {
         const targetLot = lot || this.getCurrentLot();
+        const missingFormsByField = this.collectAmortissementMissingFormsByField(targetLot);
         const empty = {
             evalYear: null,
             serviceYear: null,
@@ -4196,13 +4799,33 @@ class ValoboisApp {
             },
             availableCount: 0,
             hasMinimumData: false,
-            missingData: [],
+            missingData: [
+                "durée d'usage",
+                'déformation',
+                'exposition biologique',
+                'exposition mécanique',
+                'intégrité biologique',
+                'humidité'
+            ],
+            missingDetails: [
+                {
+                    field: 'durationYears',
+                    label: "Durée d'usage (année de mise en service)",
+                    section: 'Allotissement',
+                    form: 'Détail du lot > Formulaires pièces',
+                    forms: missingFormsByField.dateMiseEnService
+                },
+                { field: 'deformationGeo', label: 'Déformation géométrique', section: 'Déformation', form: 'Détail du lot > Notation > Déformation' },
+                { field: 'expositionBio', label: 'Exposition biologique', section: 'Biologie', form: 'Détail du lot > Notation > Biologie' },
+                { field: 'expositionMech', label: 'Exposition mécanique', section: 'Mécanique', form: 'Détail du lot > Notation > Mécanique' },
+                { field: 'integriteBio', label: 'Intégrité biologique', section: 'Biologie', form: 'Détail du lot > Notation > Biologie' },
+                { field: 'humiditeUsage', label: "Humidité d'usage", section: 'Usage', form: 'Détail du lot > Notation > Usage' }
+            ],
             score: null,
             businessLevel: null
         };
 
         if (!targetLot || !targetLot.allotissement) {
-            empty.missingData = ['durée d\'usage', 'déformation', 'exposition biologique', 'exposition mécanique', 'intégrité biologique', 'humidité'];
             return empty;
         }
 
@@ -4298,12 +4921,37 @@ class ValoboisApp {
         }
 
         const missingData = [];
-        if (!Number.isFinite(durationYears)) missingData.push('durée d\'usage');
-        if (!values.deformationGeo) missingData.push('déformation');
-        if (!values.expositionBio) missingData.push('exposition biologique');
-        if (!values.expositionMech) missingData.push('exposition mécanique');
-        if (!values.integriteBio) missingData.push('intégrité biologique');
-        if (!values.humiditeUsage) missingData.push('humidité');
+        const missingDetails = [];
+        if (!Number.isFinite(durationYears)) {
+            missingData.push("durée d'usage");
+            missingDetails.push({
+                field: 'durationYears',
+                label: "Durée d'usage (année de mise en service)",
+                section: 'Allotissement',
+                form: 'Détail du lot > Formulaires pièces',
+                forms: missingFormsByField.dateMiseEnService
+            });
+        }
+        if (!values.deformationGeo) {
+            missingData.push('déformation');
+            missingDetails.push({ field: 'deformationGeo', label: 'Déformation géométrique', section: 'Déformation', form: 'Détail du lot > Notation > Déformation' });
+        }
+        if (!values.expositionBio) {
+            missingData.push('exposition biologique');
+            missingDetails.push({ field: 'expositionBio', label: 'Exposition biologique', section: 'Biologie', form: 'Détail du lot > Notation > Biologie' });
+        }
+        if (!values.expositionMech) {
+            missingData.push('exposition mécanique');
+            missingDetails.push({ field: 'expositionMech', label: 'Exposition mécanique', section: 'Mécanique', form: 'Détail du lot > Notation > Mécanique' });
+        }
+        if (!values.integriteBio) {
+            missingData.push('intégrité biologique');
+            missingDetails.push({ field: 'integriteBio', label: 'Intégrité biologique', section: 'Biologie', form: 'Détail du lot > Notation > Biologie' });
+        }
+        if (!values.humiditeUsage) {
+            missingData.push('humidité');
+            missingDetails.push({ field: 'humiditeUsage', label: "Humidité d'usage", section: 'Usage', form: 'Détail du lot > Notation > Usage' });
+        }
 
         return {
             evalYear,
@@ -4313,6 +4961,7 @@ class ValoboisApp {
             availableCount,
             hasMinimumData,
             missingData,
+            missingDetails,
             score,
             businessLevel
         };
@@ -4320,27 +4969,32 @@ class ValoboisApp {
 
     buildAmortissementAlertModalMessage(alertState, details) {
         if (alertState === 'none' || !details || !details.hasData) {
-            const missingParts = [];
-            if (!details || !details.ageArbre) missingParts.push('l\'âge de l\'arbre');
-            if (!details || !details.dateMiseEnService) missingParts.push('la date de mise en service');
-            if (details && details.evalYear == null) missingParts.push('la date d\'évaluation');
-
             const lines = [
-                'Impossible d\'évaluer l\'amortissement biologique.',
-                ''
+                "Impossible d'évaluer l'amortissement biologique.",
+                '',
+                "Les champs d'allotissement sont calculés automatiquement à partir du Détail du lot."
             ];
-
-            if (missingParts.length > 0) {
-                lines.push('Données manquantes :');
-                missingParts.forEach((part) => lines.push(`- ${part}`));
+            if (details && Array.isArray(details.missingDetails) && details.missingDetails.length > 0) {
+                lines.push('Champs à renseigner :');
+                const formsSummary = this.formatMissingPieceFormsSummaryFromMissingDetails(details.missingDetails, 5);
+                if (formsSummary) {
+                    lines.push(`Formulaires de Pièce à renseigner : ${formsSummary}`);
+                } else {
+                    const missingLabels = details.missingDetails
+                        .map((entry) => entry && entry.label)
+                        .filter(Boolean);
+                    if (missingLabels.length) {
+                        lines.push(`Champs concernés : ${missingLabels.join(', ')}`);
+                    }
+                }
                 lines.push('');
+            } else {
+                // Fallback minimaliste si pas de missingDetails
+                lines.push('Veuillez renseigner les données manquantes dans le Détail du lot.');
             }
-
-            lines.push('Renseigner dans le Détail du lot :');
-            lines.push('- L\'âge de l\'arbre (en années)');
-            lines.push('- La date de mise en service de la pièce de bois');
-            lines.push('- La date d\'évaluation du lot (toutes les pièces)');
-
+            if (details && details.evalYear == null) {
+                lines.push("- Date d'évaluation -> Informations générales de l'évaluation");
+            }
             return lines.join('\n');
         }
 
@@ -4370,17 +5024,31 @@ class ValoboisApp {
     buildVieillissementAlertModalMessage(alertState, details) {
         if (!details || !details.hasMinimumData || !details.businessLevel || alertState === 'none') {
             const lines = [
-                'Impossible d\'évaluer le vieillissement.',
+                "Impossible d'évaluer le vieillissement.",
                 '',
-                'Règle minimale requise : durée d\'usage + au moins 2 autres contributeurs.'
+                "Règle minimale requise : durée d'usage + au moins 2 autres contributeurs.",
+                "Les champs d'allotissement sont calculés automatiquement à partir du Détail du lot."
             ];
-
-            if (details && Array.isArray(details.missingData) && details.missingData.length > 0) {
+            if (details && Array.isArray(details.missingDetails) && details.missingDetails.length > 0) {
+                lines.push('');
+                lines.push('Champs à renseigner :');
+                const formsSummary = this.formatMissingPieceFormsSummaryFromMissingDetails(details.missingDetails, 5);
+                if (formsSummary) {
+                    lines.push(`Formulaires de Pièce à renseigner : ${formsSummary}`);
+                } else {
+                    const missingLabels = details.missingDetails
+                        .map((entry) => entry && entry.label)
+                        .filter(Boolean);
+                    if (missingLabels.length) {
+                        lines.push(`Champs concernés : ${missingLabels.join(', ')}`);
+                    }
+                }
+                lines.push('');
+            } else if (details && Array.isArray(details.missingData) && details.missingData.length > 0) {
                 lines.push('');
                 lines.push('Données manquantes :');
                 details.missingData.forEach((part) => lines.push(`- ${part}`));
             }
-
             return lines.join('\n');
         }
 
@@ -4437,7 +5105,36 @@ class ValoboisApp {
         return lines.join('\n');
     }
 
-    buildIntegriteBioAlertModalMessage() {
+    buildIntegriteBioAlertModalMessage(lot = null) {
+        const targetLot = lot || this.getCurrentLot();
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        const mechIsLow = normalize(targetLot?.mech?.integriteMech?.niveau ?? '') === 'faible';
+        const tr = (key, fallback) => {
+            if (typeof t === 'function') {
+                const translated = t(key);
+                if (translated && translated !== key) return translated;
+            }
+            return fallback;
+        };
+
+        if (mechIsLow) {
+            return [
+                'Intégrité biologique — Faible',
+                '',
+                '⚠ Combustion uniquement.',
+                "L'intégrité biologique et l'intégrité mécanique étant toutes deux faibles, "
+                + "la matière est jugée trop dégradée pour les filières de recyclage industriel. "
+                + "Le lot est orienté automatiquement vers la combustion.",
+                '',
+                "Effet sur l'orientation :",
+                "L'orientation du lot est automatiquement forcée à 'Combustion'.",
+                '',
+                'Logique appliquée :',
+                '- Intégrité biologique Faible + Intégrité mécanique Faible → Combustion (forçage)',
+            ].join('\n');
+        }
+
         return [
             'Intégrité biologique — Faible',
             '',
@@ -4447,6 +5144,11 @@ class ValoboisApp {
             + "d'une valorisation énergétique en dernier recours. "
             + 'Pour un usage en structure, une purge forte est nécessaire.',
             '',
+            tr(
+                'editor.alerts.bioIntegritePurgePossible',
+                "Intégrité biologique faible détectée, mais l'intégrité mécanique est préservée. Une purge partielle peut permettre de récupérer les sections saines. Dans ce cas : créer un lot séparé pour les sections non dégradées (orientation Recyclage) et orienter les sections pourries vers la Combustion. En l'absence de purge documentée, maintenir ce lot en Recyclage jusqu'à décision de tri."
+            ),
+            '',
             "Effet sur l'orientation :",
             "L'orientation du lot est automatiquement plafonnée à 'Réutilisation' "
             + "même si le score calculé atteint le seuil 'Réemploi'.",
@@ -4455,6 +5157,20 @@ class ValoboisApp {
             '- Intégrité biologique Faible → orientation max = Réutilisation',
             '- Intégrité biologique Moyenne ou Forte → pas de plafonnement',
         ].join('\n');
+    }
+
+    buildDenatDurabiliteAlertModalMessage() {
+        const tr = (key, fallback) => {
+            if (typeof t === 'function') {
+                const translated = t(key);
+                if (translated && translated !== key) return translated;
+            }
+            return fallback;
+        };
+        return tr(
+            'editor.alerts.denatDurabiliteMessage',
+            "Durabilité conférée forte détectée sans dépollution documentée. Les filières de recyclage n'acceptent pas les bois traités aux produits dangereux (créosote, CCA, sels de cuivre) non retirés. Si une dépollution a été réalisée, passer le critère Dépollution à Forte pour débloquer l'orientation Recyclage."
+        );
     }
 
     buildIntegriteMechAlertModalMessage() {
@@ -4998,6 +5714,48 @@ class ValoboisApp {
             normalize(targetLot?.denat?.contaminationDenat?.niveau ?? '') === 'forte' ? 'active' : 'none';
     }
 
+    getDurabiliteConfDenatAlertState(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return 'none';
+
+        const normalize = v => String(v || '').toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+
+        const isStrongLevel = (value) => {
+            const normalized = normalize(value);
+            return normalized === 'fort' || normalized === 'forte';
+        };
+
+        const durabilite = targetLot?.denat?.durabiliteConfDenat?.niveau ?? '';
+        const depollution = targetLot?.denat?.depollutionDenat?.niveau ?? '';
+        if (!(isStrongLevel(durabilite) && !isStrongLevel(depollution))) return 'none';
+
+        const hardLockActive = (() => {
+            if (this.isLockIgnored(targetLot)) return false;
+            return normalize(targetLot?.bio?.expansion?.niveau ?? '') === 'forte'
+                || normalize(targetLot?.denat?.contaminationDenat?.niveau ?? '') === 'forte';
+        })();
+
+        const doubleLowIntegrite =
+            normalize(targetLot?.bio?.integriteBio?.niveau ?? '') === 'faible'
+            && normalize(targetLot?.mech?.integriteMech?.niveau ?? '') === 'faible';
+
+        return (hardLockActive || doubleLowIntegrite) ? 'none' : 'active';
+    }
+
+    refreshDurabiliteConfDenatAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.denat-row[data-denat-field="durabiliteConfDenat"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-denat-durabilite-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertDurabiliteState = this.getDurabiliteConfDenatAlertState(targetLot);
+    }
+
     refreshHumiditeUsageAlertButton(lot) {
         const targetLot = lot || this.getCurrentLot();
         if (!targetLot) return;
@@ -5039,6 +5797,25 @@ class ValoboisApp {
             value: valueKg.toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 1 }),
             unit: 'kg'
         };
+    }
+
+    getEffectiveMassKg(measuredMassRaw, theoreticalMassRaw) {
+        const normalizedMeasured = this.normalizeAllotissementNumericInput(measuredMassRaw);
+        const measuredMass = parseFloat(normalizedMeasured);
+        if (Number.isFinite(measuredMass) && measuredMass > 0) return measuredMass;
+
+        const theoreticalMass = parseFloat(theoreticalMassRaw);
+        if (Number.isFinite(theoreticalMass) && theoreticalMass > 0) return theoreticalMass;
+
+        return 0;
+    }
+
+    getPriceMarketUnitLabel(priceUnitRaw, priceModeRaw) {
+        const priceMode = ((priceModeRaw || '') + '').toLowerCase();
+        if (priceMode === 't') return '€/t';
+        const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
+        const normalizedUnit = (priceUnit === 'ml' || priceUnit === 'm2' || priceUnit === 'm3') ? priceUnit : 'm3';
+        return '€/' + normalizedUnit;
     }
 
     getMeasuredDensityValue(measuredMassRaw, volumeRaw) {
@@ -7796,6 +8573,7 @@ class ValoboisApp {
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
         const priceUnitRaw = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3') ? priceUnitRaw : 'm3';
+        const isLotTonneMode = ((lot.allotissement.prixMode || '') + '').toLowerCase() === 't';
         lot.allotissement.prixUnite = priceUnit;
 
         lot.allotissement.surfacePiece = (L * l) / 1000000;
@@ -7809,10 +8587,13 @@ class ValoboisApp {
         lot.allotissement.volumeLot = lot.allotissement.volumePiece * q;
         lot.allotissement.lineaireLot = (q * L) / 1000;
 
-        const pricingBase =
-            priceUnit === 'ml' ? lot.allotissement.lineaireLot :
-            priceUnit === 'm2' ? lot.allotissement.surfaceLot :
-            lot.allotissement.volumeLot;
+        const pricingBase = isLotTonneMode
+            ? (((parseFloat(lot.allotissement.masseVolumique) || 0) * lot.allotissement.volumeLot) / 1000)
+            : (
+                priceUnit === 'ml' ? lot.allotissement.lineaireLot :
+                priceUnit === 'm2' ? lot.allotissement.surfaceLot :
+                lot.allotissement.volumeLot
+            );
 
         lot.allotissement.prixLot = pricingBase * pm;
         lot.allotissement.prixLotAjusteIntegrite = lot.allotissement.prixLot * integrityFactor;
@@ -7845,7 +8626,7 @@ class ValoboisApp {
 
             // Somme des contributions des pièces individuelles
             let sumVolume = 0, sumSurface = 0, sumLineaire = 0;
-            let sumPrix = 0, sumPrixAjuste = 0, sumMasse = 0, sumCO2 = 0;
+            let sumPrix = 0, sumPrixAjuste = 0, sumMasse = 0, sumMasseEffectiveKg = 0, sumCO2 = 0;
             lot.pieces.forEach(p => {
                 sumVolume += p.volumePiece || 0;
                 sumSurface += p.surfacePiece || 0;
@@ -7853,6 +8634,7 @@ class ValoboisApp {
                 sumPrix += p.prixPiece || 0;
                 sumPrixAjuste += p.prixPieceAjusteIntegrite || 0;
                 sumMasse += p.massePiece || 0;
+                sumMasseEffectiveKg += this.getEffectiveMassKg(p.massePieceMesuree, p.massePiece);
                 const pieceExactCO2 = parseFloat(p.carboneBiogeniqueEstimeExact);
                 sumCO2 += Number.isFinite(pieceExactCO2)
                     ? pieceExactCO2
@@ -7871,6 +8653,7 @@ class ValoboisApp {
                 const dPm = parseFloat(defaultPiece.prixMarche !== '' ? defaultPiece.prixMarche : lot.allotissement.prixMarche) || 0;
                 const dPriceUnitRaw = ((defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
                 const dPriceUnit = (dPriceUnitRaw === 'ml' || dPriceUnitRaw === 'm2' || dPriceUnitRaw === 'm3') ? dPriceUnitRaw : 'm3';
+                const dIsTonneMode = ((defaultPiece.prixMode || '') + '').toLowerCase() === 't';
                 const dRho = parseFloat(defaultPiece.masseVolumique !== '' ? defaultPiece.masseVolumique : lot.allotissement.masseVolumique) || 0;
                 const dWood = parseFloat(defaultPiece.bois !== '' ? defaultPiece.bois : lot.allotissement.bois);
                 const dMc = parseFloat(defaultPiece.humidite !== '' ? defaultPiece.humidite : lot.allotissement.humidite);
@@ -7886,10 +8669,15 @@ class ValoboisApp {
                 const _dpVe = parseFloat(defaultPiece.volumePieceEnrichi);
                 if (Number.isFinite(_dpVe) && _dpVe > 0) defaultVolPerPiece = _dpVe;
                 const defaultLinPerPiece = dL / 1000;
-                const defaultPricingBase =
-                    dPriceUnit === 'ml' ? defaultLinPerPiece :
-                    dPriceUnit === 'm2' ? defaultSurfPerPiece :
-                    defaultVolPerPiece;
+                const defaultMasseTheoriquePerPiece = dRho * defaultVolPerPiece;
+                const defaultMasseEffectivePerPieceKg = this.getEffectiveMassKg(defaultPiece.massePieceMesuree, defaultMasseTheoriquePerPiece);
+                const defaultPricingBase = dIsTonneMode
+                    ? (defaultMasseEffectivePerPieceKg / 1000)
+                    : (
+                        dPriceUnit === 'ml' ? defaultLinPerPiece :
+                        dPriceUnit === 'm2' ? defaultSurfPerPiece :
+                        defaultVolPerPiece
+                    );
                 const defaultPrixPerPiece = defaultPricingBase * dPm;
                 const defaultCO2PerPiece = dMoistureDenominator > 0
                     ? (44 / 12) * carbonFractionFixed * dRho * defaultVolPerPiece * (dSafeWood / 100) / dMoistureDenominator
@@ -7900,7 +8688,8 @@ class ValoboisApp {
                 sumLineaire += numDefault * defaultLinPerPiece;
                 sumPrix += numDefault * defaultPrixPerPiece;
                 sumPrixAjuste += numDefault * defaultPrixPerPiece * integrityFactor;
-                sumMasse += numDefault * (dRho * defaultVolPerPiece);
+                sumMasse += numDefault * defaultMasseTheoriquePerPiece;
+                sumMasseEffectiveKg += numDefault * defaultMasseEffectivePerPieceKg;
                 sumCO2 += numDefault * defaultCO2PerPiece;
 
                 const defaultStats = this.computePieceDimensionStats(defaultPiece, {
@@ -7939,10 +8728,13 @@ class ValoboisApp {
                 lot.allotissement.prixLotAjusteIntegrite = sumPrixAjuste;
             } else {
                 // Recalculer le prix lot direct sur la base des volumes/surfaces/linéaires agrégés
-                const directPricingBase =
-                    priceUnit === 'ml' ? sumLineaire :
-                    priceUnit === 'm2' ? sumSurface :
-                    sumVolume;
+                const directPricingBase = isLotTonneMode
+                    ? (sumMasseEffectiveKg / 1000)
+                    : (
+                        priceUnit === 'ml' ? sumLineaire :
+                        priceUnit === 'm2' ? sumSurface :
+                        sumVolume
+                    );
                 lot.allotissement.prixLot = directPricingBase * pm;
                 lot.allotissement.prixLotAjusteIntegrite = lot.allotissement.prixLot * integrityFactor;
             }
@@ -8601,6 +9393,7 @@ class ValoboisApp {
         const pm = parseFloat(piece.prixMarche || lot.allotissement.prixMarche) || 0;
         const priceUnitRaw = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3') ? priceUnitRaw : 'm3';
+        const isTonneMode = ((piece.prixMode || '') + '').toLowerCase() === 't';
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
 
         piece.surfacePiece = (L * l) / 1000000;
@@ -8621,17 +9414,21 @@ class ValoboisApp {
             if (Number.isFinite(se) && se > 0) piece.surfacePiece = se;
         }
 
+        // Carbone + masse théorique pour cette pièce
+        const rho = parseFloat(piece.masseVolumique || lot.allotissement.masseVolumique) || 0;
+        piece.massePiece = rho * piece.volumePiece;
+
         const lineairePiece = L / 1000;
-        const pricingBase =
+        const geometryPricingBase =
             priceUnit === 'ml' ? lineairePiece :
             priceUnit === 'm2' ? piece.surfacePiece :
             piece.volumePiece;
+        const effectiveMassKg = this.getEffectiveMassKg(piece.massePieceMesuree, piece.massePiece);
+        const tonnePricingBase = effectiveMassKg / 1000;
+        const pricingBase = isTonneMode ? tonnePricingBase : geometryPricingBase;
         piece.prixPiece = pricingBase * pm;
         piece.prixPieceAjusteIntegrite = piece.prixPiece * integrityFactor;
 
-        // Carbone pour cette pièce
-        const rho = parseFloat(piece.masseVolumique || lot.allotissement.masseVolumique) || 0;
-        piece.massePiece = rho * piece.volumePiece;
         const carbonFractionFixed = 0.5;
         const woodPct = parseFloat(piece.bois !== '' ? piece.bois : lot.allotissement.bois);
         const mc = parseFloat(piece.humidite !== '' ? piece.humidite : lot.allotissement.humidite);
@@ -9863,6 +10660,7 @@ deleteLot(index) {
                 if (e.target === prixLogicBackdrop) this.closePrixLogicModal();
             });
         }
+        this.bindPrixPresetEditorEvents();
 
         // Modale info Taux de similarité et Pièce type
         const tauxLogicBackdrop = document.getElementById('tauxLogicModalBackdrop');
@@ -10752,6 +11550,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     }
 
     openPrixLogicModal() {
+        this.renderPrixPresetEditor();
+        this.bindPrixPresetEditorEvents();
         const b = document.getElementById('prixLogicModalBackdrop');
         if (b) {
             b.classList.remove('hidden');
@@ -10765,6 +11565,147 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             b.classList.add('hidden');
             b.setAttribute('aria-hidden', 'true');
         }
+        this.syncPricePresetAssignmentsAcrossLots();
+        this.renderAllotissement();
+        this.renderDetailLot();
+    }
+
+    renderPrixPresetEditor() {
+        const rowsContainer = document.getElementById('prixPresetEditorRows');
+        if (!rowsContainer) return;
+
+        const presets = this.buildEffectivePricePresetList();
+        const renderUnitOptions = (selectedUnit) => {
+            const current = this.normalizePricePresetUnit(selectedUnit, '');
+            return this.getPricePresetAllowedUnits().map((unit) => {
+                const label = unit ? unit : '(aucune)';
+                return `<option value="${unit}"${unit === current ? ' selected' : ''}>${label}</option>`;
+            }).join('');
+        };
+
+        rowsContainer.innerHTML = presets.map((preset) => {
+            const valueDisplay = this.formatAllotissementNumericDisplay(preset.value);
+            const baseBadge = preset.isBase
+                ? '<span class="price-preset-row__badge">Base</span>'
+                : '<span class="price-preset-row__badge price-preset-row__badge--custom">Custom</span>';
+            const baseIsOverridden = !!(preset.isBase && (
+                String(preset.value || '') !== String(preset.defaultValue || '')
+                || String(preset.unit || '') !== String(preset.defaultUnit || '')
+            ));
+            const removeButton = preset.isBase
+                ? `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset" data-price-preset-kind="base" data-price-preset-id="${this.escapeHtml(preset.id)}"${baseIsOverridden ? '' : ' disabled aria-disabled="true"'} title="Rétablir les paramètres par défaut">Réinitialiser</button>`
+                : `<button type="button" class="price-preset-row__remove" data-price-preset-action="remove" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}">Supprimer</button>`;
+            const labelCell = preset.isBase
+                ? `<div class="price-preset-row__label-static">${this.escapeHtml(preset.label)}</div>`
+                : `<input type="text" class="lot-input price-preset-row__input" value="${this.escapeHtml(preset.label)}" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" data-price-preset-field="label" placeholder="Catégorie">`;
+
+            return `
+                <div class="price-preset-row" data-price-preset-kind="${preset.isBase ? 'base' : 'custom'}" data-price-preset-id="${this.escapeHtml(preset.id)}">
+                    <div class="price-preset-row__head">${baseBadge}</div>
+                    <div class="price-preset-row__grid">
+                        <div class="price-preset-row__label">${labelCell}</div>
+                        <div class="price-preset-row__value">
+                            <div class="lot-input-with-unit">
+                                <input type="text" inputmode="decimal" class="lot-input price-preset-row__input" value="${this.escapeHtml(valueDisplay)}" data-price-preset-kind="${preset.isBase ? 'base' : 'custom'}" data-price-preset-id="${this.escapeHtml(preset.id)}" data-price-preset-field="value" placeholder="0">
+                                <span class="lot-input-unit">€</span>
+                            </div>
+                        </div>
+                        <div class="price-preset-row__unit">
+                            <select class="lot-input price-preset-row__select" data-price-preset-kind="${preset.isBase ? 'base' : 'custom'}" data-price-preset-id="${this.escapeHtml(preset.id)}" data-price-preset-field="unit">
+                                ${renderUnitOptions(preset.unit)}
+                            </select>
+                        </div>
+                        <div class="price-preset-row__actions">${removeButton}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        const emptyLabel = document.getElementById('prixPresetEditorEmpty');
+        if (emptyLabel) {
+            const customCount = presets.filter((entry) => !entry.isBase).length;
+            emptyLabel.textContent = customCount > 0 ? '' : 'Aucune catégorie personnalisée pour le moment.';
+        }
+    }
+
+    bindPrixPresetEditorEvents() {
+        if (this._prixPresetEditorBound) return;
+        const editor = document.getElementById('prixPresetEditor');
+        if (!editor) return;
+        this._prixPresetEditorBound = true;
+
+        editor.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-price-preset-action]');
+            if (!actionBtn) return;
+
+            const action = actionBtn.dataset.pricePresetAction;
+            if (action === 'remove' && actionBtn.dataset.pricePresetKind === 'custom') {
+                const customId = actionBtn.dataset.pricePresetId || '';
+                if (!customId) return;
+                this.deleteCustomPricePreset(customId);
+                this.renderPrixPresetEditor();
+                return;
+            }
+
+            if (action === 'reset' && actionBtn.dataset.pricePresetKind === 'base') {
+                const baseId = actionBtn.dataset.pricePresetId || '';
+                if (!baseId) return;
+                this.resetBasePricePreset(baseId);
+                this.renderPrixPresetEditor();
+                return;
+            }
+
+            if (action === 'add') {
+                const labelInput = document.getElementById('prixPresetNewLabel');
+                const valueInput = document.getElementById('prixPresetNewValue');
+                const unitInput = document.getElementById('prixPresetNewUnit');
+                const addError = document.getElementById('prixPresetAddError');
+                const created = this.addCustomPricePreset({
+                    label: labelInput ? labelInput.value : '',
+                    value: valueInput ? valueInput.value : '',
+                    unit: unitInput ? unitInput.value : 'm3'
+                });
+                if (!created) {
+                    if (addError) addError.textContent = 'Saisir au moins un libellé pour ajouter une catégorie.';
+                    return;
+                }
+                if (addError) addError.textContent = '';
+                if (labelInput) labelInput.value = '';
+                if (valueInput) valueInput.value = '';
+                if (unitInput) unitInput.value = 'm3';
+                this.renderPrixPresetEditor();
+            }
+        });
+
+        editor.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            const field = target.dataset.pricePresetField;
+            const kind = target.dataset.pricePresetKind;
+            const presetId = target.dataset.pricePresetId || '';
+            if (!field || !kind || !presetId) return;
+
+            if (kind === 'base') {
+                if (field === 'value') {
+                    this.setBasePricePresetValue(presetId, target.value);
+                } else if (field === 'unit') {
+                    this.setBasePricePresetUnit(presetId, target.value);
+                }
+                this.renderPrixPresetEditor();
+                return;
+            }
+
+            if (kind === 'custom') {
+                if (field === 'label') {
+                    this.updateCustomPricePreset(presetId, { label: target.value });
+                } else if (field === 'value') {
+                    this.updateCustomPricePreset(presetId, { value: target.value });
+                } else if (field === 'unit') {
+                    this.updateCustomPricePreset(presetId, { unit: target.value });
+                }
+                this.renderPrixPresetEditor();
+            }
+        });
     }
 
     refreshTauxLogicModalStrategyContent(lot = null) {
@@ -11059,6 +12000,177 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             .replace(/[^a-z0-9]/g, '');
     }
 
+    isStructuredModalContent(value) {
+        if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+        return (
+            Object.prototype.hasOwnProperty.call(value, 'intro') ||
+            Object.prototype.hasOwnProperty.call(value, 'echelle') ||
+            Object.prototype.hasOwnProperty.call(value, 'info') ||
+            Object.prototype.hasOwnProperty.call(value, 'references')
+        );
+    }
+
+    modalStructuredContentToText(value, { includeReferenceHeading = true } = {}) {
+        if (!this.isStructuredModalContent(value)) {
+            if (value == null) return '';
+            return String(value);
+        }
+
+        const lines = [];
+        const intro = String(value.intro || '').trim();
+        if (intro) lines.push(intro);
+
+        const echelle = Array.isArray(value.echelle) ? value.echelle : [];
+        if (intro && echelle.length) lines.push('');
+        echelle.forEach((item) => {
+            if (item == null) return;
+            if (typeof item === 'string') {
+                const sentence = item.trim();
+                if (sentence) lines.push(sentence);
+                return;
+            }
+            if (typeof item !== 'object') return;
+            const sentence = String(item.texte || item.text || item.description || '').trim();
+            if (sentence) lines.push(sentence);
+        });
+
+        const info = Array.isArray(value.info) ? value.info : [];
+        info.forEach((entry) => {
+            const sentence = String(entry || '').trim();
+            if (!sentence) return;
+            lines.push('');
+            lines.push(sentence);
+        });
+
+        const references = Array.isArray(value.references) ? value.references : [];
+        const normalizedReferences = references
+            .map((entry) => String(entry || '').trim())
+            .filter(Boolean);
+
+        if (normalizedReferences.length) {
+            lines.push('');
+            if (includeReferenceHeading) {
+                lines.push('Références et ressources.');
+            }
+            normalizedReferences.forEach((entry) => {
+                lines.push(/^[-•*]/.test(entry) ? entry : `• ${entry}`);
+            });
+        }
+
+        return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+    }
+
+    parseLegacyModalContent(value) {
+        if (this.isStructuredModalContent(value)) return value;
+
+        const text = String(value == null ? '' : value)
+            .replace(/\r\n?/g, '\n')
+            .trim();
+
+        if (!text) {
+            return { intro: '', echelle: [], info: [], references: [] };
+        }
+
+        const lines = text.split('\n').map((line) => line.trim());
+
+        const isHeadingLine = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+            if (!/\.$/.test(l)) return false;
+            if (/^(Noter|Une?|Un|Des|Attention|À\s*noter|R[eé]f[eé]rences?)/i.test(l)) return false;
+            if (/^[-•*]/.test(l)) return false;
+            if (/\[[^\]]+\]/.test(l)) return false;
+            return l.length <= 64;
+        };
+
+        if (lines.length && isHeadingLine(lines[0])) {
+            lines.shift();
+            while (lines.length && !lines[0]) lines.shift();
+        }
+
+        const scaleLineRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]/i;
+        const isReferenceHeadingLine = (line) => /^R[eé]f[eé]rences?\s+et\s+[Rr]essources\.?\s*$/i.test(String(line || '').trim());
+        const isInfoSectionHeaderLine = (line) => /^(Attention|À\s*noter|Exemple)\s*:?/i.test(String(line || '').trim());
+        const isLikelyReferenceLine = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+            if (/^(Noter|Attention|À\s*noter|Exemple)\b/i.test(l)) return false;
+            if (/^[-•*]/.test(l)) return true;
+            if (/^(NF|EN|ISO|FD|DIN|ASTM|EUROCODE)\b/i.test(l)) return true;
+            if (/(https?:\/\/|doi\.org\/|\bdoi\s*:)/i.test(l)) return true;
+            if (/\(\d{4}\)/.test(l) && /^[A-ZÀ-ÖØ-Ý]/.test(l)) return true;
+            return false;
+        };
+        const isStrongReferenceSignalLine = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+            if (/(https?:\/\/|doi\.org\/|\bdoi\s*:)/i.test(l)) return true;
+            if (/^(NF|EN|ISO|FD|DIN|ASTM|EUROCODE)\b/i.test(l)) return true;
+            if (/^\*+\s*[A-ZÀ-ÖØ-Ý]/.test(l)) return true;
+            if (/\(\d{4}\)/.test(l) && /^[A-ZÀ-ÖØ-Ý]/.test(l)) return true;
+            return false;
+        };
+
+        let intro = '';
+        const echelle = [];
+        const info = [];
+        const references = [];
+        let referencesZoneActive = false;
+        let infoSectionActive = false;
+
+        lines.forEach((line) => {
+            const l = String(line || '').trim();
+            if (!l) return;
+
+            if (isReferenceHeadingLine(l)) {
+                referencesZoneActive = true;
+                infoSectionActive = false;
+                return;
+            }
+
+            if (isInfoSectionHeaderLine(l)) {
+                infoSectionActive = true;
+                referencesZoneActive = false;
+                info.push(l);
+                return;
+            }
+
+            const asScale = scaleLineRegex.test(l);
+            const asReference = referencesZoneActive
+                || (!asScale && (!infoSectionActive ? isLikelyReferenceLine(l) : isStrongReferenceSignalLine(l)));
+
+            if (asReference) {
+                references.push(l);
+                return;
+            }
+
+            if (asScale) {
+                echelle.push({ texte: l });
+                return;
+            }
+
+            if (!intro && /^Noter\b/i.test(l)) {
+                intro = l;
+                return;
+            }
+
+            info.push(l);
+        });
+
+        return { intro, echelle, info, references };
+    }
+
+    normalizeModalContentsMap(contents) {
+        const source = contents && typeof contents === 'object' ? contents : {};
+        const normalized = {};
+        Object.entries(source).forEach(([key, value]) => {
+            normalized[key] = this.isStructuredModalContent(value)
+                ? value
+                : this.parseLegacyModalContent(value);
+        });
+        return normalized;
+    }
+
     renderDetailModalContent(contentEl, rawText) {
         if (!contentEl) return;
 
@@ -11067,7 +12179,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const modalTitleNormalized = this.normalizeDetailTitle(modalTitleEl ? modalTitleEl.textContent : '');
         const modalTitleWithoutAlertPrefixNormalized = modalTitleNormalized.replace(/^alerte/, '');
 
-        const text = (rawText || 'À renseigner').toString().trim();
+        const legacyCompatibleText = this.modalStructuredContentToText(rawText, { includeReferenceHeading: true });
+        const text = (legacyCompatibleText || 'À renseigner').toString().trim();
         if (!text) {
             contentEl.innerHTML = '<div class="detail-modal-paragraph"><p>À renseigner</p></div>';
             return;
@@ -11084,12 +12197,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const referenceTokenRegex = /(https?:\/\/|\bwww\.|\bdoi\s*:|\b10\.\d{4,9}\/)/i;
         const bibliographicRegex = /\((?:\d{4}(?:[^)]*)|s\.\s*d\.)\)/i;
         const normRegex = /\b(FD|NF|EN|ISO|FWPA|STI|STII|STIII|C\d{2}|D\d{2})\b/i;
-        const scaleLineRegex = /(?:Une?|Un|Des)\s+.*(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?.*\[[^\]]+\]/i;
+        const scaleLineRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]/i;
 
         const isReferenceLine = (line) => {
             const clean = String(line || '').trim();
             if (!clean) return false;
-            if (/^Noter\b/i.test(clean)) return false;
+            if (/^(Noter|Attention|À\s*noter|Exemple)\b/i.test(clean)) return false;
             if (/^(Voir\b|Références?|Bibliographie|Sources?)\s*/i.test(clean)) return true;
             if (referenceTokenRegex.test(clean)) return true;
             if (bibliographicRegex.test(clean) && /^[*]?[A-ZÀ-ÖØ-Ý]/.test(clean)) return true;
@@ -11170,15 +12283,47 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             const referenceLines = [];
             const contentLines = [];
 
+            const isReferenceHeadingLine = (line) => /^Références?\s+et\s+[Rr]essources\.?\s*$/i.test(String(line || '').trim());
+            const isLikelyReferenceContinuation = (line) => {
+                const l = String(line || '').trim();
+                if (!l) return false;
+                if (/^(Noter|Une?|Un|Des)\b/i.test(l)) return false;
+                if (/^(Attention|À noter|Exemple)\s*:/i.test(l)) return false;
+                if (/^[-•]/.test(l)) return false;
+                if (/^\[.*\]$/.test(l)) return true;
+                if (/^\d{4}[\.,]?$/.test(l)) return true;
+                if (/^(vol\.|pp?\.|n[°o])\s*/i.test(l)) return true;
+                if (/(https?:\/\/|doi\.org\/|\bdoi\s*:)/i.test(l)) return true;
+                if (/\b\d{4}\b/.test(l) && /^[A-ZÀ-ÖØ-Ý]/.test(l)) return true;
+                if (/^(ed\.|éd\.|edition|publisher|presses?)\b/i.test(l)) return true;
+                if (/^\(?[A-Za-zÀ-ÖØ-öø-ÿ\s,.'’-]+\)?\s*:\s*/.test(l) && /\b\d{4}\b/.test(l)) return true;
+                return false;
+            };
+
+            let referencesZoneActive = false;
+            let previousLineWasReference = false;
+
             rawLines.forEach((line, index) => {
                 const nextLine = rawLines[index + 1] || '';
                 const isCitationBeforeUrl = bibliographicRegex.test(line) && referenceTokenRegex.test(nextLine);
                 const isScaleLine = scaleLineRegex.test(line);
-                if (!isScaleLine && (isReferenceLine(line) || isCitationBeforeUrl)) {
+                if (isReferenceHeadingLine(line)) {
+                    referencesZoneActive = true;
+                    previousLineWasReference = true;
+                    return;
+                }
+
+                const explicitReference = !isScaleLine && (isReferenceLine(line) || isCitationBeforeUrl);
+                const continuedReference = !isScaleLine && previousLineWasReference && isLikelyReferenceContinuation(line);
+                const treatAsReference = referencesZoneActive || explicitReference || continuedReference;
+
+                if (treatAsReference) {
                     referenceLines.push(line);
                 } else {
                     contentLines.push(line);
                 }
+
+                previousLineWasReference = treatAsReference;
             });
 
             if (referenceLines.length) {
@@ -11186,7 +12331,21 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     (line) => !/^Références?\s+et\s+[Rr]essources\.?\s*$/i.test(line.trim())
                 );
                 if (filteredRefLines.length) {
-                    referenceChunks.push(filteredRefLines.map((line) => this.linkifyText(line)).join('<br>'));
+                    const isUrlOnlyLine = (line) => {
+                        const clean = String(line || '').trim().replace(/^[-•*]\s*/, '');
+                        return /^(https?:\/\/|www\.|10\.\d{4,9}\/)/i.test(clean);
+                    };
+                    const normalizedRefLines = [];
+                    filteredRefLines.forEach((line) => {
+                        const cleanLine = String(line || '').trim();
+                        if (!cleanLine) return;
+                        if (isUrlOnlyLine(cleanLine) && normalizedRefLines.length) {
+                            normalizedRefLines[normalizedRefLines.length - 1] += ` ${cleanLine}`;
+                            return;
+                        }
+                        normalizedRefLines.push(cleanLine);
+                    });
+                    referenceChunks.push(normalizedRefLines.map((line) => this.linkifyText(line)).join('<br>'));
                 }
             }
 
@@ -11201,23 +12360,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 .join('<br>');
 
             if (!inlineText) return '';
-
-            if (/^Noter\b/i.test(inlineText)) {
-                return `<div class="detail-modal-instruction"><p>${linesHtml}</p></div>`;
-            }
-
-            if (/^(Attention|À noter|Exemple)\s*:/i.test(inlineText)) {
-                return `<div class="detail-modal-note"><p>${linesHtml}</p></div>`;
-            }
-
-            if (inlineText.length <= 80 && /^[A-ZÀ-ÖØ-Ý]/.test(inlineText) && /\.$/.test(inlineText)) {
-                const subtitle = inlineText.slice(0, -1).trim();
-                const subtitleNormalized = this.normalizeDetailTitle(subtitle);
-                if (modalTitleNormalized && subtitleNormalized === modalTitleNormalized) {
-                    return '';
-                }
-                return `<h3 class="detail-modal-subtitle">${this.escapeHtml(subtitle)}</h3>`;
-            }
 
             const scaleEntries = [];
             const textWithoutScale = currentBlock.replace(scaleRegex, (match, level) => {
@@ -11257,6 +12399,23 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     ? `<div class="detail-modal-paragraph"><p>${textWithoutScale.split('\n').map((line) => this.linkifyText(line.trim())).filter(Boolean).join('<br>')}</p></div>`
                     : '';
                 return `${intro}<div class="detail-modal-scale">${scaleItems.join('')}</div>`;
+            }
+
+            if (/^Noter\b/i.test(inlineText)) {
+                return `<div class="detail-modal-instruction"><p>${linesHtml}</p></div>`;
+            }
+
+            if (/^(Attention|À noter|Exemple)\s*:/i.test(inlineText)) {
+                return `<div class="detail-modal-note"><p>${linesHtml}</p></div>`;
+            }
+
+            if (inlineText.length <= 80 && /^[A-ZÀ-ÖØ-Ý]/.test(inlineText) && /\.$/.test(inlineText)) {
+                const subtitle = inlineText.slice(0, -1).trim();
+                const subtitleNormalized = this.normalizeDetailTitle(subtitle);
+                if (modalTitleNormalized && subtitleNormalized === modalTitleNormalized) {
+                    return '';
+                }
+                return `<h3 class="detail-modal-subtitle">${this.escapeHtml(subtitle)}</h3>`;
             }
 
             return `<div class="detail-modal-paragraph"><p>${linesHtml}</p></div>`;
@@ -11358,53 +12517,38 @@ La notation de l’intégrité générale permet de statuer sur une évaluation 
         }
     }
 
-    openBioDetailModal(fieldKey) {
-        const backdrop = document.getElementById('bioDetailModalBackdrop');
-        const titleEl = document.getElementById('bioDetailModalTitle');
-        const contentEl = document.getElementById('bioDetailModalContent');
 
-        const titles = {
-            purge: 'Purge des dégradations biologiques',
-            expansion: 'Expansion',
-            integriteBio: 'Intégrité biologique',
-            exposition: 'Exposition',
-            confianceBio: 'Confiance'
-        };
-
-        const contents = {
+    getBioDetailContents() {
+        return this.normalizeModalContentsMap({
             purge: `Noter le degré de purge des dégradations biologiques nécessaire pour le réusage des bois évalués.
 
 Une purge « forte » vaut pour la réalisation de coupes transversales (réduction de la longueur) des pièces de bois d’une dégradation à plus de 50 cm de leurs extrémités [-3].
 Une purge « moyenne » vaut pour la coupe des extrémités de bois inférieure à 50 cm [+1].
 Une purge « faible » vaut pour la réalisation du retrait de dégradations superficielles, limitées à l’aubier [+3].
 
-Voir : François Privat. Faisabilité du recyclage en boucle fermée des déchets post-consommateurs en bois massif. Génie des procédés. École centrale de Nantes, 2019.`,
-            expansion: `Expansion.
-
-Noter le degré d’expansion des dégradations biologiques des bois évalués dans sa dimension environnementale.
-
-Une expansion « forte » vaut pour : des infections ou infestations sur plus de la moitié de la longueur du bois et/ou plus de la moitié du lot évalué, et/ou d’une activité fongique ou animale manifeste (ex : sporulations, larves, insectes, en particulier termites ou mérule*) [-10].
-Une expansion « moyenne » vaut pour des infections, infestations ou moisissures localisées là où se situent les pièces de bois évaluées, sans activité manifeste [-3].
-Une expansion « faible » vaut pour une absence de dégradations ou pour des infections, infestations ou moisissures (bleuissement, tâches) de surface et ponctuelles, limitées à l’aubier, sans activité manifeste [+3].
-
-*Ministère de la Transition écologique. (2023, 30 janvier). Termites, insectes xylophages et champignons lignivores. Ministère de la Transition écologique et de la Cohésion des territoires.
-https://www.ecologie.gouv.fr/politiques-publiques/termites-insectes-xylophages-champignons-lignivores
-
-Agence Qualité Construction. (2024, janvier). Les attaques des bois par les agents biologiques. Collection Fiches Pathologie bâtiment.
-https://qualiteconstruction.com/ressource/fiches-pathologie-batiment/attaques-bois-agents-biologiques/
-
-Agence Qualité Construction. (2017). Le risque de mérule dans le bâtiment : mesures préventives.
-https://qualiteconstruction.com/wp-content/uploads/2024/05/Plaquette-Risque-Merule-Batiment-Mesures-Preventives-AQC.pdf
-
-ADEME. (s. d.). Bois contaminé (termites). Que faire de mes déchets ?
-https://quefairedemesdechets.ademe.fr/dechet/bois-contamine-termites/`,
+François Privat. Faisabilité du recyclage en boucle fermée des déchets post-consommateurs en bois massif. Génie des procédés. École centrale de Nantes, 2019.`,
+            expansion: {
+                intro: `Noter le degré d’expansion des dégradations biologiques des bois évalués dans sa dimension environnementale.`,
+                echelle: [
+                    { texte: `Une expansion « forte » vaut pour : des infections ou infestations sur plus de la moitié de la longueur du bois et/ou plus de la moitié du lot évalué, et/ou d’une activité fongique ou animale manifeste (ex : sporulations, larves, insectes, en particulier termites ou mérule*) [-10].` },
+                    { texte: `Une expansion « moyenne » vaut pour des infections, infestations ou moisissures localisées là où se situent les pièces de bois évaluées, sans activité manifeste [-3].` },
+                    { texte: `Une expansion « faible » vaut pour une absence de dégradations ou pour des infections, infestations ou moisissures (bleuissement, tâches) de surface et ponctuelles, limitées à l’aubier, sans activité manifeste [+3].` }
+                ],
+                info: [],
+                references: [
+                    `*Ministère de la Transition écologique. (2023, 30 janvier). Termites, insectes xylophages et champignons lignivores. Ministère de la Transition écologique et de la Cohésion des territoires. https://www.ecologie.gouv.fr/politiques-publiques/termites-insectes-xylophages-champignons-lignivores`,
+                    `Agence Qualité Construction. (2024, janvier). Les attaques des bois par les agents biologiques. Collection Fiches Pathologie bâtiment. https://qualiteconstruction.com/ressource/fiches-pathologie-batiment/attaques-bois-agents-biologiques/`,
+                    `Agence Qualité Construction. (2017). Le risque de mérule dans le bâtiment : mesures préventives. https://qualiteconstruction.com/wp-content/uploads/2024/05/Plaquette-Risque-Merule-Batiment-Mesures-Preventives-AQC.pdf`,
+                    `ADEME. (s. d.). Bois contaminé (termites). Que faire de mes déchets ? https://quefairedemesdechets.ademe.fr/dechet/bois-contamine-termites/`
+                ]
+            },
             integriteBio: `Noter le degré d’atteinte à l’intégrité des bois par des dégradations biologiques.
 
 Une intégrité biologique « forte » vaut pour une absence de dégradation [+3].
 Une intégrité biologique « moyenne » vaut pour des altérations d’ordres biologiques superficielles limitées aux premières cernes de l’aubier et/ou aux premiers centimètres des extrémités [+1].
 Une intégrité biologique « faible » vaut pour des altérations biologiques à cœur manifestes sur plus d’un tiers de la longueur des éléments évalués [-10].
 
-(Choix des dimensions à spécifier).
+Dimensionnement des dégradations à étudier.
 
 Witomski, P., Olek, W. & Bonarski, J. T. (2016). inputs in strength of Scots pine wood (Pinus silvestris L.) decayed by brown rot (Coniophora puteana) and white rot (Trametes versicolor). Construction and Building Materials, 102. https://doi.org/10.1016/j.conbuildmat.2015.10.109`,
             exposition: `Exposition biologique.
@@ -11425,7 +12569,23 @@ Noter le niveau de confiance dans l’identification des dégradations biologiqu
 Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
 Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
 Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`
+        });
+    }
+
+    openBioDetailModal(fieldKey) {
+        const backdrop = document.getElementById('bioDetailModalBackdrop');
+        const titleEl = document.getElementById('bioDetailModalTitle');
+        const contentEl = document.getElementById('bioDetailModalContent');
+
+        const titles = {
+            purge: 'Purge des dégradations biologiques',
+            expansion: 'Expansion',
+            integriteBio: 'Intégrité biologique',
+            exposition: 'Exposition',
+            confianceBio: 'Confiance'
         };
+
+        const contents = this.getBioDetailContents();
 
         if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
         this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -11466,20 +12626,9 @@ closeMechModal() {
     }
 }
 
-openMechDetailModal(fieldKey) {
-    const backdrop = document.getElementById('mechDetailModalBackdrop');
-    const titleEl = document.getElementById('mechDetailModalTitle');
-    const contentEl = document.getElementById('mechDetailModalContent');
 
-    const titles = {
-        purgeMech: 'Purge des dégradations mécaniques',
-        feuMech: 'Feu',
-        integriteMech: 'Intégrité mécanique',
-        expositionMech: 'Exposition',
-        confianceMech: 'Confiance'
-    };
-
-    const contents = {
+    getMechDetailContents() {
+        return this.normalizeModalContentsMap({
         purgeMech: `Noter le degré de purge des dégradations mécaniques nécessaire pour le réusage des bois évalués.
 
 Une purge mécanique « forte » vaut pour la réalisation de coupes transversales (réduction de la longueur) sur des pièces de bois à l’intégrité biologique faible et à l’intégrité mécanique faible [-3].
@@ -11496,33 +12645,7 @@ Une tenue au feu « forte » vaut pour des pièces de bois combinant plusieurs d
 Une tenue au feu « moyenne » vaut pour des pièces de bois combinant plusieurs de ces éléments : une volumétrie moyenne, une humidité moyenne, une massivité moyenne, une masse volumique faible, expansion des dégradations biologiques moyenne [+2].
 Une tenue au feu « faible » vaut pour des pièces de bois combinant plusieurs de ces éléments : une volumétrie faible, une humidité faible, une massivité faible, une masse volumique faible, expansion des dégradations biologiques forte [+1].
 
-    Interprétation de l’alerte automatique.
-
-    Le terme « combinant » signifie ici qu’au moins 2 critères parmi les 5 contributeurs sont pris en compte : Volumétrie, Humidité, Massivité, Masse volumique, Expansion des dégradations biologiques.
-
-    Plus le nombre de critères renseignés est élevé, plus l’alerte est robuste.
-
-    Méthode de pondération de l’alerte (interprétation applicative).
-
-    Barème par critère.
-    - Volumétrie : Forte = +2 ; Moyenne = +1 ; Faible = -2
-    - Humidité : Moyenne = +2 ; Faible = -2 ; Forte = 0
-    - Massivité : Forte = +2 ; Moyenne = +1 ; Faible = -2
-    - Masse volumique : Forte = +2 ; Moyenne = +1 ; Faible = -1
-    - Expansion biologique : Faible = +2 ; Moyenne = 0 ; Forte = -3
-
-    Seuils de classement.
-    - Feu « fort » (alerte verte) : score ≥ 6 avec au moins 4 critères disponibles et sans signal critique.
-    - Feu « moyen » (alerte orange) : score de 2 à 5.
-    - Feu « faible » (alerte rouge) : score ≤ 1, ou présence d’au moins un signal critique.
-    - Alerte « none » : moins de 2 critères disponibles.
-
-    Signaux critiques.
-    - Expansion biologique forte.
-    - Volumétrie faible et massivité faible.
-    - Humidité faible combinée à un facteur aggravant (massivité faible ou expansion forte).
-
-Voir : Uldry, A., Husted, B. P., Pope, I., & Ottosen, L. M. (2024). A Review of the Applicability of Non-destructive Testing for the Determination of the Fire Performance of Reused Structural Timber. Journal of Nondestructive Evaluation, 43(4). https://doi.org/10.1007/s10921-024-01120-6
+Uldry, A., Husted, B. P., Pope, I., & Ottosen, L. M. (2024). A Review of the Applicability of Non-destructive Testing for the Determination of the Fire Performance of Reused Structural Timber. Journal of Nondestructive Evaluation, 43(4). https://doi.org/10.1007/s10921-024-01120-6
 
 Jurecki, A., Wieruszewski, M., & Grześkowiak, W. (2024). Comparative Analysis of the Flammability Characteristics of Historic Oak Wood from 1869 and Contemporary Wood. In Wood & Fire Safety 2024 (p. 370‑377). Springer Nature Switzerland. https://doi.org/10.1007/978-3-031-59177-8_43
 
@@ -11531,9 +12654,9 @@ Jing, C., Renner, J. S., & Xu, Q. (2024). Research on the Fire Performance of Ag
 
 Noter l’intégrité mécanique des bois évalués. (À distinguer de la notation de l'Altération, postérieure à la déconstruction.)
 
-Une intégrité mécanique « forte » vaut pour une absence de dégradations ou pour des dégradations superficielles, locales, limitées aux premières cernes de l’aubier, aux arêtes, aux extrémités des pièces sur moins d’un cinquième de la longueur totale du bois, répondants aux critères les plus défavorables de classement visuel des normes relatives à l’essence évaluée [+3].
-Une intégrité mécanique « moyenne » vaut pour des bois disposant d’assemblages taillés dans la pièce (ex : entailles, poches, mortaises, encoches, mi-bois, percements de boulons, vis ou clous, de charbon*…), des fentes de séchage non traversantes [-3].
-Une intégrité mécanique « faible » vaut pour : des dégradations, qui ne sont pas des assemblages ou ne portent pas sur ceux-ci, réparties sur plus de la moitié de la longueur ou de la section de la pièce (ex : tronçonnage partiel, arrachements …); pour des signes de ruptures/cassures qui portent atteintes à la résistance mécanique générale de la pièce, des fentes traversantes ou décollement de cerne [-10].
+    Une intégrité mécanique « forte » vaut pour une absence de dégradations ou pour des dégradations superficielles, locales, limitées aux premières cernes de l’aubier, aux arêtes, aux extrémités des pièces sur moins d’un cinquième de la longueur totale du bois ; singularités encadrées par les critères de la norme de classement visuel relatifs à l’essence évaluée ; bois faisant partie intégrante d’un système constructif propre (fermes, pan de bois…) disposant d’assemblages taillés dans la pièce (ex : entailles, poches, mortaises, encoches, mi-bois, percements de boulons, vis ou clous, de charbon*…), des fentes de séchage non traversantes [+3].
+    Une intégrité mécanique « moyenne » vaut pour des bois ne faisant partie intégrante d’un système constructif propre et disposant d’assemblages taillés dans la pièce (ex : entailles, poches, mortaises, encoches, mi-bois, percements de boulons, vis ou clous, de charbon*…), des fentes de séchage non traversantes [-3].
+    Une intégrité mécanique « faible » vaut pour des dégradations, qui ne sont pas des assemblages ou ne portent pas sur ceux-ci, réparties sur plus de la moitié de la longueur ou de la section de la pièce (ex : tronçonnage partiel, arrachements …); pour des signes de ruptures/cassures qui portent atteintes à la résistance mécanique générale de la pièce, des fentes traversantes ou décollement de cerne [-10].
 
 *Des bois ayant subi une combustion superficielle restent réutilisables dans la mesure où l’humidité n’est pas trop faible et l’état microscopique du bois est aussi évalué. Ne sont pas ici évaluées les dégradations mécaniques liées aux traitements, ni les dégradations internes des bois et/ou propres à leur croissance : nœuds et groupes de nœuds, échauffures, roulures, gélivures, pente de fil, bois de réaction ou de tension.
 
@@ -11546,15 +12669,12 @@ Une exposition mécanique « forte » vaut pour des pièces situées en classes 
 Une exposition mécanique « moyenne » vaut pour des pièces : soumises à leur seul « poids propre » en classes 3.2 et 3.1 ou situées en classe 2 combinée à de fortes sollicitations dynamiques et statiques (ex : territoires venteux, neigeux, passage d’engin, lieu de stockage) [+1].
 Une exposition mécanique « faible » vaut pour les classes 1 à 2 combinée à des faibles sollicitations dynamiques et statiques [+3].
 
-Pour les équivalences se rapporter aux classes d’emploi NF-EN-335.
-
-Attention, l’estimation de la classe n’est pas que situationnelle (localisation dans le bâtiment) mais aussi contextuelle relative à l’usage du bâtiment.
-
+Attention, l’estimation de la classe n’est pas que situationnelle (localisation dans le bâtiment) mais aussi contextuelle relative à l’usage du bâtiment. 
 Exemple : un solivage d’un ouvrage en friche peut ainsi être réévalué en classe 2 voir 3 si des flaques peuvent être observées sur les sols intérieurs.
+Évaluer la sollicitation de la pièce sur sa durée d’usage pour statuer sur la qualité de son dimensionnement et son influence.
 
-Voir, en lien avec l’humidité : Teodorescu, I., Erbaşu, R., Branco, J. M., & Tăpuşi, D. (2021). Study in the inputs of the moisture content in wood. IOP Conference Series: Earth and Environmental Science, 664(1), 012017. https://doi.org/10.1088/1755-1315/664/1/012017).
-
-Définir un % de charge moyen sur la durée d’usage pour statuer sur le dimensionnement et son influence.`,
+Pour les équivalences se rapporter aux classes d’emploi NF-EN-335.
+Voir, en lien avec l’humidité : Teodorescu, I., Erbaşu, R., Branco, J. M., & Tăpuşi, D. (2021). Study in the inputs of the moisture content in wood. IOP Conference Series: Earth and Environmental Science, 664(1), 012017. https://doi.org/10.1088/1755-1315/664/1/012017).`,
         confianceMech: `Confiance.
 
 Noter le niveau de confiance dans l’identification des dégradations mécaniques des bois évalués.
@@ -11562,7 +12682,22 @@ Noter le niveau de confiance dans l’identification des dégradations mécaniqu
 Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
 Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
 Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`
+    });
+    }
+openMechDetailModal(fieldKey) {
+    const backdrop = document.getElementById('mechDetailModalBackdrop');
+    const titleEl = document.getElementById('mechDetailModalTitle');
+    const contentEl = document.getElementById('mechDetailModalContent');
+
+    const titles = {
+        purgeMech: 'Purge des dégradations mécaniques',
+        feuMech: 'Feu',
+        integriteMech: 'Intégrité mécanique',
+        expositionMech: 'Exposition mécanique',
+        confianceMech: 'Confiance'
     };
+
+    const contents = this.getMechDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -11597,20 +12732,9 @@ closeUsageModal() {
     }
 }
 
-openUsageDetailModal(fieldKey) {
-    const backdrop = document.getElementById('usageDetailModalBackdrop');
-    const titleEl = document.getElementById('usageDetailModalTitle');
-    const contentEl = document.getElementById('usageDetailModalContent');
 
-    const titles = {
-        confianceUsage: 'Confiance',
-        durabiliteUsage: 'Durabilité naturelle',
-        classementUsage: 'Classement estimé',
-        humiditeUsage: 'Humidité',
-        aspectUsage: 'Aspect'
-    };
-
-    const contents = {
+    getUsageDetailContents() {
+        return this.normalizeModalContentsMap({
         confianceUsage: `Confiance.
 
 Noter le niveau de confiance de la résistance mécanique des bois évalués.
@@ -11622,13 +12746,11 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
 
 Noter la durabilité naturelle de l’essence de bois identifiée.
 
-Cette durabilité biologique globale est appréciée à partir des classes de l’EN 350 vis‑à‑vis des champignons, termites, coléoptères et xylophages marins (agents biologiques).
-
 Une durabilité naturelle « forte » vaut pour les bois des essences de classe 1 ou 2 vis‑à‑vis des champignons et ne présentant pas de classe supérieure à 2 et A pour les autres agents biologiques [+3].
 Une durabilité naturelle « moyenne » vaut pour les bois des essences de classe 3 vis‑à‑vis des champignons, et/ou présentant au plus une classe 3 ou M pour un autre agent biologique, sans classe 4 ou 5 [+2].
 Une durabilité naturelle « faible » vaut pour les essences de classes 4 ou 5 vis‑à‑vis des champignons et/ou présentant au moins une classe 4, 5 ou S pour l’un des autres agents biologiques [+1].
 
-À noter : La présence d’aubier peut être prise en compte : lorsque la largeur de l’aubier est identifiable et supérieure ou égale à 5 cm, ou est indiqué comme « non résistant » dans l’EN 350, la note est abaissée d’un niveau.`,
+À noter : Cette durabilité biologique globale est appréciée à partir des classes de l’EN 350 vis‑à‑vis des champignons, termites, coléoptères et xylophages marins (agents biologiques). La présence d’aubier peut être prise en compte : lorsque la largeur de l’aubier est identifiable et supérieure ou égale à 5 cm, ou est indiqué comme « non résistant » dans l’EN 350, la note est abaissée d’un niveau.`,
         classementUsage: `Noter la classe mécanique estimée des bois évalués (couramment relative à la flexion sur chant).
 
 Un classement estimé « fort » vaut pour : un classement visuel STI, un classement de résistance supérieur ou égal à C30 (résineux); un classement visuel 1 (chêne), un classement de résistance supérieur ou égal à D30 (feuillus) [+3].
@@ -11661,32 +12783,34 @@ Une humidité « forte » vaut pour des pièces de bois dont l’humidité mesur
 Une humidité « moyenne » vaut pour des pièces de bois dont l’humidité est strictement inférieure à 22% et strictement supérieure à 8% [+3].
 Une humidité « faible » vaut pour des pièces de bois dont l’humidité est strictement inférieure à 8%** [+1].
 
-Se référer aux normes :
-NF EN 384 (Plages courantes des tests 8 à 18%).
-FD P20-651 (20%).
-NF EN 335 d'après ISO 3130 (20%).
-NF P03-200 (20%).
-
-*22% étant le seuil maximum pour des Fermettes ou « commercialement sec », voir norme NF B51-002. 14081-1 : max 24% pour une mesure ponctuel.
-
-Voir aussi 13183-2 et 13183-3. L'équilibre hygroscopique des bois est aussi fonction de la région géographique.
-
 À savoir que l'humidité relevée peut ne pas refléter l'humidité à cœur des bois évalués, qui sont susceptibles d'être plus secs. La mesure de cette valeur étant aussi variable selon les conditions climatiques de la mesure, du matériel employé et de la zone de mesure.
-
-**8% étant un seuil pour un usage en parqueterie. Une humidité inférieure ou égale à 8% correspond à des conditions climatiques plus particulières aux ouvrages de menuiserie.
-
-Voir B.3 de l'Annexe B de la norme NF P63-202-1.
-
-Voir l'Annexe B de la norme EN 942. Pour la mesure de l'humidité se rapporter à la série de normes NF EN 13183. Pour une approche par lot voir : ISO 4470.
-
-Pour la technique in-situ voir la NF EN 13183-2.
-Fu, Z., Chen, J., Zhang, Y., Xie, F., & Lu, Y. (2023). Review on Wood Deformation and Cracking during Moisture Loss. Polymers, 15(15), 3295. https://doi.org/10.3390/polym15153295
-
-Glass, S.V.; Zelinka, S.L. 2021. Chapter 4: Moisture relations and physical properties of wood. In: Wood handbook—wood as an engineering material. General Technical Report FPL-GTR-282. Madison, WI: U.S. Department of Agriculture, Forest Service, Forest Products Laboratory.
 
 24,3% étant une valeur extrême d'équilibre, au-delà une humidification d'eau liquide est fort probable.
 
 En principe une humidité forte dégrade significativement les propriétés mécaniques des bois.
+
+
+Se référer aux normes :
+• NF EN 384 (Plages courantes des tests 8 à 18%).
+• FD P20-651 (20%).
+• NF EN 335 d'après ISO 3130 (20%).
+• NF P03-200 (20%).
+
+*22% étant le seuil maximum pour des Fermettes ou « commercialement sec », voir norme NF B51-002. 14081-1 : max 24% pour une mesure ponctuel.
+**8% étant un seuil pour un usage en parqueterie. Une humidité inférieure ou égale à 8% correspond à des conditions climatiques plus particulières aux ouvrages de menuiserie.
+
+• Voir aussi 13183-2 et 13183-3. L'équilibre hygroscopique des bois est aussi fonction de la région géographique.
+
+• Voir B.3 de l'Annexe B de la norme NF P63-202-1.
+
+• Voir l'Annexe B de la norme EN 942. Pour la mesure de l'humidité se rapporter à la série de normes NF EN 13183. Pour une approche par lot voir : ISO 4470.
+
+• Pour la technique in-situ voir la NF EN 13183-2.
+
+Fu, Z., Chen, J., Zhang, Y., Xie, F., & Lu, Y. (2023). Review on Wood Deformation and Cracking during Moisture Loss. Polymers, 15(15), 3295. https://doi.org/10.3390/polym15153295
+
+Glass, S.V.; Zelinka, S.L. 2021. Chapter 4: Moisture relations and physical properties of wood. In: Wood handbook—wood as an engineering material. General Technical Report FPL-GTR-282. Madison, WI: U.S. Department of Agriculture, Forest Service, Forest Products Laboratory.
+
 Roshchuk, M., Homon, S., Pavluk, A., Gomon, S., Drobyshynets, S., Romaniuk, M., Smal, M., & Dziubynska, O. (2024). Effect of long-term moisture on the mechanical properties of wood: an experimental study. Procedia Structural Integrity, 59, 718‑723. https://doi.org/10.1016/j.prostr.2024.04.102
 
 Serdar, B., Sagiroglu Demirci, O., Ozturk, M., Aksoy, E., & Kara Alasalvar, M. A. (2025). The Effect of Different Relative Humidity Conditions on Mechanical Properties of Historical Fir Wood Under the Influence of Natural Aging. Drvna Industrija, 76(3), 287‑298. https://doi.org/10.5552/drvind.2025.0211
@@ -11704,17 +12828,32 @@ Un aspect « moyen » vaut pour des bois de classes d’aspects 2 (résineux) ou
 Un aspect « faible » vaut pour des bois de classes d’aspects 3A et 3B (résineux) ou QPC, QB3 et QF3 (chêne) ou FB3, FS3, FF3, FD2 (hêtre) ou C et D (bois rond résineux et feuillus) [+1].
 
 Se référer aux normes :
-NF B52-001-1 (Voir en particulier l’Annexe A « Correspondance entre les catégories visuelles et les classes de résistance mécanique »).
-Voir EN-975-1/2 : chêne-hêtre / peuplier,
-NF B53-801 (châtaigner),
-NF EN-1611-1 (résineux : épicéas, sapins, pins, douglas et mélèzes),
-EN 1927-1/2/3 (bois rond résineux : épicéas-sapins / pins / mélèzes-douglas),
-EN 1316-1/2 (bois rond feuillus : chêne-hêtre/peuplier).
+• NF B52-001-1 (Voir en particulier l’Annexe A « Correspondance entre les catégories visuelles et les classes de résistance mécanique »).
+• EN-975-1/2 : chêne-hêtre / peuplier,
+• NF B53-801 (châtaigner),
+• NF EN-1611-1 (résineux : épicéas, sapins, pins, douglas et mélèzes),
+• EN 1927-1/2/3 (bois rond résineux : épicéas-sapins / pins / mélèzes-douglas),
+• EN 1316-1/2 (bois rond feuillus : chêne-hêtre/peuplier).
 
 Compte tenu d’un objectif d’allongement de la durée d’usage du bois, ne sont pas prises en compte ici les normes relatives aux produits de logistique (ex : NF EN 12246).
 
 Pour les différentes dénominations de défauts se reporter à la série de normes ISO dédiées : ISO 737, ISO 1029, ISO 1030, ISO 1031, ISO 2299, ISO 2300, ISO 2301, ISO 8904.`
+    });
+    }
+openUsageDetailModal(fieldKey) {
+    const backdrop = document.getElementById('usageDetailModalBackdrop');
+    const titleEl = document.getElementById('usageDetailModalTitle');
+    const contentEl = document.getElementById('usageDetailModalContent');
+
+    const titles = {
+        confianceUsage: 'Confiance',
+        durabiliteUsage: 'Durabilité naturelle',
+        classementUsage: 'Classement estimé',
+        humiditeUsage: 'Humidité',
+        aspectUsage: 'Aspect'
     };
+
+    const contents = this.getUsageDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -11749,20 +12888,9 @@ closeDenatModal() {
     }
 }
 
-openDenatDetailModal(fieldKey) {
-    const backdrop = document.getElementById('denatDetailModalBackdrop');
-    const titleEl = document.getElementById('denatDetailModalTitle');
-    const contentEl = document.getElementById('denatDetailModalContent');
 
-    const titles = {
-        depollutionDenat: 'Dépollution',
-        contaminationDenat: 'Contamination',
-        durabiliteConfDenat: 'Durabilité conférée',
-        confianceDenat: 'Confiance',
-        naturaliteDenat: 'Naturalité'
-    };
-
-    const contents = {
+    getDenatDetailContents() {
+        return this.normalizeModalContentsMap({
         depollutionDenat: `Dépollution.
 
 Noter le degré de dépollution nécessaire à la réappropriation des bois évalués.
@@ -11771,7 +12899,7 @@ Une dépollution « forte » vaut pour des bois disposant de dégradations biolo
 Une dépollution « moyenne » vaut pour des bois nécessitant un nettoyage conséquent lié à la présence de poussières incrustées (brossage à l'aide d'outils électroportatifs, eau à haute pression) et autres formes de polluants assimilés (poussière de plâtre, boue, terres*, moisissures superficielles, liés à la déconstruction) et/ou des corps étrangers de surface (connecteurs métalliques, objets liés à l’usage du bâtiment, etc…) qui ne sont pas des clous, vis et autres formes de connecteurs métalliques consommables [+1].
 Une dépollution « faible » vaut pour des bois conservés à l’état brut, exempts de polluants chimiques (traitements préventifs ou curatifs, hors éléments propres à l'essence), nécessitant un nettoyage limité à la présence de poussières superficielles, de clous, vis et autres formes de connecteurs métalliques consommables [+3].
 
-* Voir : François Privat. Faisabilité du recyclage en boucle fermée des déchets post-consommateurs en bois massif. Génie des procédés. École centrale de Nantes, 2019, page 36.`,
+* François Privat. Faisabilité du recyclage en boucle fermée des déchets post-consommateurs en bois massif. Génie des procédés. École centrale de Nantes, 2019, page 36.`,
         contaminationDenat: `Contamination.
 
 Noter le degré de contamination des bois évalués.
@@ -11807,8 +12935,6 @@ Arrêté du 16 septembre 2021 pris en application des articles R. 541-48-3 et R.
 
 Arrêté du 3 août 2018 relatif aux prescriptions générales applicables aux installations relevant du régime de l'autorisation au titre de la rubrique n° 2910 de la nomenclature des installations classées pour la protection de l'environnement. Journal officiel de la République française. https://www.legifrance.gouv.fr/loda/id/JORFTEXT000037284611/
 
-Article du Code de l'environnement
-
 Article LEGIARTI000043974936 — Code de l'environnement (art. R.541-48-3). Légifrance. https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000043974936`,
         durabiliteConfDenat: `Durabilité conférée.
 
@@ -11831,7 +12957,22 @@ Noter le degré de naturalité des bois évalués.
 Une naturalité « forte » vaut pour des bois bruts et ronds. Libres de finition chimique  et disposant d’une durabilité conférée faible [+3].
 Une naturalité « moyenne » vaut pour des bois bruts et d'ingénierie, rabotés, brossés, etc. Libres de finition chimique  et disposant d’une durabilité conférée faible [+2].
 Une naturalité « faible » vaut pour des bois peints, vernis, traités, disposant d’une durabilité conférée forte à moyenne, dont l’apparence n’est pas celle du bois au terme de sa première transformation en dehors des modifications d’aspect liées au vieillissement naturel (poussière, assombrissement, grisaillement, etc.) [+1].`
+    });
+    }
+openDenatDetailModal(fieldKey) {
+    const backdrop = document.getElementById('denatDetailModalBackdrop');
+    const titleEl = document.getElementById('denatDetailModalTitle');
+    const contentEl = document.getElementById('denatDetailModalContent');
+
+    const titles = {
+        depollutionDenat: 'Dépollution',
+        contaminationDenat: 'Contamination',
+        durabiliteConfDenat: 'Durabilité conférée',
+        confianceDenat: 'Confiance',
+        naturaliteDenat: 'Naturalité'
     };
+
+    const contents = this.getDenatDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -11872,20 +13013,9 @@ closeDebitModal() {
     }
 }
 
-openDebitDetailModal(fieldKey) {
-    const backdrop = document.getElementById('debitDetailModalBackdrop');
-    const titleEl = document.getElementById('debitDetailModalTitle');
-    const contentEl = document.getElementById('debitDetailModalContent');
 
-    const titles = {
-        regulariteDebit: 'Régularité',
-        volumetrieDebit: 'Volumétrie',
-        stabiliteDebit: 'Stabilité',
-        artisanaliteDebit: 'Artisanalité',
-        rusticiteDebit: 'Rusticité'
-    };
-
-    const contents = {
+    getDebitDetailContents() {
+        return this.normalizeModalContentsMap({
         regulariteDebit: `Régularité.
 
 Noter le degré de régularité du débit des bois évalués.
@@ -11907,7 +13037,8 @@ Une volumétrie « faible » vaut pour des pièces d’un volume strictement inf
     Une stabilité « forte » vaut pour des pièces dont le rapport L/h est inférieur ou égal à 18 et le rapport b/h supérieur ou égal à 0,4 [+3].
     Une stabilité « moyenne » vaut pour des pièces ne relevant pas de la catégorie « forte », soit : (L/h ≤ 18 et 0,25 ≤ b/h < 0,4) ou (18 < L/h ≤ 28 et b/h ≥ 0,25) [+2].
     Une stabilité « faible » vaut pour des pièces dont le rapport L/h est strictement supérieur à 28 ou le rapport b/h strictement inférieur à 0,25 [+1].
-    En cas de rapport h/b très élevé (h/b > 4, équivalent à b/h < 0,25), la pièce est directement classée « faible » indépendamment de L/h, conformément aux seuils de déversement latéral de l'Eurocode 5 (CEN, 2004, § 6.3.3).
+
+    À noter : En cas de rapport h/b très élevé (h/b > 4, équivalent à b/h < 0,25), la pièce est directement classée « faible » indépendamment de L/h, conformément aux seuils de déversement latéral de l'Eurocode 5 (CEN, 2004, § 6.3.3).
 
     Références et ressources.
 
@@ -11928,7 +13059,22 @@ Noter le degré de rusticité des bois évalués.
 Une rusticité « forte » vaut pour des bois ronds à demi-rond, débités à la main, écorcés et/ou sommairement sciés sur deux faces ou moins, droits ou courbes [+3].
 Une rusticité « moyenne » vaut pour des bois de charpente débités à la main à section parallélépipédique, droits ou courbes [+2].
 Une rusticité « faible » vaut pour des bois sciés et bruts [+1].`
+    });
+    }
+openDebitDetailModal(fieldKey) {
+    const backdrop = document.getElementById('debitDetailModalBackdrop');
+    const titleEl = document.getElementById('debitDetailModalTitle');
+    const contentEl = document.getElementById('debitDetailModalContent');
+
+    const titles = {
+        regulariteDebit: 'Régularité',
+        volumetrieDebit: 'Volumétrie',
+        stabiliteDebit: 'Stabilité',
+        artisanaliteDebit: 'Artisanalité',
+        rusticiteDebit: 'Rusticité'
     };
+
+    const contents = this.getDebitDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -11963,20 +13109,9 @@ closeGeoModal() {
     }
 }
 
-openGeoDetailModal(fieldKey) {
-    const backdrop = document.getElementById('geoDetailModalBackdrop');
-    const titleEl = document.getElementById('geoDetailModalTitle');
-    const contentEl = document.getElementById('geoDetailModalContent');
 
-    const titles = {
-        adaptabiliteGeo: 'Adaptabilité',
-        massiviteGeo: 'Massivité',
-        deformationGeo: 'Déformation',
-        industrialiteGeo: 'Industrialité',
-        inclusiviteGeo: 'Inclusivité'
-    };
-
-    const contents = {
+    getGeoDetailContents() {
+        return this.normalizeModalContentsMap({
         adaptabiliteGeo: `Adaptabilité.
 
 Noter le degré d’adaptabilité de la géométrie des bois évalués.
@@ -12023,6 +13158,9 @@ Une industrialité « moyenne » vaut pour des Bois Brut Sec (BBS), Bois Brut S�
     Une inclusivité « moyenne » vaut pour des bois droits, unitaires ou faisant partie intégrante d’un système constructif propre**, disposant d'une rusticité faible à moyenne, d'une régularité forte à moyenne, d'une déformation faible à moyenne, et dont le score de la pièce type est strictement inférieur à 66% [+2].
     Une inclusivité « faible » vaut pour des bois disposant d'une rusticité forte ou d'une régularité faible ou d'une déformation forte, et dont le score de la pièce type est strictement inférieur à 66% [+1].
 
+    À noter : Le classement automatisé de ce critère repose sur les niveaux renseignés de régularité (Débit), rusticité (Débit), déformation (Géométrie) et sur le score de la pièce type (médoïde).
+    Les mentions « bois droits », « unitaires » et « système constructif propre » sont des repères descriptifs de contexte à apprécier avec l'observation de terrain.
+
     * Unitaires : vaut pour les pièces de bois qui ne sont pas considérées comme appartenant à un « système constructif propre ».
     ** Système constructif propre : vaut pour un groupe de pièces de bois dont l’usage est réciproque. Exemples : Ferme, Pan d’ossature bois et Pan de bois, Structure réticulaire…
     *** La Pièce type, ou médoïde, est la pièce (ou groupe de pièces identiques) dont les dimensions sont les plus proches de l'ensemble des autres pièces du lot. Elle est déterminée en maximisant le score de similarité pairwise moyen pondéré avec toutes les autres pièces.
@@ -12032,7 +13170,22 @@ Une industrialité « moyenne » vaut pour des Bois Brut Sec (BBS), Bois Brut S�
     Le score du médoïde (%) indique sa centralité dans le lot : 100 % signifie que la pièce type est dimensionnellement identique à toutes les autres pièces.
 
     La similarité pairwise entre deux pièces est calculée par dimension : max(0, 1 − |a − b| / t3), où t3 est le seuil de dispersion configurable par dimension.`
+    });
+    }
+openGeoDetailModal(fieldKey) {
+    const backdrop = document.getElementById('geoDetailModalBackdrop');
+    const titleEl = document.getElementById('geoDetailModalTitle');
+    const contentEl = document.getElementById('geoDetailModalContent');
+
+    const titles = {
+        adaptabiliteGeo: 'Adaptabilité',
+        massiviteGeo: 'Massivité',
+        deformationGeo: 'Déformation',
+        industrialiteGeo: 'Industrialité',
+        inclusiviteGeo: 'Inclusivité'
     };
+
+    const contents = this.getGeoDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -12069,6 +13222,68 @@ closeEssenceModal() {
     }
 }
 
+
+    getEssenceDetailContents() {
+        return this.normalizeModalContentsMap({
+        confianceEssence: `Confiance.
+
+Noter le niveau de confiance de la reconnaissance de l’essence et des caractéristiques notées ci-après qui lui sont relatives.
+
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
+        rareteEcoEssence: {
+        intro: `Noter le niveau de rareté de l'essence.`,
+        echelle: [
+            { niveau: 'forte', texte: `Une rareté « forte » est attribuée à une essence qui ne pousse pas sur l'aire géographique, rare et le plus souvent importée [+3].` },
+            { niveau: 'moyenne', texte: `Une rareté « moyenne » est attribuée à une essence peu commune sur l'aire géographique [+2].` },
+            { niveau: 'faible', texte: `Une rareté « faible » est attribuée à une essence commune sur l'aire géographique [+1].` }
+        ],
+        info: [
+            `À noter : Cette notation est fonction de l'aire géographique continentale de la localisation de cette évaluation. En Europe, on peut se rapporter aux exemples des catégories cités ci-après.`,
+            `Peuvent être considérées comme « rares » les essences de bois suivantes : Teck, iroko, padouk, wengé, merbau, azobé, ipé.`,
+            `Peuvent être considérées comme « peu communes » les essences de bois suivantes : Alisier, cormier, noyer, orme, tilleul, aulne, charme, robinier, érable, platane, merisier.`,
+            `Peuvent être considérées comme « communes » les essences de bois suivantes : Épicéa, pin maritime, pin sylvestre, sapin, douglas, chêne, hêtre, peuplier, bouleau, mélèze, frêne, châtaigner.`
+        ],
+        references: [
+            `Benoit, Y. (2018). Guide des essences de bois : 100 essences, comment les reconnaître, les choisir et les employer (4e éd.). Eyrolles.`,
+            `EN 13556.`
+        ]
+    },
+        masseVolEssence: `Masse volumique.
+
+Noter le niveau de la masse volumique « ρ » du bois.
+
+Une masse volumique « forte » vaut pour des bois dits très lourds à lourds dont la ρ est supérieure à 750 kg/m3 [+3]. 
+Une masse volumique « moyenne » vaut pour des bois dits mi-lourds à légers dont la ρ se situe entre 450 et 750 kg/m3 [+2].
+Une masse volumique « faible » vaut pour des bois dits très légers dont la ρ est inférieure à 450 kg/m3 [+1]. 
+
+Attention cette valeur doit être mesurée ou estimée au regard de l'humidité relative du bois qui est dans les normes de l'ordre de 12% +ou- 3% (pour la précision voir : EN 14081-1+A1.)
+
+• NF B51-002.
+• Yang, H., Wang, S., Son, R., Lee, H., Benson, V., Zhang, W., Zhang, Y., Zhang, Y., Kattge, J., Boenisch, G., Schepaschenko, D., Karaszewski, Z., Stereńczak, K., Moreno-Martínez, Á., Nabais, C., Birnbaum, P., Vieilledent, G., Weber, U., & Carvalhais, N. (2024). Global patterns of tree wood density. Global change biology, 30(3), e17224. https://doi.org/10.1111/gcb.17224
+
+• Cuny, H., Bontemps, J.-D., Besic, N., Colin, A., Hertzog, L., Le Squin, A., Marchand, W., Vega, C., and Leban, J.-M.: Wood density variation in European forest species: drivers and implications for multiscale biomass and carbon assessment in France, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2025-4152, 2025.`,
+        rareteHistEssence: `Rareté commerciale.
+
+Noter le niveau de rareté commerciale de l’essence au regard du marché et de l’évolution de son exploitation.
+
+Une rareté commerciale « forte » est attribuée à une essence rare qui n’est plus ou pas disponible sur le marché [+3].
+Une rareté commerciale « moyenne » est attribuée à une essence peu commune sur le marché [+2].
+    Un niveau commercial « faible » est attribué à une essence commune sur le marché [+1].
+
+    À noter : S'en référer à l'histoire de l'exploitation de l'essence identifiée.`,
+        singulariteEssence: `
+
+Noter le niveau de singularité de l’essence au regard de ses particularités esthétiques : grain ou veinage, fil, couleur, odeur, forme et dessin.
+
+Une singularité « forte » est donnée aux essences à attributs esthétiques reconnus et recherchés (ex : noyer, olivier) [+3].
+Une singularité « moyenne » est donnée aux essences aux attributs esthétiques reconnaissables à l’œil nu (ex : pins) [+2].
+Une singularité « faible » est donnée aux essences aux attributs esthétiques peu spécifiques (ex : bois blancs) [+1].
+
+• EN 14081-1+A1. Voir section « B2. Code de marquage pour les essence combinées ».`
+    });
+    }
 openEssenceDetailModal(fieldKey) {
     const backdrop = document.getElementById('essenceDetailModalBackdrop');
     const titleEl = document.getElementById('essenceDetailModalTitle');
@@ -12082,65 +13297,7 @@ openEssenceDetailModal(fieldKey) {
         singulariteEssence: 'Singularité essence'
     };
 
-    const contents = {
-        confianceEssence: `Confiance.
-
-Noter le niveau de confiance de la reconnaissance de l’essence et des caractéristiques notées ci-après qui lui sont relatives.
-
-Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
-Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
-Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
-        rareteEcoEssence: `Rareté.
-
-Noter le niveau de rareté de l'essence.
-
-À noter : Cette notation est fonction de l'aire géographique continentale de la localisation de cette évaluation. En Europe, on peut se rapporter aux exemples des catégories cités ci-après.
-
-Une rareté « forte » est attribuée à une essence qui ne pousse pas sur l'aire géographique, rare et le plus souvent importée [+3].
-Une rareté « moyenne » est attribuée à une essence peu commune sur l'aire géographique [+2].
-Une rareté « faible » est attribuée à une essence commune sur l'aire géographique [+1].
-
-Peuvent être considérées comme « rares » les essences de bois suivantes : Teck, iroko, padouk, wengé, merbau, azobé, ipé.
-
-Peuvent être considérées comme « peu communes » les essences de bois suivantes : Alisier, cormier, noyer, orme, tilleul, aulne, charme, robinier, érable, platane, merisier.
-
-Peuvent être considérées comme « communes » les essences de bois suivantes : Épicéa, pin maritime, pin sylvestre, sapin, douglas, chêne, hêtre, peuplier, bouleau, mélèze, frêne, châtaigner.
-
-Voir Benoit, Y. (2018). Guide des essences de bois : 100 essences, comment les reconnaître, les choisir et les employer (4e éd.). Eyrolles.
-Et/ou se rapporter à la norme EN 13556.`,
-        masseVolEssence: `Masse volumique.
-
-Noter le niveau de la masse volumique « ρ » du bois.
-
-Une masse volumique « forte » vaut pour des bois dits très lourds à lourds dont la ρ est supérieure à 750 kg/m3 [+3]. 
-Une masse volumique « moyenne » vaut pour des bois dits mi-lourds à légers dont la ρ se situe entre 450 et 750 kg/m3 [+2].
-Une masse volumique « faible » vaut pour des bois dits très légers dont la ρ est inférieure à 450 kg/m3 [+1]. 
-
-Attention cette valeur doit être mesurée ou estimée au regard de l'humidité relative du bois qui est dans les normes de l'ordre de 12% +ou- 3% (pour la précision voir EN 14081-1+A1.)
-
-Voir la norme NF B51-002.
-Voir Yang, H., Wang, S., Son, R., Lee, H., Benson, V., Zhang, W., Zhang, Y., Zhang, Y., Kattge, J., Boenisch, G., Schepaschenko, D., Karaszewski, Z., Stereńczak, K., Moreno-Martínez, Á., Nabais, C., Birnbaum, P., Vieilledent, G., Weber, U., & Carvalhais, N. (2024). Global patterns of tree wood density. Global change biology, 30(3), e17224. https://doi.org/10.1111/gcb.17224
-
-Cuny, H., Bontemps, J.-D., Besic, N., Colin, A., Hertzog, L., Le Squin, A., Marchand, W., Vega, C., and Leban, J.-M.: Wood density variation in European forest species: drivers and implications for multiscale biomass and carbon assessment in France, EGUsphere [preprint], https://doi.org/10.5194/egusphere-2025-4152, 2025.`,
-        rareteHistEssence: `Rareté commerciale.
-
-Noter le niveau de rareté commerciale de l’essence au regard du marché et de l’évolution de son exploitation.
-
-À noter : S'en référer à l'histoire de l'exploitation de l'essence identifiée.
-
-Une rareté commerciale « forte » est attribuée à une essence rare qui n’est plus ou pas disponible sur le marché [+3].
-Une rareté commerciale « moyenne » est attribuée à une essence peu commune sur le marché [+2].
-Un niveau commercial « faible » est attribué à une essence commune sur le marché [+1].`,
-        singulariteEssence: `Singularité de l'essence
-
-Noter le niveau de singularité de l’essence au regard de ses particularités esthétiques : grain ou veinage, fil, couleur, odeur, forme et dessin.
-
-Une singularité « forte » est donnée aux essences à attributs esthétiques reconnus et recherchés (ex : noyer, olivier) [+3].
-Une singularité « moyenne » est donnée aux essences aux attributs esthétiques reconnaissables à l’œil nu (ex : pins) [+2].
-Une singularité « faible » est donnée aux essences aux attributs esthétiques peu spécifiques (ex : bois blancs) [+1].
-
-Voir EN 14081-1+A1 « B2. Code de marquage pour les essence combinées.`
-    };
+    const contents = this.getEssenceDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -12175,20 +13332,9 @@ closeAncienModal() {
     }
 }
 
-openAncienDetailModal(fieldKey) {
-    const backdrop = document.getElementById('ancienDetailModalBackdrop');
-    const titleEl = document.getElementById('ancienDetailModalTitle');
-    const contentEl = document.getElementById('ancienDetailModalContent');
 
-    const titles = {
-        confianceAncien: 'Confiance',
-        amortissementAncien: 'Amortissement',
-        vieillissementAncien: 'Vieillissement',
-        microhistoireAncien: 'Micro-histoire',
-        demontabiliteAncien: 'Démontabilité'
-    };
-
-    const contents = {
+    getAncienDetailContents() {
+        return this.normalizeModalContentsMap({
         confianceAncien: `Confiance.
 
 Noter le niveau de confiance dans l’identification de l’ancienneté des bois évalués.
@@ -12200,14 +13346,15 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
 
 Noter le degré d’amortissement biologique des bois évalués.
 
-À noter : Noter le rapport entre l’âge estimé de l’arbre lors de son abattage et la durée qui sépare cette date ou période d’abattage de la récupération du bois, qu’on nommera durée d’usage par simplification.
-Nécessite d’estimer l’âge de l’arbre par comptage des cernes visibles et de prendre en compte le type de débit de la section. Une estimation peut aussi être réalisée via l’historique de l’ouvrage, afin de déterminer les dates de mise en service et de récupération de la pièce.
-
 Un amortissement biologique « fort » vaut pour un rapport supérieur ou égal à 1, signifiant que la durée d’usage excède le temps de croissance de l’arbre [+3].
 Un amortissement biologique « moyen » vaut pour un rapport strictement inférieur à 1 et strictement supérieur à 0,5 [+1].
 Un amortissement biologique « faible » vaut pour un rapport inférieur ou égal à 0,5 [-3].
 
-Voir : Eugénie Cateau; Laurent Larrieu; Daniel Vallauri; Jean-Marie Savoie; Julien Touroult; Hervé Brustel. Ancienneté et maturité : deux qualités complémentaires d’un écosystème forestier. Comptes Rendus. Biologies, Volume 338 (2015) no. 1, pp. 58-73. doi: 10.1016/j.crvi.2014.10.004
+    Noter en s'appuyant sur les informations renvoyées par le bouton alerte. Soit le rapport entre l’âge estimé de l’arbre lors de son abattage et la durée qui sépare cette date ou période d’abattage de la récupération du bois, qu’on nommera durée d’usage par simplification.
+
+    Nécessite d’estimer l’âge de l’arbre par comptage des cernes visibles et de prendre en compte le type de débit de la section. Une estimation peut aussi être réalisée via l’historique de l’ouvrage, afin de déterminer les dates de mise en service et de récupération de la pièce.
+
+Eugénie Cateau; Laurent Larrieu; Daniel Vallauri; Jean-Marie Savoie; Julien Touroult; Hervé Brustel. Ancienneté et maturité : deux qualités complémentaires d’un écosystème forestier. Comptes Rendus. Biologies, Volume 338 (2015) no. 1, pp. 58-73. doi: 10.1016/j.crvi.2014.10.004
 
 À propos de la datation voir : Inrap (13 décembre 2020). La dendrochronologie : potentialités et nouveaux enjeux pour l’archéologie. Rencontres scientifiques et techniques de l'Inrap. En ligne : https://doi.org/10.58079/ujy9`,
         vieillissementAncien: `Vieillissement.
@@ -12231,21 +13378,21 @@ Zou, Q., Wang, S., Hu, J., & Zou, F. (2025). Experimental Study on the Evolution
 Machado, J. S., Pereira, F., & Quilhó, T. (2019). Assessment of old timber members: Importance of wood species identification and direct tensile test information. Construction and Building Materials, 207, 651-660. https://doi.org/10.1016/j.conbuildmat.2019.02.168
 
 Nocetti, M., Aminti, G., Vicario, M., & Brunetti, M. (2024). Mechanical properties of ancient wood structural elements assessed by visual and machine strength grading. Construction and Building Materials, 411, 134418. https://doi.org/10.1016/j.conbuildmat.2023.134418`,
-        microhistoireAncien: `Micro-histoire.
-
-Noter le niveau d’information relatif à la micro-histoire des bois.
-
-Une micro-histoire « forte » vaut pour la combinaison de plusieurs de ces éléments : inscription de l’ouvrage dans une histoire nationale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle nationale (ex : charpente d’église) [+3].
-Une micro-histoire « moyenne » vaut pour l’un de ces éléments : inscription de l’ouvrage dans une histoire nationale ou locale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle locale (ex : pan de bois) [+2].
-Une micro-histoire « faible » vaut pour des bois dont l’origine est inconnue, incertaine ou pour lesquels seul un faisceau d’indices limités ne permet pas de les inscrire dans une perspective historique [+1].
-
-Ermakoff, I. (2018). La microhistoire au prisme de l’exception. Vingtième Siècle. Revue d'histoire, 139(3), 193-211. https://doi.org/10.3917/ving.139.0193
-
-Christelle Nau, « Le patrimoine culturel immatériel comme outil d’étude et de valorisation d’un savoir-faire : la fabrication de terre cuite architecturale dans les Pyrénées-Orientales », Patrimoines du Sud [En ligne], 11 | 2020, mis en ligne le 10 mars 2020.
-
-Vanessa Py-Saragaglia, Sylvain Burri, Léonel Fouédjeu. Les forêts montagnardes du versant nord des Pyrénées. Sylvie Bépoix ; Hervé Richard. La forêt au Moyen Âge, Les Belles Lettres, pp. 276-299, 2019.
-
-Terlikowski, W. (2023). Problems and Technical Issues in the Diagnosis, Conservation, and Rehabilitation of Structures of Historical Wooden Buildings with a Focus on Wooden Historic Buildings in Poland. Sustainability, 15(1), 510. https://doi.org/10.3390/su15010510`,
+        microhistoireAncien: {
+        intro: `Noter le niveau d’information relatif à la micro-histoire des bois.`,
+        echelle: [
+            { niveau: 'forte', texte: `Une micro-histoire « forte » vaut pour la combinaison de plusieurs de ces éléments : inscription de l’ouvrage dans une histoire nationale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle nationale (ex : charpente d’église) [+3].` },
+            { niveau: 'moyenne', texte: `Une micro-histoire « moyenne » vaut pour l’un de ces éléments : inscription de l’ouvrage dans une histoire nationale ou locale, dimension historique de ses occupants ou activités y ayant eu cours ; inscription de son système constructif dans une tradition identifiée ou unique d’échelle locale (ex : pan de bois) [+2].` },
+            { niveau: 'faible', texte: `Une micro-histoire « faible » vaut pour des bois dont l’origine est inconnue, incertaine ou pour lesquels seul un faisceau d’indices limités ne permet pas de les inscrire dans une perspective historique [+1].` }
+        ],
+        info: [],
+        references: [
+            `Ermakoff, I. (2018). La microhistoire au prisme de l’exception. Vingtième Siècle. Revue d'histoire, 139(3), 193-211. https://doi.org/10.3917/ving.139.0193`,
+            `Christelle Nau, « Le patrimoine culturel immatériel comme outil d’étude et de valorisation d’un savoir-faire : la fabrication de terre cuite architecturale dans les Pyrénées-Orientales », Patrimoines du Sud [En ligne], 11 | 2020, mis en ligne le 10 mars 2020.`,
+            `Vanessa Py-Saragaglia, Sylvain Burri, Léonel Fouédjeu. Les forêts montagnardes du versant nord des Pyrénées. Sylvie Bépoix ; Hervé Richard. La forêt au Moyen Âge, Les Belles Lettres, pp. 276-299, 2019.`,
+            `Terlikowski, W. (2023). Problems and Technical Issues in the Diagnosis, Conservation, and Rehabilitation of Structures of Historical Wooden Buildings with a Focus on Wooden Historic Buildings in Poland. Sustainability, 15(1), 510. https://doi.org/10.3390/su15010510`
+        ]
+    },
         demontabiliteAncien: `Démontabilité.
 
 Noter la démontabilité et la remontabilité des bois évalués.
@@ -12257,7 +13404,22 @@ Noter la démontabilité et la remontabilité des bois évalués.
     À noter : Cette notation est effectuée indépendamment du degré d’intégrité générale de la structure bois pouvant contenir les bois évalués. De fait, une charpente trop abîmée pour être démontée, et non démolie, est jugée comme « inaccessible ». Il faut distinguer un démontage amenant à la mise à nu des bois d’un démontage qui conserve des assemblages rapportés sur les bois.
 
     Ottenhaus, L.-M., Yan, Z., Brandner, R., Leardini, P., Fink, G., & Jockwer, R. (2023). Design for adaptability, disassembly and reuse – A review of reversible timber connection systems. Construction and Building Materials, 400, 132823. https://doi.org/10.1016/j.conbuildmat.2023.132823`
+    });
+    }
+openAncienDetailModal(fieldKey) {
+    const backdrop = document.getElementById('ancienDetailModalBackdrop');
+    const titleEl = document.getElementById('ancienDetailModalTitle');
+    const contentEl = document.getElementById('ancienDetailModalContent');
+
+    const titles = {
+        confianceAncien: 'Confiance',
+        amortissementAncien: 'Amortissement',
+        vieillissementAncien: 'Vieillissement',
+        microhistoireAncien: 'Micro-histoire',
+        demontabiliteAncien: 'Démontabilité'
     };
+
+    const contents = this.getAncienDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -12292,20 +13454,9 @@ closeTracesModal() {
     }
 }
 
-openTracesDetailModal(fieldKey) {
-    const backdrop = document.getElementById('tracesDetailModalBackdrop');
-    const titleEl = document.getElementById('tracesDetailModalTitle');
-    const contentEl = document.getElementById('tracesDetailModalContent');
 
-    const titles = {
-        confianceTraces: 'Confiance',
-        etiquetageTraces: 'Étiquetage',
-        alterationTraces: 'Altération',
-        documentationTraces: 'Documentation',
-        singularitesTraces: 'Singularités tracéologiques'
-    };
-
-    const contents = {
+    getTracesDetailContents() {
+        return this.normalizeModalContentsMap({
         confianceTraces: `Confiance.
 
 Noter le niveau de confiance de la tracéologie effectuée sur les bois évalués.
@@ -12323,8 +13474,10 @@ Un étiquetage « faible » vaut pour une absence de traçabilité [+1].
 
 À noter : Les bois dits de « structure », sciés, doivent être marqués CE selon la norme NF EN 14081-1 pour pouvoir être mis sur le marché en Europe depuis le 1er janvier 2012.
 
-Voir : EN 13556 (essence).
-Voir : NF EN 14250 (mise en forme).`,
+Références et ressources.
+
+• EN 13556 (essence).
+• NF EN 14250 (mise en forme).`,
         alterationTraces: `Altération.
 
 Noter les altérations imputables à la récupération des éléments. (À distinguer de la notation de l'Intégrité mécanique, antérieure à la déconstruction.)
@@ -12339,16 +13492,36 @@ Noter la disponibilité d’une documentation permettant d’évaluer des critè
 Une documentation « forte » vaut pour des éléments d’ordre mécanique (notes de calculs, classements de bois), d’ordre historique (plans, occupation des espaces) ou d’ordre écologique (essence de bois, durabilité naturelle ou conféré, activités autour des bois) [+3].
 Une documentation « moyenne » vaut pour des bois dont l’origine est connue (lieu d’extraction), mais dont les éléments relatifs à leur usage sont partiels ou indirects [+1].
 Une documentation « faible » vaut pour de pièces bois dont l’origine est inconnue ou incertaine [-3].`,
-        singularitesTraces: `Une singularité tracéologique « forte » vaut pour des bois disposant d'éléments visibles donnant accès à leur mode production (ex : marque de hache, scie…) et pouvant contribuer à la remontabilité d'un système constructif propre (ex : marques de charpente), voire de sculptures (ex : linteau, bois d'angle, chevron, frise…) [+3].
-Une singularité tracéologique « moyenne » vaut pour des bois pour lesquels les éléments visibles relèvent de l'anecdotique mais ne permettent pas de constituer une épaisseur historique significative [+2].
-Une singularité tracéologique « faible » vaut pour des bois ne disposant pas d'éléments visible œuvrant à leur singularité [+1].
+        singularitesTraces: {
+        intro: `Noter la singularité des bois évalués au regard des diverses traces qui œuvre à leur micro-histoire.`,
+        echelle: [
+            { niveau: 'forte', texte: `Une singularité tracéologique « forte » vaut pour des bois disposant d'éléments visibles donnant accès à leur mode production (ex : marque de hache, scie…) et pouvant contribuer à la remontabilité d'un système constructif propre (ex : marques de charpente), voire de sculptures (ex : linteau, bois d'angle, chevron, frise…) [+3].` },
+            { niveau: 'moyenne', texte: `Une singularité tracéologique « moyenne » vaut pour des bois pour lesquels les éléments visibles relèvent de l'anecdotique mais ne permettent pas de constituer une épaisseur historique significative [+2].` },
+            { niveau: 'faible', texte: `Une singularité tracéologique « faible » vaut pour des bois ne disposant pas d'éléments visible œuvrant à leur singularité [+1].` }
+        ],
+        info: [],
+        references: [
+            `Manuel Porcheron, « Tracéologie du bois d'époque médiévale », Revue archéologique du Centre de la France [En ligne], Tome 58 | 2019, mis en ligne le 16 décembre 2019.`,
+            `Greck Sandra, Guibal Frédéric. Le bois, matériau de construction : étude xylologique, tracéologique et dendromorphologique du chaland Arles-Rhône 3. In: Archaeonautica, 18, 2014. Arles-Rhône 3. Un chaland gallo-romain du Ier siècle après Jésus-Christ. pp. 171-202.`,
+            `Calame, F. (1983). Les marques de charpente. Ethnologie française, 13(1), 7–24. https://www.jstor.org/stable/40988748`
+        ]
+    }
+    });
+    }
+openTracesDetailModal(fieldKey) {
+    const backdrop = document.getElementById('tracesDetailModalBackdrop');
+    const titleEl = document.getElementById('tracesDetailModalTitle');
+    const contentEl = document.getElementById('tracesDetailModalContent');
 
-Manuel Porcheron, « Tracéologie du bois d'époque médiévale », Revue archéologique du Centre de la France [En ligne], Tome 58 | 2019, mis en ligne le 16 décembre 2019.
-
-Greck Sandra, Guibal Frédéric. Le bois, matériau de construction : étude xylologique, tracéologique et dendromorphologique du chaland Arles-Rhône 3. In: Archaeonautica, 18, 2014. Arles-Rhône 3. Un chaland gallo-romain du Ier siècle après Jésus-Christ. pp. 171-202.
-
-Calame, F. (1983). Les marques de charpente. Ethnologie française, 13(1), 7–24. https://www.jstor.org/stable/40988748`
+    const titles = {
+        confianceTraces: 'Confiance',
+        etiquetageTraces: 'Étiquetage',
+        alterationTraces: 'Altération',
+        documentationTraces: 'Documentation',
+        singularitesTraces: 'Singularités tracéologiques'
     };
+
+    const contents = this.getTracesDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -12383,6 +13556,54 @@ closeProvenanceModal() {
     }
 }
 
+
+    getProvenanceDetailContents() {
+        return this.normalizeModalContentsMap({
+        confianceProv: `Confiance.
+
+Noter le niveau de confiance des informations relatives à la provenance des bois évalués.
+
+Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
+Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
+Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
+        transportProv: `Transport.
+
+    Noter l’impact du transport parcouru ou à parcourir des éléments bois évalués.
+
+    Un transport « fort » vaut pour des bois transportés sur une distance intercontinentale (hors Europe) [-3].
+    Un transport « moyen » vaut pour des bois transportés dans un rayon continentale (pays transfrontaliers, Europe) [+1].
+    Un transport « faible » vaut pour des bois qui peuvent être réemployés, réutilisés ou recyclés sur site (in situ) [+3].
+
+    Voir : Ghyoot M., Devlieger L., Billiet L., Warnier A., Déconstruction et réemploi, Comment faire circuler les éléments de construction ? Presses polytechniques universitaires romandes (PPUR), 2018, pages 72-73.`,
+        reputationProv: `Réputation.
+
+    Noter la réputation des bois évalués au regard de l’origine géographique des arbres dont sont extraits les bois et des qualités qui lui sont attribuées.
+
+    Une réputation « forte » vaut pour des bois en provenance de forêts spécifique reconnue pour les qualités de leurs bois (ex : Tronçais, Bercé, Lyons…) [+3].
+Une réputation « moyenne » vaut pour des bois en provenance de massifs forestiers reconnus pour la qualités de leurs bois (ex : Sélection Vosges, Jura supérieur…) [+2].
+Une réputation « faible » vaut pour des bois dont l’origine est peu valorisée [+1].
+
+À noter : Une réputation inconnue ou incertaine n’est pas notée.
+
+Lenglet, J., & Peyrache-Gadeau, V. (2020). Valuation de la ressource territoriale et formes de circularité : la labellisation dans la filière forêt-bois française (Alpes, Jura, Vosges). Revue forestière française, 72(4), 339–360. https://doi.org/10.20870/revforfr.2020.5333
+
+King, L., & Vallauri, D. (2023). Marques régionales pour le bois : Quelles plus-values environnementales ? WWF-France. https://www.wwf.fr/sites/default/files/doc-2023-12/Fiche_marques_regionales.pdf`,
+    macroProv: `Macro-histoire.
+
+Noter le niveau d'information relatif à la macro-histoire des bois.
+
+Une macro-histoire « forte » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique fort, une réputation forte, une micro-histoire forte, une rareté commerciale forte [+3].
+    Une macro-histoire « moyenne » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique moyen, une réputation moyenne, une micro-histoire moyenne, une rareté commerciale moyenne [+2].
+    Une macro-histoire « faible » vaut pour des bois dont l’origine est inconnue ou incertaine [+1].`,
+    territorialiteProv: `Territorialité.
+
+Noter la territorialité des bois évalués au regard d’éléments caractéristiques du territoire dans lequel le bois a été extrait et transformé.
+
+    Une territorialité « forte » vaut pour des bois combinant les éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+3].
+    Une territorialité « moyenne » vaut pour des bois disposant de l’un de ses éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+2].
+    Une territorialité « faible » vaut pour des bois ne disposant d’aucun de ces éléments caractéristiques d’un rattachement à un territoire donné [+1].`
+    });
+    }
 openProvenanceDetailModal(fieldKey) {
     const backdrop = document.getElementById('provenanceDetailModalBackdrop');
     const titleEl = document.getElementById('provenanceDetailModalTitle');
@@ -12396,37 +13617,7 @@ openProvenanceDetailModal(fieldKey) {
         territorialiteProv: 'Territorialité'
     };
 
-    const contents = {
-        confianceProv: `Confiance.
-
-Noter le niveau de confiance de la tracéologie effectuée sur les bois évalués.
-
-Une confiance forte vaut pour une notation de la catégorie à confirmer [+3].
-Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2].
-Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
-        transportProv: `Un transport « fort » vaut pour des bois transportés sur une distance intercontinentale (hors Europe) [-3].
-    Un transport « moyen » vaut pour des bois transportés dans un rayon continentale (pays transfrontaliers, Europe) [+1].
-    Un transport « faible » vaut pour des bois qui peuvent être réemployés, réutilisés ou recyclés sur site (in situ) [+3].
-
-    Voir : Ghyoot M., Devlieger L., Billiet L., Warnier A., Déconstruction et réemploi, Comment faire circuler les éléments de construction ? Presses polytechniques universitaires romandes (PPUR), 2018, pages 72-73.`,
-        reputationProv: `Une réputation « forte » vaut pour des bois en provenance de forêts spécifique reconnue pour les qualités de leurs bois (ex : Tronçais, Bercé, Lyons…) [+3].
-Une réputation « moyenne » vaut pour des bois en provenance de massifs forestiers reconnus pour la qualités de leurs bois (ex : Sélection Vosges, Jura supérieur…) [+2].
-Une réputation « faible » vaut pour des bois dont l’origine est peu valorisée [+1].
-
-À noter : Une réputation inconnue ou incertaine n’est pas notée.
-
-Lenglet, J., & Peyrache-Gadeau, V. (2020). Valuation de la ressource territoriale et formes de circularité : la labellisation dans la filière forêt-bois française (Alpes, Jura, Vosges). Revue forestière française, 72(4), 339–360. https://doi.org/10.20870/revforfr.2020.5333
-
-King, L., & Vallauri, D. (2023). Marques régionales pour le bois : Quelles plus-values environnementales ? WWF-France. https://www.wwf.fr/sites/default/files/doc-2023-12/Fiche_marques_regionales.pdf`,
-        macroProv: `Une macro-histoire « forte » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique fort, une réputation forte, une micro-histoire forte, une rareté commerciale forte [+3].
-    Une macro-histoire « moyenne » vaut pour des bois combinant plusieurs de ces critères : un amortissement biologique moyen, une réputation moyenne, une micro-histoire moyenne, une rareté commerciale moyenne [+2].
-    Une macro-histoire « faible » vaut pour des bois dont l’origine est inconnue ou incertaine [+1].`,
-        territorialiteProv: `Noter la territorialité des bois évalués au regard d’éléments caractéristiques du territoire dans lequel le bois a été extrait et transformé.
-
-    Une territorialité « forte » vaut pour des bois combinant les éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+3].
-    Une territorialité « moyenne » vaut pour des bois disposant de l’un de ses éléments suivant lorsqu’ils sont associées à un territoire donnée : une essence et ces singularités propre au territoire, un système constructif dans lequel ils sont inclus et par lequel ils sont formés, des traces qui font leur singularité [+2].
-    Une territorialité « faible » vaut pour des bois ne disposant d’aucun de ces éléments caractéristiques d’un rattachement à un territoire donné [+1].`
-    };
+    const contents = this.getProvenanceDetailContents();
 
     if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
     this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
@@ -12444,6 +13635,121 @@ closeProvenanceDetailModal() {
         backdrop.setAttribute('aria-hidden', 'true');
     }
 }
+
+    getCriteriaModalContents() {
+        return {
+            bio: {
+                sectionTitle: 'Biologique',
+                fieldTitles: {
+                    purge: 'Purge des dégradations biologiques',
+                    expansion: 'Expansion',
+                    integriteBio: 'Intégrité biologique',
+                    exposition: 'Exposition',
+                    confianceBio: 'Confiance'
+                },
+                contents: this.getBioDetailContents()
+            },
+            mech: {
+                sectionTitle: 'Mécanique',
+                fieldTitles: {
+                    purgeMech: 'Purge des dégradations mécaniques',
+                    feuMech: 'Feu',
+                    integriteMech: 'Intégrité mécanique',
+                    expositionMech: 'Exposition mécanique',
+                    confianceMech: 'Confiance'
+                },
+                contents: this.getMechDetailContents()
+            },
+            usage: {
+                sectionTitle: 'Usage',
+                fieldTitles: {
+                    confianceUsage: 'Confiance',
+                    durabiliteUsage: 'Durabilité naturelle',
+                    classementUsage: 'Classement estimé',
+                    humiditeUsage: 'Humidité',
+                    aspectUsage: 'Aspect'
+                },
+                contents: this.getUsageDetailContents()
+            },
+            denat: {
+                sectionTitle: 'Dénaturation',
+                fieldTitles: {
+                    depollutionDenat: 'Dépollution',
+                    contaminationDenat: 'Contamination',
+                    durabiliteConfDenat: 'Durabilité conférée',
+                    confianceDenat: 'Confiance',
+                    naturaliteDenat: 'Naturalité'
+                },
+                contents: this.getDenatDetailContents()
+            },
+            debit: {
+                sectionTitle: 'Débit',
+                fieldTitles: {
+                    regulariteDebit: 'Régularité',
+                    volumetrieDebit: 'Volumétrie',
+                    stabiliteDebit: 'Stabilité',
+                    artisanaliteDebit: 'Artisanalité',
+                    rusticiteDebit: 'Rusticité'
+                },
+                contents: this.getDebitDetailContents()
+            },
+            geo: {
+                sectionTitle: 'Géométrie',
+                fieldTitles: {
+                    adaptabiliteGeo: 'Adaptabilité',
+                    massiviteGeo: 'Massivité',
+                    deformationGeo: 'Déformation',
+                    industrialiteGeo: 'Industrialité',
+                    inclusiviteGeo: 'Inclusivité'
+                },
+                contents: this.getGeoDetailContents()
+            },
+            essence: {
+                sectionTitle: 'Essence',
+                fieldTitles: {
+                    confianceEssence: 'Confiance',
+                    rareteEcoEssence: 'Rareté',
+                    masseVolEssence: 'Masse volumique',
+                    rareteHistEssence: 'Rareté commerciale',
+                    singulariteEssence: 'Singularité essence'
+                },
+                contents: this.getEssenceDetailContents()
+            },
+            ancien: {
+                sectionTitle: 'Ancienneté',
+                fieldTitles: {
+                    confianceAncien: 'Confiance',
+                    amortissementAncien: 'Amortissement',
+                    vieillissementAncien: 'Vieillissement',
+                    microhistoireAncien: 'Micro-histoire',
+                    demontabiliteAncien: 'Démontabilité'
+                },
+                contents: this.getAncienDetailContents()
+            },
+            traces: {
+                sectionTitle: 'Traces',
+                fieldTitles: {
+                    confianceTraces: 'Confiance',
+                    etiquetageTraces: 'Étiquetage',
+                    alterationTraces: 'Altération',
+                    documentationTraces: 'Documentation',
+                    singularitesTraces: 'Singularités tracéologiques'
+                },
+                contents: this.getTracesDetailContents()
+            },
+            provenance: {
+                sectionTitle: 'Provenance',
+                fieldTitles: {
+                    confianceProv: 'Confiance',
+                    transportProv: 'Transport',
+                    reputationProv: 'Réputation',
+                    macroProv: 'Macro-histoire',
+                    territorialiteProv: 'Territorialité'
+                },
+                contents: this.getProvenanceDetailContents()
+            }
+        };
+    }
 
     openSeuilsModal() {
         const b = document.getElementById('seuilsModalBackdrop');
@@ -12880,6 +14186,8 @@ closeEvalOpModal() {
         const pHumidite = dpPreview.humidite;
         const pFractionC = dpPreview.fractionCarbonee;
         const pBois = dpPreview.bois;
+        const pTonneMode = ((defaultPiece.prixMode || '') + '').toLowerCase() === 't';
+        const pPriceUnitLabel = this.getPriceMarketUnitLabel(pPriceUnit, defaultPiece.prixMode);
         const pco2Display = this.formatPco2Display(dpPreview.carboneBiogeniqueEstime);
         const masseDisplay = this.formatMasseDisplay(dpPreview.massePiece);
         const measuredDensityDisplay = this.formatMeasuredDensityDisplay(defaultPiece.massePieceMesuree, dpPreview.volumePiece);
@@ -13035,15 +14343,29 @@ closeEvalOpModal() {
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
                         <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                        <div class="lot-price-market-row">
-                            <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
+                        <div class="lot-price-market-layout">
+                            <div class="lot-price-market-row lot-price-market-row--top">
+                                <div class="lot-input-with-unit">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                    <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
+                                </div>
+                                <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
+                                <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                </div>
                             </div>
-                            <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix">
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                            <div class="lot-price-market-row lot-price-market-row--bottom">
+                                <div class="lot-field-block lot-field-block--inline-price-select">
+                                    <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
+                                    <select class="lot-input lot-price-orientation-select" data-default-piece-id="${defaultPieceId}" data-default-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                        <option value="">Prix à l'orientation</option>
+                                    </select>
+                                </div>
+                                <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -13184,6 +14506,8 @@ closeEvalOpModal() {
         const pHumidite = piece.humidite !== '' ? piece.humidite : lot.allotissement.humidite;
         const pFractionC = piece.fractionCarbonee !== '' ? piece.fractionCarbonee : lot.allotissement.fractionCarbonee;
         const pBois = piece.bois !== '' ? piece.bois : lot.allotissement.bois;
+        const pTonneMode = ((piece.prixMode || '') + '').toLowerCase() === 't';
+        const pPriceUnitLabel = this.getPriceMarketUnitLabel(pPriceUnit, piece.prixMode);
         const pco2Display = this.formatPco2Display(piece.carboneBiogeniqueEstime);
         const masseDisplay = this.formatMasseDisplay(piece.massePiece);
         const measuredDensityDisplay = this.formatMeasuredDensityDisplay(piece.massePieceMesuree, piece.volumePiece);
@@ -13318,15 +14642,29 @@ closeEvalOpModal() {
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
                         <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                        <div class="lot-price-market-row">
-                            <div class="lot-input-with-unit">
-                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                <span class="lot-input-unit" data-piece-display="prixMarcheUnit">€/${pPriceUnit}</span>
+                        <div class="lot-price-market-layout">
+                            <div class="lot-price-market-row lot-price-market-row--top">
+                                <div class="lot-input-with-unit">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                    <span class="lot-input-unit" data-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
+                                </div>
+                                <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
+                                <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                </div>
                             </div>
-                            <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix">
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                            <div class="lot-price-market-row lot-price-market-row--bottom">
+                                <div class="lot-field-block lot-field-block--inline-price-select">
+                                    <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
+                                    <select class="lot-input lot-price-orientation-select" data-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                        <option value="">Prix à l'orientation</option>
+                                    </select>
+                                </div>
+                                <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -13493,6 +14831,7 @@ closeEvalOpModal() {
         const showTypeProduitDetailsBtn = lotTypeProduitDisplay === 'Multiples';
         const showEssenceDetailsBtn = lotEssenceCommonDisplay === 'Multiples' || lotEssenceScientificDisplay === 'Multiples';
         const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
+        const priceUnitLabel = this.getPriceMarketUnitLabel(priceUnit, lot.allotissement.prixMode);
         const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
         const masseLotDisplay = this.formatMasseDisplay(lot.allotissement.masseLot);
         const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
@@ -13971,20 +15310,33 @@ closeEvalOpModal() {
                             <button type="button" class="lot-alert-btn lot-prix-alert-btn" data-alert-active="${(!lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot)) ? 'true' : 'false'}" data-lot-prix-alert-btn aria-label="Alerte prix du marché manquant">
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                             </button>
-                            <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix">info</button>
                             <button type="button" class="lot-price-unit-btn lot-prix-toggle-btn" data-lot-prix-toggle-btn aria-pressed="${lot.allotissement.prixLotDirect ? 'true' : 'false'}" aria-label="Activer/désactiver le prix">${lot.allotissement.prixLotDirect ? 'ON' : 'OFF'}</button>
                         </div>
                         <div class="lot-field-block" data-lot-prix-market-block${!lot.allotissement.prixLotDirect ? ' data-muted="true"' : ''}>
                             <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                            <div class="lot-price-market-row" data-lot-prix-market-row>
-                                <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                    <span class="lot-input-unit" data-display="prixMarcheUnit">€/${priceUnit}</span>
+                            <div class="lot-price-market-layout" data-lot-prix-market-row>
+                                <div class="lot-price-market-row lot-price-market-row--top">
+                                    <div class="lot-input-with-unit">
+                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                        <span class="lot-input-unit" data-display="prixMarcheUnit">${priceUnitLabel}</span>
+                                    </div>
+                                    <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
+                                    <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix du marché">
+                                        <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                        <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                    </div>
                                 </div>
-                                <div class="lot-price-unit-toggle" role="group" aria-label="Unité de prix du marché">
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                    <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                <div class="lot-price-market-row lot-price-market-row--bottom">
+                                    <div class="lot-field-block lot-field-block--inline-price-select">
+                                        <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
+                                        <select class="lot-input lot-price-orientation-select" data-lot-price-orientation${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                            <option value="">Prix à l'orientation</option>
+                                        </select>
+                                    </div>
+                                    <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
+                                        <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                        <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -14375,6 +15727,10 @@ closeEvalOpModal() {
             card.querySelectorAll('button[data-price-unit]').forEach(btn => {
                 btn.disabled = !isDirect;
             });
+            const tonneToggle = card.querySelector('button[data-lot-price-tonne-toggle]');
+            if (tonneToggle) tonneToggle.disabled = !isDirect;
+            const orientationSelect = card.querySelector('select[data-lot-price-orientation]');
+            if (orientationSelect) orientationSelect.disabled = !isDirect;
             const prixAlertBtn = card.querySelector('[data-lot-prix-alert-btn]');
             if (prixAlertBtn) {
                 const hasMissingPrixMarche = !isDirect && this.lotHasMissingPrixMarche(lot);
@@ -14407,11 +15763,16 @@ closeEvalOpModal() {
 
         const syncPriceUnitButtons = () => {
             const selectedUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
+            const isTonneMode = ((lot.allotissement.prixMode || '') + '').toLowerCase() === 't';
             card.querySelectorAll('button[data-price-unit]').forEach((button) => {
-                button.setAttribute('aria-pressed', button.dataset.priceUnit === selectedUnit ? 'true' : 'false');
+                button.setAttribute('aria-pressed', !isTonneMode && button.dataset.priceUnit === selectedUnit ? 'true' : 'false');
             });
+            const tonneToggle = card.querySelector('button[data-lot-price-tonne-toggle]');
+            if (tonneToggle) {
+                tonneToggle.setAttribute('aria-pressed', isTonneMode ? 'true' : 'false');
+            }
             const unitDisplay = card.querySelector('[data-display="prixMarcheUnit"]');
-            if (unitDisplay) unitDisplay.textContent = '€/' + selectedUnit;
+            if (unitDisplay) unitDisplay.textContent = this.getPriceMarketUnitLabel(selectedUnit, lot.allotissement.prixMode);
         };
 
         card.querySelectorAll('button[data-price-unit]').forEach((button) => {
@@ -14430,10 +15791,66 @@ closeEvalOpModal() {
                 const nextUnit = (button.dataset.priceUnit || '').toLowerCase();
                 if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
                 lot.allotissement.prixUnite = nextUnit;
+                lot.allotissement.prixMode = '';
+                lot.allotissement.prixOrientationPresetId = '';
                 syncPriceUnitButtons();
                 updateCalculs();
             });
         });
+
+        const lotTonneToggleBtn = card.querySelector('button[data-lot-price-tonne-toggle]');
+        if (lotTonneToggleBtn) {
+            lotTonneToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!lot.allotissement.prixLotDirect) {
+                    this.openPrixLotDirectActivateModal(() => {
+                        lot.allotissement.prixLotDirect = true;
+                        lot.allotissement.prixMode = 't';
+                        applyPrixLotDirectUI();
+                        syncPriceUnitButtons();
+                        updateCalculs();
+                        this.renderDetailLot();
+                    });
+                    return;
+                }
+                lot.allotissement.prixMode = 't';
+                lot.allotissement.prixOrientationPresetId = '';
+                syncPriceUnitButtons();
+                updateCalculs();
+            });
+        }
+
+        const lotPriceOrientationSelect = card.querySelector('select[data-lot-price-orientation]');
+        if (lotPriceOrientationSelect) {
+            this.renderPricePresetSelectOptions(
+                lotPriceOrientationSelect,
+                lot.allotissement.prixOrientationPresetId || '',
+                this.getPriceOrientationPlaceholderLabel(lot),
+                lot
+            );
+            lotPriceOrientationSelect.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const presetId = (lotPriceOrientationSelect.value || '').trim();
+                if (!presetId) {
+                    lot.allotissement.prixOrientationPresetId = '';
+                    this.renderPricePresetSelectOptions(
+                        lotPriceOrientationSelect,
+                        '',
+                        this.getPriceOrientationPlaceholderLabel(lot),
+                        lot
+                    );
+                    return;
+                }
+                const applied = this.applyPricePresetToPricingEntity(lot.allotissement, presetId);
+                if (!applied) return;
+                const lotPrixInput = card.querySelector('input[data-lot-input="prixMarche"]');
+                if (lotPrixInput) {
+                    lotPrixInput.value = this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche);
+                }
+                syncPriceUnitButtons();
+                updateCalculs();
+            });
+        }
 
         syncPriceUnitButtons();
 
@@ -14698,6 +16115,18 @@ closeEvalOpModal() {
                 if (this.isAllotissementNumericField(field)) {
                     const normalized = this.normalizeAllotissementNumericInput(e.target.value);
                     lot.allotissement[field] = normalized;
+                    if (field === 'prixMarche') {
+                        lot.allotissement.prixOrientationPresetId = '';
+                        const lotPriceOrientationSelect = card.querySelector('select[data-lot-price-orientation]');
+                        if (lotPriceOrientationSelect) {
+                            this.renderPricePresetSelectOptions(
+                                lotPriceOrientationSelect,
+                                '',
+                                this.getPriceOrientationPlaceholderLabel(lot),
+                                lot
+                            );
+                        }
+                    }
                     if (field === 'masseVolumique' && normalized === '' && (e.type === 'blur' || e.type === 'change')) {
                         const suggested = this.applySuggestedMasseVolumique(lot, { force: true });
                         lot.allotissement[field] = String(suggested);
@@ -15073,7 +16502,7 @@ closeEvalOpModal() {
             const unitDisp = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="prixMarcheUnit"]`);
             if (unitDisp) {
                 const u = ((dp.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-                unitDisp.textContent = '€/' + (u === 'ml' || u === 'm2' || u === 'm3' ? u : 'm3');
+                unitDisp.textContent = this.getPriceMarketUnitLabel(u, dp.prixMode);
             }
             const masseVolSourceEl = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="masseVolumiqueSource"]`);
             if (masseVolSourceEl) {
@@ -15169,12 +16598,83 @@ closeEvalOpModal() {
                     if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
                     const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
                     dp.prixUnite = nextUnit;
+                    dp.prixMode = '';
+                    dp.prixOrientationPresetId = '';
                     defaultPieceCard.querySelectorAll(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((button) => {
                         button.setAttribute('aria-pressed', button.dataset.defaultPiecePriceUnit === nextUnit ? 'true' : 'false');
                     });
+                    const tonneToggle = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-tonne-toggle]`);
+                    if (tonneToggle) tonneToggle.setAttribute('aria-pressed', 'false');
                     updateDefaultPieceDisplays(defaultPieceId);
                 });
             });
+
+            const defaultPriceInfoBtn = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-info-btn]`);
+            if (defaultPriceInfoBtn) {
+                defaultPriceInfoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    this.openPrixLogicModal();
+                });
+            }
+
+            const defaultTonneToggleBtn = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-tonne-toggle]`);
+            if (defaultTonneToggleBtn) {
+                defaultTonneToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                    dp.prixMode = 't';
+                    dp.prixOrientationPresetId = '';
+                    defaultPieceCard.querySelectorAll(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((button) => {
+                        button.setAttribute('aria-pressed', 'false');
+                    });
+                    defaultTonneToggleBtn.setAttribute('aria-pressed', 'true');
+                    updateDefaultPieceDisplays(defaultPieceId);
+                });
+            }
+
+            const defaultPriceOrientationSelect = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-orientation]`);
+            if (defaultPriceOrientationSelect) {
+                const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                this.renderPricePresetSelectOptions(
+                    defaultPriceOrientationSelect,
+                    dp.prixOrientationPresetId || '',
+                    this.getPriceOrientationPlaceholderLabel(lot),
+                    lot
+                );
+                defaultPriceOrientationSelect.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const presetId = (defaultPriceOrientationSelect.value || '').trim();
+                    if (!presetId) {
+                        dp.prixOrientationPresetId = '';
+                        this.renderPricePresetSelectOptions(
+                            defaultPriceOrientationSelect,
+                            '',
+                            this.getPriceOrientationPlaceholderLabel(lot),
+                            lot
+                        );
+                        return;
+                    }
+                    const applied = this.applyPricePresetToPricingEntity(dp, presetId);
+                    if (!applied) return;
+
+                    const defaultPrixInput = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input="prixMarche"]`);
+                    if (defaultPrixInput) {
+                        defaultPrixInput.value = this.formatAllotissementNumericDisplay(dp.prixMarche);
+                    }
+
+                    const isTonne = ((dp.prixMode || '') + '').toLowerCase() === 't';
+                    defaultPieceCard.querySelectorAll(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((button) => {
+                        const btnUnit = (button.dataset.defaultPiecePriceUnit || '').toLowerCase();
+                        button.setAttribute('aria-pressed', !isTonne && btnUnit === ((dp.prixUnite || 'm3') + '').toLowerCase() ? 'true' : 'false');
+                    });
+                    const tonneToggle = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-tonne-toggle]`);
+                    if (tonneToggle) tonneToggle.setAttribute('aria-pressed', isTonne ? 'true' : 'false');
+                    updateDefaultPieceDisplays(defaultPieceId);
+                });
+            }
 
             defaultPieceCard.querySelectorAll(`input[data-default-piece-id="${defaultPieceId}"][data-default-piece-input]`).forEach((input) => {
                 const updateDefaultPieceField = (e) => {
@@ -15194,6 +16694,18 @@ closeEvalOpModal() {
                     } else if (this.isAllotissementNumericField(field)) {
                         const normalized = this.normalizeAllotissementNumericInput(e.target.value);
                         dp[field] = normalized;
+                        if (field === 'prixMarche') {
+                            dp.prixOrientationPresetId = '';
+                            const defaultPriceOrientationSelect = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-orientation]`);
+                            if (defaultPriceOrientationSelect) {
+                                this.renderPricePresetSelectOptions(
+                                    defaultPriceOrientationSelect,
+                                    '',
+                                    this.getPriceOrientationPlaceholderLabel(lot),
+                                    lot
+                                );
+                            }
+                        }
                         if (field === 'masseVolumique' && normalized === '' && (e.type === 'blur' || e.type === 'change')) {
                             const suggested = this.getSuggestedPieceMasseVolumique(dp, lot);
                             dp[field] = String(suggested);
@@ -15392,6 +16904,11 @@ closeEvalOpModal() {
                 if (qCO2) qCO2.value = pco2D.value;
                 const qCO2U = pieceCard.querySelector('[data-piece-display="carboneBiogeniqueEstimeUnit"]');
                 if (qCO2U) qCO2U.textContent = pco2D.unit;
+                const unitDisp = pieceCard.querySelector('[data-piece-display="prixMarcheUnit"]');
+                if (unitDisp) {
+                    const u = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
+                    unitDisp.textContent = this.getPriceMarketUnitLabel(u, piece.prixMode);
+                }
                 const masseVolSourceEl = pieceCard.querySelector('[data-piece-display="masseVolumiqueSource"]');
                 if (masseVolSourceEl) {
                     masseVolSourceEl.textContent = this.getMasseVolumiqueSourceLabel({
@@ -15427,14 +16944,81 @@ closeEvalOpModal() {
                     const nextUnit = (btn.dataset.piecePriceUnit || '').toLowerCase();
                     if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
                     piece.prixUnite = nextUnit;
+                    piece.prixMode = '';
+                    piece.prixOrientationPresetId = '';
                     pieceCard.querySelectorAll('button[data-piece-price-unit]').forEach((b) => {
                         b.setAttribute('aria-pressed', b.dataset.piecePriceUnit === nextUnit ? 'true' : 'false');
                     });
-                    const unitDisp = pieceCard.querySelector('[data-piece-display="prixMarcheUnit"]');
-                    if (unitDisp) unitDisp.textContent = '€/' + nextUnit;
+                    const tonneToggle = pieceCard.querySelector('button[data-piece-price-tonne-toggle]');
+                    if (tonneToggle) tonneToggle.setAttribute('aria-pressed', 'false');
                     updatePieceDisplays();
                 });
             });
+
+            const piecePriceInfoBtn = pieceCard.querySelector('button[data-piece-price-info-btn]');
+            if (piecePriceInfoBtn) {
+                piecePriceInfoBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    this.openPrixLogicModal();
+                });
+            }
+
+            const pieceTonneToggleBtn = pieceCard.querySelector('button[data-piece-price-tonne-toggle]');
+            if (pieceTonneToggleBtn) {
+                pieceTonneToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    piece.prixMode = 't';
+                    piece.prixOrientationPresetId = '';
+                    pieceCard.querySelectorAll('button[data-piece-price-unit]').forEach((b) => {
+                        b.setAttribute('aria-pressed', 'false');
+                    });
+                    pieceTonneToggleBtn.setAttribute('aria-pressed', 'true');
+                    updatePieceDisplays();
+                });
+            }
+
+            const piecePriceOrientationSelect = pieceCard.querySelector('select[data-piece-price-orientation]');
+            if (piecePriceOrientationSelect) {
+                this.renderPricePresetSelectOptions(
+                    piecePriceOrientationSelect,
+                    piece.prixOrientationPresetId || '',
+                    this.getPriceOrientationPlaceholderLabel(lot),
+                    lot
+                );
+                piecePriceOrientationSelect.addEventListener('change', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    const presetId = (piecePriceOrientationSelect.value || '').trim();
+                    if (!presetId) {
+                        piece.prixOrientationPresetId = '';
+                        this.renderPricePresetSelectOptions(
+                            piecePriceOrientationSelect,
+                            '',
+                            this.getPriceOrientationPlaceholderLabel(lot),
+                            lot
+                        );
+                        return;
+                    }
+                    const applied = this.applyPricePresetToPricingEntity(piece, presetId);
+                    if (!applied) return;
+
+                    const piecePrixInput = pieceCard.querySelector('input[data-piece-input="prixMarche"]');
+                    if (piecePrixInput) {
+                        piecePrixInput.value = this.formatAllotissementNumericDisplay(piece.prixMarche);
+                    }
+
+                    const isTonne = ((piece.prixMode || '') + '').toLowerCase() === 't';
+                    pieceCard.querySelectorAll('button[data-piece-price-unit]').forEach((button) => {
+                        const btnUnit = (button.dataset.piecePriceUnit || '').toLowerCase();
+                        button.setAttribute('aria-pressed', !isTonne && btnUnit === ((piece.prixUnite || 'm3') + '').toLowerCase() ? 'true' : 'false');
+                    });
+                    const tonneToggle = pieceCard.querySelector('button[data-piece-price-tonne-toggle]');
+                    if (tonneToggle) tonneToggle.setAttribute('aria-pressed', isTonne ? 'true' : 'false');
+                    updatePieceDisplays();
+                });
+            }
 
             // Branchement des inputs pièce
             pieceCard.querySelectorAll('input[data-piece-input]').forEach(input => {
@@ -15446,6 +17030,18 @@ closeEvalOpModal() {
                     if (this.isAllotissementNumericField(field)) {
                         const normalized = this.normalizeAllotissementNumericInput(e.target.value);
                         piece[field] = normalized;
+                        if (field === 'prixMarche') {
+                            piece.prixOrientationPresetId = '';
+                            const piecePriceOrientationSelect = pieceCard.querySelector('select[data-piece-price-orientation]');
+                            if (piecePriceOrientationSelect) {
+                                this.renderPricePresetSelectOptions(
+                                    piecePriceOrientationSelect,
+                                    '',
+                                    this.getPriceOrientationPlaceholderLabel(lot),
+                                    lot
+                                );
+                            }
+                        }
                         if (field === 'masseVolumique' && normalized === '' && (e.type === 'blur' || e.type === 'change')) {
                             const suggested = this.applySuggestedPieceMasseVolumique(piece, lot, { force: true });
                             piece[field] = String(suggested);
@@ -16669,6 +18265,7 @@ updateDenatRow(row, key, lot) {
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const naturaliteAlertBtn = key === 'naturaliteDenat' ? row.querySelector('[data-denat-naturalite-alert-btn]') : null;
     const contaminationAlertBtn = key === 'contaminationDenat' ? row.querySelector('[data-denat-contamination-alert-btn]') : null;
+    const durabiliteAlertBtn = key === 'durabiliteConfDenat' ? row.querySelector('[data-denat-durabilite-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-denat-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -16737,6 +18334,9 @@ updateDenatRow(row, key, lot) {
                 this.refreshContaminationAlertButton(lot);
                 this.refreshGlobalLockState(lot);
             }
+            if (key === 'durabiliteConfDenat' || key === 'depollutionDenat' || key === 'contaminationDenat') {
+                this.refreshDurabiliteConfDenatAlertButton(lot);
+            }
             updateNaturaliteAlertBtn();
             this.refreshConfidenceAlertButton(row, key, lot);
 
@@ -16788,6 +18388,9 @@ updateDenatRow(row, key, lot) {
                 this.refreshContaminationAlertButton(lot);
                 this.refreshGlobalLockState(lot);
             }
+            if (key === 'durabiliteConfDenat' || key === 'depollutionDenat' || key === 'contaminationDenat') {
+                this.refreshDurabiliteConfDenatAlertButton(lot);
+            }
             updateNaturaliteAlertBtn();
             this.refreshConfidenceAlertButton(row, key, lot);
 
@@ -16812,6 +18415,15 @@ updateDenatRow(row, key, lot) {
         contaminationAlertBtn.onclick = (e) => {
             e.stopPropagation();
             this.openDenatContaminationAlertModal();
+        };
+    }
+
+    if (durabiliteAlertBtn) {
+        this.refreshDurabiliteConfDenatAlertButton(lot);
+        durabiliteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshDurabiliteConfDenatAlertButton(lot);
+            this.openDenatDurabiliteAlertModal();
         };
     }
 
@@ -18224,18 +19836,10 @@ getOrientationThresholdConfig() {
 
     return [
         {
-            code: 'combustion',
-            orientationLabel: 'Combustion',
-            minPercent: 0,
-            radarValue: 30,
-            radarLabel: translate('editor.radar.thresholdIncinerable', 'Incinérable'),
-            color: '#D55E00'
-        },
-        {
             code: 'recyclage',
             orientationLabel: 'Recyclage',
             minPercent: 30,
-            radarValue: 50,
+            radarValue: 30,
             radarLabel: translate('editor.radar.thresholdRecyclable', 'Recyclable'),
             color: '#E69F00'
         },
@@ -18243,7 +19847,7 @@ getOrientationThresholdConfig() {
             code: 'reutilisation',
             orientationLabel: 'Réutilisation',
             minPercent: 50,
-            radarValue: 70,
+            radarValue: 50,
             radarLabel: translate('editor.radar.thresholdReutilisable', 'Réutilisable'),
             color: '#56B4E9'
         },
@@ -18251,7 +19855,7 @@ getOrientationThresholdConfig() {
             code: 'reemploi',
             orientationLabel: 'Réemploi',
             minPercent: 70,
-            radarValue: 100,
+            radarValue: 70,
             radarLabel: translate('editor.radar.thresholdReemployable', 'Réemployable'),
             color: '#009E73'
         }
@@ -18530,12 +20134,13 @@ renderSeuils() {
 renderRadar() {
     const lot = this.getCurrentLot();
     if (!lot) return;
+
     const thresholdLevels = this.getOrientationThresholdConfig().map((threshold) => ({
         value: threshold.radarValue,
         label: threshold.radarLabel,
-        color: threshold.color
+        color: threshold.color,
+        code: threshold.code
     }));
-    const thresholdValues = thresholdLevels.map((threshold) => threshold.value);
 
     const lots = this.data.lots || [];
     const lotIndex = lots.indexOf(lot);
@@ -18550,140 +20155,199 @@ renderRadar() {
         toPercent(scores.mecanique || 0),
         toPercent(scores.historique || 0),
         toPercent(scores.esthetique || 0)
-        ];    
+    ];
+
+    const weakestValue = Math.min(...data);
+    const weakestAxisIndex = data.findIndex((value) => value === weakestValue);
+    const weakestThreshold = this.getOrientationThresholdForPercent(weakestValue);
+    const weakestAxisColor = weakestThreshold?.color || '#D55E00';
+
+    const avg = data.reduce((acc, v) => acc + v, 0) / (data.length || 1);
+    const fallbackOrientation = this.getOrientationThresholdForPercent(avg);
+    const orientationThreshold = thresholdLevels.find((t) => t.code === lot.orientationCode) || fallbackOrientation;
+    const orientationColor = orientationThreshold?.color || '#009E73';
+    const orientationValue = orientationThreshold?.value || 30;
 
     const canvas = document.getElementById('radarChart') || document.getElementById('radarChartCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
 
-    const thresholdBandsPlugin = {
-        id: 'radarThresholdBands',
-        afterDraw(chart, args, pluginOptions) {
+    const thresholdRingsPlugin = {
+        id: 'radarThresholdRings',
+        beforeDatasetsDraw(chart) {
             const radialScale = chart.scales && chart.scales.r;
-            const levels = pluginOptions && Array.isArray(pluginOptions.levels) ? pluginOptions.levels : [];
-            if (!radialScale || !levels.length) return;
+            if (!radialScale || !Array.isArray(thresholdLevels) || !thresholdLevels.length) return;
 
             const chartContext = chart.ctx;
             const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
             if (!axisCount) return;
-            const startPoint = radialScale.getPointPositionForValue(0, 100);
-            const endPoint = radialScale.getPointPositionForValue(1, 100);
-            const segmentAngle = Math.atan2(endPoint.y - startPoint.y, endPoint.x - startPoint.x);
 
             chartContext.save();
-            chartContext.font = '600 12px sans-serif';
-            chartContext.textAlign = 'center';
-            chartContext.textBaseline = 'bottom';
-
-            // Dessine explicitement chaque anneau de seuil pour garantir la visibilité du palier 30.
-            levels.forEach((level) => {
-                chartContext.save();
-                chartContext.strokeStyle = 'rgba(0, 0, 0, 0.22)';
-                chartContext.lineWidth = level.value === 30 ? 1.3 : 1;
+            thresholdLevels.forEach((level) => {
                 chartContext.beginPath();
-
                 for (let i = 0; i < axisCount; i += 1) {
                     const point = radialScale.getPointPositionForValue(i, level.value);
                     if (i === 0) chartContext.moveTo(point.x, point.y);
                     else chartContext.lineTo(point.x, point.y);
                 }
-
                 chartContext.closePath();
-                chartContext.stroke();
-                chartContext.restore();
-            });
-
-            levels.forEach((level) => {
-                const firstPoint = radialScale.getPointPositionForValue(0, level.value);
-                const secondPoint = radialScale.getPointPositionForValue(1, level.value);
-                const midX = (firstPoint.x + secondPoint.x) / 2;
-                const midY = (firstPoint.y + secondPoint.y) / 2;
-                const segmentLength = Math.hypot(secondPoint.x - firstPoint.x, secondPoint.y - firstPoint.y);
-                const guideLength = Math.max(10, Math.min(28, segmentLength - 4));
-                const guideHalf = guideLength / 2;
-
-                chartContext.save();
-                chartContext.translate(midX, midY);
-                chartContext.rotate(segmentAngle);
-                chartContext.globalAlpha = 0.5;
                 chartContext.strokeStyle = level.color;
-                chartContext.lineWidth = 1;
-                chartContext.beginPath();
-                chartContext.moveTo(-guideHalf, 0);
-                chartContext.lineTo(guideHalf, 0);
+                chartContext.globalAlpha = 0.4;
+                chartContext.lineWidth = level.value === 30 ? 1.4 : 1.1;
+                chartContext.setLineDash([4, 4]);
                 chartContext.stroke();
-                chartContext.fillStyle = level.color;
-                chartContext.fillText(level.label, 0, -2);
-                chartContext.restore();
             });
-
+            chartContext.setLineDash([]);
             chartContext.restore();
         }
     };
 
-    if (!this.radarChart) {
-            this.radarChart = new Chart(ctx, {
-            plugins: [thresholdBandsPlugin],
-            type: 'radar',
-            data: {
-                labels,
-                datasets: [
-                    {
-                        label: 'Valeurs du lot',
-                        data,
-                        backgroundColor: 'rgba(0, 0, 0, 0.15)',
-                        borderColor: '#000000',
-                        borderWidth: 1,
-                        pointBackgroundColor: '#000000'
-                    }
-                ]
-            },
-                options: {
-                    responsive: true,
-                    scales: {
-                        r: {
-                            min: 0,
-                            max: 100,
-                            afterBuildTicks(scale) {
-                                scale.ticks = thresholdValues.map((value) => ({ value }));
-                            },
-                            ticks: {
-                                display: false
-                            },
-                            grid: {
-                                color: 'rgba(0,0,0,0.15)'
-                            },
-                            angleLines: {
-                                color: 'rgba(0,0,0,0.15)'
-                            }
-                        }
+    const orientationOverlayPlugin = {
+        id: 'radarOrientationOverlay',
+        beforeDatasetsDraw(chart) {
+            const radialScale = chart.scales && chart.scales.r;
+            if (!radialScale) return;
+
+            const chartContext = chart.ctx;
+            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
+            if (!axisCount) return;
+
+            chartContext.save();
+            chartContext.beginPath();
+            for (let i = 0; i < axisCount; i += 1) {
+                const point = radialScale.getPointPositionForValue(i, orientationValue);
+                if (i === 0) chartContext.moveTo(point.x, point.y);
+                else chartContext.lineTo(point.x, point.y);
+            }
+            chartContext.closePath();
+            chartContext.fillStyle = orientationColor;
+            chartContext.globalAlpha = 0.22;
+            chartContext.fill();
+            chartContext.globalAlpha = 0.5;
+            chartContext.strokeStyle = orientationColor;
+            chartContext.lineWidth = 1.4;
+            chartContext.stroke();
+            chartContext.restore();
+        }
+    };
+
+    const weakestAxisPlugin = {
+        id: 'radarWeakestAxis',
+        afterDraw(chart) {
+            const radialScale = chart.scales && chart.scales.r;
+            if (!radialScale || weakestAxisIndex < 0) return;
+
+            const chartContext = chart.ctx;
+            const centerX = radialScale.xCenter;
+            const centerY = radialScale.yCenter;
+            const endPoint = radialScale.getPointPositionForValue(weakestAxisIndex, 100);
+
+            chartContext.save();
+            chartContext.beginPath();
+            chartContext.moveTo(centerX, centerY);
+            chartContext.lineTo(endPoint.x, endPoint.y);
+            chartContext.strokeStyle = weakestAxisColor;
+            chartContext.lineWidth = 3.2;
+            chartContext.globalAlpha = 0.85;
+            chartContext.stroke();
+            chartContext.restore();
+        }
+    };
+
+    if (this.radarChart) {
+        this.radarChart.destroy();
+        this.radarChart = null;
+    }
+
+    this.radarChart = new Chart(ctx, {
+        plugins: [thresholdRingsPlugin, orientationOverlayPlugin, weakestAxisPlugin],
+        type: 'radar',
+        data: {
+            labels,
+            datasets: [
+                {
+                    label: 'Valeurs du lot',
+                    data,
+                    backgroundColor: 'rgba(0, 0, 0, 0.14)',
+                    borderColor: '#111111',
+                    borderWidth: 1.2,
+                    pointBackgroundColor: data.map((value, index) => index === weakestAxisIndex ? weakestAxisColor : '#111111'),
+                    pointBorderColor: data.map((value, index) => index === weakestAxisIndex ? weakestAxisColor : '#111111'),
+                    pointRadius: data.map((value, index) => index === weakestAxisIndex ? 4.5 : 3),
+                    pointHoverRadius: data.map((value, index) => index === weakestAxisIndex ? 6 : 4)
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                r: {
+                    min: 0,
+                    max: 100,
+                    ticks: {
+                        display: false
                     },
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: { enabled: false },
-                        radarThresholdBands: {
-                            levels: thresholdLevels
+                    grid: {
+                        color: 'rgba(0,0,0,0.15)'
+                    },
+                    angleLines: {
+                        color: 'rgba(0,0,0,0.15)'
+                    },
+                    pointLabels: {
+                        color(context) {
+                            return context.index === weakestAxisIndex ? weakestAxisColor : 'rgba(0,0,0,0.65)';
+                        },
+                        font(context) {
+                            return {
+                                size: context.index === weakestAxisIndex ? 16 : 13,
+                                weight: context.index === weakestAxisIndex ? '700' : '400'
+                            };
                         }
                     }
                 }
-            });
-        } else {
-            this.radarChart.data.datasets[0].data = data;
-            this.radarChart.options.plugins.radarThresholdBands.levels = thresholdLevels;
-            this.radarChart.update();
+            },
+            plugins: {
+                legend: { display: false },
+                tooltip: { enabled: false }
+            }
         }
+    });
 
-        const bodyText = document.getElementById('radarBodyText');
-        if (bodyText) {
-            const avg =
-                data.reduce((acc, v) => acc + v, 0) / (data.length || 1);
-            let synth = 'Profil non renseigné.';
-            if (avg > 0 && avg <= 33) synth = 'Profil globalement faible.';
-            else if (avg > 33 && avg <= 66) synth = 'Profil globalement moyen.';
-            else if (avg > 66) synth = 'Profil globalement fort.';
-            bodyText.textContent = synth;
-        }
+    const legendId = 'radar-legend';
+    let legendEl = document.getElementById(legendId);
+    if (!legendEl) {
+        legendEl = document.createElement('div');
+        legendEl.id = legendId;
+        legendEl.className = 'radar-legend';
+        const wrapper = canvas.closest('.radar-canvas-wrapper') || canvas.parentElement;
+        if (wrapper) wrapper.appendChild(legendEl);
     }
+    if (legendEl) {
+        legendEl.innerHTML = '';
+        labels.forEach((label, index) => {
+            const item = document.createElement('div');
+            item.className = 'radar-legend-item';
+            if (index === weakestAxisIndex) item.classList.add('weakest');
+            if (index === weakestAxisIndex) item.style.color = weakestAxisColor;
+
+            const dot = document.createElement('span');
+            dot.className = 'radar-legend-dot';
+            dot.style.background = index === weakestAxisIndex ? weakestAxisColor : 'rgba(0, 0, 0, 0.45)';
+            item.appendChild(dot);
+            item.appendChild(document.createTextNode(label));
+            legendEl.appendChild(item);
+        });
+    }
+
+    const bodyText = document.getElementById('radarBodyText');
+    if (bodyText) {
+        let synth = 'Profil non renseigné.';
+        if (avg > 0 && avg <= 33) synth = 'Profil globalement faible.';
+        else if (avg > 33 && avg <= 66) synth = 'Profil globalement moyen.';
+        else if (avg > 66) synth = 'Profil globalement fort.';
+        bodyText.textContent = synth;
+    }
+}
 
     renderScatterDims() {
         const section = document.getElementById('scatterDimsSection');
@@ -19073,9 +20737,12 @@ renderRadar() {
                 const pmRaw = piece.prixMarche !== '' && piece.prixMarche != null ? piece.prixMarche : (allot.prixMarche || '');
                 const pm = parseFloat(pmRaw) || 0;
                 if (pm > 0) {
+                    const priceMode = ((piece.prixMode || '') + '').toLowerCase();
                     const priceUnitRaw = ((piece.prixUnite || allot.prixUnite || 'm3') + '').toLowerCase();
                     const priceUnit = (['ml', 'm2', 'm3'].indexOf(priceUnitRaw) >= 0) ? priceUnitRaw : 'm3';
-                    if (priceUnit === 'm3') prixUnitaire = pm * volumeM3;
+                    const masseEffectiveKg = this.getEffectiveMassKg(masseMesuree, masseTheorique);
+                    if (priceMode === 't') prixUnitaire = pm * (masseEffectiveKg / 1000);
+                    else if (priceUnit === 'm3') prixUnitaire = pm * volumeM3;
                     else if (priceUnit === 'ml') prixUnitaire = pm * (longueur / 1000);
                     else if (priceUnit === 'm2') prixUnitaire = pm * (representative.largeur * longueur / 1e6);
                 }
@@ -20761,7 +22428,7 @@ renderRadar() {
         let label = "…";
         let code = "none";
 
-        if (avg > 0 || avg < 0) {
+        if (this.hasAnyNotationForLot(lot)) {
             const threshold = this.getOrientationThresholdForPercent(percentage);
             label = threshold.orientationLabel;
             code = threshold.code;
@@ -20779,6 +22446,12 @@ renderRadar() {
             label = 'Réutilisation';
             code  = 'reutilisation';
         }
+
+        const _isStrongLevel = (value) => {
+            const normalized = _normInteg(value);
+            return normalized === 'fort' || normalized === 'forte';
+        };
+
         // Forçage : altération Forte ignorée avec orientation forcée par révision
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
             const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
@@ -20794,13 +22467,35 @@ renderRadar() {
             }
         }
 
+        // Forçage combustion non ignorable : intégrité biologique ET mécanique faibles
+        if (
+            _normInteg(lot?.bio?.integriteBio?.niveau) === 'faible'
+            && _normInteg(lot?.mech?.integriteMech?.niveau) === 'faible'
+        ) {
+            label = 'Combustion';
+            code = 'combustion';
+        }
+
+        // Règle durabilité conférée : sans critère combustion actif, orientation par défaut = Réutilisation
+        if (
+            _isStrongLevel(lot?.denat?.durabiliteConfDenat?.niveau)
+            && !_isStrongLevel(lot?.denat?.depollutionDenat?.niveau)
+            && code !== 'combustion'
+        ) {
+            label = 'Réutilisation';
+            code = 'reutilisation';
+        }
+
         lot.orientationLabel = label;
         lot.orientationCode = code;
+        lot.orientation = label;
 
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotIndex >= 0) {
             this.updateAllotissementOrientationBadge(lotIndex);
         }
+
+        this.refreshDurabiliteConfDenatAlertButton(lot);
 
         this.renderOrientation();
         this.renderSeuils();
@@ -21930,6 +23625,7 @@ renderRadar() {
         const f = this.getPdfFontScale();
         const fontSize = options.fontSize || f.table;
         const cellStyle = options.cellStyle || 'tableCell';
+        const preserveEmptyCells = options.preserveEmptyCells === true;
         const widths = options.widths || headers.map(() => '*');
         const noWrapColumns = Array.isArray(options.noWrapColumns) ? options.noWrapColumns : [];
         const columnAlignments = Array.isArray(options.columnAlignments) ? options.columnAlignments : [];
@@ -21950,14 +23646,54 @@ renderRadar() {
         }));
 
         const bodyRows = (dataRows.length ? dataRows : [headers.map(() => '—')]).map((row, rowIdx) =>
-            row.map((cell, colIdx) => ({
-                text: this.sanitizePdfText(cell == null || cell === '' ? '—' : String(cell)),
-                style: cellStyle,
-                fontSize,
-                fillColor: rowIdx % 2 === 1 ? c.altRowBg : null,
-                noWrap: noWrapColumns.includes(colIdx),
-                alignment: columnAlignments[colIdx] || 'left'
-            }))
+            row.map((cell, colIdx) => {
+                const defaultFillColor = rowIdx % 2 === 1 ? c.altRowBg : null;
+                const defaults = {
+                    style: cellStyle,
+                    fontSize,
+                    fillColor: defaultFillColor,
+                    noWrap: noWrapColumns.includes(colIdx),
+                    alignment: columnAlignments[colIdx] || 'left'
+                };
+
+                if (cell && typeof cell === 'object' && !Array.isArray(cell)) {
+                    const structuredCell = { ...cell };
+                    const hasText = Object.prototype.hasOwnProperty.call(structuredCell, 'text');
+                    const normalizedText = hasText
+                        ? (structuredCell.text === ''
+                            ? ''
+                            : this.sanitizePdfText(structuredCell.text == null ? '—' : String(structuredCell.text)))
+                        : '—';
+
+                    return {
+                        ...defaults,
+                        ...structuredCell,
+                        text: normalizedText,
+                        fillColor: Object.prototype.hasOwnProperty.call(structuredCell, 'fillColor')
+                            ? structuredCell.fillColor
+                            : defaults.fillColor,
+                        noWrap: Object.prototype.hasOwnProperty.call(structuredCell, 'noWrap')
+                            ? structuredCell.noWrap
+                            : defaults.noWrap,
+                        alignment: Object.prototype.hasOwnProperty.call(structuredCell, 'alignment')
+                            ? structuredCell.alignment
+                            : defaults.alignment,
+                        fontSize: Object.prototype.hasOwnProperty.call(structuredCell, 'fontSize')
+                            ? structuredCell.fontSize
+                            : defaults.fontSize,
+                        style: Object.prototype.hasOwnProperty.call(structuredCell, 'style')
+                            ? structuredCell.style
+                            : defaults.style
+                    };
+                }
+
+                return {
+                    ...defaults,
+                    text: (cell === '' && preserveEmptyCells)
+                        ? ''
+                        : this.sanitizePdfText(cell == null || cell === '' ? '—' : String(cell))
+                };
+            })
         );
 
         return {
@@ -22262,6 +23998,10 @@ renderRadar() {
             finalLabel = 'Réutilisation';
             finalCode  = 'reutilisation';
         }
+        const _isStrongPdfLevel = (value) => {
+            const normalized = _normPdf(value);
+            return normalized === 'fort' || normalized === 'forte';
+        };
         // Forçage : altération Forte ignorée avec orientation forcée par révision
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
             const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
@@ -22275,6 +24015,25 @@ renderRadar() {
             } else if (_normPdf(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
                 finalLabel = 'Combustion'; finalCode = 'combustion';
             }
+        }
+
+        // Forçage combustion non ignorable : intégrité biologique ET mécanique faibles
+        if (
+            _normPdf(lot?.bio?.integriteBio?.niveau) === 'faible'
+            && _normPdf(lot?.mech?.integriteMech?.niveau) === 'faible'
+        ) {
+            finalLabel = 'Combustion';
+            finalCode = 'combustion';
+        }
+
+        // Règle durabilité conférée : sans critère combustion actif, orientation par défaut = Réutilisation
+        if (
+            _isStrongPdfLevel(lot?.denat?.durabiliteConfDenat?.niveau)
+            && !_isStrongPdfLevel(lot?.denat?.depollutionDenat?.niveau)
+            && finalCode !== 'combustion'
+        ) {
+            finalLabel = 'Réutilisation';
+            finalCode = 'reutilisation';
         }
 
         return { label: finalLabel, code: finalCode, percentage, average, scores };
@@ -22482,6 +24241,76 @@ renderRadar() {
         };
     }
 
+    applyRowSpanToMultipleMeasurementsRows(rows, mergeRules = null) {
+        if (!Array.isArray(rows) || !rows.length) return rows;
+
+        const rules = Array.isArray(mergeRules) && mergeRules.length
+            ? mergeRules
+            : [
+                { col: 0, anchors: [] },
+                { col: 1, anchors: [0] },
+                { col: 2, anchors: [0, 1] },
+                { col: 7, anchors: [0, 1, 2] },
+                { col: 8, anchors: [0, 1, 2] }
+            ];
+
+        const output = rows.map((row) => (Array.isArray(row) ? [...row] : []));
+
+        const cellValueAt = (row, colIdx) => {
+            if (!Array.isArray(row) || colIdx < 0 || colIdx >= row.length) return '';
+            const value = row[colIdx];
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                return String(value.text == null ? '' : value.text);
+            }
+            return String(value == null ? '' : value);
+        };
+
+        rules.forEach((rule) => {
+            const col = Number(rule && rule.col);
+            const anchors = Array.isArray(rule && rule.anchors) ? rule.anchors : [];
+            if (!Number.isInteger(col) || col < 0) return;
+
+            let start = 0;
+            while (start < rows.length) {
+                const baseRow = rows[start];
+                if (!Array.isArray(baseRow) || col >= baseRow.length) {
+                    start += 1;
+                    continue;
+                }
+
+                const baseValue = cellValueAt(baseRow, col);
+                let end = start + 1;
+
+                while (end < rows.length) {
+                    const candidateRow = rows[end];
+                    if (!Array.isArray(candidateRow) || col >= candidateRow.length) break;
+                    if (cellValueAt(candidateRow, col) !== baseValue) break;
+
+                    const anchorsMatch = anchors.every((anchorCol) => (
+                        cellValueAt(candidateRow, anchorCol) === cellValueAt(baseRow, anchorCol)
+                    ));
+                    if (!anchorsMatch) break;
+                    end += 1;
+                }
+
+                const span = end - start;
+                if (span > 1) {
+                    output[start][col] = {
+                        text: baseValue,
+                        rowSpan: span
+                    };
+                    for (let idx = start + 1; idx < end; idx += 1) {
+                        output[idx][col] = '';
+                    }
+                }
+
+                start = end;
+            }
+        });
+
+        return output;
+    }
+
     collectPdfMultipleMeasurementsRows(lotIndices = []) {
         const rows = [];
 
@@ -22586,6 +24415,7 @@ renderRadar() {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const rows = this.collectPdfMultipleMeasurementsRows(lotIndices);
+        const mergedRows = this.applyRowSpanToMultipleMeasurementsRows(rows);
 
         if (!rows.length) return [];
 
@@ -22608,14 +24438,1118 @@ renderRadar() {
                 margin: [0, 0, 0, 8]
             },
             this.pdfCard(tpdf('pdf.card.mmAnnex', 'Détail pièces et sections', 'Piece and section details'), [
-                this.pdfDataTable(headers, rows, {
+                this.pdfDataTable(headers, mergedRows, {
                     fontSize: f.tableCompact,
                     widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
                     noWrapColumns: [0, 1, 3, 4, 5, 6, 7, 8],
                     columnAlignments: ['left', 'left', 'left', 'left', 'left', 'right', 'right', 'right', 'left'],
+                    preserveEmptyCells: true,
                     padding: { left: 3.5, right: 3.5, top: 2.5, bottom: 2.5 }
                 })
             ])
+        ];
+    }
+
+    formatPdfCriteriaAnnexBodyText(value, fieldTitle = '') {
+        if (value == null) return '—';
+
+        // Chemin prioritaire: utiliser directement la structure modale pour éviter
+        // un re-parsing fragile (intro/echelle/info/references).
+        if (this.isStructuredModalContent(value)) {
+            const normalizeTitleToken = (text) => String(text || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+                .trim();
+
+            let intro = String(value.intro || '').replace(/\r\n?/g, '\n').trim();
+            const echelle = (Array.isArray(value.echelle) ? value.echelle : [])
+                .map((item) => {
+                    if (item == null) return '';
+                    if (typeof item === 'string') return item.trim();
+                    if (typeof item !== 'object') return '';
+                    return String(item.texte || item.text || item.description || '').trim();
+                })
+                .filter(Boolean);
+            const info = (Array.isArray(value.info) ? value.info : [])
+                .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+                .filter(Boolean);
+            const references = (Array.isArray(value.references) ? value.references : [])
+                .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+                .filter(Boolean)
+                .map((item) => item.replace(/^[-•*]\s*/, ''));
+
+            const introToken = normalizeTitleToken(intro);
+            const titleToken = normalizeTitleToken(fieldTitle);
+            if (introToken && titleToken && introToken === titleToken) {
+                intro = '';
+            }
+
+            const mainParts = [];
+            if (intro) mainParts.push(intro);
+            if (echelle.length) mainParts.push(echelle.join('\n'));
+            info.forEach((item) => mainParts.push(item));
+
+            const refsLines = references.map((item) => `• ${item}`);
+            let out = mainParts.join('\n\n').trim();
+            if (refsLines.length) {
+                out = [out, 'Références et ressources.', refsLines.join('\n')].filter(Boolean).join('\n\n');
+            }
+
+            return out || '—';
+        }
+
+        const normalizedValue = this.modalStructuredContentToText(value, { includeReferenceHeading: true });
+        const lines = String(normalizedValue)
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => line.trim())
+            ;
+
+        while (lines.length && !lines[0]) lines.shift();
+        while (lines.length && !lines[lines.length - 1]) lines.pop();
+
+        if (!lines.length) return '—';
+
+        const normalizeTitleToken = (text) => String(text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+            .trim();
+
+        const firstLine = lines[0] || '';
+        const firstToken = normalizeTitleToken(firstLine);
+        const titleToken = normalizeTitleToken(fieldTitle);
+        if (titleToken && firstToken === titleToken) {
+            lines.shift();
+        }
+
+        const compacted = [];
+        let prevWasEmpty = false;
+        lines.forEach((line) => {
+            if (!line) {
+                if (!prevWasEmpty) compacted.push('');
+                prevWasEmpty = true;
+            } else {
+                compacted.push(line);
+                prevWasEmpty = false;
+            }
+        });
+
+        // Aère les contenus de notation en séparant explicitement les niveaux Fort/Moyen/Faible.
+        const shouldBreakBefore = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+            if (/^(forte?|moyenne|faible)\s*$/i.test(l)) return true;
+            if (/^[-•]\s*(forte?|moyenne|faible)\b/i.test(l)) return true;
+            if (/^une\s+.+[«"]\s*(forte?|moyenne|faible)\s*[»"]/i.test(l)) return true;
+            return false;
+        };
+
+        const leveled = [];
+        compacted.forEach((line, index) => {
+            const needsBreak = shouldBreakBefore(line);
+            const prev = index > 0 ? compacted[index - 1] : '';
+            if (needsBreak && prev && leveled.length && leveled[leveled.length - 1] !== '') {
+                leveled.push('');
+            }
+            leveled.push(line);
+        });
+
+        return leveled.join('\n').trim() || '—';
+    }
+
+    splitPdfCriteriaAnnexReferences(bodyText) {
+        const text = String(bodyText || '').trim();
+        if (!text || text === '—') {
+            return { mainText: '—', referencesText: '' };
+        }
+
+        const markerRegex = /\b(r[eé]f[eé]rences\s+et\s+ressources|references\s+and\s+resources)\b\.?/i;
+        const match = markerRegex.exec(text);
+        if (match) {
+            const markerStart = match.index;
+            const mainText = text.slice(0, markerStart).trim();
+            const referencesText = text.slice(markerStart).trim();
+            return {
+                mainText: mainText || '—',
+                referencesText
+            };
+        }
+
+        // Fallback: détecter le début d'un bloc bibliographique même sans en-tête explicite.
+        const lines = text
+            .split('\n')
+            .map((line) => line.trim());
+        if (!lines.length) {
+            return { mainText: '—', referencesText: '' };
+        }
+
+        const startsReferenceLine = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+
+            // Signaux forts bibliographiques
+            if (/https?:\/\//i.test(l) || /doi\.org\//i.test(l) || /\bdoi\s*:/i.test(l)) return true;
+            if (/^(voir|see)\b\s*[:.-]?/i.test(l)) return true;
+            if (/^(r[eé]f[eé]rences?|bibliographie)\b\s*[:.-]?/i.test(l)) return true;
+            if (/^\*/.test(l)) return true;
+
+            // Références normatives fréquentes
+            if (/^(nf|en|iso|fd|din|astm|eurocode)\b/i.test(l)) return true;
+            if (/^[-•]\s*(nf|en|iso|fd|din|astm|eurocode)\b/i.test(l)) return true;
+
+            // Format auteur + année entre parenthèses (ex: Nom, X. (2024). ...)
+            if (/\(\d{4}\)/.test(l) && /[A-Za-zÀ-ÿ]/.test(l) && /[.,:]/.test(l)) return true;
+
+            return false;
+        };
+
+        let refStart = -1;
+        for (let i = 0; i < lines.length; i += 1) {
+            if (startsReferenceLine(lines[i])) {
+                refStart = i;
+                break;
+            }
+        }
+
+        if (refStart <= 0) {
+            return { mainText: text, referencesText: '' };
+        }
+
+        const mainText = lines.slice(0, refStart).join('\n').trim();
+        const referencesText = lines.slice(refStart).join('\n').trim();
+        return {
+            mainText: mainText || '—',
+            referencesText
+        };
+    }
+
+    normalizePdfCriteriaModalBlocks(value, fieldTitle = '') {
+        if (value == null) return null;
+
+        const source = this.isStructuredModalContent(value)
+            ? value
+            : this.parseLegacyModalContent(value);
+
+        if (!source || typeof source !== 'object') return null;
+
+        const normalizeTitleToken = (text) => String(text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+            .trim();
+
+        const normalizeLevel = (raw) => {
+            const token = String(raw || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            if (!token) return '';
+            if (token.startsWith('fort')) return 'fort';
+            if (token.startsWith('moy')) return 'moyen';
+            if (token.startsWith('faibl')) return 'faible';
+            return '';
+        };
+
+        const extractLevelFromSentence = (sentence) => {
+            const match = String(sentence || '').match(/(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?/i);
+            if (!match) return '';
+            return normalizeLevel(match[1]);
+        };
+
+        let intro = String(source.intro || '').replace(/\r\n?/g, '\n').trim();
+        const echelle = (Array.isArray(source.echelle) ? source.echelle : [])
+            .map((item) => {
+                if (item == null) return null;
+                if (typeof item === 'string') {
+                    const text = item.trim();
+                    if (!text) return null;
+                    return {
+                        text,
+                        level: extractLevelFromSentence(text)
+                    };
+                }
+                if (typeof item !== 'object') return null;
+                const text = String(item.texte || item.text || item.description || '').trim();
+                if (!text) return null;
+                const level = normalizeLevel(item.niveau || item.level || '') || extractLevelFromSentence(text);
+                return { text, level };
+            })
+            .filter(Boolean);
+
+        const info = (Array.isArray(source.info) ? source.info : [])
+            .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+            .filter(Boolean);
+
+        const references = (Array.isArray(source.references) ? source.references : [])
+            .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+            .filter(Boolean)
+            .map((item) => item.replace(/^[-•*]\s*/, ''));
+
+        const introToken = normalizeTitleToken(intro);
+        const titleToken = normalizeTitleToken(fieldTitle);
+        if (introToken && titleToken && introToken === titleToken) {
+            intro = '';
+        }
+
+        const hasContent = !!(intro || echelle.length || info.length || references.length);
+        return {
+            intro,
+            echelle,
+            info,
+            references,
+            hasContent
+        };
+    }
+
+    buildPdfCriteriaAnnexTextNodes(text, options = {}) {
+        const content = String(text || '').trim();
+        if (!content || content === '—') {
+            return [{
+                text: '—',
+                fontSize: options.fontSize,
+                lineHeight: options.lineHeight,
+                color: options.color,
+                italics: !!options.italics,
+                margin: [0, 0, 0, options.gap == null ? 0.8 : options.gap]
+            }];
+        }
+
+        const paragraphs = content
+            .split(/\n\s*\n/)
+            .map((p) => p.trim())
+            .filter(Boolean);
+
+        return paragraphs.map((paragraph, index) => ({
+            text: this.sanitizePdfText(paragraph),
+            fontSize: options.fontSize,
+            lineHeight: options.lineHeight,
+            color: options.color,
+            italics: !!options.italics,
+            margin: [0, 0, 0, index === paragraphs.length - 1 ? (options.lastGap == null ? 0.8 : options.lastGap) : (options.paragraphGap == null ? 0.5 : options.paragraphGap)]
+        }));
+    }
+
+    splitPdfCriteriaMainByModalStructure(mainText) {
+        const text = String(mainText || '').trim();
+        if (!text || text === '—') {
+            return { introText: '', levelItems: [], trailingText: '' };
+        }
+
+        const normalizeLevel = (raw) => {
+            const token = String(raw || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            if (token.startsWith('fort')) return 'fort';
+            if (token.startsWith('moy')) return 'moyen';
+            return 'faible';
+        };
+
+        // Même logique que les modales infos: on détecte des phrases de niveau complètes.
+        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
+        const levelItems = [];
+        const matches = [];
+        let match;
+        while ((match = scaleRegex.exec(text)) !== null) {
+            const sentence = String(match[0] || '').trim();
+            if (!sentence) continue;
+            const levelRaw = match[1];
+            levelItems.push({ level: normalizeLevel(levelRaw), text: sentence });
+            matches.push({ index: match.index, length: sentence.length });
+        }
+
+        const distinctLevels = Array.from(new Set(levelItems.map((item) => item.level)));
+        if (levelItems.length < 2 || distinctLevels.length < 2 || !matches.length) {
+            return {
+                introText: '',
+                levelItems: [],
+                trailingText: text
+            };
+        }
+
+        const firstMatch = matches[0];
+        const lastMatch = matches[matches.length - 1];
+        const introText = text.slice(0, firstMatch.index).trim();
+
+        let trailingText = text.slice(lastMatch.index + lastMatch.length).trim();
+        // Supprime les phrases de niveaux du trailing résiduel (si elles ne sont pas contiguës).
+        trailingText = trailingText.replace(scaleRegex, '').replace(/\n{3,}/g, '\n\n').trim();
+
+        return {
+            introText,
+            levelItems,
+            trailingText
+        };
+    }
+
+    buildPdfCriteriaLevelTable(levelItems, typo) {
+        if (!Array.isArray(levelItems) || !levelItems.length) return null;
+
+        const levelFontSize = Number.isFinite(typo?.levelTable) ? typo.levelTable : 7;
+        const descriptionFontSize = Number.isFinite(typo?.levelDescription) ? typo.levelDescription : 7;
+
+        const levelLabel = (level) => {
+            if (level === 'fort') return 'Fort';
+            if (level === 'moyen') return 'Moyen';
+            return 'Faible';
+        };
+
+        const levelFill = (level) => {
+            if (level === 'fort') return '#d1d5db';
+            if (level === 'moyen') return '#e5e7eb';
+            return '#f3f4f6';
+        };
+
+        const rows = levelItems.map((item) => ([
+            {
+                text: this.sanitizePdfText(levelLabel(item.level)),
+                fontSize: levelFontSize,
+                bold: true,
+                color: '#111827',
+                fillColor: levelFill(item.level),
+                alignment: 'center',
+                margin: [0, 1.5, 0, 1.5]
+            },
+            {
+                text: this.sanitizePdfText(item.text),
+                fontSize: descriptionFontSize,
+                lineHeight: typo.lineHeight,
+                color: '#1f2937',
+                margin: [0, 0.8, 0, 0.8]
+            }
+        ]));
+
+        return {
+            table: {
+                widths: [42, '*'],
+                body: rows
+            },
+            layout: {
+                hLineWidth: () => 0.4,
+                vLineWidth: () => 0,
+                hLineColor: () => '#d1d5db',
+                paddingLeft: (i) => (i === 0 ? 0 : 5),
+                paddingRight: () => 0,
+                paddingTop: () => 0,
+                paddingBottom: () => 0
+            },
+            margin: [0, 0.6, 0, 1.1]
+        };
+    }
+
+    buildPdfCriteriaAnnexContent(_lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const annexFontSizes = {
+            sectionTitle: 12,
+            criterionTitle: 10,
+            introInset: 7,
+            levelTable: 7,
+            levelDescription: 6,
+            bodyText: 7,
+            infoInset: 6,
+            references: 6
+        };
+        const criteriaBySection = this.getCriteriaModalContents();
+        const sectionKeys = ['bio', 'mech', 'usage', 'denat', 'debit', 'geo', 'essence', 'ancien', 'traces', 'provenance'];
+
+        const sectionBlocks = [];
+        sectionKeys.forEach((sectionKey, sectionIndex) => {
+            const section = criteriaBySection[sectionKey];
+            if (!section || !section.fieldTitles || !section.contents) return;
+
+            const fieldEntriesRaw = Object.entries(section.fieldTitles)
+                .map(([fieldKey, fieldTitle]) => {
+                    const rawContent = section.contents[fieldKey];
+                    const blocks = this.normalizePdfCriteriaModalBlocks(rawContent, fieldTitle);
+                    const bodyText = this.formatPdfCriteriaAnnexBodyText(rawContent, fieldTitle);
+                    return {
+                        fieldTitle,
+                        bodyText,
+                        blocks: blocks && blocks.hasContent ? blocks : null
+                    };
+                })
+                .filter((entry) => entry.bodyText && entry.bodyText !== '—');
+
+            const estimateCriteriaColumnWeight = (entry) => {
+                if (!entry) return 0;
+                const titleLen = String(entry.fieldTitle || '').length;
+                const baseWeight = 90 + (titleLen * 0.5);
+
+                if (entry.blocks && entry.blocks.hasContent) {
+                    const introLen = String(entry.blocks.intro || '').length;
+                    const echelleItems = Array.isArray(entry.blocks.echelle) ? entry.blocks.echelle : [];
+                    const infoItems = Array.isArray(entry.blocks.info) ? entry.blocks.info : [];
+                    const refItems = Array.isArray(entry.blocks.references) ? entry.blocks.references : [];
+
+                    const echelleTextLen = echelleItems.reduce((acc, item) => acc + String(item?.text || '').length, 0);
+                    const infoTextLen = infoItems.reduce((acc, item) => acc + String(item || '').length, 0);
+                    const refTextLen = refItems.reduce((acc, item) => acc + String(item || '').length, 0);
+
+                    return baseWeight
+                        + (introLen * 0.7)
+                        + (echelleItems.length * 220)
+                        + (echelleTextLen * 0.75)
+                        + (infoItems.length * 130)
+                        + (infoTextLen * 0.7)
+                        + (refItems.length * 180)
+                        + (refTextLen * 0.85);
+                }
+
+                return baseWeight + (String(entry.bodyText || '').length * 0.82);
+            };
+
+            const reorderEntriesByEstimatedHeight = (entries) => {
+                return [...entries].sort((a, b) => (
+                    estimateCriteriaColumnWeight(b) - estimateCriteriaColumnWeight(a)
+                ));
+            };
+
+            const fieldEntries = reorderEntriesByEstimatedHeight(fieldEntriesRaw);
+
+            if (!fieldEntries.length) return;
+
+            const sectionChars = fieldEntries.reduce((acc, entry) => acc + String(entry.bodyText || '').length, 0);
+            const densityTypo = sectionChars > 15000
+                ? { lineHeight: 1.02, gap: 0.5 }
+                : sectionChars > 10000
+                    ? { lineHeight: 1.04, gap: 0.7 }
+                    : sectionChars > 7000
+                        ? { lineHeight: 1.06, gap: 0.8 }
+                        : sectionChars > 4000
+                            ? { lineHeight: 1.08, gap: 1 }
+                            : { lineHeight: 1.1, gap: 1.2 };
+            const typo = {
+                ...densityTypo,
+                ...annexFontSizes
+            };
+
+            const splitEntryForColumns = (entry, { columnCapacity }) => {
+                const splitReferencesForColumnJump = (paragraphs) => {
+                    const items = (Array.isArray(paragraphs) ? paragraphs : [])
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean);
+                    if (items.length <= 1) return null;
+
+                    const totalChars = items.reduce((acc, p) => acc + p.length, 0);
+                    // On évite les découpes de références trop tôt: on ne coupe
+                    // que les ensembles réellement volumineux.
+                    const minCharsForSplit = 1700;
+                    if (totalChars <= minCharsForSplit) return null;
+
+                    const target = totalChars / 2;
+                    let running = 0;
+                    let bestIndex = -1;
+                    let bestDelta = Infinity;
+                    for (let i = 1; i < items.length; i += 1) {
+                        running += items[i - 1].length;
+                        const delta = Math.abs(running - target);
+                        if (delta < bestDelta) {
+                            bestDelta = delta;
+                            bestIndex = i;
+                        }
+                    }
+
+                    if (bestIndex <= 0 || bestIndex >= items.length) return null;
+                    return [items.slice(0, bestIndex), items.slice(bestIndex)];
+                };
+
+                const marker = 'Références et ressources';
+                const buildReferencesOnlyText = (paragraphs) => {
+                    const refs = (Array.isArray(paragraphs) ? paragraphs : [])
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean)
+                        .map((ref) => `• ${ref}`)
+                        .join('\n\n');
+                    if (!refs) return '';
+                    return `${marker}\n\n${refs}`;
+                };
+
+                if (entry.blocks && Array.isArray(entry.blocks.references) && entry.blocks.references.length > 1) {
+                    const refParagraphs = entry.blocks.references
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean);
+                    if (refParagraphs.length <= 1) return [entry];
+
+                    const referencesOnlyEntry = {
+                        fieldTitle: '',
+                        bodyText: buildReferencesOnlyText(refParagraphs),
+                        referencesOnly: true
+                    };
+                    const referencesWeight = estimateCriteriaColumnWeight(referencesOnlyEntry);
+                    const referencesExceedSingleColumn = referencesWeight > columnCapacity;
+
+                    // Politique stricte: on coupe d'abord avant les références.
+                    // La coupure intra-références n'est autorisée qu'en cas extrême
+                    // (bloc références plus haut qu'une colonne complète).
+                    if (!referencesExceedSingleColumn) {
+                        const firstBlocks = {
+                            ...entry.blocks,
+                            references: []
+                        };
+                        const first = {
+                            fieldTitle: entry.fieldTitle,
+                            blocks: firstBlocks,
+                            bodyText: this.formatPdfCriteriaAnnexBodyText(firstBlocks, entry.fieldTitle)
+                        };
+                        return [first, referencesOnlyEntry];
+                    }
+
+                    const splitChunks = splitReferencesForColumnJump(refParagraphs);
+                    if (!splitChunks) return [entry];
+                    const [firstChunk, secondChunk] = splitChunks;
+
+                    const firstBlocks = {
+                        ...entry.blocks,
+                        references: firstChunk
+                    };
+                    const first = {
+                        fieldTitle: entry.fieldTitle,
+                        blocks: firstBlocks,
+                        bodyText: this.formatPdfCriteriaAnnexBodyText(firstBlocks, entry.fieldTitle)
+                    };
+                    const continuation = [{
+                        fieldTitle: '',
+                        bodyText: buildReferencesOnlyText(secondChunk),
+                        referencesOnly: true
+                    }];
+                    return [first, ...continuation];
+                }
+
+                const bodyParts = this.splitPdfCriteriaAnnexReferences(entry.bodyText);
+                const refs = String(bodyParts.referencesText || '').trim();
+                if (!refs) return [entry];
+
+                const refParagraphs = refs
+                    .split(/\n\s*\n/)
+                    .map((p) => p.trim())
+                    .filter(Boolean);
+                if (refParagraphs.length <= 1) return [entry];
+
+                const referencesOnlyEntry = {
+                    fieldTitle: '',
+                    bodyText: buildReferencesOnlyText(refParagraphs),
+                    referencesOnly: true
+                };
+                const referencesWeight = estimateCriteriaColumnWeight(referencesOnlyEntry);
+                const referencesExceedSingleColumn = referencesWeight > columnCapacity;
+
+                if (!referencesExceedSingleColumn) {
+                    const first = {
+                        fieldTitle: entry.fieldTitle,
+                        bodyText: String(bodyParts.mainText || '').trim()
+                    };
+                    return [first, referencesOnlyEntry];
+                }
+
+                const splitChunks = splitReferencesForColumnJump(refParagraphs);
+                if (!splitChunks) return [entry];
+                const [firstChunk, secondChunk] = splitChunks;
+
+                const first = {
+                    fieldTitle: entry.fieldTitle,
+                    bodyText: [bodyParts.mainText, marker, firstChunk.join('\n\n')].filter(Boolean).join('\n\n')
+                };
+                const continuation = [{
+                    fieldTitle: '',
+                    bodyText: buildReferencesOnlyText(secondChunk),
+                    referencesOnly: true
+                }];
+                return [first, ...continuation];
+            };
+
+            const totalWeight = fieldEntries.reduce((acc, entry) => acc + estimateCriteriaColumnWeight(entry), 0);
+            const columnCapacity = totalWeight / 2;
+
+            const packableItems = fieldEntries.map((entry, index) => {
+                const splitUnits = splitEntryForColumns(entry, { columnCapacity });
+                const splitWeights = splitUnits.map((unit) => estimateCriteriaColumnWeight(unit));
+                return {
+                    id: index,
+                    entry,
+                    fullWeight: estimateCriteriaColumnWeight(entry),
+                    splitUnits,
+                    splitWeights,
+                    canSplit: splitUnits.length > 1
+                };
+            });
+
+            const columns = [[], []];
+            const columnWeights = [0, 0];
+            const remainingItems = [...packableItems];
+
+            const pushEntryToColumn = (entry, weight, columnIndex) => {
+                columns[columnIndex].push(entry);
+                columnWeights[columnIndex] += weight;
+            };
+
+            const removeRemainingItem = (itemId) => {
+                const itemIndex = remainingItems.findIndex((candidate) => candidate.id === itemId);
+                if (itemIndex >= 0) remainingItems.splice(itemIndex, 1);
+            };
+
+            const findBestFitIndex = (items, remainingCapacity) => {
+                let bestIdx = -1;
+                let bestDelta = Number.POSITIVE_INFINITY;
+                for (let i = 0; i < items.length; i += 1) {
+                    const delta = remainingCapacity - items[i].fullWeight;
+                    if (delta < 0) continue;
+                    if (delta < bestDelta) {
+                        bestDelta = delta;
+                        bestIdx = i;
+                    }
+                }
+                return bestIdx;
+            };
+
+            const tryPlaceSplitItem = (item, preferredColumn) => {
+                if (!item || !item.canSplit) return false;
+
+                const remainingPreferred = columnCapacity - columnWeights[preferredColumn];
+                const otherColumn = preferredColumn === 0 ? 1 : 0;
+                const remainingOther = columnCapacity - columnWeights[otherColumn];
+
+                // On n'autorise la coupure qu'en cas de dépassement de l'espace
+                // restant et/ou de la capacité cible de colonne.
+                const exceedsPreferredRemaining = item.fullWeight > remainingPreferred;
+                const exceedsOtherRemaining = item.fullWeight > remainingOther;
+                const exceedsInitialColumn = item.fullWeight > columnCapacity;
+                if (!(exceedsPreferredRemaining && (exceedsOtherRemaining || exceedsInitialColumn))) {
+                    return false;
+                }
+
+                const firstPart = item.splitUnits[0];
+                const firstPartWeight = item.splitWeights[0] || 0;
+                const continuationParts = item.splitUnits.slice(1);
+                const continuationWeight = item.splitWeights.slice(1).reduce((acc, w) => acc + w, 0);
+                const splitTotalWeight = firstPartWeight + continuationWeight;
+
+                // Les poids sont heuristiques: on garde une tolérance modérée
+                // pour éviter des déports visuellement inutiles entre colonnes.
+                const sameColumnOverflowTolerance = Math.max(140, columnCapacity * 0.07);
+                const keepTogetherInPreferred = splitTotalWeight <= (remainingPreferred + sameColumnOverflowTolerance);
+                const keepTogetherInOther = splitTotalWeight <= (remainingOther + sameColumnOverflowTolerance);
+
+                if (keepTogetherInPreferred || keepTogetherInOther) {
+                    const targetColumn = keepTogetherInPreferred ? preferredColumn : otherColumn;
+                    pushEntryToColumn(firstPart, firstPartWeight, targetColumn);
+                    continuationParts.forEach((part, idx) => {
+                        const partWeight = item.splitWeights[idx + 1] || 0;
+                        pushEntryToColumn(part, partWeight, targetColumn);
+                    });
+                    removeRemainingItem(item.id);
+                    return true;
+                }
+
+                const firstFitsPreferred = firstPartWeight <= remainingPreferred;
+                const firstFitsOther = firstPartWeight <= remainingOther;
+
+                let firstColumn = preferredColumn;
+                let continuationColumn = otherColumn;
+
+                if (!firstFitsPreferred && firstFitsOther) {
+                    firstColumn = otherColumn;
+                    continuationColumn = preferredColumn;
+                }
+
+                if (!firstFitsPreferred && !firstFitsOther) {
+                    // Cas extrême: la première partie est déjà plus haute que l'espace restant.
+                    // On la place dans la colonne la moins chargée pour limiter l'overflow visuel.
+                    firstColumn = columnWeights[0] <= columnWeights[1] ? 0 : 1;
+                    continuationColumn = firstColumn === 0 ? 1 : 0;
+                }
+
+                pushEntryToColumn(firstPart, firstPartWeight, firstColumn);
+
+                continuationParts.forEach((part, idx) => {
+                    const partWeight = item.splitWeights[idx + 1] || 0;
+                    pushEntryToColumn(part, partWeight, continuationColumn);
+                });
+
+                // Le second morceau reste avec le critère parent mais dans l'autre colonne,
+                // uniquement quand la coupure est strictement nécessaire.
+                if (continuationParts.length === 0 && continuationWeight > 0) {
+                    columnWeights[continuationColumn] += continuationWeight;
+                }
+
+                removeRemainingItem(item.id);
+                return true;
+            };
+
+            if (remainingItems.length) {
+                // Ancre: on place d'abord le critère le plus long à gauche.
+                const longestIdx = remainingItems.reduce((best, candidate, idx, arr) => {
+                    if (best < 0) return idx;
+                    return candidate.fullWeight > arr[best].fullWeight ? idx : best;
+                }, -1);
+                const longest = remainingItems[longestIdx];
+
+                if (!tryPlaceSplitItem(longest, 0)) {
+                    pushEntryToColumn(longest.entry, longest.fullWeight, 0);
+                    removeRemainingItem(longest.id);
+                }
+            }
+
+            let guard = 0;
+            while (remainingItems.length && guard < 1000) {
+                guard += 1;
+
+                const preferredColumn = (columnCapacity - columnWeights[0]) >= (columnCapacity - columnWeights[1]) ? 0 : 1;
+                const otherColumn = preferredColumn === 0 ? 1 : 0;
+
+                const preferredRemaining = columnCapacity - columnWeights[preferredColumn];
+                const otherRemaining = columnCapacity - columnWeights[otherColumn];
+
+                const fitIdxPreferred = findBestFitIndex(remainingItems, preferredRemaining);
+                if (fitIdxPreferred >= 0) {
+                    const picked = remainingItems[fitIdxPreferred];
+                    pushEntryToColumn(picked.entry, picked.fullWeight, preferredColumn);
+                    removeRemainingItem(picked.id);
+                    continue;
+                }
+
+                const fitIdxOther = findBestFitIndex(remainingItems, otherRemaining);
+                if (fitIdxOther >= 0) {
+                    const picked = remainingItems[fitIdxOther];
+                    pushEntryToColumn(picked.entry, picked.fullWeight, otherColumn);
+                    removeRemainingItem(picked.id);
+                    continue;
+                }
+
+                const splittable = remainingItems
+                    .filter((item) => item.canSplit)
+                    .sort((a, b) => b.fullWeight - a.fullWeight);
+
+                let didSplit = false;
+                for (let i = 0; i < splittable.length; i += 1) {
+                    if (tryPlaceSplitItem(splittable[i], preferredColumn)) {
+                        didSplit = true;
+                        break;
+                    }
+                }
+                if (didSplit) continue;
+
+                // Dernier recours: aucun item ne tient, aucun split pertinent.
+                // On place l'item le plus petit dans la colonne la moins chargée.
+                const smallestIdx = remainingItems.reduce((best, candidate, idx, arr) => {
+                    if (best < 0) return idx;
+                    return candidate.fullWeight < arr[best].fullWeight ? idx : best;
+                }, -1);
+                const fallback = remainingItems[smallestIdx];
+                const targetColumn = columnWeights[0] <= columnWeights[1] ? 0 : 1;
+                pushEntryToColumn(fallback.entry, fallback.fullWeight, targetColumn);
+                removeRemainingItem(fallback.id);
+            }
+
+            const leftEntries = columns[0];
+            const rightEntries = columns[1];
+
+            const buildColumnStack = (entries) => {
+                const pushInsetBox = (stack, text, {
+                    fontSize = 6,
+                    lineHeight = 1.04,
+                    color = '#111827',
+                    fillColor = '#f3f4f6',
+                    borderColor = '#d1d5db',
+                    italics = false,
+                    margin = [0, 0.8, 0, 2.4],
+                    paragraphGap = 1.1
+                } = {}) => {
+                    const content = String(text || '').trim();
+                    if (!content || content === '—') return;
+
+                    const paragraphs = content
+                        .split(/\n\s*\n/)
+                        .map((p) => p.trim())
+                        .filter(Boolean);
+                    if (!paragraphs.length) return;
+
+                    const paragraphNodes = paragraphs.map((paragraph, index) => ({
+                        text: this.sanitizePdfText(paragraph),
+                        fontSize,
+                        lineHeight,
+                        color,
+                        italics,
+                        margin: [0, 0, 0, index === paragraphs.length - 1 ? 0 : paragraphGap]
+                    }));
+
+                    stack.push({
+                        table: {
+                            widths: ['*'],
+                            body: [[{
+                                stack: paragraphNodes
+                            }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 0.4,
+                            vLineWidth: () => 0.4,
+                            hLineColor: () => borderColor,
+                            vLineColor: () => borderColor,
+                            fillColor: () => fillColor,
+                            paddingLeft: () => 4,
+                            paddingRight: () => 4,
+                            paddingTop: () => 3,
+                            paddingBottom: () => 3
+                        },
+                        margin
+                    });
+                };
+
+                const normalizeLevel = (raw) => {
+                    const token = String(raw || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '');
+                    if (token.startsWith('fort')) return 'fort';
+                    if (token.startsWith('moy')) return 'moyen';
+                    if (token.startsWith('faibl')) return 'faible';
+                    return '';
+                };
+
+                const extractLevelFromSentence = (sentence) => {
+                    const match = String(sentence || '').match(/(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?/i);
+                    if (!match) return '';
+                    return normalizeLevel(match[1]);
+                };
+
+                const stack = [];
+                entries.forEach((entry, idx) => {
+                    if (entry.referencesOnly) {
+                        pushInsetBox(stack, entry.bodyText, {
+                            fontSize: typo.references,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f3f4f6',
+                            borderColor: '#d1d5db',
+                            margin: [0, 0.8, 0, typo.gap + 2],
+                            paragraphGap: 1.1
+                        });
+                        return;
+                    }
+
+                    if (entry.blocks && entry.blocks.hasContent) {
+                        if (entry.fieldTitle) {
+                            stack.push({
+                                text: this.sanitizePdfText(entry.fieldTitle),
+                                fontSize: typo.criterionTitle,
+                                bold: true,
+                                color: '#4b5563',
+                                margin: [0, idx === 0 ? 0 : 10, 0, 2.4]
+                            });
+                        } else {
+                            stack.push({ text: '', margin: [0, 0, 0, 1] });
+                        }
+
+                        if (entry.blocks.intro) {
+                            stack.push({
+                                table: {
+                                    widths: ['*'],
+                                    body: [[{
+                                        text: this.sanitizePdfText(entry.blocks.intro),
+                                        fontSize: typo.introInset,
+                                        bold: true,
+                                        color: '#374151',
+                                        lineHeight: Math.max(1.04, typo.lineHeight - 0.01)
+                                    }]]
+                                },
+                                layout: {
+                                    hLineWidth: () => 0.4,
+                                    vLineWidth: () => 0.4,
+                                    hLineColor: () => '#cbd5e1',
+                                    vLineColor: () => '#cbd5e1',
+                                    fillColor: () => '#f3f4f6',
+                                    paddingLeft: () => 4,
+                                    paddingRight: () => 4,
+                                    paddingTop: () => 3,
+                                    paddingBottom: () => 3
+                                },
+                                margin: [0, 0.8, 0, 2.4]
+                            });
+                        }
+
+                        const levelItems = (entry.blocks.echelle || [])
+                            .map((item) => {
+                                const sentence = String(item?.text || '').trim();
+                                if (!sentence) return null;
+                                const level = normalizeLevel(item?.level) || extractLevelFromSentence(sentence);
+                                if (!level) return null;
+                                return { level, text: sentence };
+                            })
+                            .filter(Boolean);
+
+                        const distinctLevels = Array.from(new Set(levelItems.map((item) => item.level)));
+                        const canUseLevelTable = levelItems.length >= 2 && distinctLevels.length >= 2;
+                        if (canUseLevelTable) {
+                            const levelTable = this.buildPdfCriteriaLevelTable(levelItems, typo);
+                            if (levelTable) stack.push(levelTable);
+                        }
+
+                        const trailingParts = [];
+                        if (!canUseLevelTable && Array.isArray(entry.blocks.echelle) && entry.blocks.echelle.length) {
+                            trailingParts.push(entry.blocks.echelle.map((item) => String(item?.text || '').trim()).filter(Boolean).join('\n'));
+                        }
+                        const infoText = Array.isArray(entry.blocks.info) && entry.blocks.info.length
+                            ? entry.blocks.info.join('\n\n')
+                            : '';
+                        const trailingText = trailingParts.join('\n\n').trim();
+                        if (trailingText) {
+                            stack.push(...this.buildPdfCriteriaAnnexTextNodes(trailingText, {
+                                fontSize: typo.bodyText,
+                                lineHeight: typo.lineHeight,
+                                color: '#1f2937',
+                                paragraphGap: 1.4,
+                                lastGap: (infoText || (entry.blocks.references && entry.blocks.references.length)) ? 2.2 : (typo.gap + 2.6)
+                            }));
+                        }
+
+                        if (infoText) {
+                            pushInsetBox(stack, infoText, {
+                                fontSize: typo.infoInset,
+                                lineHeight: 1.04,
+                                color: '#111827',
+                                fillColor: '#f8fafc',
+                                borderColor: '#cbd5e1',
+                                margin: [0, 0.8, 0, (entry.blocks.references && entry.blocks.references.length) ? 2.2 : (typo.gap + 2)]
+                            });
+                        }
+
+                        if (entry.blocks.references && entry.blocks.references.length) {
+                            const referencesText = entry.blocks.references.map((ref) => `• ${ref}`).join('\n\n');
+                            pushInsetBox(stack, referencesText, {
+                                fontSize: typo.references,
+                                lineHeight: 1.04,
+                                color: '#111827',
+                                fillColor: '#f3f4f6',
+                                borderColor: '#d1d5db',
+                                margin: [0, 0.8, 0, typo.gap + 2],
+                                paragraphGap: 1.1
+                            });
+                        }
+
+                        return;
+                    }
+
+                    const bodyParts = this.splitPdfCriteriaAnnexReferences(entry.bodyText);
+                    const structuredMain = this.splitPdfCriteriaMainByModalStructure(bodyParts.mainText);
+                    if (entry.fieldTitle) {
+                        stack.push({
+                            text: this.sanitizePdfText(entry.fieldTitle),
+                            fontSize: typo.criterionTitle,
+                            bold: true,
+                            color: '#4b5563',
+                            margin: [0, idx === 0 ? 0 : 10, 0, 2.4]
+                        });
+                    } else {
+                        stack.push({ text: '', margin: [0, 0, 0, 1] });
+                    }
+
+                    if (structuredMain.introText) {
+                        stack.push({
+                            table: {
+                                widths: ['*'],
+                                body: [[{
+                                    text: this.sanitizePdfText(structuredMain.introText),
+                                    fontSize: typo.introInset,
+                                    bold: true,
+                                    color: '#374151',
+                                    lineHeight: Math.max(1.04, typo.lineHeight - 0.01)
+                                }]]
+                            },
+                            layout: {
+                                hLineWidth: () => 0.4,
+                                vLineWidth: () => 0.4,
+                                hLineColor: () => '#cbd5e1',
+                                vLineColor: () => '#cbd5e1',
+                                fillColor: () => '#f3f4f6',
+                                paddingLeft: () => 4,
+                                paddingRight: () => 4,
+                                paddingTop: () => 3,
+                                paddingBottom: () => 3
+                            },
+                            margin: [0, 0.8, 0, 2.4]
+                        });
+                    }
+
+                    const levelTable = this.buildPdfCriteriaLevelTable(structuredMain.levelItems, typo);
+                    if (levelTable) stack.push(levelTable);
+
+                    const trailingText = structuredMain.trailingText || (!structuredMain.levelItems.length ? bodyParts.mainText : '');
+                    if (trailingText) {
+                        pushInsetBox(stack, trailingText, {
+                            fontSize: typo.bodyText,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f8fafc',
+                            borderColor: '#cbd5e1',
+                            margin: [0, 0.8, 0, bodyParts.referencesText ? 2.2 : (typo.gap + 2.6)]
+                        });
+                    }
+
+                    if (bodyParts.referencesText) {
+                        pushInsetBox(stack, bodyParts.referencesText, {
+                            fontSize: typo.references,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f3f4f6',
+                            borderColor: '#d1d5db',
+                            margin: [0, 0.8, 0, typo.gap + 2],
+                            paragraphGap: 1.1
+                        });
+                    }
+                });
+                return stack.length ? stack : [{ text: '' }];
+            };
+
+            const blockColumns = {
+                columns: [
+                    { width: '*', stack: buildColumnStack(leftEntries) },
+                    { width: '*', stack: buildColumnStack(rightEntries) }
+                ],
+                columnGap: 9
+            };
+
+            const sectionCard = this.pdfCard(null, [
+                {
+                    text: this.sanitizePdfText(section.sectionTitle),
+                    fontSize: typo.sectionTitle,
+                    bold: true,
+                    color: '#374151',
+                    margin: [0, 1, 0, 5]
+                },
+                blockColumns
+            ], {
+                margin: [0, 0, 0, 20],
+                padding: [8, 6, 8, 6],
+                unbreakable: false
+            });
+            if (sectionIndex > 0) sectionCard.pageBreak = 'before';
+            sectionBlocks.push(sectionCard);
+        });
+
+        if (!sectionBlocks.length) return [];
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.title.criteriaAnnex', 'Annexe — Référentiel des critères de notation', 'Annex — Scoring criteria reference')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            {
+                text: this.sanitizePdfText(tpdf(
+                    'pdf.criteriaAnnex.intro',
+                    'Contenu généré dynamiquement à partir des référentiels détaillés des modales de critères.',
+                    'Content generated dynamically from detailed criteria modal references.'
+                )),
+                fontSize: annexFontSizes.bodyText,
+                color: '#1f2937',
+                margin: [0, 0, 0, 4]
+            },
+            ...sectionBlocks
         ];
     }
 
@@ -23578,7 +26512,7 @@ renderRadar() {
                     withDash(getPieceValue(piece.diametre, allotissement.diametre)),
                     withDash(getPieceValue(piece.surfacePiecem2, piece.surfacePiece)),
                     withDash(getPieceValue(piece.volumePiecem3, piece.volumePiece)),
-                    withDash(getPieceValue(piece.prixUnite, allotissement.prixUnite)),
+                    withDash(((piece.prixMode || '') + '').toLowerCase() === 't' ? 't' : getPieceValue(piece.prixUnite, allotissement.prixUnite)),
                     withDash(getPieceValue(piece.prixMarche, allotissement.prixMarche)),
                     withDash(piece.prixPiece),
                     withDash(piece.prixPieceAjusteIntegrite),
@@ -23836,7 +26770,10 @@ renderRadar() {
             } },
 
             // --- ASPECT ÉCONOMIQUE ---
-            { label: 'Unité de tarification', getValue: (lot) => ((lot && lot.allotissement) || {}).prixUnite || '-' },
+            { label: 'Unité de tarification', getValue: (lot) => {
+                const allotissement = ((lot && lot.allotissement) || {});
+                return ((allotissement.prixMode || '') + '').toLowerCase() === 't' ? 't' : (allotissement.prixUnite || '-');
+            } },
             { label: 'Prix marché', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).prixMarche;
                 return (v != null && v !== '') ? parseFloat(v) : '-';
@@ -24239,6 +27176,12 @@ renderRadar() {
             if (mmAnnexContent.length) {
                 mergedContent.push({ text: '', pageBreak: 'before' });
                 mergedContent.push(...mmAnnexContent);
+            }
+
+            const criteriaAnnexContent = this.buildPdfCriteriaAnnexContent(validLotIndices);
+            if (criteriaAnnexContent.length) {
+                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push(...criteriaAnnexContent);
             }
 
             const mergedDocDef = {

@@ -1630,6 +1630,17 @@
                                 ...
                             </div>
                             <button class="denat-info-small-btn" type="button" data-info="durabiliteConfDenat" data-i18n="editor.common.info">info</button>
+                            <button class="lot-alert-btn lot-alert-btn--denat-durabilite"
+                                    type="button"
+                                    data-alert-durabilite-state="none"
+                                    data-denat-durabilite-alert-btn>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                                     stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3.05h16.94a2 2 0 0 0 1.71-3.05L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                    <line x1="12" y1="9" x2="12" y2="13"/>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"/>
+                                </svg>
+                            </button>
                             <div class="denat-slider-wrapper">
                                 <input type="range" min="1" max="3" step="1" value="2" class="denat-slider"
                                     data-slider="durabiliteConfDenat">
@@ -3390,6 +3401,34 @@
                             <div class="info-sheet-note">
                                 <strong>À retenir :</strong> le bouton ON/OFF du groupe Prix permet de basculer entre un prix unique au lot et une somme des prix renseignés dans le Détail du lot.
                             </div>
+
+                            <section class="info-sheet-section info-sheet-section--price-presets" id="prixPresetEditor">
+                                <h3>Catégories de prix détaillées</h3>
+                                <p>Les catégories de base sont non supprimables. Vous pouvez modifier leur valeur et leur unité.</p>
+                                <p>Si un champ de base est vide après édition, la valeur par défaut de l'application est restaurée automatiquement.</p>
+
+                                <div class="price-preset-editor__list" id="prixPresetEditorRows"></div>
+                                <p class="price-preset-editor__empty" id="prixPresetEditorEmpty"></p>
+
+                                <div class="price-preset-editor__create">
+                                    <h4>Nouvelle catégorie personnalisée</h4>
+                                    <div class="price-preset-editor__create-grid">
+                                        <input type="text" class="lot-input" id="prixPresetNewLabel" placeholder="Libellé catégorie">
+                                        <div class="lot-input-with-unit">
+                                            <input type="text" inputmode="decimal" class="lot-input" id="prixPresetNewValue" placeholder="0">
+                                            <span class="lot-input-unit">€</span>
+                                        </div>
+                                        <select class="lot-input" id="prixPresetNewUnit">
+                                            <option value="m3">m3</option>
+                                            <option value="t">t</option>
+                                            <option value="ml">ml</option>
+                                            <option value="m2">m2</option>
+                                        </select>
+                                        <button type="button" class="btn btn-primary" data-price-preset-action="add">Ajouter</button>
+                                    </div>
+                                    <p class="price-preset-editor__error" id="prixPresetAddError"></p>
+                                </div>
+                            </section>
                         </div>
                     </div>
                     <footer class="modal-footer">

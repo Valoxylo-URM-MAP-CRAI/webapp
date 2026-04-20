@@ -305,6 +305,10 @@
                 selectLotTags: 'Sélectionne au moins un lot pour exporter les étiquettes.',
                 pdfError: 'Une erreur est survenue pendant la génération du PDF.',
                 glbError: 'Erreur lors de la génération du fichier 3D.',
+                bioIntegriteTitle: 'Alerte Intégrité biologique',
+                bioIntegritePurgePossible: "Intégrité biologique faible détectée, mais l'intégrité mécanique est préservée. Une purge partielle peut permettre de récupérer les sections saines. Dans ce cas : créer un lot séparé pour les sections non dégradées (orientation Recyclage) et orienter les sections pourries vers la Combustion. En l'absence de purge documentée, maintenir ce lot en Recyclage jusqu'à décision de tri.",
+                denatDurabiliteTitle: 'Alerte Durabilité conférée',
+                denatDurabiliteMessage: "Durabilité conférée forte détectée sans dépollution documentée. Les filières de recyclage n'acceptent pas les bois traités aux produits dangereux (créosote, CCA, sels de cuivre) non retirés. Si une dépollution a été réalisée, passer le critère Dépollution à Forte pour débloquer l'orientation Recyclage.",
             },
             mesures: {
                 multiples: {
@@ -626,6 +630,10 @@
                 selectLotTags: 'Select at least one lot to export labels.',
                 pdfError: 'An error occurred while generating the PDF.',
                 glbError: 'Error generating 3D file.',
+                bioIntegriteTitle: 'Biological integrity alert',
+                bioIntegritePurgePossible: 'Low biological integrity detected, but mechanical integrity is preserved. Partial purging can recover sound sections. In this case: create a separate lot for non-degraded sections (Recycling orientation) and direct rotten sections to Combustion. If no purge is documented, keep this lot in Recycling until a sorting decision is made.',
+                denatDurabiliteTitle: 'Conferred durability alert',
+                denatDurabiliteMessage: 'Strong conferred durability detected without documented decontamination. Recycling channels do not accept wood treated with hazardous products (creosote, CCA, copper salts) when not removed. If decontamination has been performed, set Decontamination to Strong to unlock Recycling orientation.',
             },
             mesures: {
                 multiples: {
