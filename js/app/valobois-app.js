@@ -330,6 +330,7 @@ class ValoboisApp {
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
+        this.ensureClasseBoisDatalist();
         this.bindEvents();
         this.setupAnalysisLotSelectorInteractions();
         this.render();
@@ -417,6 +418,42 @@ class ValoboisApp {
             option.value = label;
             datalist.appendChild(option);
         });
+    }
+
+    getClasseBoisOptions() {
+        return [
+            'Bois A - DND non inerte - 15 01 03',
+            'Bois A - DND non inerte - 17 02 01',
+            'Bois BR1 - DND non inerte - 17 02 01',
+            'Bois BR2 - DND non inerte - 17 02 01',
+            'Bois C - DD - 17 02 04'
+        ];
+    }
+
+    ensureClasseBoisDatalist() {
+        let datalist = document.getElementById('liste-classes-bois');
+        if (!datalist) {
+            datalist = document.createElement('datalist');
+            datalist.id = 'liste-classes-bois';
+            document.body.appendChild(datalist);
+        }
+        if (datalist.children.length > 0) return;
+
+        this.getClasseBoisOptions().forEach((label) => {
+            const option = document.createElement('option');
+            option.value = label;
+            datalist.appendChild(option);
+        });
+    }
+
+    buildClasseBoisSelectOptions(selectedValue = '') {
+        const selected = (selectedValue || '').toString().trim();
+        const placeholder = `<option value=""${selected ? '' : ' selected'}>Classe du bois - type de déchet</option>`;
+        const optionsMarkup = this.getClasseBoisOptions().map((label) => {
+            const isSelected = label === selected;
+            return `<option value="${label}"${isSelected ? ' selected' : ''}>${label}</option>`;
+        }).join('');
+        return placeholder + optionsMarkup;
     }
 
     findEssenceByCommonName(value) {
@@ -601,6 +638,7 @@ class ValoboisApp {
             situation: '',
             typePiece: '',
             typeProduit: '',
+            classeBois: '',
             essenceNomCommun: '',
             essenceNomScientifique: '',
             essence: '',
@@ -637,6 +675,7 @@ class ValoboisApp {
         if (target.situation == null) target.situation = fallbackSituation;
         if (target.typePiece == null) target.typePiece = '';
         if (target.typeProduit == null) target.typeProduit = '';
+        if (target.classeBois == null) target.classeBois = '';
         if (target.essenceNomCommun == null) target.essenceNomCommun = '';
         if (target.essenceNomScientifique == null) target.essenceNomScientifique = '';
         if (target.essence == null) target.essence = '';
@@ -731,6 +770,7 @@ class ValoboisApp {
         defaultPiece.situation = '';
         defaultPiece.typePiece = '';
         defaultPiece.typeProduit = '';
+        defaultPiece.classeBois = '';
         defaultPiece.essenceNomCommun = '';
         defaultPiece.essenceNomScientifique = '';
         defaultPiece.essence = '';
@@ -766,6 +806,7 @@ class ValoboisApp {
         piece.situation = source.situation || '';
         piece.typePiece = source.typePiece || a.typePiece || '';
         piece.typeProduit = source.typeProduit || a.typeProduit || '';
+        piece.classeBois = source.classeBois || a.classeBois || '';
         piece.essenceNomCommun = source.essenceNomCommun || a.essenceNomCommun || '';
         piece.essenceNomScientifique = source.essenceNomScientifique || a.essenceNomScientifique || '';
         piece.essence = [piece.essenceNomCommun, piece.essenceNomScientifique].filter(Boolean).join(' - ');
@@ -849,6 +890,7 @@ class ValoboisApp {
             situation: source.situation || '',
             typePiece: source.typePiece || '',
             typeProduit: source.typeProduit || '',
+            classeBois: source.classeBois || '',
             essenceNomCommun: source.essenceNomCommun || '',
             essenceNomScientifique: source.essenceNomScientifique || '',
             essence: source.essence || '',
@@ -1077,6 +1119,7 @@ class ValoboisApp {
         if (allotissement.fractionCarbonee == null) allotissement.fractionCarbonee = 50;
         if (allotissement.bois == null) allotissement.bois = 100;
         if (allotissement.typeProduit == null) allotissement.typeProduit = '';
+        if (allotissement.classeBois == null) allotissement.classeBois = '';
         if (allotissement.diametre == null) allotissement.diametre = '';
         // Migration: hauteur → epaisseur
         if (allotissement.epaisseur == null) { allotissement.epaisseur = allotissement.hauteur != null ? allotissement.hauteur : ''; }
@@ -1090,6 +1133,7 @@ class ValoboisApp {
             if (piece.localisation == null) piece.localisation = '';
             if (piece.situation == null) piece.situation = '';
             if (piece.typeProduit == null) piece.typeProduit = '';
+            if (piece.classeBois == null) piece.classeBois = '';
             if (piece.masseVolumiqueMesuree == null) piece.masseVolumiqueMesuree = '';
             if (piece.massePieceMesuree == null) piece.massePieceMesuree = '';
             piece.prixMode = ((piece.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
@@ -1211,6 +1255,7 @@ class ValoboisApp {
                 quantite: '1',
                 typePiece: '',
                 typeProduit: '',
+                classeBois: '',
                 essenceNomCommun: '',
                 essenceNomScientifique: '',
                 essence: '',
@@ -1343,6 +1388,7 @@ class ValoboisApp {
             situation: '',
             typePiece: '',
             typeProduit: '',
+            classeBois: '',
             essenceNomCommun: '',
             essenceNomScientifique: '',
             essence: '',
@@ -7836,10 +7882,12 @@ class ValoboisApp {
 
         const typePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
         const typeProduitDisplay = this.getLotAggregatedTextValue(lot, 'typeProduit');
+        const classeBoisDisplay = this.getLotAggregatedTextValue(lot, 'classeBois');
         const essenceCommonDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
         const essenceScientificDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
         const isTypePieceMultiple = typePieceDisplay === 'Multiples';
         const isTypeProduitMultiple = typeProduitDisplay === 'Multiples';
+        const isClasseBoisMultiple = classeBoisDisplay === 'Multiples';
         const isEssenceMultiple = essenceCommonDisplay === 'Multiples' || essenceScientificDisplay === 'Multiples';
 
         const lotTypePieceInput = el('input[data-lot-input="typePiece"]');
@@ -7849,6 +7897,10 @@ class ValoboisApp {
         const lotTypeProduitInput = el('input[data-lot-input="typeProduit"]');
         if (lotTypeProduitInput) {
             lotTypeProduitInput.value = typeProduitDisplay;
+        }
+        const lotClasseBoisInput = el('input[data-lot-input="classeBois"]');
+        if (lotClasseBoisInput) {
+            lotClasseBoisInput.value = classeBoisDisplay;
         }
         const lotEssenceCommonInput = el('input[data-lot-input="essenceNomCommun"]');
         if (lotEssenceCommonInput) {
@@ -7864,6 +7916,7 @@ class ValoboisApp {
 
         const typeButton = el('[data-lot-details-btn="typePiece"]');
         const typeProduitButton = el('[data-lot-details-btn="typeProduit"]');
+        const classeBoisButton = el('[data-lot-details-btn="classeBois"]');
         const essenceButton = el('[data-lot-details-btn="essence"]');
         if (typeButton) {
             typeButton.hidden = !isTypePieceMultiple;
@@ -7874,6 +7927,11 @@ class ValoboisApp {
             typeProduitButton.hidden = !isTypeProduitMultiple;
             const typeProduitWrapper = typeProduitButton.closest('.lot-type-with-detail');
             if (typeProduitWrapper) typeProduitWrapper.classList.toggle('has-detail-btn', isTypeProduitMultiple);
+        }
+        if (classeBoisButton) {
+            classeBoisButton.hidden = !isClasseBoisMultiple;
+            const classeBoisWrapper = classeBoisButton.closest('.lot-type-with-detail');
+            if (classeBoisWrapper) classeBoisWrapper.classList.toggle('has-detail-btn', isClasseBoisMultiple);
         }
         if (essenceButton) {
             essenceButton.hidden = !isEssenceMultiple;
@@ -12905,7 +12963,7 @@ Une dépollution « faible » vaut pour des bois conservés à l’état brut, e
 Noter le degré de contamination des bois évalués.
 
 Une contamination « forte » vaut pour des pièces dont le ou les agents contaminants, biologique ou chimiques, ne peuvent pas être mécaniquement dissociés du bois sans en altérer profondément l'intégrité. Ce sont les bois dits de classe C*, défini comme des déchets dangereux (contenant : créosote, CCA, PCP...); des bois imprégnés dont l’agent de traitement est inconnu, retiré du marché, ou dont la teneur en certaines substances est supérieure aux cahiers des charges des entreprises de recyclage en panneaux** (impropre à cette orientation). Ce sont aussi les bois des bois pour lesquels une expansion forte des dégradations biologiques est constatée (termites et mérules en particulier, pourrissement étendu). La combustion dans les installations dédiées*** est à privilégier [-10].
-Une contamination « moyenne » vaut pour des bois imprégnés dont les agents employés sont encore présent sur le marché, dits de classes BR1, BR2, pour lesquels une dépollution forte est possible ou une dépollution moyenne nécessaire [+1].
+Une contamination « moyenne » vaut pour : Des bois imprégnés dont les agents employés sont encore présent sur le marché, dits de classes BR1 ou BR2. Des bois classe A nécessitant une dépollution moyenne. Certains bois de classe C pour lesquels une dépollution forte est possible [+1].
 Une contamination « faible » vaut pour des bois de classe A [+3].
 
 À noter : 
@@ -14278,6 +14336,9 @@ closeEvalOpModal() {
                     <div class="lot-field-block">
                         <input type="text" class="lot-input" value="${viewValue(defaultPiece.typeProduit || '')}" placeholder="Type de produit" data-default-piece-id="${defaultPieceId}" data-default-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
                     </div>
+                    <div class="lot-field-block">
+                        <input type="text" class="lot-input lot-input--classe-bois" value="${viewValue(defaultPiece.classeBois || '')}" placeholder="Classe du bois - type de déchet" data-default-piece-id="${defaultPieceId}" data-default-piece-input="classeBois" list="liste-classes-bois" autocomplete="off">
+                    </div>
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
@@ -14493,6 +14554,7 @@ closeEvalOpModal() {
 
         const pEffTypePiece = piece.typePiece || lot.allotissement.typePiece || '';
         const pEffTypeProduit = piece.typeProduit || lot.allotissement.typeProduit || '';
+        const pEffClasseBois = piece.classeBois || lot.allotissement.classeBois || '';
         const pEffEssenceCommun = piece.essenceNomCommun || lot.allotissement.essenceNomCommun || '';
         const pEffEssenceScientifique = piece.essenceNomScientifique || lot.allotissement.essenceNomScientifique || '';
         const pPriceUnit = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
@@ -14576,6 +14638,9 @@ closeEvalOpModal() {
                     </div>
                     <div class="lot-field-block">
                         <input type="text" class="lot-input" value="${pEffTypeProduit}" placeholder="Type de produit" data-piece-input="typeProduit" list="liste-types-produit" autocomplete="off">
+                    </div>
+                    <div class="lot-field-block">
+                        <input type="text" class="lot-input lot-input--classe-bois" value="${pEffClasseBois}" placeholder="Classe du bois - type de déchet" data-piece-input="classeBois" list="liste-classes-bois" autocomplete="off">
                     </div>
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${pEffEssenceCommun}" placeholder="Essence (nom commun)" data-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
@@ -14825,10 +14890,12 @@ closeEvalOpModal() {
         const lotDisplayName = (!lot.nom || lot.nom === 'Nouveau Lot') ? `Lot ${index + 1}` : lot.nom;
         const lotTypePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
         const lotTypeProduitDisplay = this.getLotAggregatedTextValue(lot, 'typeProduit');
+        const lotClasseBoisDisplay = this.getLotAggregatedTextValue(lot, 'classeBois');
         const lotEssenceCommonDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
         const lotEssenceScientificDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
         const showTypePieceDetailsBtn = lotTypePieceDisplay === 'Multiples';
         const showTypeProduitDetailsBtn = lotTypeProduitDisplay === 'Multiples';
+        const showClasseBoisDetailsBtn = lotClasseBoisDisplay === 'Multiples';
         const showEssenceDetailsBtn = lotEssenceCommonDisplay === 'Multiples' || lotEssenceScientificDisplay === 'Multiples';
         const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const priceUnitLabel = this.getPriceMarketUnitLabel(priceUnit, lot.allotissement.prixMode);
@@ -14975,6 +15042,21 @@ closeEvalOpModal() {
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="typeProduit"${showTypeProduitDetailsBtn ? '' : ' hidden'}>Détail des produits</button>
+                                </div>
+                            </div>
+                            <div class="lot-field-block">
+                                <label class="lot-field-label">Classe du bois</label>
+                                <div class="lot-type-with-detail${showClasseBoisDetailsBtn ? ' has-detail-btn' : ''}">
+                                    <div class="lot-essence-picker">
+                                        <input
+                                            type="text"
+                                            class="lot-input"
+                                            value="${lotClasseBoisDisplay}"
+                                            data-lot-input="classeBois"
+                                            list="liste-classes-bois"
+                                            autocomplete="off">
+                                    </div>
+                                    <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="classeBois"${showClasseBoisDetailsBtn ? '' : ' hidden'}>Détail des classes</button>
                                 </div>
                             </div>
                         </div>
@@ -16100,6 +16182,10 @@ closeEvalOpModal() {
                     this.openLotDetailValuesModal(lot, 'typeProduit', 'Détail des produits');
                     return;
                 }
+                if (field === 'classeBois') {
+                    this.openLotDetailValuesModal(lot, 'classeBois', 'Détail des classes de bois');
+                    return;
+                }
                 if (field === 'essence') {
                     this.openLotDetailValuesModal(lot, 'essence', 'Détail des essences');
                 }
@@ -16676,7 +16762,7 @@ closeEvalOpModal() {
                 });
             }
 
-            defaultPieceCard.querySelectorAll(`input[data-default-piece-id="${defaultPieceId}"][data-default-piece-input]`).forEach((input) => {
+            defaultPieceCard.querySelectorAll(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-input]`).forEach((input) => {
                 const updateDefaultPieceField = (e) => {
                     const field = e.target.dataset.defaultPieceInput;
                     if (!field) return;
@@ -17021,7 +17107,7 @@ closeEvalOpModal() {
             }
 
             // Branchement des inputs pièce
-            pieceCard.querySelectorAll('input[data-piece-input]').forEach(input => {
+            pieceCard.querySelectorAll('[data-piece-input]').forEach(input => {
                 const updatePieceField = (e) => {
                     const field = e.target.dataset.pieceInput;
                     if (!field) return;

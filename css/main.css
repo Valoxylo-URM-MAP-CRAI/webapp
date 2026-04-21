@@ -2607,6 +2607,56 @@ body.day-mode .lot-group--collapsible summary:hover {
         font-style: italic;
 }
 
+.lot-input--classe-bois {
+    font-size: calc(var(--font-size-sm) - 1px);
+}
+
+.lot-input--classe-bois-select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    background-image: none;
+    padding-left: var(--space-4);
+    padding-right: 22px;
+    text-align: left;
+}
+
+.lot-field-block--classe-bois-select,
+.lot-field-block--inline-price-select {
+    position: relative;
+}
+
+.lot-field-block--classe-bois-select::after,
+.lot-field-block--inline-price-select::after {
+    content: '\25BE';
+    position: absolute;
+    right: 8px;
+    bottom: 7px;
+    font-size: 12px;
+    line-height: 1;
+    color: var(--color-text);
+    pointer-events: none;
+}
+
+.lot-input--classe-bois-select:has(option[value=""]:checked) {
+    color: var(--color-text-secondary);
+    opacity: 0.5;
+    font-style: italic;
+}
+
+.lot-input--classe-bois-select:not(:has(option[value=""]:checked)) {
+    color: var(--color-text);
+    opacity: 1;
+    font-style: normal;
+}
+
+.piece-card--passive .lot-field-block--classe-bois-select::after,
+.piece-card--disabled .lot-field-block--classe-bois-select::after,
+[data-prix-group-disabled="true"] .lot-field-block--inline-price-select::after,
+[data-lot-prix-market-block][data-muted="true"] .lot-field-block--inline-price-select::after {
+    color: var(--color-gray-300);
+}
+
 .lot-input[readonly] {
     background-color: #F2EFE7;
     border-color: #DDD6C8;
@@ -3412,7 +3462,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-field-block--inline-price-select {
-    position: relative;
     margin-bottom: 0;
 }
 
@@ -3426,17 +3475,6 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-size: calc(var(--font-size-sm) - 2px);
 }
 
-.lot-field-block--inline-price-select::after {
-    content: '\25BE';
-    position: absolute;
-    right: 8px;
-    bottom: 7px;
-    font-size: 12px;
-    line-height: 1;
-    color: var(--color-text);
-    pointer-events: none;
-}
-
 .lot-price-orientation-select:has(option[value=""]:checked) {
     color: var(--color-text-secondary);
     font-style: italic;
@@ -3445,11 +3483,6 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-price-orientation-select option {
     color: var(--color-text);
     font-style: normal;
-}
-
-[data-prix-group-disabled="true"] .lot-field-block--inline-price-select::after,
-[data-lot-prix-market-block][data-muted="true"] .lot-field-block--inline-price-select::after {
-    color: var(--color-gray-300);
 }
 
 .lot-price-market-row .lot-prix-info-btn {
