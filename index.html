@@ -518,6 +518,57 @@
                                         </div>
                                     </div>
                                 </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.typeOperationLabel">Type d’opération</span>
+                                    <span class="accueil-meta-hint" data-i18n="editor.meta.typeOperationHint">Nature de l’opération au sens du diagnostic PEMD (CERFA 16287*01 §1)</span>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="typeOperation" data-meta-toggle-value="demolition"
+                                            aria-pressed="false" data-i18n="editor.meta.typeOperationDemolition">Démolition</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="typeOperation" data-meta-toggle-value="renovation"
+                                            aria-pressed="false" data-i18n="editor.meta.typeOperationRenovation">Rénovation significative</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="typeOperation" data-meta-toggle-value="les-deux"
+                                            aria-pressed="false" data-i18n="editor.meta.typeOperationBoth">Les deux</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputSurfaceDemolition" data-i18n="editor.meta.surfaceDemolition">Surface à démolir (m²)</label>
+                                    <input id="inputSurfaceDemolition" type="number" min="0" step="1"
+                                        class="accueil-input" data-meta-field="surfacePlancher_demolition"
+                                        data-i18n-placeholder="editor.meta.placeholderSquareMeter" placeholder="m²">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputSurfaceRenovation" data-i18n="editor.meta.surfaceRenovation">Surface à rénover (m²)</label>
+                                    <input id="inputSurfaceRenovation" type="number" min="0" step="1"
+                                        class="accueil-input" data-meta-field="surfacePlancher_renovation"
+                                        data-i18n-placeholder="editor.meta.placeholderSquareMeter" placeholder="m²">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputNbBatimentsDemolition" data-i18n="editor.meta.nbBuildingsDemolition">Nb bâtiments (démolition)</label>
+                                    <input id="inputNbBatimentsDemolition" type="number" min="0" step="1"
+                                        class="accueil-input" data-meta-field="nbBatiments_demolition"
+                                        data-i18n-placeholder="editor.meta.placeholderZero" placeholder="0">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputNbBatimentsRenovation" data-i18n="editor.meta.nbBuildingsRenovation">Nb bâtiments (rénovation)</label>
+                                    <input id="inputNbBatimentsRenovation" type="number" min="0" step="1"
+                                        class="accueil-input" data-meta-field="nbBatiments_renovation"
+                                        data-i18n-placeholder="editor.meta.placeholderZero" placeholder="0">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDateDebutChantier" data-i18n="editor.meta.startWorkDate">Date estimée début chantier</label>
+                                    <input id="inputDateDebutChantier" type="date" class="accueil-input"
+                                        data-meta-field="dateDebutChantier">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDateFinChantier" data-i18n="editor.meta.endWorkDate">Date estimée fin chantier</label>
+                                    <input id="inputDateFinChantier" type="date" class="accueil-input"
+                                        data-meta-field="dateFinChantier">
+                                </div>
                             </div>
                         </div>
                     </details>
@@ -571,6 +622,155 @@
                     </details>
                     <div class="accueil-collapsible-alert-action">
                         <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
+                </article>
+
+                <article class="accueil-panel">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="diagnostiqueur-pemd">
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryDiagnosticianPEMD">Diagnostiqueur PEMD</span>
+                        </summary>
+                        <div class="accueil-collapsible-body">
+                            <span class="accueil-meta-hint" data-i18n="editor.meta.diagPemdHint">Informations requises par le CERFA 16287*01 §3 pour le diagnostic Produits-Équipements-Matériaux-Déchets. Peut être le même intervenant que le diagnostiqueur bois ou un tiers.</span>
+                            <div class="accueil-meta">
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDNom" data-i18n="editor.meta.structureName">Structure /
+                                        Nom</label>
+                                    <input id="inputDiagPEMDNom" type="text" class="accueil-input"
+                                        data-meta-field="diagPEMDNom">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDContact" data-i18n="editor.meta.contact">Contact</label>
+                                    <input id="inputDiagPEMDContact" type="text" class="accueil-input"
+                                        data-meta-field="diagPEMDContact">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDMail" data-i18n="editor.meta.mail">Mail</label>
+                                    <input id="inputDiagPEMDMail" type="email" class="accueil-input"
+                                        data-meta-field="diagPEMDMail">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDTelephone" data-i18n="editor.meta.phone">Téléphone</label>
+                                    <input id="inputDiagPEMDTelephone" type="tel" class="accueil-input"
+                                        data-meta-field="diagPEMDTelephone">
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDAdresse" data-i18n="editor.meta.address">Adresse</label>
+                                    <textarea id="inputDiagPEMDAdresse" class="accueil-textarea" rows="2"
+                                        data-meta-field="diagPEMDAdresse"></textarea>
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDSiret" data-i18n="editor.meta.siretSiren">SIRET / SIREN</label>
+                                    <input id="inputDiagPEMDSiret" type="text" class="accueil-input"
+                                        data-meta-field="diagPEMDSiret" placeholder="000 000 000 00000">
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.diagInsuranceLabel">Assurance du diagnostiqueur</span>
+                                    <span class="accueil-meta-hint" data-i18n="editor.meta.diagInsuranceHint">CERFA §3 — garantie min. 300 000 € / sinistre et 500 000 € / an</span>
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDAssuranceCompagnie" data-i18n="editor.meta.insuranceCompany">Compagnie d'assurance</label>
+                                    <input id="inputDiagPEMDAssuranceCompagnie" type="text" class="accueil-input"
+                                        data-meta-field="diagPEMDAssuranceCompagnie">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDAssurancePolice" data-i18n="editor.meta.insurancePolicy">N° de police</label>
+                                    <input id="inputDiagPEMDAssurancePolice" type="text" class="accueil-input"
+                                        data-meta-field="diagPEMDAssurancePolice">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDAssuranceDebut" data-i18n="editor.meta.validFrom">Validité — du</label>
+                                    <input id="inputDiagPEMDAssuranceDebut" type="date" class="accueil-input"
+                                        data-meta-field="diagPEMDAssuranceDebut">
+                                </div>
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDiagPEMDAssuranceFin" data-i18n="editor.meta.validTo">au</label>
+                                    <input id="inputDiagPEMDAssuranceFin" type="date" class="accueil-input"
+                                        data-meta-field="diagPEMDAssuranceFin">
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.skillsOnRequest">Compétences justifiables à la demande</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="diagPEMDCompetencesJustifiables"
+                                            data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="diagPEMDCompetencesJustifiables"
+                                            data-meta-toggle-value="Non" aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur-pemd" data-alert-diagnostiqueur-pemd="true" data-diagnostiqueur-pemd-alert-btn>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                        </button>
+                    </div>
+                    </div>
+                </article>
+
+                <article class="accueil-panel">
+                    <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
+                    <details class="accueil-collapsible accueil-collapsible--with-alert" data-ui-collapsible="diagnostic-pemd-visite">
+                        <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
+                            <span data-i18n="editor.meta.summaryPemdVisit">Visite PEMD</span>
+                        </summary>
+                        <div class="accueil-collapsible-body">
+                            <div class="accueil-meta">
+                                <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDateVisite" data-i18n="editor.meta.lastVisitDate">Date de dernière visite</label>
+                                    <input id="inputDateVisite" type="date" class="accueil-input"
+                                        data-meta-field="dateVisite">
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <label class="accueil-meta-label" for="inputPartiesVisitees" data-i18n="editor.meta.visitedParts">Parties visitées</label>
+                                    <textarea id="inputPartiesVisitees" class="accueil-textarea" rows="3"
+                                        data-meta-field="partiesVisitees"
+                                        data-i18n-placeholder="editor.meta.placeholderVisitedParts" placeholder="Bâtiments ou parties de bâtiments visités par le diagnostiqueur"></textarea>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <label class="accueil-meta-label" for="inputPartiesNonVisitees" data-i18n="editor.meta.unvisitedParts">Parties non visitées</label>
+                                    <textarea id="inputPartiesNonVisitees" class="accueil-textarea" rows="2"
+                                        data-meta-field="partiesNonVisitees"
+                                        data-i18n-placeholder="editor.meta.placeholderUnvisitedParts" placeholder="Zones non accessibles lors de la visite"></textarea>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <label class="accueil-meta-label" for="inputRaisonsNonVisite" data-i18n="editor.meta.unvisitedReasons">Raisons de non-visite</label>
+                                    <textarea id="inputRaisonsNonVisite" class="accueil-textarea" rows="2"
+                                        data-meta-field="raisonsNonVisite"></textarea>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.apparentDefects">Vices ou désordres apparents identifiés</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="vicesApparents"
+                                            data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="vicesApparents"
+                                            data-meta-toggle-value="Non" aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.precautionsLabel">Précautions de démolition/rénovation indiquées</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="precautionsDemolition"
+                                            data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="precautionsDemolition"
+                                            data-meta-toggle-value="Non" aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                    <div class="accueil-collapsible-alert-action">
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostic-pemd-visite" data-alert-diagnostic-pemd-visite="true" data-diagnostic-pemd-visite-alert-btn>
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -721,6 +921,58 @@
                                         data-i18n-placeholder="editor.meta.placeholderYear" placeholder="Ex. 1950, XIXe, années 1970" data-meta-field="periodeConstruction">
                                 </div>
                                 <div class="accueil-meta-row">
+                                    <label class="accueil-meta-label" for="inputDatePermis" data-i18n="editor.meta.buildingPermitDate">Date / année permis de construire</label>
+                                    <input id="inputDatePermis" type="text" class="accueil-input"
+                                        data-meta-field="datePermisConstruction"
+                                        data-i18n-placeholder="editor.meta.placeholderPermitDate" placeholder="Ex. 1972, MM/AAAA">
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.pastOperationsLabel">Opérations passées sur le bâtiment</span>
+                                    <span class="accueil-meta-hint" data-i18n="editor.meta.pastOperationsHint">Cochez les opérations dont le bâtiment a fait l'objet depuis sa construction (CERFA §1)</span>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.pastMajorRenovation">Rénovation importante</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueRenovationImportante" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueRenovationImportante" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueRenovationImportante" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.pastDecontamination">Décontamination (ex : désamiantage)</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueDecontamination" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueDecontamination" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueDecontamination" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.pastOtherIntervention">Autre intervention importante</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueAutreIntervention" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueAutreIntervention" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="historiqueAutreIntervention" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row">
                                     <label class="accueil-meta-label" for="inputPhaseIntervention" data-i18n="editor.meta.phase">Phase
                                         d’intervention</label>
                                     <input id="inputPhaseIntervention" type="text" class="accueil-input"
@@ -823,6 +1075,48 @@
                                             aria-pressed="false" data-i18n="editor.meta.no">Non</button>
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagnosticPlomb" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.diagTermites">Diagnostic termites</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="diagnosticTermites" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="diagnosticTermites" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="diagnosticTermites" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.documentDoe">DOE disponible</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentDOE" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentDOE" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentDOE" data-meta-toggle-value="Inconnu"
+                                            aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
+                                    <span class="accueil-meta-label" data-i18n="editor.meta.documentPlansToggle">Plans disponibles</span>
+                                    <div class="meta-toggle-group">
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentPlans" data-meta-toggle-value="Oui"
+                                            aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentPlans" data-meta-toggle-value="Non"
+                                            aria-pressed="false" data-i18n="editor.meta.no">Non</button>
+                                        <button type="button" class="lot-price-unit-btn meta-toggle-btn"
+                                            data-meta-toggle-field="documentPlans" data-meta-toggle-value="Inconnu"
                                             aria-pressed="false" data-i18n="editor.meta.unknown">Inconnu</button>
                                     </div>
                                 </div>
@@ -3409,6 +3703,19 @@
 
                                 <div class="price-preset-editor__list" id="prixPresetEditorRows"></div>
                                 <p class="price-preset-editor__empty" id="prixPresetEditorEmpty"></p>
+
+                                <div class="price-preset-editor__import" id="prixPresetImportZone">
+                                    <div class="price-preset-editor__import-row">
+                                        <button type="button" class="btn btn-secondary" id="btnImportCEEB">
+                                            ↑ Réactualiser les prix CEEB (JSON)
+                                        </button>
+                                        <input type="file" id="prixPresetImportFile" accept=".json" style="display:none" aria-hidden="true">
+                                        <span class="price-preset-editor__import-status" id="prixPresetImportStatus"></span>
+                                    </div>
+                                    <p class="price-preset-editor__import-hint">
+                                        Importe un fichier JSON au format CEEB/Valobois. Les catégories existantes à même identifiant seront mises à jour, les nouvelles seront ajoutées.
+                                    </p>
+                                </div>
 
                                 <div class="price-preset-editor__create">
                                     <h4>Nouvelle catégorie personnalisée</h4>

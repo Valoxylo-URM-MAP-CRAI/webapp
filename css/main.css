@@ -1217,6 +1217,11 @@ body.day-mode .accueil-collapsible-summary:hover {
             color: #6D4A26;
         }
 
+        .price-preset-row__badge--ceeb {
+            background: #E6F0E8;
+            color: #1E4D2B;
+        }
+
         .price-preset-row__grid {
             display: grid;
             grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) 92px 96px;
@@ -1255,6 +1260,41 @@ body.day-mode .accueil-collapsible-summary:hover {
             margin: 0;
             font-size: 12px;
             color: #6B6B6B;
+        }
+
+        .price-preset-editor__import {
+            margin-top: 2px;
+            padding-top: 10px;
+            border-top: 1px dashed #CDD3C6;
+            display: grid;
+            gap: 6px;
+        }
+
+        .price-preset-editor__import-row {
+            display: flex;
+            align-items: center;
+            gap: var(--space-8);
+            flex-wrap: wrap;
+        }
+
+        .price-preset-editor__import-status {
+            font-size: 12px;
+            min-height: 16px;
+        }
+
+        .price-preset-editor__import-status--ok {
+            color: #2E5E2E;
+        }
+
+        .price-preset-editor__import-status--error {
+            color: #A0341D;
+        }
+
+        .price-preset-editor__import-hint {
+            margin: 0;
+            font-size: 12px;
+            color: #6B6B6B;
+            max-width: 52ch;
         }
 
         .price-preset-editor__create {

@@ -297,6 +297,52 @@ const PRICE_CATEGORY_PRESET_BASE_DEFINITIONS = [
     { id: 'base-gratuite-rep-pmcb', label: 'Gratuité REP PMCB', defaultValue: '0', defaultUnit: '' }
 ];
 
+const CEEB_PRICE_PRESET_IMPORT_BASE = {
+    meta: {
+        source: 'CEEB',
+        document: 'CEEB_Site-web-_2025_T4_sciages-et-bois-energie',
+        period: '2025-T4',
+        extracted: '2026-04-21',
+        units_reminder: 'm3=mètre cube | t=tonne | ml=mètre linéaire | m2=mètre carré'
+    },
+    presets: [
+        { id: 'base-ceeb-equarri-qp1-15x15', label: 'Pièce équarrie QP1 – Charpente std – Section 15×15 cm', value: 800, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix QP1 – Légère flache sur deux arêtes max, cœur enfermé admis, tolérance d'aubier sain si < ½ largeur des faces. Section 15×15 cm – Longueur 4 à 5 m." },
+        { id: 'base-ceeb-equarri-qp1-25x25', label: 'Pièce équarrie QP1 – Charpente std – Section 25×25 cm', value: 823, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix QP1 – Légère flache sur deux arêtes max, cœur enfermé admis. Section 25×25 cm – Longueur 4 à 5 m.' },
+        { id: 'base-ceeb-sapin-ep-ch2-madrier', label: 'Sapin Épicéa – Madrier/Bastaing – Choix 2 (bois vert)', value: 268, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 75×225 ou 63×160 – Longueurs de 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-sapin-ep-ch2-chevron', label: 'Sapin Épicéa – Chevron – Choix 2 (bois vert)', value: 275, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 63×75 ou 50×75 – Longueurs de 3 à 4,50 m – Bois vert.' },
+        { id: 'base-ceeb-sapin-ep-ch2-liteau', label: 'Sapin Épicéa – Liteau – Choix 2 (bois vert)', value: 326, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Section 27×27 – Longueurs de 2 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-sapin-ep-ch3-planche', label: 'Sapin Épicéa – Planche de bord – Choix 3', value: 204, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix 3 – Planches de bord toutes largeurs, non coupées d'équerre, épaisseur 18/27 mm – Bois vert." },
+        { id: 'base-ceeb-sapin-ep-ch4-madrier', label: 'Sapin Épicéa – Madrier/Bastaing – Choix 4', value: 178, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 4 – Madriers, Bastaings – Bois vert.' },
+        { id: 'base-ceeb-sapin-ep-ch4-planche', label: 'Sapin Épicéa – Planche 27 mm – Choix 4', value: 174, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 4 – Planches toutes largeurs, épaisseur 27 mm – Bois vert.' },
+        { id: 'base-ceeb-sapin-ep-pv-grande-longueur', label: 'Sapin Épicéa – Plus-value grandes longueurs (5–8 m)', value: 12, unit: 'ml', source: 'CEEB', period: '2025-T4', note: 'Plus-value applicable aux sciages Sapin Épicéa de 5 à 8 m de longueur.' },
+        { id: 'base-ceeb-pin-mar-ch2-madrier', label: 'Pin Maritime – Madrier/Bastaing – Choix 2 (bois vert)', value: 313, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Madriers, Bastaings – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-pin-mar-ch3-planche', label: 'Pin Maritime – Planche 27 mm – Choix 3 (bois vert)', value: 238, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 3 – Planches épaisseur 27 mm, toutes largeurs – Longueurs 2 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-pin-mar-ch3-chevron', label: 'Pin Maritime – Chevron – Choix 3 (bois vert)', value: 229, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 3 – Chevrons – Bois vert.' },
+        { id: 'base-ceeb-pin-mar-ch4-planche', label: 'Pin Maritime – Planche 27 mm – Choix 4', value: 249, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 4 – Planche 27 mm – Bois vert.' },
+        { id: 'base-ceeb-pin-syl-ch2-madrier', label: 'Pin Sylvestre – Madrier/Bastaing – Choix 2 (bois vert)', value: 259, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 63×163 ou 175, 65×175 ou 180, 75×165, 80×230 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-pin-syl-ch2-chevron', label: 'Pin Sylvestre – Chevron – Choix 2 (bois vert)', value: 258, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 76×76, 80×80 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-pin-syl-ch2-ossature', label: 'Pin Sylvestre – Ossature/Lamelle – Choix 2', value: 275, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Ossature et lamelle – Hors séchage et rabotage – Longueurs 2 à 4 m.' },
+        { id: 'base-ceeb-pin-syl-ch3-planche', label: 'Pin Sylvestre – Planche 27 mm toutes larg. – Choix 3', value: 210, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix 3 – Planches épaisseur 27 mm, toutes largeurs – Longueurs jusqu'à 3 m." },
+        { id: 'base-ceeb-pin-syl-ch3-madrier', label: 'Pin Sylvestre – Madrier/Bastaing – Choix 3', value: 190, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix 3 – Madriers, Bastaings – Sections 65×165 ou 80×230 – Longueurs jusqu'à 3 m." },
+        { id: 'base-ceeb-hetre-fb1', label: 'Hêtre – Sciage – Choix FB1', value: 374, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix FB1 – Épaisseur 27/54 mm – Diamètre grume ≥ 40 cm – Longueur ≥ 3 m.' },
+        { id: 'base-ceeb-hetre-fb2', label: 'Hêtre – Sciage – Choix FB2', value: 210, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix FB2 – Épaisseur 27/54 mm – Diamètre grume ≥ 40 cm – Longueur ≥ 3 m.' },
+        { id: 'base-ceeb-peuplier-ch1', label: "Peuplier – Sciage – Choix 1 (sec à l'air)", value: 340, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix 1 – Qualité Choix et bon bois – Sec à l'air." },
+        { id: 'base-ceeb-peuplier-ch2', label: "Peuplier – Sciage – Choix 2 (sec à l'air)", value: 332, unit: 'm3', source: 'CEEB', period: '2025-T4', note: "Choix 2 – Qualité Sommier – Sec à l'air." },
+        { id: 'base-ceeb-peuplier-ch3', label: 'Peuplier – Sciage – Choix 3 (bois vert)', value: 255, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 3 – Qualité Emballage/Palette – Bois vert.' },
+        { id: 'base-ceeb-douglas-ch1-avive', label: 'Douglas – Avivé – Choix 1 (bois vert)', value: 408, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 1 – Avivés 42 ou 52×150 à 230 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-douglas-ch2-madrier-150-175', label: 'Douglas – Madrier/Bastaing 63×150-175 – Choix 2', value: 353, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 63×150 ou 63×175 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-douglas-ch2-madrier-200-225', label: 'Douglas – Madrier/Bastaing 63-75×200-225 – Choix 2', value: 356, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 63 ou 75×200 à 225 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-douglas-ch2-madrier-250-300', label: 'Douglas – Madrier/Bastaing 63-75×250-300 – Choix 2', value: 371, unit: 'm3', source: 'CEEB', period: '2025-T4', note: 'Choix 2 – Sections 63 ou 75×250 à 300 – Longueurs 3 à 5 m – Bois vert.' },
+        { id: 'base-ceeb-douglas-pv-grande-longueur', label: 'Douglas – Plus-value grandes longueurs (5–8 m)', value: 17, unit: 'ml', source: 'CEEB', period: '2025-T4', note: 'Plus-value applicable aux sciages Douglas de 5 à 8 m de longueur.' },
+        { id: 'base-ceeb-bois-energie-bord-route', label: 'Bois de bord de route non broyé', value: 47.6, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Tous bois vendus bord-route, non broyés – Hors bois bûches.' },
+        { id: 'base-ceeb-chutes-2t-broyees-a', label: 'Chutes 2ème transformation broyées – Catégorie A', value: 38, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Chutes diverses de 2ème transformation, bois vierge exempt de colles/vernis, vendues broyées – Compatible introduction directe en chaufferie.' },
+        { id: 'base-ceeb-chutes-2t-broyees-b', label: 'Chutes 2ème transformation broyées – Catégorie B', value: 60, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Chutes diverses de 2ème transformation, bois vierge exempt de colles/vernis, vendues broyées – Compatible introduction directe en chaufferie.' },
+        { id: 'base-ceeb-recyclage-classe-a-vrac', label: 'Recyclage Classe A – En vrac', value: 17.1, unit: 't', source: 'CEEB', period: '2025-T4', note: "Bois de recyclage vierges, en l'état ou grossièrement fractionnés pour le transport. À distinguer des broyats de recyclage." },
+        { id: 'base-ceeb-plaquettes-scierie', label: 'Plaquettes de scierie – Humidité 30–40%', value: 62.4, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Produites en scierie à partir de chutes de sciage issues de bois écorcés – Granulométrie moyenne – Humidité 30–40%.' },
+        { id: 'base-ceeb-broyats-emballage-ssd', label: 'Broyats emballage SSD – Classe A recyclage', value: 72.6, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Bois déferraillés et broyés, granulométrie moyenne et grossière, humidité < 25% – Ex. broyats de recyclage de classe A.' }
+    ]
+};
+
 class ValoboisApp {
     constructor() {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
@@ -648,6 +694,7 @@ class ValoboisApp {
             diametre: '',
             prixUnite: '',
             prixMode: '',
+            prixOrientationPresetId: '',
             prixMarche: '',
             masseVolumique: String(DEFAULT_MASSE_VOLUMIQUE),
             masseVolumiqueMesuree: '',
@@ -686,6 +733,7 @@ class ValoboisApp {
         if (target.diametre == null) target.diametre = '';
         if (target.prixUnite == null) target.prixUnite = '';
         if (target.prixMode == null) target.prixMode = '';
+        if (target.prixOrientationPresetId == null) target.prixOrientationPresetId = '';
         if (target.prixMarche == null) target.prixMarche = '';
         if (target.masseVolumique == null) target.masseVolumique = '';
         if (target.masseVolumiqueMesuree == null) target.masseVolumiqueMesuree = '';
@@ -816,6 +864,7 @@ class ValoboisApp {
         piece.diametre = source.diametre !== '' && source.diametre != null ? source.diametre : (a.diametre || '');
         piece.prixUnite = (source.prixUnite || a.prixUnite || 'm3').toLowerCase();
         piece.prixMode = ((source.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
+        piece.prixOrientationPresetId = ((source.prixOrientationPresetId || a.prixOrientationPresetId || '') + '').trim();
         piece.prixMarche = source.prixMarche !== '' && source.prixMarche != null ? source.prixMarche : (a.prixMarche || '');
         piece.masseVolumique = source.masseVolumique !== '' && source.masseVolumique != null
             ? source.masseVolumique
@@ -899,6 +948,7 @@ class ValoboisApp {
             epaisseur: source.epaisseur || '',
             diametre: source.diametre || '',
             prixUnite: source.prixUnite || '',
+            prixOrientationPresetId: source.prixOrientationPresetId || '',
             prixMarche: source.prixMarche || '',
             masseVolumique: source.masseVolumique || String(DEFAULT_MASSE_VOLUMIQUE),
             masseVolumiqueMesuree: source.masseVolumiqueMesuree || '',
@@ -1398,6 +1448,7 @@ class ValoboisApp {
             diametre: '',
             prixUnite: '',
             prixMode: '',
+            prixOrientationPresetId: '',
             prixMarche: '',
             surfacePiece: 0,
             volumePiece: 0,
@@ -1458,6 +1509,10 @@ class ValoboisApp {
             if (key === 'enrichi') return 'multiple';
             return 'single';
         };
+        const existingCustom = Array.isArray(existingUi?.priceCategoryPresets?.custom)
+            ? existingUi.priceCategoryPresets.custom.map((entry) => ({ ...(entry || {}) }))
+            : [];
+        const seedCustom = CEEB_PRICE_PRESET_IMPORT_BASE.presets.map((entry) => ({ ...entry }));
         return {
             // [ARCHIVE TECHNIQUE] Seuils historiques conservés pour compatibilité
             // des données locales et réutilisation future éventuelle.
@@ -1484,10 +1539,9 @@ class ValoboisApp {
             similarityStrategy: normalizeStrategy(existingUi?.similarityStrategy),
             similarityStrategyManuallySet: !!existingUi?.similarityStrategyManuallySet,
             priceCategoryPresets: {
+                meta: { ...(existingUi?.priceCategoryPresets?.meta || CEEB_PRICE_PRESET_IMPORT_BASE.meta) },
                 baseOverrides: { ...(existingUi?.priceCategoryPresets?.baseOverrides || {}) },
-                custom: Array.isArray(existingUi?.priceCategoryPresets?.custom)
-                    ? existingUi.priceCategoryPresets.custom.map((entry) => ({ ...(entry || {}) }))
-                    : []
+                custom: existingCustom.length > 0 ? existingCustom : seedCustom
             }
         };
     }
@@ -1521,12 +1575,33 @@ class ValoboisApp {
         return fallbackNormalized;
     }
 
+    normalizePricePresetOptionalText(valueRaw) {
+        if (valueRaw == null) return null;
+        return String(valueRaw).trim();
+    }
+
+    normalizePricePresetImportMeta(rawMeta) {
+        const source = this.normalizePricePresetOptionalText(rawMeta && rawMeta.source);
+        const document = this.normalizePricePresetOptionalText(rawMeta && rawMeta.document);
+        const period = this.normalizePricePresetOptionalText(rawMeta && rawMeta.period);
+        const extracted = this.normalizePricePresetOptionalText(rawMeta && rawMeta.extracted);
+        const unitsReminder = this.normalizePricePresetOptionalText(rawMeta && (rawMeta.units_reminder ?? rawMeta.unitsReminder));
+        return {
+            source,
+            document,
+            period,
+            extracted,
+            unitsReminder
+        };
+    }
+
     normalizePriceCategoryPresets(ui = this.data?.ui) {
         if (!ui || typeof ui !== 'object') return;
         const baseDefs = this.getPricePresetBaseDefinitions();
         const rawState = (ui.priceCategoryPresets && typeof ui.priceCategoryPresets === 'object')
             ? ui.priceCategoryPresets
             : {};
+        const normalizedMeta = this.normalizePricePresetImportMeta(rawState.meta || CEEB_PRICE_PRESET_IMPORT_BASE.meta);
         const rawOverrides = (rawState.baseOverrides && typeof rawState.baseOverrides === 'object')
             ? rawState.baseOverrides
             : {};
@@ -1550,24 +1625,34 @@ class ValoboisApp {
         });
 
         const rawCustom = Array.isArray(rawState.custom) ? rawState.custom : [];
+        const customSource = rawCustom.length > 0 ? rawCustom : CEEB_PRICE_PRESET_IMPORT_BASE.presets;
         const normalizedCustom = [];
 
-        rawCustom.forEach((entry, index) => {
+        customSource.forEach((entry, index) => {
             if (!entry || typeof entry !== 'object') return;
             const id = (entry.id == null ? '' : String(entry.id)).trim() || `preset-custom-${Date.now()}-${index}`;
+            const ceebCanonical = this.getCeeebBasePresetById(id);
+            const isCeeebPreset = id.startsWith('base-ceeb-') || (((entry.source || '') + '').toUpperCase() === 'CEEB');
             const label = (entry.label == null ? '' : String(entry.label)).trim();
             const value = this.normalizePricePresetValue(entry.value, '');
             const unit = this.normalizePricePresetUnit(entry.unit, 'm3');
+            const source = this.normalizePricePresetOptionalText(entry.source) || (isCeeebPreset ? 'CEEB' : null);
+            const period = this.normalizePricePresetOptionalText(entry.period) || (ceebCanonical ? this.normalizePricePresetOptionalText(ceebCanonical.period) : null);
+            const note = this.normalizePricePresetOptionalText(entry.note) || (ceebCanonical ? this.normalizePricePresetOptionalText(ceebCanonical.note) : null);
             if (!label && value === '') return;
             normalizedCustom.push({
                 id,
                 label,
                 value,
-                unit
+                unit,
+                source,
+                period,
+                note
             });
         });
 
         ui.priceCategoryPresets = {
+            meta: normalizedMeta,
             baseOverrides: normalizedOverrides,
             custom: normalizedCustom
         };
@@ -1607,6 +1692,9 @@ class ValoboisApp {
                 label: (entry.label || '') + '',
                 value: (entry.value || '') + '',
                 unit: this.normalizePricePresetUnit(entry.unit, 'm3'),
+                source: this.normalizePricePresetOptionalText(entry.source),
+                period: this.normalizePricePresetOptionalText(entry.period),
+                note: this.normalizePricePresetOptionalText(entry.note),
                 isBase: false
             }))
             : [];
@@ -1706,10 +1794,43 @@ class ValoboisApp {
     isPricePresetAllowedForLot(preset, lot) {
         if (!preset) return false;
         const family = this.getLotOrientationFamilyLabel(lot);
+        const familyKey = ((family || '') + '').toLowerCase();
+        const presetId = ((preset.id || '') + '').trim();
+
+        const ceebExcludedForReuseFamilies = new Set([
+            'base-ceeb-chutes-2t-broyees-a',
+            'base-ceeb-chutes-2t-broyees-b',
+            'base-ceeb-recyclage-classe-a-vrac',
+            'base-ceeb-plaquettes-scierie',
+            'base-ceeb-broyats-emballage-ssd'
+        ]);
+        const ceebAllowedForRecyclage = new Set([
+            'base-ceeb-chutes-2t-broyees-a',
+            'base-ceeb-chutes-2t-broyees-b',
+            'base-ceeb-recyclage-classe-a-vrac',
+            'base-ceeb-broyats-emballage-ssd'
+        ]);
+        const ceebAllowedForCombustion = new Set([
+            'base-ceeb-plaquettes-scierie'
+        ]);
+
+        const isCeeebPreset = presetId.startsWith('base-ceeb-') || (((preset.source || '') + '').toUpperCase() === 'CEEB');
+        if (isCeeebPreset) {
+            if (familyKey === 'réemploi' || familyKey === 'réutilisation') {
+                return !ceebExcludedForReuseFamilies.has(presetId);
+            }
+            if (familyKey === 'recyclage') {
+                return ceebAllowedForRecyclage.has(presetId);
+            }
+            if (familyKey === 'combustion') {
+                return ceebAllowedForCombustion.has(presetId);
+            }
+            return true;
+        }
+
         const allowedBaseIds = this.getAllowedBasePresetIdsForOrientationFamily(family);
         if (!allowedBaseIds) return true;
 
-        const presetId = ((preset.id || '') + '').trim();
         if (!presetId.startsWith('base-')) return true;
         return allowedBaseIds.has(presetId);
     }
@@ -1719,18 +1840,389 @@ class ValoboisApp {
         return presets.filter((preset) => this.isPricePresetAllowedForLot(preset, lot));
     }
 
-    renderPricePresetSelectOptions(selectEl, selectedPresetId = '', placeholder = "Prix à l'orientation", lot = null) {
+    normalizePricePresetRelevanceText(value) {
+        return ((value || '') + '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    extractPricePresetNumericHints(textRaw) {
+        const text = (textRaw || '') + '';
+        const normalizedText = this.normalizePricePresetRelevanceText(text);
+        const sectionPairsMm = [];
+        const thicknessMm = [];
+        const lengthRangesM = [];
+        const diameterMinsMm = [];
+
+        const toNum = (value) => {
+            const parsed = parseFloat(((value || '') + '').replace(',', '.'));
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const toMmFromContext = (value, contextText) => {
+            const num = toNum(value);
+            if (!Number.isFinite(num)) return null;
+            return /\bcm\b/i.test(contextText || '') ? num * 10 : num;
+        };
+
+        const pairRegex = /(\d+(?:[.,]\d+)?)\s*[x×]\s*(\d+(?:[.,]\d+)?)(?:\s*(mm|cm))?/gi;
+        let pairMatch;
+        while ((pairMatch = pairRegex.exec(text)) !== null) {
+            const pairContext = pairMatch[0] || '';
+            const a = toMmFromContext(pairMatch[1], pairContext);
+            const b = toMmFromContext(pairMatch[2], pairContext);
+            if (Number.isFinite(a) && Number.isFinite(b)) {
+                sectionPairsMm.push([Math.min(a, b), Math.max(a, b)]);
+            }
+        }
+
+        const thicknessRegex = /\b(?:epaisseur|epaisseurs?)\b[^\d]{0,12}(\d+(?:[.,]\d+)?)(?:\s*\/\s*(\d+(?:[.,]\d+)?))?\s*(mm|cm)/gi;
+        let thicknessMatch;
+        while ((thicknessMatch = thicknessRegex.exec(normalizedText)) !== null) {
+            const unit = (thicknessMatch[3] || '').toLowerCase();
+            const multiplier = unit === 'cm' ? 10 : 1;
+            const first = toNum(thicknessMatch[1]);
+            const second = toNum(thicknessMatch[2]);
+            if (Number.isFinite(first)) thicknessMm.push(first * multiplier);
+            if (Number.isFinite(second)) thicknessMm.push(second * multiplier);
+        }
+
+        const lengthRegex = /(\d+(?:[.,]\d+)?)\s*(?:a|-|–)\s*(\d+(?:[.,]\d+)?)\s*m\b/gi;
+        let lengthMatch;
+        while ((lengthMatch = lengthRegex.exec(text)) !== null) {
+            const min = toNum(lengthMatch[1]);
+            const max = toNum(lengthMatch[2]);
+            if (Number.isFinite(min) && Number.isFinite(max)) {
+                lengthRangesM.push([Math.min(min, max), Math.max(min, max)]);
+            }
+        }
+
+        const diameterRegex = /\b(?:diametre|diametre\s+grume|diametre\s+minimum)\b[^\d]{0,8}(\d+(?:[.,]\d+)?)\s*(mm|cm)/gi;
+        let diameterMatch;
+        while ((diameterMatch = diameterRegex.exec(normalizedText)) !== null) {
+            const value = toNum(diameterMatch[1]);
+            const unit = (diameterMatch[2] || '').toLowerCase();
+            if (!Number.isFinite(value)) continue;
+            diameterMinsMm.push(unit === 'cm' ? value * 10 : value);
+        }
+
+        return {
+            sectionPairsMm,
+            thicknessMm,
+            lengthRangesM,
+            minDiameterMm: diameterMinsMm.length ? Math.min(...diameterMinsMm) : null
+        };
+    }
+
+    buildContextFromPricingEntity(entity, lot) {
+        if (!entity || typeof entity !== 'object') return null;
+
+        const fallback = (value, fallbackValue = '') => {
+            const direct = ((value || '') + '').trim();
+            if (direct) return direct;
+            return ((fallbackValue || '') + '').trim();
+        };
+
+        const toMm = (value) => {
+            const parsed = parseFloat(this.normalizeAllotissementNumericInput(value));
+            return Number.isFinite(parsed) ? parsed : null;
+        };
+
+        const lotAllot = (lot && lot.allotissement) || {};
+        const typePiece = fallback(entity.typePiece, lotAllot.typePiece);
+        const typeProduit = fallback(entity.typeProduit, lotAllot.typeProduit);
+        const classeBois = fallback(entity.classeBois, lotAllot.classeBois);
+        const essenceCommun = fallback(entity.essenceNomCommun, lotAllot.essenceNomCommun);
+        const essenceScientifique = fallback(entity.essenceNomScientifique, lotAllot.essenceNomScientifique);
+        const longueurMm = toMm(entity.longueur);
+        const largeurMm = toMm(entity.largeur);
+        const epaisseurMm = toMm(entity.epaisseur);
+        const diametreMm = toMm(entity.diametre);
+
+        return {
+            orientationFamily: this.normalizePricePresetRelevanceText(this.getLotOrientationFamilyLabel(lot)),
+            typePiece,
+            typeProduit,
+            classeBois,
+            essenceCommun,
+            essenceScientifique,
+            longueurMm,
+            largeurMm,
+            epaisseurMm,
+            diametreMm
+        };
+    }
+
+    getCEEBSpeciesKeyFromText(textRaw) {
+        const text = this.normalizePricePresetRelevanceText(textRaw);
+        if (!text) return '';
+
+        const speciesMatchers = [
+            { key: 'sapin-epicea', tokens: ['sapin epicea', 'sapin', 'epicea', 'picea abies'] },
+            { key: 'pin-maritime', tokens: ['pin maritime', 'pin des landes', 'pinus pinaster'] },
+            { key: 'pin-sylvestre', tokens: ['pin sylvestre', 'pinus sylvestris'] },
+            { key: 'douglas', tokens: ['douglas', 'pseudotsuga menziesii'] },
+            { key: 'hetre', tokens: ['hetre', 'fagus sylvatica'] },
+            { key: 'peuplier', tokens: ['peuplier', 'populus'] }
+        ];
+
+        for (const matcher of speciesMatchers) {
+            if (matcher.tokens.some((token) => text.includes(token))) {
+                return matcher.key;
+            }
+        }
+
+        return '';
+    }
+
+    scoreCEEBPresetRelevance(preset, context) {
+        if (!preset || !context) return 0;
+        const isCeeebPreset = ((preset.id || '') + '').startsWith('base-ceeb-')
+            || (((preset.source || '') + '').toUpperCase() === 'CEEB');
+        if (!isCeeebPreset) return 0;
+
+        const label = (preset.label || '') + '';
+        const note = (preset.note || '') + '';
+        const haystack = this.normalizePricePresetRelevanceText(`${label} ${note} ${(preset.id || '') + ''}`);
+        const contextText = this.normalizePricePresetRelevanceText([
+            context.typePiece,
+            context.typeProduit,
+            context.classeBois,
+            context.essenceCommun,
+            context.essenceScientifique
+        ].join(' '));
+
+        let score = 0;
+
+        const keywords = [
+            { token: 'equarri', weight: 24 },
+            { token: 'madrier', weight: 20 },
+            { token: 'bastaing', weight: 18 },
+            { token: 'chevron', weight: 20 },
+            { token: 'planche', weight: 18 },
+            { token: 'liteau', weight: 18 },
+            { token: 'ossature', weight: 18 },
+            { token: 'lamelle', weight: 18 },
+            { token: 'avive', weight: 18 },
+            { token: 'charpente', weight: 14 },
+            { token: 'recyclage', weight: 16 },
+            { token: 'broyat', weight: 16 },
+            { token: 'plaquette', weight: 16 },
+            { token: 'chutes', weight: 14 },
+            { token: 'bois energie', weight: 16 }
+        ];
+
+        for (const keyword of keywords) {
+            if (contextText.includes(keyword.token) && haystack.includes(keyword.token)) {
+                score += keyword.weight;
+            }
+        }
+
+        const speciesTokens = [
+            context.essenceCommun,
+            context.essenceScientifique
+        ]
+            .map((value) => this.normalizePricePresetRelevanceText(value))
+            .filter(Boolean);
+        speciesTokens.forEach((token) => {
+            if (token.length >= 3 && haystack.includes(token)) {
+                score += 26;
+            }
+        });
+
+        const contextSpeciesKey = this.getCEEBSpeciesKeyFromText(`${context.essenceCommun || ''} ${context.essenceScientifique || ''}`);
+        const presetSpeciesKey = this.getCEEBSpeciesKeyFromText(`${label} ${note}`);
+        if (contextSpeciesKey) {
+            if (presetSpeciesKey && presetSpeciesKey === contextSpeciesKey) {
+                score += 56;
+            } else if (presetSpeciesKey && presetSpeciesKey !== contextSpeciesKey) {
+                score -= 56;
+            } else {
+                score += 8;
+            }
+        }
+
+        const numericHints = this.extractPricePresetNumericHints(`${label} ${note}`);
+
+        if (Number.isFinite(context.longueurMm) && numericHints.lengthRangesM.length) {
+            const lengthM = context.longueurMm / 1000;
+            numericHints.lengthRangesM.forEach(([min, max]) => {
+                if (lengthM >= min && lengthM <= max) {
+                    score += 18;
+                } else {
+                    const dist = Math.min(Math.abs(lengthM - min), Math.abs(lengthM - max));
+                    if (dist <= 0.6) score += 8;
+                }
+            });
+        }
+
+        if (Number.isFinite(context.largeurMm) && Number.isFinite(context.epaisseurMm) && numericHints.sectionPairsMm.length) {
+            const wanted = [Math.min(context.largeurMm, context.epaisseurMm), Math.max(context.largeurMm, context.epaisseurMm)];
+            numericHints.sectionPairsMm.forEach(([a, b]) => {
+                const ratioA = Math.abs(a - wanted[0]) / Math.max(wanted[0], 1);
+                const ratioB = Math.abs(b - wanted[1]) / Math.max(wanted[1], 1);
+                const meanRatio = (ratioA + ratioB) / 2;
+                if (meanRatio <= 0.1) score += 28;
+                else if (meanRatio <= 0.2) score += 18;
+                else if (meanRatio <= 0.3) score += 10;
+            });
+        }
+
+        if (Number.isFinite(context.epaisseurMm) && numericHints.thicknessMm.length) {
+            numericHints.thicknessMm.forEach((valueMm) => {
+                const ratio = Math.abs(valueMm - context.epaisseurMm) / Math.max(context.epaisseurMm, 1);
+                if (ratio <= 0.05) score += 14;
+                else if (ratio <= 0.15) score += 8;
+            });
+        }
+
+        if (Number.isFinite(context.diametreMm) && Number.isFinite(numericHints.minDiameterMm)) {
+            if (context.diametreMm >= numericHints.minDiameterMm) {
+                score += 18;
+            } else {
+                score -= 6;
+            }
+        }
+
+        const presetUnit = this.normalizePricePresetUnit(preset.unit, '');
+        if (presetUnit === 'ml' && Number.isFinite(context.longueurMm) && context.longueurMm >= 5000) {
+            score += 16;
+        }
+        if (presetUnit === 't' && context.orientationFamily === 'combustion') {
+            score += 18;
+        }
+
+        return Math.max(0, Math.round(score));
+    }
+
+    renderPricePresetSelectOptions(selectEl, selectedPresetId = '', placeholder = "Prix à l'orientation", lot = null, entity = null) {
         if (!selectEl) return;
         const selectedId = ((selectedPresetId || '') + '').trim();
         const presets = this.getFilteredPricePresetsForLot(lot);
-        const hasSelected = selectedId && presets.some((preset) => preset.id === selectedId);
+        const context = this.buildContextFromPricingEntity(entity, lot);
+        const shouldUseSmartSort = !!context;
+        const sortedPresets = shouldUseSmartSort
+            ? presets
+                .map((preset, index) => {
+                    const isCeeebPreset = ((preset.id || '') + '').startsWith('base-ceeb-')
+                        || (((preset.source || '') + '').toUpperCase() === 'CEEB');
+                    return {
+                        preset,
+                        index,
+                        isCeeebPreset,
+                        score: this.scoreCEEBPresetRelevance(preset, context)
+                    };
+                })
+                .sort((a, b) => {
+                    const groupA = a.preset.id && a.preset.id.startsWith('base-') && !a.isCeeebPreset ? 0 : a.isCeeebPreset ? 1 : 2;
+                    const groupB = b.preset.id && b.preset.id.startsWith('base-') && !b.isCeeebPreset ? 0 : b.isCeeebPreset ? 1 : 2;
+                    if (groupA !== groupB) return groupA - groupB;
+                    if (groupA === 1 && a.score !== b.score) return b.score - a.score;
+                    return a.index - b.index;
+                })
+                .map((entry) => ({
+                    ...entry.preset,
+                    _ceebRelevanceScore: entry.score,
+                    _isCeeebPreset: entry.isCeeebPreset
+                }))
+            : presets;
+        const hasSelected = selectedId && sortedPresets.some((preset) => preset.id === selectedId);
         const optionsHtml = [`<option value="">${this.escapeHtml(placeholder)}</option>`]
-            .concat(presets.map((preset) => {
+            .concat(sortedPresets.map((preset) => {
                 const isSelected = hasSelected && preset.id === selectedId ? ' selected' : '';
-                return `<option value="${this.escapeHtml(preset.id)}"${isSelected}>${this.escapeHtml(this.getPricePresetOptionLabel(preset))}</option>`;
+                const stars = (preset._isCeeebPreset && shouldUseSmartSort)
+                    ? (preset._ceebRelevanceScore >= 65 ? '★★ '
+                        : preset._ceebRelevanceScore >= 35 ? '★ '
+                            : '')
+                    : '';
+                return `<option value="${this.escapeHtml(preset.id)}"${isSelected}>${this.escapeHtml(stars + this.getPricePresetOptionLabel(preset))}</option>`;
             }))
             .join('');
         selectEl.innerHTML = optionsHtml;
+    }
+
+    isCEEBLengthPremiumPreset(preset) {
+        if (!preset) return false;
+        const isCeeebPreset = ((preset.id || '') + '').startsWith('base-ceeb-')
+            || (((preset.source || '') + '').toUpperCase() === 'CEEB');
+        if (!isCeeebPreset) return false;
+        const unit = this.normalizePricePresetUnit(preset.unit, '');
+        if (unit !== 'ml') return false;
+        const text = this.normalizePricePresetRelevanceText(`${preset.label || ''} ${preset.note || ''}`);
+        return text.includes('plus value') && text.includes('longueur');
+    }
+
+    getCEEBLengthPremiumBoundsMeters(preset) {
+        if (!preset) return null;
+        const hints = this.extractPricePresetNumericHints(`${preset.label || ''} ${preset.note || ''}`);
+        const firstRange = Array.isArray(hints.lengthRangesM) ? hints.lengthRangesM.find(([min, max]) => Number.isFinite(min) && Number.isFinite(max) && max > min) : null;
+        if (!firstRange) return null;
+        return {
+            baseLengthM: firstRange[0],
+            maxLengthM: firstRange[1]
+        };
+    }
+
+    getPriceFromUnitAndMetrics(unitRaw, metrics = {}) {
+        const unit = this.normalizePricePresetUnit(unitRaw, 'm3');
+        const volumeM3 = Number.isFinite(metrics.volumeM3) ? metrics.volumeM3 : 0;
+        const lineaireM = Number.isFinite(metrics.lineaireM) ? metrics.lineaireM : 0;
+        const surfaceM2 = Number.isFinite(metrics.surfaceM2) ? metrics.surfaceM2 : 0;
+        const massTonne = Number.isFinite(metrics.massTonne) ? metrics.massTonne : 0;
+        if (unit === 'ml') return lineaireM;
+        if (unit === 'm2') return surfaceM2;
+        if (unit === 't') return massTonne;
+        return volumeM3;
+    }
+
+    resolveBestCEEBBasePresetForEntity(lot, entity, premiumPreset = null) {
+        if (!lot || !entity) return null;
+        const presets = this.getFilteredPricePresetsForLot(lot)
+            .filter((preset) => {
+                const isCeeebPreset = ((preset.id || '') + '').startsWith('base-ceeb-')
+                    || (((preset.source || '') + '').toUpperCase() === 'CEEB');
+                if (!isCeeebPreset) return false;
+                if (this.isCEEBLengthPremiumPreset(preset)) return false;
+                const unit = this.normalizePricePresetUnit(preset.unit, '');
+                return unit === 'm3';
+            });
+        if (!presets.length) return null;
+
+        const premiumSpeciesKey = this.getCEEBSpeciesKeyFromText(`${premiumPreset?.label || ''} ${premiumPreset?.note || ''}`);
+        const candidatePool = premiumSpeciesKey
+            ? presets.filter((preset) => this.getCEEBSpeciesKeyFromText(`${preset.label || ''} ${preset.note || ''}`) === premiumSpeciesKey)
+            : presets;
+        const candidates = candidatePool.length ? candidatePool : presets;
+
+        const context = this.buildContextFromPricingEntity(entity, lot);
+        if (!context) return candidates[0] || null;
+
+        return candidates
+            .map((preset, index) => ({ preset, index, score: this.scoreCEEBPresetRelevance(preset, context) }))
+            .sort((a, b) => (b.score - a.score) || (a.index - b.index))[0]?.preset || null;
+    }
+
+    computeLengthPremiumAdjustedPrice({ lot, entity, selectedPreset, metrics, premiumRate }) {
+        if (!lot || !entity || !selectedPreset || !this.isCEEBLengthPremiumPreset(selectedPreset)) return null;
+
+        const bounds = this.getCEEBLengthPremiumBoundsMeters(selectedPreset);
+        const lineaireM = Number.isFinite(metrics.lineaireM) ? metrics.lineaireM : 0;
+        const baseLengthM = Number.isFinite(bounds?.baseLengthM) ? bounds.baseLengthM : 0;
+        const maxLengthM = Number.isFinite(bounds?.maxLengthM) ? bounds.maxLengthM : null;
+        const boundedLengthM = Number.isFinite(maxLengthM) ? Math.min(lineaireM, maxLengthM) : lineaireM;
+        const extraLineaireM = Math.max(0, boundedLengthM - baseLengthM);
+
+        const basePreset = this.resolveBestCEEBBasePresetForEntity(lot, entity, selectedPreset);
+        if (!basePreset) return null;
+
+        const baseRate = parseFloat(basePreset.value) || 0;
+        const baseMetric = this.getPriceFromUnitAndMetrics(basePreset.unit, metrics);
+        const basePrice = baseMetric * baseRate;
+
+        return basePrice + (extraLineaireM * premiumRate);
     }
 
     applyPricePresetToPricingEntity(entity, presetIdRaw) {
@@ -1738,8 +2230,16 @@ class ValoboisApp {
         const preset = this.getPricePresetById(presetIdRaw);
         if (!preset) return false;
 
-        entity.prixMarche = this.normalizeAllotissementNumericInput(preset.value);
         entity.prixOrientationPresetId = preset.id;
+
+        // Les presets CEEB de plus-value (€/ml grandes longueurs) sont additifs.
+        // On ne doit pas écraser le couple prix/unité affiché de l'entité.
+        if (this.isCEEBLengthPremiumPreset(preset)) {
+            entity.prixMode = '';
+            return true;
+        }
+
+        entity.prixMarche = this.normalizeAllotissementNumericInput(preset.value);
 
         const presetUnit = this.normalizePricePresetUnit(preset.unit, '');
         if (presetUnit === 't') {
@@ -1823,6 +2323,12 @@ class ValoboisApp {
         return `preset-custom-${Date.now().toString(36)}-${rand}`;
     }
 
+    getCeeebBasePresetById(presetIdRaw) {
+        const presetId = ((presetIdRaw || '') + '').trim();
+        if (!presetId) return null;
+        return CEEB_PRICE_PRESET_IMPORT_BASE.presets.find((entry) => entry && entry.id === presetId) || null;
+    }
+
     setBasePricePresetValue(baseId, rawValue) {
         const state = this.getPriceCategoryPresetsState();
         const baseDef = this.getPricePresetBaseDefinitions().find((entry) => entry.id === baseId);
@@ -1876,15 +2382,74 @@ class ValoboisApp {
         const label = ((payload.label || '') + '').trim();
         const value = this.normalizePricePresetValue(payload.value, '0');
         const unit = this.normalizePricePresetUnit(payload.unit, 'm3');
+        const source = this.normalizePricePresetOptionalText(payload.source);
+        const period = this.normalizePricePresetOptionalText(payload.period);
+        const note = this.normalizePricePresetOptionalText(payload.note);
         if (!label) return false;
         state.custom.push({
             id: this.generatePricePresetCustomId(),
             label,
             value,
-            unit
+            unit,
+            source,
+            period,
+            note
         });
         this.saveData();
         return true;
+    }
+
+    importCEEBPresets(jsonData) {
+        if (!jsonData || !Array.isArray(jsonData.presets)) {
+            return { imported: 0, skipped: 0, error: 'Format invalide' };
+        }
+
+        const state = this.getPriceCategoryPresetsState();
+        state.meta = this.normalizePricePresetImportMeta(jsonData.meta || state.meta || CEEB_PRICE_PRESET_IMPORT_BASE.meta);
+        let imported = 0;
+        let skipped = 0;
+
+        jsonData.presets.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') {
+                skipped += 1;
+                return;
+            }
+
+            const label = ((entry.label ?? '') + '').trim();
+            const value = this.normalizePricePresetValue(entry.value, '');
+            const unit = this.normalizePricePresetUnit(entry.unit, 'm3');
+            const id = ((entry.id ?? '') + '').trim();
+            const source = (((entry.source ?? '') + '').trim() || 'CEEB');
+            const period = this.normalizePricePresetOptionalText(entry.period);
+            const note = this.normalizePricePresetOptionalText(entry.note);
+
+            if (!label || value === '') {
+                skipped += 1;
+                return;
+            }
+
+            const customId = id || this.generatePricePresetCustomId();
+            const existingIndex = state.custom.findIndex((preset) => preset && preset.id === customId);
+            const nextPreset = {
+                id: customId,
+                label,
+                value,
+                unit,
+                source,
+                period,
+                note
+            };
+
+            if (existingIndex >= 0) {
+                state.custom[existingIndex] = nextPreset;
+            } else {
+                state.custom.push(nextPreset);
+            }
+            imported += 1;
+        });
+
+        this.saveData();
+        return { imported, skipped, error: null };
     }
 
     updateCustomPricePreset(customId, patch = {}) {
@@ -1914,13 +2479,37 @@ class ValoboisApp {
         this.saveData();
     }
 
+    resetCustomPricePresetToCeeeb(customId) {
+        const state = this.getPriceCategoryPresetsState();
+        const index = state.custom.findIndex((entry) => entry && entry.id === customId);
+        if (index < 0) return false;
+
+        const ceebPreset = this.getCeeebBasePresetById(customId);
+        if (!ceebPreset) return false;
+
+        state.custom[index] = {
+            id: (ceebPreset.id || '') + '',
+            label: ((ceebPreset.label || '') + '').trim(),
+            value: this.normalizePricePresetValue(ceebPreset.value, ''),
+            unit: this.normalizePricePresetUnit(ceebPreset.unit, 'm3'),
+            source: this.normalizePricePresetOptionalText(ceebPreset.source) || 'CEEB',
+            period: this.normalizePricePresetOptionalText(ceebPreset.period),
+            note: this.normalizePricePresetOptionalText(ceebPreset.note)
+        };
+        this.saveData();
+        return true;
+    }
+
     getDefaultMeta(existingMeta = {}) {
+        // Champs CERFA PEMD étendus et robustes, rétrocompatibilité assurée
         const legacyOperateur = (existingMeta.operateur || '').toString();
         return {
+            // Champs principaux
             operation: '',
             date: '',
             versionEtude: '',
             statutEtude: 'Pré-diagnostic',
+            // Contacts
             diagnostiqueurNom: '',
             diagnostiqueurContact: legacyOperateur,
             diagnostiqueurMail: '',
@@ -1941,20 +2530,84 @@ class ValoboisApp {
             entrepriseDeconstructionMail: '',
             entrepriseDeconstructionTelephone: '',
             entrepriseDeconstructionAdresse: '',
+            // Contexte technique
             typeBatiment: '',
             periodeConstruction: '',
+            datePermisConstruction: '',
             phaseIntervention: '',
             localisation: '',
             conditionnementType: '',
             protectionType: '',
-            diagnosticStructure: '',
-            diagnosticAmiante: '',
-            diagnosticPlomb: '',
-            commentaires: '',
-            ...existingMeta,
+            // Champs CERFA PEMD spécifiques
+            typeOperation: '',
+            surfacePlancher_demolition: '',
+            surfacePlancher_renovation: '',
+            nbBatiments_demolition: '',
+            nbBatiments_renovation: '',
+            dateDebutChantier: '',
+            dateFinChantier: '',
+            // Historique
+            historiqueRenovationImportante: existingMeta.historiqueRenovationImportante || 'Inconnu',
+            historiqueDecontamination: existingMeta.historiqueDecontamination || 'Inconnu',
+            historiqueAutreIntervention: existingMeta.historiqueAutreIntervention || 'Inconnu',
+            // Diagnostics
             diagnosticStructure: existingMeta.diagnosticStructure || 'Inconnu',
             diagnosticAmiante: existingMeta.diagnosticAmiante || 'Inconnu',
             diagnosticPlomb: existingMeta.diagnosticPlomb || 'Inconnu',
+            diagnosticTermites: existingMeta.diagnosticTermites || 'Inconnu',
+            // Documents
+            documentDOE: existingMeta.documentDOE || 'Inconnu',
+            documentPlans: existingMeta.documentPlans || 'Inconnu',
+            // Bloc Diagnostiqueur PEMD
+            diagPEMDNom: '',
+            diagPEMDContact: '',
+            diagPEMDMail: '',
+            diagPEMDTelephone: '',
+            diagPEMDAdresse: '',
+            diagPEMDSiret: '',
+            diagPEMDAssuranceCompagnie: '',
+            diagPEMDAssurancePolice: '',
+            diagPEMDAssuranceDebut: '',
+            diagPEMDAssuranceFin: '',
+            diagPEMDCompetencesJustifiables: '',
+            // Bloc Visite PEMD
+            dateVisite: '',
+            partiesVisitees: '',
+            partiesNonVisitees: '',
+            raisonsNonVisite: '',
+            vicesApparents: '',
+            precautionsDemolition: '',
+            // Divers
+            commentaires: '',
+            // Champs d’extension ou migration future
+            siretSiren: '',
+            insuranceCompany: '',
+            insurancePolicy: '',
+            validFrom: '',
+            validTo: '',
+            skillsOnRequest: '',
+            buildingPermitDate: '',
+            pastOperationsLabel: '',
+            pastOperationsHint: '',
+            pastMajorRenovation: '',
+            pastDecontamination: '',
+            pastOtherIntervention: '',
+            diagTermites: '',
+            documentDoe: '',
+            documentPlansToggle: '',
+            lastVisitDate: '',
+            visitedParts: '',
+            unvisitedParts: '',
+            unvisitedReasons: '',
+            apparentDefects: '',
+            precautionsLabel: '',
+            placeholderPermitDate: '',
+            placeholderSquareMeter: '',
+            placeholderZero: '',
+            placeholderVisitedParts: '',
+            placeholderUnvisitedParts: '',
+            // Fusion existant
+            ...existingMeta,
             diagnostiqueurContact: (existingMeta.diagnostiqueurContact || legacyOperateur || '').toString(),
             revision: Number.isFinite(Number(existingMeta.revision)) ? Number(existingMeta.revision) : 0,
         };
@@ -2351,7 +3004,18 @@ class ValoboisApp {
     hasIncompleteOperationReferenceFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const operationReferenceFields = ['operation', 'date', 'versionEtude', 'statutEtude'];
+        const operationReferenceFields = [
+            'operation',
+            'date',
+            'versionEtude',
+            'statutEtude',
+            'typeOperation',
+            'surfacePlancher_demolition',
+            'surfacePlancher_renovation',
+            'nbBatiments_demolition',
+            'nbBatiments_renovation',
+            'dateDebutChantier'
+        ];
         return operationReferenceFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
@@ -2386,10 +3050,51 @@ class ValoboisApp {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
         const contexteTechniqueFields = [
-            'typeBatiment', 'periodeConstruction', 'phaseIntervention',
-            'localisation', 'conditionnementType', 'protectionType'
+            'typeBatiment',
+            'periodeConstruction',
+            'datePermisConstruction',
+            'historiqueRenovationImportante',
+            'historiqueDecontamination',
+            'historiqueAutreIntervention',
+            'phaseIntervention',
+            'localisation',
+            'conditionnementType',
+            'protectionType'
         ];
         return contexteTechniqueFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
+    hasIncompleteDiagnostiqueurPemdFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const pemdFields = [
+            'diagPEMDNom',
+            'diagPEMDContact',
+            'diagPEMDMail',
+            'diagPEMDTelephone',
+            'diagPEMDAdresse',
+            'diagPEMDSiret',
+            'diagPEMDAssuranceCompagnie',
+            'diagPEMDAssurancePolice',
+            'diagPEMDAssuranceDebut',
+            'diagPEMDAssuranceFin',
+            'diagPEMDCompetencesJustifiables'
+        ];
+        return pemdFields.some((field) => !hasValue(sourceMeta[field]));
+    }
+
+    hasIncompleteDiagnosticPemdVisiteFields(meta = this.data && this.data.meta) {
+        const sourceMeta = this.getDefaultMeta(meta || {});
+        const hasValue = (value) => value != null && String(value).trim() !== '';
+        const visiteFields = [
+            'dateVisite',
+            'partiesVisitees',
+            'partiesNonVisitees',
+            'raisonsNonVisite',
+            'vicesApparents',
+            'precautionsDemolition'
+        ];
+        return visiteFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     formatPco2Display(valueKgRaw) {
@@ -8653,7 +9358,25 @@ class ValoboisApp {
                 lot.allotissement.volumeLot
             );
 
-        lot.allotissement.prixLot = pricingBase * pm;
+        const selectedLotPresetId = ((lot.allotissement.prixOrientationPresetId || '') + '').trim();
+        const selectedLotPreset = selectedLotPresetId ? this.getPricePresetById(selectedLotPresetId) : null;
+        const lotPremiumRate = selectedLotPreset ? (parseFloat(selectedLotPreset.value) || 0) : pm;
+        const lotPremiumPrice = (!isLotTonneMode && selectedLotPreset)
+            ? this.computeLengthPremiumAdjustedPrice({
+                lot,
+                entity: lot.allotissement,
+                selectedPreset: selectedLotPreset,
+                metrics: {
+                    lineaireM: lot.allotissement.lineaireLot,
+                    volumeM3: lot.allotissement.volumeLot,
+                    surfaceM2: lot.allotissement.surfaceLot,
+                    massTonne: (((parseFloat(lot.allotissement.masseVolumique) || 0) * lot.allotissement.volumeLot) / 1000)
+                },
+                premiumRate: lotPremiumRate
+            })
+            : null;
+
+        lot.allotissement.prixLot = Number.isFinite(lotPremiumPrice) ? lotPremiumPrice : (pricingBase * pm);
         lot.allotissement.prixLotAjusteIntegrite = lot.allotissement.prixLot * integrityFactor;
 
         // Calcul de la masse du lot (Masse volumique en kg/m3 × Volume du lot en m3)
@@ -8736,7 +9459,36 @@ class ValoboisApp {
                         dPriceUnit === 'm2' ? defaultSurfPerPiece :
                         defaultVolPerPiece
                     );
-                const defaultPrixPerPiece = defaultPricingBase * dPm;
+                const selectedDefaultPresetId = ((defaultPiece.prixOrientationPresetId || lot.allotissement.prixOrientationPresetId || '') + '').trim();
+                const selectedDefaultPreset = selectedDefaultPresetId ? this.getPricePresetById(selectedDefaultPresetId) : null;
+                const defaultPremiumRate = selectedDefaultPreset ? (parseFloat(selectedDefaultPreset.value) || 0) : dPm;
+                const defaultPricingEntityContext = {
+                    ...defaultPiece,
+                    longueur: dL,
+                    largeur: dl,
+                    epaisseur: de,
+                    diametre: dd,
+                    typePiece: defaultPiece.typePiece || lot.allotissement.typePiece || '',
+                    typeProduit: defaultPiece.typeProduit || lot.allotissement.typeProduit || '',
+                    classeBois: defaultPiece.classeBois || lot.allotissement.classeBois || '',
+                    essenceNomCommun: defaultPiece.essenceNomCommun || lot.allotissement.essenceNomCommun || '',
+                    essenceNomScientifique: defaultPiece.essenceNomScientifique || lot.allotissement.essenceNomScientifique || ''
+                };
+                const defaultPremiumPrice = (!dIsTonneMode && selectedDefaultPreset)
+                    ? this.computeLengthPremiumAdjustedPrice({
+                        lot,
+                        entity: defaultPricingEntityContext,
+                        selectedPreset: selectedDefaultPreset,
+                        metrics: {
+                            lineaireM: defaultLinPerPiece,
+                            volumeM3: defaultVolPerPiece,
+                            surfaceM2: defaultSurfPerPiece,
+                            massTonne: defaultMasseEffectivePerPieceKg / 1000
+                        },
+                        premiumRate: defaultPremiumRate
+                    })
+                    : null;
+                const defaultPrixPerPiece = Number.isFinite(defaultPremiumPrice) ? defaultPremiumPrice : (defaultPricingBase * dPm);
                 const defaultCO2PerPiece = dMoistureDenominator > 0
                     ? (44 / 12) * carbonFractionFixed * dRho * defaultVolPerPiece * (dSafeWood / 100) / dMoistureDenominator
                     : 0;
@@ -9484,7 +10236,24 @@ class ValoboisApp {
         const effectiveMassKg = this.getEffectiveMassKg(piece.massePieceMesuree, piece.massePiece);
         const tonnePricingBase = effectiveMassKg / 1000;
         const pricingBase = isTonneMode ? tonnePricingBase : geometryPricingBase;
-        piece.prixPiece = pricingBase * pm;
+        const selectedPiecePresetId = ((piece.prixOrientationPresetId || '') + '').trim();
+        const selectedPiecePreset = selectedPiecePresetId ? this.getPricePresetById(selectedPiecePresetId) : null;
+        const piecePremiumRate = selectedPiecePreset ? (parseFloat(selectedPiecePreset.value) || 0) : pm;
+        const piecePremiumPrice = (!isTonneMode && selectedPiecePreset)
+            ? this.computeLengthPremiumAdjustedPrice({
+                lot,
+                entity: piece,
+                selectedPreset: selectedPiecePreset,
+                metrics: {
+                    lineaireM: lineairePiece,
+                    volumeM3: piece.volumePiece,
+                    surfaceM2: piece.surfacePiece,
+                    massTonne: tonnePricingBase
+                },
+                premiumRate: piecePremiumRate
+            })
+            : null;
+        piece.prixPiece = Number.isFinite(piecePremiumPrice) ? piecePremiumPrice : (pricingBase * pm);
         piece.prixPieceAjusteIntegrite = piece.prixPiece * integrityFactor;
 
         const carbonFractionFixed = 0.5;
@@ -11643,19 +12412,34 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         rowsContainer.innerHTML = presets.map((preset) => {
             const valueDisplay = this.formatAllotissementNumericDisplay(preset.value);
+            let badgeLabel = 'Custom';
+            let badgeClass = 'price-preset-row__badge--custom';
+            if (!preset.isBase && ((preset.source || '') + '').toUpperCase() === 'CEEB') {
+                badgeLabel = preset.period ? `CEEB ${preset.period}` : 'CEEB';
+                badgeClass = 'price-preset-row__badge--ceeb';
+            }
             const baseBadge = preset.isBase
                 ? '<span class="price-preset-row__badge">Base</span>'
-                : '<span class="price-preset-row__badge price-preset-row__badge--custom">Custom</span>';
+                : `<span class="price-preset-row__badge ${badgeClass}">${this.escapeHtml(badgeLabel)}</span>`;
             const baseIsOverridden = !!(preset.isBase && (
                 String(preset.value || '') !== String(preset.defaultValue || '')
                 || String(preset.unit || '') !== String(preset.defaultUnit || '')
             ));
             const removeButton = preset.isBase
                 ? `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset" data-price-preset-kind="base" data-price-preset-id="${this.escapeHtml(preset.id)}"${baseIsOverridden ? '' : ' disabled aria-disabled="true"'} title="Rétablir les paramètres par défaut">Réinitialiser</button>`
-                : `<button type="button" class="price-preset-row__remove" data-price-preset-action="remove" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}">Supprimer</button>`;
+                : (() => {
+                    const isCeeebPreset = ((preset.source || '') + '').toUpperCase() === 'CEEB' && !!this.getCeeebBasePresetById(preset.id);
+                    if (isCeeebPreset) {
+                        return `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset-ceeb" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" title="Rétablir les paramètres CEEB">Réinitialiser</button>`;
+                    }
+                    return `<button type="button" class="price-preset-row__remove" data-price-preset-action="remove" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}">Supprimer</button>`;
+                })();
+            const noteTitle = (!preset.isBase && preset.note)
+                ? ` title="${this.escapeHtml(preset.note)}"`
+                : '';
             const labelCell = preset.isBase
                 ? `<div class="price-preset-row__label-static">${this.escapeHtml(preset.label)}</div>`
-                : `<input type="text" class="lot-input price-preset-row__input" value="${this.escapeHtml(preset.label)}" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" data-price-preset-field="label" placeholder="Catégorie">`;
+                : `<input type="text" class="lot-input price-preset-row__input" value="${this.escapeHtml(preset.label)}" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" data-price-preset-field="label" placeholder="Catégorie"${noteTitle}>`;
 
             return `
                 <div class="price-preset-row" data-price-preset-kind="${preset.isBase ? 'base' : 'custom'}" data-price-preset-id="${this.escapeHtml(preset.id)}">
@@ -11713,6 +12497,14 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 return;
             }
 
+            if (action === 'reset-ceeb' && actionBtn.dataset.pricePresetKind === 'custom') {
+                const customId = actionBtn.dataset.pricePresetId || '';
+                if (!customId) return;
+                this.resetCustomPricePresetToCeeeb(customId);
+                this.renderPrixPresetEditor();
+                return;
+            }
+
             if (action === 'add') {
                 const labelInput = document.getElementById('prixPresetNewLabel');
                 const valueInput = document.getElementById('prixPresetNewValue');
@@ -11764,6 +12556,47 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 this.renderPrixPresetEditor();
             }
         });
+
+        const btnImport = document.getElementById('btnImportCEEB');
+        const fileInput = document.getElementById('prixPresetImportFile');
+        const statusEl = document.getElementById('prixPresetImportStatus');
+
+        if (btnImport && fileInput instanceof HTMLInputElement) {
+            btnImport.addEventListener('click', () => fileInput.click());
+
+            fileInput.addEventListener('change', () => {
+                const file = fileInput.files && fileInput.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const raw = e && e.target ? e.target.result : '';
+                        const json = JSON.parse(typeof raw === 'string' ? raw : String(raw || ''));
+                        const result = this.importCEEBPresets(json);
+                        if (result.error) {
+                            if (statusEl) {
+                                statusEl.textContent = `Erreur : ${result.error}`;
+                                statusEl.className = 'price-preset-editor__import-status price-preset-editor__import-status--error';
+                            }
+                        } else {
+                            if (statusEl) {
+                                statusEl.textContent = `${result.imported} catégorie(s) importée(s)${result.skipped > 0 ? `, ${result.skipped} ignorée(s)` : ''}.`;
+                                statusEl.className = 'price-preset-editor__import-status price-preset-editor__import-status--ok';
+                            }
+                            this.renderPrixPresetEditor();
+                        }
+                    } catch (err) {
+                        if (statusEl) {
+                            statusEl.textContent = 'Fichier JSON invalide.';
+                            statusEl.className = 'price-preset-editor__import-status price-preset-editor__import-status--error';
+                        }
+                    }
+                    fileInput.value = '';
+                };
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
     }
 
     refreshTauxLogicModalStrategyContent(lot = null) {
@@ -14210,8 +15043,32 @@ closeEvalOpModal() {
             contexteTechniqueAlertBtn.dataset.alertContexteTechnique = this.hasIncompleteContexteTechniqueFields(meta) ? 'true' : 'false';
         }
 
-        // Sync boutons toggle diagnostics
-        ['diagnosticStructure', 'diagnosticAmiante', 'diagnosticPlomb'].forEach((field) => {
+        const diagnostiqueurPemdAlertBtn = document.querySelector('[data-diagnostiqueur-pemd-alert-btn]');
+        if (diagnostiqueurPemdAlertBtn) {
+            diagnostiqueurPemdAlertBtn.dataset.alertDiagnostiqueurPemd = this.hasIncompleteDiagnostiqueurPemdFields(meta) ? 'true' : 'false';
+        }
+
+        const diagnosticPemdVisiteAlertBtn = document.querySelector('[data-diagnostic-pemd-visite-alert-btn]');
+        if (diagnosticPemdVisiteAlertBtn) {
+            diagnosticPemdVisiteAlertBtn.dataset.alertDiagnosticPemdVisite = this.hasIncompleteDiagnosticPemdVisiteFields(meta) ? 'true' : 'false';
+        }
+
+        // Sync boutons toggle meta
+        [
+            'typeOperation',
+            'historiqueRenovationImportante',
+            'historiqueDecontamination',
+            'historiqueAutreIntervention',
+            'diagnosticStructure',
+            'diagnosticAmiante',
+            'diagnosticPlomb',
+            'diagnosticTermites',
+            'documentDOE',
+            'documentPlans',
+            'diagPEMDCompetencesJustifiables',
+            'vicesApparents',
+            'precautionsDemolition'
+        ].forEach((field) => {
             this.syncMetaToggleGroup(field);
         });
     }
@@ -15908,7 +16765,8 @@ closeEvalOpModal() {
                 lotPriceOrientationSelect,
                 lot.allotissement.prixOrientationPresetId || '',
                 this.getPriceOrientationPlaceholderLabel(lot),
-                lot
+                lot,
+                lot.allotissement
             );
             lotPriceOrientationSelect.addEventListener('change', (e) => {
                 e.stopPropagation();
@@ -15919,7 +16777,8 @@ closeEvalOpModal() {
                         lotPriceOrientationSelect,
                         '',
                         this.getPriceOrientationPlaceholderLabel(lot),
-                        lot
+                        lot,
+                        lot.allotissement
                     );
                     return;
                 }
@@ -16209,7 +17068,8 @@ closeEvalOpModal() {
                                 lotPriceOrientationSelect,
                                 '',
                                 this.getPriceOrientationPlaceholderLabel(lot),
-                                lot
+                                lot,
+                                lot.allotissement
                             );
                         }
                     }
@@ -16727,7 +17587,8 @@ closeEvalOpModal() {
                     defaultPriceOrientationSelect,
                     dp.prixOrientationPresetId || '',
                     this.getPriceOrientationPlaceholderLabel(lot),
-                    lot
+                    lot,
+                    dp
                 );
                 defaultPriceOrientationSelect.addEventListener('change', (e) => {
                     e.stopPropagation();
@@ -16739,7 +17600,8 @@ closeEvalOpModal() {
                             defaultPriceOrientationSelect,
                             '',
                             this.getPriceOrientationPlaceholderLabel(lot),
-                            lot
+                            lot,
+                            dp
                         );
                         return;
                     }
@@ -16768,6 +17630,15 @@ closeEvalOpModal() {
                     if (!field) return;
                     if (!this.isDetailLotCardActive(lot, cardKey) && field !== 'bois') return;
                     const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                    const contextRefreshFields = new Set([
+                        'essenceNomCommun',
+                        'essenceNomScientifique',
+                        'typePiece',
+                        'longueur',
+                        'largeur',
+                        'epaisseur',
+                        'diametre'
+                    ]);
                     const isDefaultDisabled = (Math.max(0, parseFloat(dp.quantite || 0) || 0) <= 0);
                     if (field !== 'quantite' && field !== 'bois' && isDefaultDisabled) return;
 
@@ -16788,7 +17659,8 @@ closeEvalOpModal() {
                                     defaultPriceOrientationSelect,
                                     '',
                                     this.getPriceOrientationPlaceholderLabel(lot),
-                                    lot
+                                    lot,
+                                    dp
                                 );
                             }
                         }
@@ -16872,6 +17744,19 @@ closeEvalOpModal() {
                     if (field === 'longueur') {
                         const widget = defaultPieceCard.querySelector(`.mesures-inline-widget[data-default-piece-id="${defaultPieceId}"]`);
                         if (widget) this._updateMesuresPositionLabels(widget, dp.longueur, dp);
+                    }
+
+                    if (contextRefreshFields.has(field)) {
+                        const defaultPriceOrientationSelect = defaultPieceCard.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-orientation]`);
+                        if (defaultPriceOrientationSelect) {
+                            this.renderPricePresetSelectOptions(
+                                defaultPriceOrientationSelect,
+                                dp.prixOrientationPresetId || '',
+                                this.getPriceOrientationPlaceholderLabel(lot),
+                                lot,
+                                dp
+                            );
+                        }
                     }
 
                     lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
@@ -17071,7 +17956,8 @@ closeEvalOpModal() {
                     piecePriceOrientationSelect,
                     piece.prixOrientationPresetId || '',
                     this.getPriceOrientationPlaceholderLabel(lot),
-                    lot
+                    lot,
+                    piece
                 );
                 piecePriceOrientationSelect.addEventListener('change', (e) => {
                     e.stopPropagation();
@@ -17083,7 +17969,8 @@ closeEvalOpModal() {
                             piecePriceOrientationSelect,
                             '',
                             this.getPriceOrientationPlaceholderLabel(lot),
-                            lot
+                            lot,
+                            piece
                         );
                         return;
                     }
@@ -17112,6 +17999,15 @@ closeEvalOpModal() {
                     const field = e.target.dataset.pieceInput;
                     if (!field) return;
                     if (!this.isDetailLotCardActive(lot, `piece:${pi}`) && field !== 'bois') return;
+                    const contextRefreshFields = new Set([
+                        'essenceNomCommun',
+                        'essenceNomScientifique',
+                        'typePiece',
+                        'longueur',
+                        'largeur',
+                        'epaisseur',
+                        'diametre'
+                    ]);
 
                     if (this.isAllotissementNumericField(field)) {
                         const normalized = this.normalizeAllotissementNumericInput(e.target.value);
@@ -17124,7 +18020,8 @@ closeEvalOpModal() {
                                     piecePriceOrientationSelect,
                                     '',
                                     this.getPriceOrientationPlaceholderLabel(lot),
-                                    lot
+                                    lot,
+                                    piece
                                 );
                             }
                         }
@@ -17224,6 +18121,19 @@ closeEvalOpModal() {
                     if (field === 'longueur') {
                         const widget = pieceCard.querySelector(`.mesures-inline-widget[data-piece-index="${pi}"]`);
                         if (widget) this._updateMesuresPositionLabels(widget, piece.longueur, piece);
+                    }
+
+                    if (contextRefreshFields.has(field)) {
+                        const piecePriceOrientationSelect = pieceCard.querySelector('select[data-piece-price-orientation]');
+                        if (piecePriceOrientationSelect) {
+                            this.renderPricePresetSelectOptions(
+                                piecePriceOrientationSelect,
+                                piece.prixOrientationPresetId || '',
+                                this.getPriceOrientationPlaceholderLabel(lot),
+                                lot,
+                                piece
+                            );
+                        }
                     }
 
                     updatePieceDisplays();
@@ -26457,6 +27367,13 @@ renderRadar() {
             'Opération',
             'Version de l\'étude',
             'Statut de l\'étude',
+            'Type d\'opération',
+            'Surface à démolir (m²)',
+            'Surface à rénover (m²)',
+            'Nb bâtiments (démolition)',
+            'Nb bâtiments (rénovation)',
+            'Date estimée début chantier',
+            'Date estimée fin chantier',
             'Révision',
             'Diagnostiqueur (Structure)',
             'Diagnostiqueur (Contact)',
@@ -26480,6 +27397,10 @@ renderRadar() {
             'Ent. curage/déconstruction (Adresse)',
             'Type de bâtiment',
             'Période de construction',
+            'Date / année permis de construire',
+            'Historique rénovation importante',
+            'Historique décontamination',
+            'Historique autre intervention',
             'Phase d\'intervention',
             'Localisation',
             'Conditionnement',
@@ -26487,6 +27408,26 @@ renderRadar() {
             'Diagnostic Structure',
             'Diagnostic Amiante',
             'Diagnostic Plomb',
+            'Diagnostic Termites',
+            'DOE disponible',
+            'Plans disponibles',
+            'Diagnostiqueur PEMD (Structure)',
+            'Diagnostiqueur PEMD (Contact)',
+            'Diagnostiqueur PEMD (Mail)',
+            'Diagnostiqueur PEMD (Tél)',
+            'Diagnostiqueur PEMD (Adresse)',
+            'Diagnostiqueur PEMD (SIRET/SIREN)',
+            'Assurance PEMD (Compagnie)',
+            'Assurance PEMD (Police)',
+            'Assurance PEMD (Du)',
+            'Assurance PEMD (Au)',
+            'PEMD compétences justifiables',
+            'Date visite PEMD',
+            'Parties visitées PEMD',
+            'Parties non visitées PEMD',
+            'Raisons non-visite PEMD',
+            'Vices apparents',
+            'Précautions démolition/rénovation',
             'Commentaires généraux',
             'Stratégie de similarité',
             'Profil géométrie MM',
@@ -26644,6 +27585,13 @@ renderRadar() {
                     withDash(meta.operation),
                     withDash(meta.versionEtude),
                     withDash(meta.statutEtude),
+                    withDash(meta.typeOperation),
+                    withDash(meta.surfacePlancher_demolition),
+                    withDash(meta.surfacePlancher_renovation),
+                    withDash(meta.nbBatiments_demolition),
+                    withDash(meta.nbBatiments_renovation),
+                    withDash(meta.dateDebutChantier),
+                    withDash(meta.dateFinChantier),
                     withDash(meta.revision),
                     withDash(meta.diagnostiqueurNom),
                     withDash(meta.diagnostiqueurContact),
@@ -26667,6 +27615,10 @@ renderRadar() {
                     withDash(meta.entrepriseDeconstructionAdresse),
                     withDash(meta.typeBatiment),
                     withDash(meta.periodeConstruction),
+                    withDash(meta.datePermisConstruction),
+                    withDash(meta.historiqueRenovationImportante),
+                    withDash(meta.historiqueDecontamination),
+                    withDash(meta.historiqueAutreIntervention),
                     withDash(meta.phaseIntervention),
                     withDash(meta.localisation),
                     withDash(meta.conditionnementType),
@@ -26674,6 +27626,26 @@ renderRadar() {
                     withDash(meta.diagnosticStructure),
                     withDash(meta.diagnosticAmiante),
                     withDash(meta.diagnosticPlomb),
+                    withDash(meta.diagnosticTermites),
+                    withDash(meta.documentDOE),
+                    withDash(meta.documentPlans),
+                    withDash(meta.diagPEMDNom),
+                    withDash(meta.diagPEMDContact),
+                    withDash(meta.diagPEMDMail),
+                    withDash(meta.diagPEMDTelephone),
+                    withDash(meta.diagPEMDAdresse),
+                    withDash(meta.diagPEMDSiret),
+                    withDash(meta.diagPEMDAssuranceCompagnie),
+                    withDash(meta.diagPEMDAssurancePolice),
+                    withDash(meta.diagPEMDAssuranceDebut),
+                    withDash(meta.diagPEMDAssuranceFin),
+                    withDash(meta.diagPEMDCompetencesJustifiables),
+                    withDash(meta.dateVisite),
+                    withDash(meta.partiesVisitees),
+                    withDash(meta.partiesNonVisitees),
+                    withDash(meta.raisonsNonVisite),
+                    withDash(meta.vicesApparents),
+                    withDash(meta.precautionsDemolition),
                     withDash(meta.commentaires),
                     withDash(allotissement.similarityStrategy),
                     withDash(allotissement.mmGeometryProfile),
@@ -26731,6 +27703,13 @@ renderRadar() {
             { label: 'Opération', getValue: () => meta.operation || '-' },
             { label: 'Version de l\'étude', getValue: () => meta.versionEtude || '-' },
             { label: 'Statut de l\'étude', getValue: () => meta.statutEtude || '-' },
+            { label: 'Type d\'opération', getValue: () => meta.typeOperation || '-' },
+            { label: 'Surface à démolir (m²)', getValue: () => meta.surfacePlancher_demolition || '-' },
+            { label: 'Surface à rénover (m²)', getValue: () => meta.surfacePlancher_renovation || '-' },
+            { label: 'Nb bâtiments (démolition)', getValue: () => meta.nbBatiments_demolition || '-' },
+            { label: 'Nb bâtiments (rénovation)', getValue: () => meta.nbBatiments_renovation || '-' },
+            { label: 'Date estimée début chantier', getValue: () => meta.dateDebutChantier || '-' },
+            { label: 'Date estimée fin chantier', getValue: () => meta.dateFinChantier || '-' },
             { label: 'Révision', getValue: () => meta.revision !== undefined ? meta.revision : '-' },
             
             // --- DIAGNOSTIQUEUR ---
@@ -26764,6 +27743,10 @@ renderRadar() {
             // --- CONTEXTE TECHNIQUE ---
             { label: 'Type de bâtiment', getValue: () => meta.typeBatiment || '-' },
             { label: 'Période de construction', getValue: () => meta.periodeConstruction || '-' },
+            { label: 'Date / année permis de construire', getValue: () => meta.datePermisConstruction || '-' },
+            { label: 'Historique rénovation importante', getValue: () => meta.historiqueRenovationImportante || '-' },
+            { label: 'Historique décontamination', getValue: () => meta.historiqueDecontamination || '-' },
+            { label: 'Historique autre intervention', getValue: () => meta.historiqueAutreIntervention || '-' },
             { label: 'Phase d\'intervention', getValue: () => meta.phaseIntervention || '-' },
             { label: 'Localisation', getValue: () => meta.localisation || '-' },
             { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
@@ -26771,6 +27754,26 @@ renderRadar() {
             { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },
             { label: 'Diagnostic Amiante', getValue: () => meta.diagnosticAmiante || '-' },
             { label: 'Diagnostic Plomb', getValue: () => meta.diagnosticPlomb || '-' },
+            { label: 'Diagnostic Termites', getValue: () => meta.diagnosticTermites || '-' },
+            { label: 'DOE disponible', getValue: () => meta.documentDOE || '-' },
+            { label: 'Plans disponibles', getValue: () => meta.documentPlans || '-' },
+            { label: 'Diagnostiqueur PEMD (Structure)', getValue: () => meta.diagPEMDNom || '-' },
+            { label: 'Diagnostiqueur PEMD (Contact)', getValue: () => meta.diagPEMDContact || '-' },
+            { label: 'Diagnostiqueur PEMD (Mail)', getValue: () => meta.diagPEMDMail || '-' },
+            { label: 'Diagnostiqueur PEMD (Tél)', getValue: () => meta.diagPEMDTelephone || '-' },
+            { label: 'Diagnostiqueur PEMD (Adresse)', getValue: () => meta.diagPEMDAdresse || '-' },
+            { label: 'Diagnostiqueur PEMD (SIRET/SIREN)', getValue: () => meta.diagPEMDSiret || '-' },
+            { label: 'Assurance PEMD (Compagnie)', getValue: () => meta.diagPEMDAssuranceCompagnie || '-' },
+            { label: 'Assurance PEMD (Police)', getValue: () => meta.diagPEMDAssurancePolice || '-' },
+            { label: 'Assurance PEMD (Du)', getValue: () => meta.diagPEMDAssuranceDebut || '-' },
+            { label: 'Assurance PEMD (Au)', getValue: () => meta.diagPEMDAssuranceFin || '-' },
+            { label: 'PEMD compétences justifiables', getValue: () => meta.diagPEMDCompetencesJustifiables || '-' },
+            { label: 'Date visite PEMD', getValue: () => meta.dateVisite || '-' },
+            { label: 'Parties visitées PEMD', getValue: () => meta.partiesVisitees || '-' },
+            { label: 'Parties non visitées PEMD', getValue: () => meta.partiesNonVisitees || '-' },
+            { label: 'Raisons non-visite PEMD', getValue: () => meta.raisonsNonVisite || '-' },
+            { label: 'Vices apparents', getValue: () => meta.vicesApparents || '-' },
+            { label: 'Précautions démolition/rénovation', getValue: () => meta.precautionsDemolition || '-' },
             { label: 'Commentaires généraux', getValue: () => meta.commentaires || '-' },
 
             // --- INFORMATIONS DU LOT ---
