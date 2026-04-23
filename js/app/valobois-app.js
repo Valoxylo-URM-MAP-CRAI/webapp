@@ -11157,9 +11157,9 @@ deleteLot(index) {
                 macroProv: [3, 2, 1],
                 territorialiteProv: [3, 2, 1],
 
-                visibilite: [1, 2, 3],
-                instrumentation: [1, 2, 3],
-                modesNotation: [1, 2, 3],
+                visibilite: [3, 2, 1],
+                instrumentation: [3, 2, 1],
+                modesNotation: [3, 2, 1],
                 statutBois: [3, 2, 1],
                 integrite: ['0,7', '0,3', '0,1']
             };
@@ -13584,14 +13584,23 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             };
         }).filter((sectionData) => sectionData.rows.length);
 
+        const valueAbbrev = {
+            'Économique': 'Écon.', 'Economic': 'Econ.',
+            'Écologique': 'Écol.', 'Ecological': 'Ecol.',
+            'Mécanique': 'Méca.', 'Mechanical': 'Mech.',
+            'Historique': 'Hist.', 'Historical': 'Hist.',
+            'Esthétique': 'Esth.', 'Aesthetic': 'Aest.'
+        };
+
         const sectionTables = sections.map((sectionData) => {
             const bodyRows = sectionData.rows.map((entry) => {
                 const fortActive = true;
                 const moyenActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'moyen');
                 const faibleActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'faible');
+                const displayValue = (entry.valueLabel && valueAbbrev[entry.valueLabel]) || entry.valueLabel || '—';
                 return `<tr class="detail-modal-matrix-row">
                     <th scope="row">${entry.label}</th>
-                    <td class="detail-modal-matrix-value-cell">${entry.valueLabel || '—'}</td>
+                    <td class="detail-modal-matrix-value-cell">${displayValue}</td>
                     <td class="detail-modal-matrix-check-cell ${fortActive ? 'is-active' : 'is-inactive'}">
                         <input class="detail-modal-matrix-checkbox" type="checkbox" checked disabled aria-label="${entry.label} actif en mode Fort" />
                     </td>
@@ -18723,7 +18732,7 @@ updateInspectionSimple(key, lot) {
     const nameToLevel  = { forte: 1,   moyenne: 2,   faible: 3   };
     const levelToIntensity = key === 'statutBois'
         ? { 1: '+3', 2: '+2', 3: '+1' }
-        : { 1: '+1', 2: '+2', 3: '+3' };
+        : { 1: '+3', 2: '+2', 3: '+1' };
 
     const isNotationModeRow = key === 'modesNotation';
     const modeToInspectionValue = {
@@ -18859,7 +18868,7 @@ updateInspectionIntegrite(lot) {
     const refreshUI = () => {
         if (data.ignore) {
             if (valueBox) valueBox.textContent = '…';
-            if (coeffBox) coeffBox.textContent = 'Coeff. …';
+            if (coeffBox) coeffBox.textContent = '…';
             row.classList.add('inspection-row--disabled');
             row.classList.add('inspection-row--ignored');
             this.setRowNoteTone(row, null);
@@ -18873,7 +18882,7 @@ updateInspectionIntegrite(lot) {
                                                  'Faible';
             }
             if (coeffBox) {
-                coeffBox.textContent = `Coeff. ${data.coeff.toString().replace('.', ',')}`;
+                coeffBox.textContent = data.coeff.toString().replace('.', ',');
             }
             row.classList.remove('inspection-row--disabled');
             row.classList.remove('inspection-row--ignored');
@@ -18881,7 +18890,7 @@ updateInspectionIntegrite(lot) {
         } else {
             if (ignoreBox) ignoreBox.textContent = '';
             if (valueBox) valueBox.textContent = '…';
-            if (coeffBox) coeffBox.textContent = 'Coeff. …';
+            if (coeffBox) coeffBox.textContent = '…';
             row.classList.add('inspection-row--disabled');
             row.classList.remove('inspection-row--ignored');
             this.setRowNoteTone(row, null);

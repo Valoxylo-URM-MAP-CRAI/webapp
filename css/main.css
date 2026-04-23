@@ -1516,7 +1516,7 @@ body.day-mode .accueil-collapsible-summary:hover {
 
         .detail-modal-matrix-table {
             width: 100%;
-            min-width: 600px;
+            min-width: 460px;
             border-collapse: collapse;
             font-size: var(--font-size-sm);
             table-layout: fixed;
@@ -1538,12 +1538,12 @@ body.day-mode .accueil-collapsible-summary:hover {
 
         .detail-modal-matrix-table thead th:nth-child(1),
         .detail-modal-matrix-table tbody th {
-            width: 34%;
+            width: 35%;
         }
 
         .detail-modal-matrix-table thead th:nth-child(2),
         .detail-modal-matrix-table td:nth-child(2) {
-            width: 26%;
+            width: 16%;
         }
 
         .detail-modal-matrix-table thead th:nth-child(3),
@@ -1552,7 +1552,7 @@ body.day-mode .accueil-collapsible-summary:hover {
         .detail-modal-matrix-table td:nth-child(3),
         .detail-modal-matrix-table td:nth-child(4),
         .detail-modal-matrix-table td:nth-child(5) {
-            width: 13%;
+            width: 16%;
             text-align: center;
         }
 

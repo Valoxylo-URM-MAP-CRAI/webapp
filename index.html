@@ -1297,7 +1297,34 @@
                             </div>
                         </div>
 
-                        <!-- 4. Intégrité générale -->
+                        <!-- 4. Statut du bois -->
+                        <div class="inspection-row" data-inspection-field="statutBois">
+                            <div class="inspection-spacer-box"></div>
+                            <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <div class="inspection-label-box" data-i18n="editor.inspection.statutBois">Statut du bois</div>
+                            <div class="inspection-value-box" data-display="statutBois">…</div>
+                            <div class="inspection-intensity-box" data-intensity="statutBois">…</div>
+                            <button class="inspection-info-small-btn" type="button"
+                                data-info="statutBois" data-i18n="editor.common.info">info</button>
+                            <div class="inspection-slider-wrapper">
+                                <div class="inspection-slider-display">
+                                    <div class="inspection-slider-display-line">
+                                        <span class="inspection-slider-dot"></span>
+                                        <span class="inspection-slider-center-ring"></span>
+                                        <span class="inspection-slider-dot"></span>
+                                    </div>
+                                </div>
+                                <input type="range" min="1" max="3" step="1" value="2" class="inspection-slider"
+                                    data-slider="statutBois">
+                                <div class="inspection-slider-scale">
+                                    <span data-i18n="editor.scale.statutBoisHigh">Trié et purgé</span>
+                                    <span data-i18n="editor.scale.statutBoisMedium">Déposé</span>
+                                    <span data-i18n="editor.scale.statutBoisLow">En usage</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Intégrité générale -->
                         <div class="inspection-row" data-inspection-field="integrite">
                             <div class="inspection-ignore-box" data-i18n="editor.common.ignored">Ignoré</div>
                             <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
@@ -1321,33 +1348,6 @@
                                     <span data-i18n="editor.scale.forteFem">Forte</span>
                                     <span data-i18n="editor.scale.moyenneFem">Moyenne</span>
                                     <span data-i18n="editor.scale.faible">Faible</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 5. Statut du bois -->
-                        <div class="inspection-row" data-inspection-field="statutBois">
-                            <div class="inspection-spacer-box"></div>
-                            <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                            <div class="inspection-label-box" data-i18n="editor.inspection.statutBois">Statut du bois</div>
-                            <div class="inspection-value-box" data-display="statutBois">…</div>
-                            <div class="inspection-intensity-box" data-intensity="statutBois">…</div>
-                            <button class="inspection-info-small-btn" type="button"
-                                data-info="statutBois" data-i18n="editor.common.info">info</button>
-                            <div class="inspection-slider-wrapper">
-                                <div class="inspection-slider-display">
-                                    <div class="inspection-slider-display-line">
-                                        <span class="inspection-slider-dot"></span>
-                                        <span class="inspection-slider-center-ring"></span>
-                                        <span class="inspection-slider-dot"></span>
-                                    </div>
-                                </div>
-                                <input type="range" min="1" max="3" step="1" value="2" class="inspection-slider"
-                                    data-slider="statutBois">
-                                <div class="inspection-slider-scale">
-                                    <span data-i18n="editor.scale.statutBoisHigh">Trié et purgé</span>
-                                    <span data-i18n="editor.scale.statutBoisMedium">Déposé</span>
-                                    <span data-i18n="editor.scale.statutBoisLow">En usage</span>
                                 </div>
                             </div>
                         </div>
