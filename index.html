@@ -1270,15 +1270,40 @@
                             </div>
                         </div>
 
-                        <!-- 3. Intégrité générale -->
-                        <div class="inspection-row" data-inspection-field="integrite">
-                            <div class="inspection-ignore-reset">
-                                <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
-                                <button class="inspection-info-small-btn" type="button"
-                                    data-info="integrite" data-i18n="editor.common.info">info</button>
-                                <button class="inspection-ignore-btn" type="button" data-i18n="editor.common.ignore">Ignorer</button>
+                        <!-- 3. Modes de notation -->
+                        <div class="inspection-row" data-inspection-field="modesNotation">
+                            <div class="inspection-spacer-box"></div>
+                            <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <div class="inspection-label-box" data-i18n="editor.inspection.modesNotation">Modes de notation</div>
+                            <div class="inspection-value-box" data-display="modesNotation">…</div>
+                            <div class="inspection-intensity-box" data-intensity="modesNotation">…</div>
+                            <button class="inspection-info-small-btn" type="button"
+                                data-info="modesNotation" data-i18n="editor.common.info">info</button>
+                            <div class="inspection-slider-wrapper">
+                                <div class="inspection-slider-display">
+                                    <div class="inspection-slider-display-line">
+                                        <span class="inspection-slider-dot"></span>
+                                        <span class="inspection-slider-center-ring"></span>
+                                        <span class="inspection-slider-dot"></span>
+                                    </div>
+                                </div>
+                                <input type="range" min="1" max="3" step="1" value="2" class="inspection-slider"
+                                    data-slider="modesNotation">
+                                <div class="inspection-slider-scale">
+                                    <span data-i18n="editor.scale.fortMasc">Fort</span>
+                                    <span data-i18n="editor.scale.moyenMasc">Moyen</span>
+                                    <span data-i18n="editor.scale.faible">Faible</span>
+                                </div>
                             </div>
+                        </div>
+
+                        <!-- 4. Intégrité générale -->
+                        <div class="inspection-row" data-inspection-field="integrite">
                             <div class="inspection-ignore-box" data-i18n="editor.common.ignored">Ignoré</div>
+                            <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <button class="inspection-info-small-btn" type="button"
+                                data-info="integrite" data-i18n="editor.common.info">info</button>
+                            <button class="inspection-ignore-btn" type="button" data-i18n="editor.common.ignore">Ignorer</button>
                             <div class="inspection-label-box" data-i18n="editor.inspection.integrite">Intégrité générale</div>
                             <div class="inspection-value-box" data-display="integrite">…</div>
                             <div class="inspection-intensity-box" data-intensity="integrite">Coeff. …</div>
@@ -1296,6 +1321,33 @@
                                     <span data-i18n="editor.scale.forteFem">Forte</span>
                                     <span data-i18n="editor.scale.moyenneFem">Moyenne</span>
                                     <span data-i18n="editor.scale.faible">Faible</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Statut du bois -->
+                        <div class="inspection-row" data-inspection-field="statutBois">
+                            <div class="inspection-spacer-box"></div>
+                            <button class="inspection-reset-btn" type="button" data-i18n="editor.common.reset">Réinitialiser</button>
+                            <div class="inspection-label-box" data-i18n="editor.inspection.statutBois">Statut du bois</div>
+                            <div class="inspection-value-box" data-display="statutBois">…</div>
+                            <div class="inspection-intensity-box" data-intensity="statutBois">…</div>
+                            <button class="inspection-info-small-btn" type="button"
+                                data-info="statutBois" data-i18n="editor.common.info">info</button>
+                            <div class="inspection-slider-wrapper">
+                                <div class="inspection-slider-display">
+                                    <div class="inspection-slider-display-line">
+                                        <span class="inspection-slider-dot"></span>
+                                        <span class="inspection-slider-center-ring"></span>
+                                        <span class="inspection-slider-dot"></span>
+                                    </div>
+                                </div>
+                                <input type="range" min="1" max="3" step="1" value="2" class="inspection-slider"
+                                    data-slider="statutBois">
+                                <div class="inspection-slider-scale">
+                                    <span data-i18n="editor.scale.statutBoisHigh">Trié et purgé</span>
+                                    <span data-i18n="editor.scale.statutBoisMedium">Déposé</span>
+                                    <span data-i18n="editor.scale.statutBoisLow">En usage</span>
                                 </div>
                             </div>
                         </div>
@@ -3679,6 +3731,10 @@
                                 À propos de la logique d’attribution du prix aux pièces de bois, deux choix sont possibles.
                             </div>
 
+                            <div class="info-sheet-note">
+                                <strong>À retenir :</strong> le bouton ON/OFF dans le Formulaire du lot permet de basculer entre un prix unique au lot et une somme des prix renseignés dans le Détail du lot.
+                            </div>                            
+
                             <div class="info-sheet-grid">
                                 <section class="info-sheet-section">
                                     <h3>Prix unique attribué au lot</h3>
@@ -3693,8 +3749,11 @@
                             </div>
 
                             <div class="info-sheet-note">
-                                <strong>À retenir :</strong> le bouton ON/OFF du groupe Prix permet de basculer entre un prix unique au lot et une somme des prix renseignés dans le Détail du lot.
-                            </div>
+                                <strong>À noter :</strong> les catégories de prix détaillées proposées ci-après sont données à titre indicatif mais ne reflètent pas la réalité des prix de chaque territoire (en particulier le bois de classe C peuvent necessiter la réalisation d'un devis). 
+                                <p>L'étude en cours sur ce sujet tend à montrer qu'une grande disparité de prix existe selon les organismes qui récupèrent les bois. Tous les organismes n'organisent pas la collecte de la même façon, et ne proposent pas le même niveau de service (ex : enlèvement sur site, broyage, location de bennes, etc.).</p>
+                                <p>Par ailleurs, la granularité BR1 et BR2, ni la réception de bois C ne sont courantes et uniformes sur le territoire national. De plus, malgré l'introduction de la gratuité de la reprise par la REP PMCB (conditionné à la qualité du tri et à la classe), des frais supplémentaires sont encore constater pour certains organismes (ex: droits de passage ou d'accès...).</p> 
+                                <p>Par conséquent, les prix de marché sont très variables d'un territoire à l'autre, et il est recommandé de les adapter au contexte local. Les catégories de prix détaillées sont un outil pour faciliter cette adaptation, en permettant de créer des catégories personnalisées correspondant aux réalités du terrain, ou en modifiant les catégories pré-existantes.</p>
+                            </div>                            
 
                             <section class="info-sheet-section info-sheet-section--price-presets" id="prixPresetEditor">
                                 <h3>Catégories de prix détaillées</h3>

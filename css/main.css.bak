@@ -1,4 +1,3 @@
-
         :root {
             --color-black: #000000;
             --color-white: #FFFFFF;
@@ -6748,7 +6747,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     max-width: none;
 }
 
-/* Superpose l'overlay ligne+points et le slider pour le Statut natif uniquement */
+/* Superpose l'overlay ligne+points et le slider (notation) comme pour Statut */
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6760,7 +6759,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) {
+):has(.bio-slider-display--statut) {
     display: grid;
     grid-template-rows: auto 32px;
     row-gap: 6px;
@@ -6779,7 +6778,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .bio-slider-display--statut,
+):has(.bio-slider-display--statut) .bio-slider-display--statut,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6791,7 +6790,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) input[type="range"] {
+):has(.bio-slider-display--statut) input[type="range"] {
     grid-row: 2;
     grid-column: 1;
     width: var(--statut-slider-track-width, 100%);
@@ -6809,7 +6808,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .bio-slider-scale,
+):has(.bio-slider-display--statut) .bio-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6821,7 +6820,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .mech-slider-scale,
+):has(.bio-slider-display--statut) .mech-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6833,7 +6832,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .usage-slider-scale,
+):has(.bio-slider-display--statut) .usage-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6845,7 +6844,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .denat-slider-scale,
+):has(.bio-slider-display--statut) .denat-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6857,7 +6856,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .debit-slider-scale,
+):has(.bio-slider-display--statut) .debit-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6869,7 +6868,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .geo-slider-scale,
+):has(.bio-slider-display--statut) .geo-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6881,7 +6880,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .essence-slider-scale,
+):has(.bio-slider-display--statut) .essence-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6893,7 +6892,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .ancien-slider-scale,
+):has(.bio-slider-display--statut) .ancien-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6905,7 +6904,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .traces-slider-scale,
+):has(.bio-slider-display--statut) .traces-slider-scale,
 :is(
     .bio-slider-wrapper,
     .mech-slider-wrapper,
@@ -6917,7 +6916,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     .ancien-slider-wrapper,
     .traces-slider-wrapper,
     .provenance-slider-wrapper
-):has(.bio-slider-display--statut):has(.bio-slider--statut) .provenance-slider-scale {
+):has(.bio-slider-display--statut) .provenance-slider-scale {
     grid-row: 1;
     grid-column: 1;
     justify-self: center;
@@ -9260,40 +9259,7 @@ body.day-mode .evalop-column-title {
     --statut-slider-thumb-radius: calc(var(--slider-thumb-size) / 2);
     /* Le centre du thumb se déplace entre r et (largeur-r), pas entre 0 et largeur. */
     --statut-slider-track-width: calc((var(--statut-slider-scale-width) * 2 / 3) + var(--slider-thumb-size));
-    display: grid;
-    row-gap: var(--space-2);
-    align-items: end;
-    justify-items: center;
-}
-
-:is(
-    .bio-slider-wrapper,
-    .mech-slider-wrapper,
-    .usage-slider-wrapper,
-    .denat-slider-wrapper,
-    .traces-slider-wrapper,
-    .provenance-slider-wrapper,
-    .debit-slider-wrapper,
-    .geo-slider-wrapper,
-    .essence-slider-wrapper,
-    .ancien-slider-wrapper
-):has(.bio-slider-display--statut):not(:has(.bio-slider--statut)) .bio-slider-display--statut,
-:is(
-    .bio-slider-wrapper,
-    .mech-slider-wrapper,
-    .usage-slider-wrapper,
-    .denat-slider-wrapper,
-    .traces-slider-wrapper,
-    .provenance-slider-wrapper,
-    .debit-slider-wrapper,
-    .geo-slider-wrapper,
-    .essence-slider-wrapper,
-    .ancien-slider-wrapper
-):has(.bio-slider-display--statut):not(:has(.bio-slider--statut)) input[type="range"] {
-    grid-row: 3 / span 2;
-    grid-column: 1;
-    width: var(--statut-slider-track-width, 100%);
-    justify-self: center;
+    row-gap: var(--space-4);
 }
 
 :is(
@@ -9464,8 +9430,7 @@ body.day-mode .evalop-column-title {
     .essence-slider-scale,
     .ancien-slider-scale
 ) {
-    min-height: 0;
-    height: 100%;
+    min-height: 32px;
     margin: 0;
     width: var(--statut-slider-scale-width, 100%);
     justify-self: center;
@@ -9502,15 +9467,13 @@ body.day-mode .evalop-column-title {
     .essence-slider-scale,
     .ancien-slider-scale
 ) span {
-    min-height: 0;
-    height: 100%;
+    min-height: 32px;
     display: grid;
-    grid-template-rows: 18px 18px;
+    grid-template-rows: minmax(18px, auto) minmax(18px, auto);
     align-items: center;
     justify-items: center;
     text-align: center;
     white-space: normal;
-    overflow: hidden;
 }
 
 /* Masquage visuel des encarts texte (niveau et note) */
@@ -11877,4 +11840,3 @@ body.day-mode .inspection-ignore-box {
 /* ============================================================
    /Mesures inline widget
    ============================================================ */
-

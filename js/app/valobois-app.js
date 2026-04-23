@@ -284,13 +284,16 @@ const PRICE_CATEGORY_PRESET_BASE_DEFINITIONS = [
     { id: 'base-reutilisation-bois-a', label: 'Réutilisation - Bois A', defaultValue: '300', defaultUnit: 'm3' },
     { id: 'base-reutilisation-br12', label: 'Réutilisation - BR1/BR2', defaultValue: '300', defaultUnit: 'm3' },
     { id: 'base-reutilisation-bois-c', label: 'Réutilisation - Bois C', defaultValue: '-150', defaultUnit: 't' },
-    { id: 'base-recyclage-bois-a', label: 'Recyclage - Bois A', defaultValue: '-30', defaultUnit: 't' },
+    { id: 'base-recyclage-bois-a-t', label: 'Recyclage - Bois A', defaultValue: '-60', defaultUnit: 't' },
+    { id: 'base-recyclage-bois-a-m3', label: 'Recyclage - Bois A', defaultValue: '-15', defaultUnit: 'm3' },
+    { id: 'base-recyclage-bois-b-m3', label: 'Recyclage - Bois B', defaultValue: '-25', defaultUnit: 'm3' },
+    { id: 'base-recyclage-bois-b-t', label: 'Recyclage - Bois B', defaultValue: '-100', defaultUnit: 't' },
     { id: 'base-recyclage-bois-br1', label: 'Recyclage - Bois BR1', defaultValue: '-60', defaultUnit: 't' },
     { id: 'base-recyclage-bois-br2', label: 'Recyclage - Bois BR2', defaultValue: '-90', defaultUnit: 't' },
     { id: 'base-combustion-bois-a', label: 'Combustion - Bois A', defaultValue: '-30', defaultUnit: 't' },
     { id: 'base-combustion-bois-br1', label: 'Combustion - Bois BR1', defaultValue: '-60', defaultUnit: 't' },
     { id: 'base-combustion-bois-br2', label: 'Combustion - Bois BR2', defaultValue: '-90', defaultUnit: 't' },
-    { id: 'base-combustion-bois-c', label: 'Combustion - Bois C', defaultValue: '-150', defaultUnit: 't' },
+    { id: 'base-combustion-bois-c', label: 'Combustion - Bois C', defaultValue: '-400', defaultUnit: 't' },
     { id: 'base-scie-entree', label: 'Bois entrée de scierie', defaultValue: '30', defaultUnit: 'm3' },
     { id: 'base-scie-sortie', label: 'Bois sortie de scierie', defaultValue: '300', defaultUnit: 'm3' },
     { id: 'base-grande-distribution', label: 'Bois grande distribution', defaultValue: '900', defaultUnit: 'm3' },
@@ -342,6 +345,45 @@ const CEEB_PRICE_PRESET_IMPORT_BASE = {
         { id: 'base-ceeb-broyats-emballage-ssd', label: 'Broyats emballage SSD – Classe A recyclage', value: 72.6, unit: 't', source: 'CEEB', period: '2025-T4', note: 'Bois déferraillés et broyés, granulométrie moyenne et grossière, humidité < 25% – Ex. broyats de recyclage de classe A.' }
     ]
 };
+
+const NOTATION_MODE_CONFIG = {
+    fort: null,
+    moyen: {
+        bio: ['purge', 'expansion', 'integriteBio'],
+        mech: ['purgeMech', 'feuMech', 'integriteMech'],
+        usage: ['humiditeUsage', 'classementUsage', 'aspectUsage'],
+        denat: ['contaminationDenat', 'durabiliteConfDenat', 'naturaliteDenat'],
+        debit: ['regulariteDebit', 'volumetrieDebit', 'stabiliteDebit', 'artisanaliteDebit'],
+        geo: ['massiviteGeo', 'industrialiteGeo', 'inclusiviteGeo'],
+        essence: ['masseVolEssence'],
+        ancien: ['amortissementAncien', 'vieillissementAncien'],
+        traces: ['alterationTraces', 'documentationTraces'],
+        provenance: ['macroProv'],
+    },
+    faible: {
+        bio: ['purge', 'expansion', 'integriteBio', 'expositionBio'],
+        mech: ['purgeMech', 'integriteMech', 'expositionMech'],
+        usage: ['classementUsage', 'humiditeUsage'],
+        denat: ['contaminationDenat'],
+        geo: ['deformationGeo'],
+        ancien: ['amortissementAncien', 'vieillissementAncien'],
+        traces: ['alterationTraces'],
+        provenance: ['macroProv'],
+    }
+};
+
+const NOTATION_MODE_SECTION_SELECTORS = [
+    { section: 'bio', rowSelector: '.bio-row', fieldAttr: 'data-bio-field' },
+    { section: 'mech', rowSelector: '.mech-row', fieldAttr: 'data-mech-field' },
+    { section: 'usage', rowSelector: '.usage-row', fieldAttr: 'data-usage-field' },
+    { section: 'denat', rowSelector: '.denat-row', fieldAttr: 'data-denat-field' },
+    { section: 'debit', rowSelector: '.debit-row', fieldAttr: 'data-debit-field' },
+    { section: 'geo', rowSelector: '.geo-row', fieldAttr: 'data-geo-field' },
+    { section: 'essence', rowSelector: '.essence-row', fieldAttr: 'data-essence-field' },
+    { section: 'ancien', rowSelector: '.ancien-row', fieldAttr: 'data-ancien-field' },
+    { section: 'traces', rowSelector: '.traces-row', fieldAttr: 'data-traces-field' },
+    { section: 'provenance', rowSelector: '.provenance-row', fieldAttr: 'data-provenance-field' }
+];
 
 class ValoboisApp {
     constructor() {
@@ -1376,6 +1418,8 @@ class ValoboisApp {
             inspection: {
                 visibilite: null,
                 instrumentation: null,
+                modesNotation: null,
+                statutBois: null,
                 integrite: { niveau: null, ignore: false, coeff: null }
             },
             bio: {
@@ -1478,6 +1522,8 @@ class ValoboisApp {
         return {
             meta: this.getDefaultMeta(),
             ui: this.getDefaultUi(),
+            notationMode: null,
+            notationModeCustomConfig: null,
             lots: [this.createEmptyLot(0), this.createEmptyLot(1)]
         };
     }
@@ -2648,6 +2694,8 @@ class ValoboisApp {
 
         data.meta = this.getDefaultMeta(data.meta || {});
         data.ui = this.getDefaultUi(data.ui || {});
+        data.notationMode = this.normalizeNotationMode(data.notationMode);
+        data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(data.notationModeCustomConfig);
         this.normalizePriceCategoryPresets(data.ui);
         data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
         if (!data.lots.length) {
@@ -2663,6 +2711,74 @@ class ValoboisApp {
         });
 
         return data;
+    }
+
+    normalizeNotationMode(modeRaw) {
+        const mode = ((modeRaw || '') + '').trim().toLowerCase();
+        if (mode === 'fort' || mode === 'moyen' || mode === 'faible') return mode;
+        return null;
+    }
+
+    getDefaultNotationModeCustomConfig() {
+        const cloneModeConfig = (mode) => {
+            const source = NOTATION_MODE_CONFIG[mode] || {};
+            const cloned = {};
+            NOTATION_MODE_SECTION_SELECTORS.forEach(({ section }) => {
+                cloned[section] = Array.isArray(source[section]) ? [...source[section]] : [];
+            });
+            return cloned;
+        };
+
+        return {
+            moyen: cloneModeConfig('moyen'),
+            faible: cloneModeConfig('faible')
+        };
+    }
+
+    normalizeNotationModeCustomConfig(configRaw) {
+        if (!configRaw || typeof configRaw !== 'object') return null;
+
+        const normalized = {};
+        let hasModeConfig = false;
+
+        ['moyen', 'faible'].forEach((mode) => {
+            const modeRaw = configRaw[mode];
+            if (!modeRaw || typeof modeRaw !== 'object') return;
+
+            const normalizedMode = {};
+            NOTATION_MODE_SECTION_SELECTORS.forEach(({ section }) => {
+                const fields = Array.isArray(modeRaw[section]) ? modeRaw[section] : [];
+                normalizedMode[section] = Array.from(new Set(fields
+                    .map((field) => this.getNotationModeNormalizedField(section, ((field || '') + '').trim()))
+                    .filter(Boolean)));
+            });
+
+            normalized[mode] = normalizedMode;
+            hasModeConfig = true;
+        });
+
+        return hasModeConfig ? normalized : null;
+    }
+
+    ensureNotationModeCustomConfig() {
+        const normalized = this.normalizeNotationModeCustomConfig(this.data?.notationModeCustomConfig);
+        if (normalized) {
+            this.data.notationModeCustomConfig = normalized;
+            return normalized;
+        }
+
+        const defaults = this.getDefaultNotationModeCustomConfig();
+        this.data.notationModeCustomConfig = defaults;
+        return defaults;
+    }
+
+    getEffectiveNotationModeConfig(mode) {
+        if (mode === 'fort') return null;
+        const customConfig = this.normalizeNotationModeCustomConfig(this.data?.notationModeCustomConfig);
+        if (customConfig && customConfig[mode] && typeof customConfig[mode] === 'object') {
+            return customConfig[mode];
+        }
+        return NOTATION_MODE_CONFIG[mode];
     }
 
     /** Données invité / export HTML autonome — jamais utilisé pour le corps de l’évaluation en mode cloud. */
@@ -3394,6 +3510,47 @@ class ValoboisApp {
             } else {
                 row.classList.remove('notation-locked');
             }
+        });
+    }
+
+    getNotationModeNormalizedField(section, field) {
+        if (section === 'bio' && field === 'expositionBio') return 'exposition';
+        return field;
+    }
+
+    updateNotationModeUI() {
+        const mode = this.normalizeNotationMode(this.data?.notationMode) || 'none';
+        const row = document.querySelector('.inspection-row[data-inspection-field="modesNotation"]');
+        if (row) row.dataset.modeActive = mode;
+    }
+
+    applyNotationMode(lot = null) {
+        const mode = this.normalizeNotationMode(this.data?.notationMode);
+        const rowsSelector = NOTATION_MODE_SECTION_SELECTORS.map((entry) => entry.rowSelector).join(', ');
+        const allRows = document.querySelectorAll(rowsSelector);
+
+        if (!mode || mode === 'fort') {
+            allRows.forEach((row) => row.classList.remove('notation-mode-locked'));
+            return;
+        }
+
+        const config = this.getEffectiveNotationModeConfig(mode);
+        if (!config || typeof config !== 'object') {
+            allRows.forEach((row) => row.classList.remove('notation-mode-locked'));
+            return;
+        }
+
+        NOTATION_MODE_SECTION_SELECTORS.forEach(({ section, rowSelector, fieldAttr }) => {
+            const configuredFields = Array.isArray(config[section])
+                ? new Set(config[section].map((field) => this.getNotationModeNormalizedField(section, field)))
+                : null;
+            const sectionEnabled = !!configuredFields;
+
+            document.querySelectorAll(rowSelector).forEach((row) => {
+                const fieldName = this.getNotationModeNormalizedField(section, row.getAttribute(fieldAttr) || '');
+                const shouldLock = !sectionEnabled || !configuredFields.has(fieldName);
+                row.classList.toggle('notation-mode-locked', shouldLock);
+            });
         });
     }
 
@@ -10276,6 +10433,7 @@ class ValoboisApp {
         if (activeLot) {
             this.computeOrientation(activeLot);
         }
+        this.applyNotationMode(activeLot);
         this.render();
     }
 
@@ -10528,11 +10686,11 @@ class ValoboisApp {
                 const row = btn.closest('.bio-row, .mech-row, .usage-row, .denat-row, .debit-row, .geo-row, .essence-row, .ancien-row, .traces-row, .provenance-row');
                 const criterionLabel = this.getNotationResetLabel(row);
                 const message = criterionLabel
-                    ? `Voulez-vous vraiment réinitialiser le critere \"${criterionLabel}\" ?`
-                    : 'Voulez-vous vraiment réinitialiser ce critere ?';
+                    ? `Voulez-vous vraiment réinitialiser le critère \"${criterionLabel}\" ?`
+                    : 'Voulez-vous vraiment réinitialiser ce critère ?';
 
                 this.openResetConfirmModal({
-                    title: 'Réinitialiser le critere',
+                    title: 'Réinitialiser le critère',
                     message,
                     confirmLabel: 'Oui, réinitialiser',
                     onConfirm: () => {
@@ -10633,17 +10791,9 @@ deleteLot(index) {
             const parentRow = btn.closest(rowSelector);
             if (!parentRow) return;
 
-            const isIntegriteRow = parentRow.matches('.inspection-row[data-inspection-field="integrite"]');
-            if (isIntegriteRow) {
-                const integriteGroup = parentRow.querySelector(':scope > .inspection-ignore-reset');
-                if (integriteGroup && btn.parentElement !== integriteGroup) {
-                    integriteGroup.appendChild(btn);
-                }
-            } else {
-                const group = this.getOrCreateActionGroup(parentRow);
-                if (group && btn.parentElement !== group) {
-                    group.appendChild(btn);
-                }
+            const group = this.getOrCreateActionGroup(parentRow);
+            if (group && btn.parentElement !== group) {
+                group.appendChild(btn);
             }
 
             btn.classList.add('btn-reset');
@@ -10697,23 +10847,12 @@ deleteLot(index) {
                     const parentRow = btn.closest(rowSelector);
                     if (!parentRow) return;
 
-                    const isIntegriteRow = parentRow.matches('.inspection-row[data-inspection-field="integrite"]');
-                    if (isIntegriteRow) {
-                        const integriteGroup = parentRow.querySelector(':scope > .inspection-ignore-reset');
-                        if (integriteGroup && btn.parentElement !== integriteGroup) {
-                            integriteGroup.appendChild(btn);
-                        }
-                    } else {
-                        const group = this.getOrCreateActionGroup(parentRow);
-                        if (group && btn.parentElement !== group) {
-                            group.appendChild(btn);
-                        }
-                    }
+                    // Le bouton ignore reste enfant direct de la row (overlay via CSS grid).
 
                         btn.classList.add('btn-ignore');
 
                     if (btn.dataset.iconifiedIgnore === '1' && btn.dataset.iconVersionIgnore === IGNORE_ICON_VERSION) return;
-                        btn.setAttribute('aria-label', 'Ignorer ce critere');
+                        btn.setAttribute('aria-label', 'Ignorer ce critère');
                         btn.setAttribute('title', 'Ignorer');
                         btn.innerHTML = iconMarkup;
                         btn.dataset.iconifiedIgnore = '1';
@@ -11020,6 +11159,8 @@ deleteLot(index) {
 
                 visibilite: [1, 2, 3],
                 instrumentation: [1, 2, 3],
+                modesNotation: [1, 2, 3],
+                statutBois: [3, 2, 1],
                 integrite: ['0,7', '0,3', '0,1']
             };
 
@@ -13336,24 +13477,224 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         contentEl.innerHTML = `${mainHtml}<details class="detail-modal-references"><summary>Références et ressources</summary>${referencesHtml}</details>`;
     }
 
+    getNotationModeSectionTitle(sectionKey) {
+        const map = {
+            bio: 'Biologique',
+            mech: 'Mécanique',
+            usage: 'Usage',
+            denat: 'Dénaturalisation',
+            debit: 'Débit',
+            geo: 'Géométrie',
+            essence: 'Essence',
+            ancien: 'Ancienneté',
+            traces: 'Traces',
+            provenance: 'Provenance'
+        };
+        return map[sectionKey] || sectionKey;
+    }
+
+    getNotationModeLabelFromRow(row, fallbackField) {
+        if (!row) return this.escapeHtml(fallbackField || 'Critère');
+        const labelEl = row.querySelector('[class$="label-box"]:not([class*="value-label-box"])');
+        const label = (labelEl?.textContent || '').trim();
+        return this.escapeHtml(label || fallbackField || 'Critère');
+    }
+
+    getNotationModeValueFromRow(row) {
+        if (!row) return null;
+        const valueLabelEl = row.querySelector('[class*="value-label-box"]');
+        const valueLabel = (valueLabelEl?.textContent || '').trim();
+        return valueLabel ? this.escapeHtml(valueLabel) : null;
+    }
+
+    isNotationModeCriterionEnabled(section, field, mode) {
+        if (mode === 'fort') return true;
+        const config = this.getEffectiveNotationModeConfig(mode);
+        if (!config || typeof config !== 'object') return false;
+        const sectionFields = Array.isArray(config[section])
+            ? config[section].map((entry) => this.getNotationModeNormalizedField(section, entry))
+            : [];
+        return sectionFields.includes(field);
+    }
+
+    onNotationModeMatrixCheckboxChange(event) {
+        const input = event?.target;
+        if (!(input instanceof HTMLInputElement)) return;
+        if (input.type !== 'checkbox' || !input.classList.contains('detail-modal-matrix-checkbox')) return;
+
+        const mode = (input.dataset.matrixMode || '').trim();
+        const section = (input.dataset.matrixSection || '').trim();
+        const field = this.getNotationModeNormalizedField(section, (input.dataset.matrixField || '').trim());
+
+        if (!['moyen', 'faible'].includes(mode) || !section || !field) return;
+
+        const customConfig = this.ensureNotationModeCustomConfig();
+        if (!customConfig[mode] || typeof customConfig[mode] !== 'object') customConfig[mode] = {};
+        if (!Array.isArray(customConfig[mode][section])) customConfig[mode][section] = [];
+
+        const fields = new Set(customConfig[mode][section].map((entry) => this.getNotationModeNormalizedField(section, entry)));
+        if (input.checked) {
+            fields.add(field);
+        } else {
+            fields.delete(field);
+        }
+        customConfig[mode][section] = Array.from(fields);
+
+        this.data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(customConfig);
+        this.applyNotationMode(this.getCurrentLot());
+        this.saveData();
+
+        const cell = input.closest('.detail-modal-matrix-check-cell');
+        if (cell) {
+            cell.classList.toggle('is-active', input.checked);
+            cell.classList.toggle('is-inactive', !input.checked);
+        }
+    }
+
+    resetNotationModeMatrixConfig() {
+        this.data.notationModeCustomConfig = null;
+        this.applyNotationMode(this.getCurrentLot());
+        this.saveData();
+
+        const contentEl = document.getElementById('inspectionDetailModalContent');
+        this.renderNotationModeDetailModal(contentEl);
+    }
+
+    buildNotationModeMatrixHtml() {
+        const sections = NOTATION_MODE_SECTION_SELECTORS.map(({ section, rowSelector, fieldAttr }) => {
+            const rows = [];
+            document.querySelectorAll(rowSelector).forEach((row) => {
+                const rawField = (row.getAttribute(fieldAttr) || '').trim();
+                if (!rawField) return;
+
+                const field = this.getNotationModeNormalizedField(section, rawField);
+                const isConfidence = /^confiance/i.test(field);
+                rows.push({
+                    field,
+                    isConfidence,
+                    label: isConfidence ? 'Confiance' : this.getNotationModeLabelFromRow(row, rawField),
+                    valueLabel: this.getNotationModeValueFromRow(row)
+                });
+            });
+
+            return {
+                section,
+                title: this.getNotationModeSectionTitle(section),
+                rows
+            };
+        }).filter((sectionData) => sectionData.rows.length);
+
+        const sectionTables = sections.map((sectionData) => {
+            const bodyRows = sectionData.rows.map((entry) => {
+                const fortActive = true;
+                const moyenActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'moyen');
+                const faibleActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'faible');
+                return `<tr class="detail-modal-matrix-row">
+                    <th scope="row">${entry.label}</th>
+                    <td class="detail-modal-matrix-value-cell">${entry.valueLabel || '—'}</td>
+                    <td class="detail-modal-matrix-check-cell ${fortActive ? 'is-active' : 'is-inactive'}">
+                        <input class="detail-modal-matrix-checkbox" type="checkbox" checked disabled aria-label="${entry.label} actif en mode Fort" />
+                    </td>
+                    <td class="detail-modal-matrix-check-cell ${moyenActive ? 'is-active' : 'is-inactive'}">
+                        <input class="detail-modal-matrix-checkbox" type="checkbox" ${moyenActive ? 'checked' : ''} data-matrix-mode="moyen" data-matrix-section="${sectionData.section}" data-matrix-field="${entry.field}" aria-label="${entry.label} actif en mode Moyen" />
+                    </td>
+                    <td class="detail-modal-matrix-check-cell ${faibleActive ? 'is-active' : 'is-inactive'}">
+                        <input class="detail-modal-matrix-checkbox" type="checkbox" ${faibleActive ? 'checked' : ''} data-matrix-mode="faible" data-matrix-section="${sectionData.section}" data-matrix-field="${entry.field}" aria-label="${entry.label} actif en mode Faible" />
+                    </td>
+                </tr>`;
+            }).join('');
+
+            return `<section class="detail-modal-matrix-section">
+                <h3 class="detail-modal-subtitle">${this.escapeHtml(sectionData.title)}</h3>
+                <div class="detail-modal-matrix-scroll">
+                    <table class="detail-modal-matrix-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">Critères</th>
+                                <th scope="col">Valeurs</th>
+                                <th scope="col">Fort</th>
+                                <th scope="col">Moyen</th>
+                                <th scope="col">Faible</th>
+                            </tr>
+                        </thead>
+                        <tbody>${bodyRows}</tbody>
+                    </table>
+                </div>
+            </section>`;
+        }).join('');
+
+        return `<div class="detail-modal-matrix">
+            <div class="detail-modal-matrix-toolbar">
+                <button type="button" class="detail-modal-matrix-reset-btn">Réinitialiser les modes par défaut</button>
+            </div>
+            ${sectionTables}
+        </div>`;
+    }
+
+    renderNotationModeDetailModal(contentEl) {
+        if (!contentEl) return;
+
+        const introHtml = `<div class="detail-modal-instruction"><p>Sélectionner le mode de notation pour l'évaluation.</p></div>
+            <div class="detail-modal-paragraph"><p>La matrice suivante indique les critères activables selon le mode choisi (Fort, Moyen, Faible).</p></div>`;
+        const matrixHtml = this.buildNotationModeMatrixHtml();
+        const referencesHtml = '<details class="detail-modal-references"><summary>References et ressources</summary><p class="detail-modal-references-empty">Aucune référence renseignée pour ce critère.</p></details>';
+
+        contentEl.innerHTML = `${introHtml}${matrixHtml}${referencesHtml}`;
+
+        const matrixRoot = contentEl.querySelector('.detail-modal-matrix');
+        if (matrixRoot) {
+            matrixRoot.addEventListener('change', (event) => this.onNotationModeMatrixCheckboxChange(event));
+            matrixRoot.addEventListener('click', (event) => {
+                const trigger = event.target?.closest?.('.detail-modal-matrix-reset-btn');
+                if (!trigger) return;
+                event.preventDefault();
+                this.resetNotationModeMatrixConfig();
+            });
+        }
+    }
+
     openInspectionDetailModal(fieldKey) {
         const backdrop = document.getElementById('inspectionDetailModalBackdrop');
         const titleEl = document.getElementById('inspectionDetailModalTitle');
         const contentEl = document.getElementById('inspectionDetailModalContent');
+        const currentLang = String(document.documentElement.getAttribute('lang') || 'fr').toLowerCase();
+        const isEnglish = currentLang.startsWith('en');
 
         const titles = {
-            visibilite: 'Visibilité - Accessibilité',
+            visibilite: isEnglish ? 'Visibility - Access' : 'Visibilité - Accessibilité',
             instrumentation: 'Instrumentation',
-            integrite: 'Intégrité générale'
+            modesNotation: isEnglish ? 'Scoring modes' : 'Modes de notation',
+            statutBois: isEnglish ? 'Wood status' : 'Statut du bois',
+            integrite: isEnglish ? 'Overall integrity' : 'Intégrité générale'
         };
 
         const contents = {
-            visibilite: `Noter le niveau de visibilité et d’accessibilité aux pièces de bois évaluées.
+            visibilite: isEnglish ? `Assess the level of visibility and access to the wood elements under evaluation.
+
+High visibility and access correspond to inspection conditions that allow the measurement of all dimensions of all the elements evaluated for the created lot.
+
+Low visibility and access correspond to inspection conditions where measurements are limited or even absent.` : `Noter le niveau de visibilité et d’accessibilité aux pièces de bois évaluées.
 
 Une visibilité et une accessibilité forte vaut pour des conditions de diagnostic qui permettent une mesure de toutes les dimensions de toutes les pièces évalués pour le lot créé.
 
 Une visibilité et une accessibilité faible vaut pour des conditions de diagnostic pour lesquelles les mesures sont limités, voire absente.`,
-            instrumentation: `Noter le niveau d’instrumentation de l’évaluation des pièces de bois.
+            instrumentation: isEnglish ? `Assess the level of instrumentation used for the evaluation of the wood elements.
+
+Low instrumentation corresponds to tools allowing:
+• partial measurement,
+• partial photographic survey limited to global views of the elements,
+• the use of this application or similar tools.
+
+Medium instrumentation corresponds to tools allowing:
+• moisture measurement,
+• photographic survey including detail shots,
+• dimensional measurement,
+• and all capabilities of the previous level.
+
+High instrumentation corresponds to tools allowing:
+• machine-based mechanical grading,
+• multiple measurements on elements including section perimeter,
+• and all capabilities of the previous levels.` : `Noter le niveau d’instrumentation de l’évaluation des pièces de bois.
 
     Une instrumentation faible vaut pour l’usage de dispositifs permettant :
     • la prise de côtes partielle,
@@ -13370,13 +13711,49 @@ Une visibilité et une accessibilité faible vaut pour des conditions de diagnos
     • le classement mécanique des pièces bois à l’aide machine,
     • la prise de mesures multiples sur les pièces incluant le périmètre des sections,
     • et pour les précédents niveaux.`,
-            integrite: `Intégrité générale.
+            modesNotation: isEnglish ? `Record the scoring mode used for the lot evaluation.
+
+    A high scoring mode corresponds to a detailed, complete and fully argued assessment across all observable criteria.
+
+    A medium scoring mode corresponds to an intermediate assessment, where the main criteria are documented but secondary information remains partial.
+
+    A low scoring mode corresponds to a concise assessment, with a limited level of detail across the lot criteria.` : `Noter le mode de notation mobilisé pour l'évaluation du lot.
+
+Une notation forte correspond à une notation détaillée, complète et argumentée sur l'ensemble des critères observables.
+
+Une notation moyenne correspond à une notation intermédiaire, avec des critères principaux renseignés mais des compléments encore partiels.
+
+Une notation faible correspond à une notation sommaire, avec un niveau de détail limité sur les critères du lot.`,
+            statutBois: isEnglish ? `Record the service status of the wood at the time of inspection.
+
+    Trié et purgé describes wood that has already been sorted, cleared or prepared before evaluation.
+
+    Déposé describes wood that has been removed from its original position and is available for observation, handling or temporary storage.
+
+    En usage describes wood that is still in place and still serving its original function during the inspection.
+
+    This criterion is descriptive only and does not directly modify the scoring rules of the other criteria.` : `Noter le statut du bois au moment de l’inspection.
+
+    Trié et purgé : vaut pour des bois préalablement déposés et purgés de leurs principaux défauts et triés en vue de la création de lot avant l’évaluation.
+
+    Déposé : vaut pour des bois déjà extraits de leur bâtiment ou de leur structure d'origine, non purgés et non triés mais aptes à être manipulés et évalués.
+
+    En usage : vaut pour des bois encore engagés dans leur bâtiment ou leur structure lors de l'évaluation diagnostic.
+
+    Ce critère est descriptif et n’influe pas directement sur les règles de notation des autres critères.`,
+            integrite: isEnglish ? `Overall integrity.
+
+    The overall integrity rating provides a rapid assessment of lot quality. This rating applies a coefficient that downgrades and adjusts the market price of a given lot according to its general condition. It is an indicator independent from the orientation choice linked to criterion scoring. It implicitly signals the amount of work (sorting, cutting, preparation...) required to extend the use of the wood in a lot.` : `Intégrité générale.
 
 La notation de l’intégrité générale permet de statuer sur une évaluation rapide de la qualité d’un lot. Cette notation applique un coefficient qui dégrade et ajuste le prix de marché du lot donné au regard de son état général. Il est un indicateur indépendant du choix d’orientation du bois lié à la notation des critères. Il signale implicitement le degré de travail (tri, coupe, préparation…) nécessaire à la prolongation de l’usage des bois d’un lot.`
         };
 
         if (titleEl) titleEl.textContent = titles[fieldKey] || 'Détail';
-        this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
+        if (fieldKey === 'modesNotation') {
+            this.renderNotationModeDetailModal(contentEl);
+        } else {
+            this.renderDetailModalContent(contentEl, contents[fieldKey] || 'À renseigner');
+        }
 
         if (backdrop) {
             backdrop.classList.remove('hidden');
@@ -13714,7 +14091,7 @@ Kherais, M., Csébfalvi, A., Len, A., Fülöp, A., & Pál-Schreiner, J. (2024). 
 Jaskowska-Lemańska, J., & Przesmycka, E. (2020). Semi-Destructive and Non-Destructive Tests of Timber Structure of Various Moisture Contents. Materials, 14(1), 96. https://doi.org/10.3390/ma14010096`,
         aspectUsage: `Noter l’aspect des bois évalués pour en déterminer les usages possibles.
 
-Un aspect « fort » vaut pour des bois de classes d’aspects 0A, 0B, 1 (résineux) ou QPA, QBA, QB1 et QFA QFA1-a/b (chêne) ou FBA, FB1, FSA, FS1, FF1, FDA (hêtre) ou A (bois rond résineux et feuillus) [+3].
+Un aspect « fort » vaut pour des bois avec de nœuds isolés adhérents situés hors des arrêtes dits conformes au critères des classes d’aspects 0A, 0B, 1 (résineux) ou QPA, QBA, QB1 et QFA QFA1-a/b (chêne) ou FBA, FB1, FSA, FS1, FF1, FDA (hêtre) ou A (bois rond résineux et feuillus) [+3].
 Un aspect « moyen » vaut pour des bois de classes d’aspects 2 (résineux) ou QP1, QB2 et QF2 (chêne) ou FB2, FS2, FF2, FD1 (hêtre) ou B (bois rond résineux et feuillus) [+2].
 Un aspect « faible » vaut pour des bois de classes d’aspects 3A et 3B (résineux) ou QPC, QB3 et QF3 (chêne) ou FB3, FS3, FF3, FD2 (hêtre) ou C et D (bois rond résineux et feuillus) [+1].
 
@@ -14977,6 +15354,8 @@ closeEvalOpModal() {
         this.setupNotationResetConfirmations();
         this.refreshGlobalLockState(this.getCurrentLot());
         this.refreshAlterationLockState(this.getCurrentLot());
+        this.updateNotationModeUI();
+        this.applyNotationMode(this.getCurrentLot());
         this.setupAlterationSoftLockInterceptor();
 
         document.querySelectorAll('.bio-slider, .mech-slider, .usage-slider, .denat-slider, .debit-slider, .geo-slider, .essence-slider, .ancien-slider, .traces-slider, .provenance-slider, .inspection-slider').forEach((slider) => {
@@ -18223,6 +18602,8 @@ renderInspection() {
         currentLot.inspection = {
             visibilite: null,
             instrumentation: null,
+            modesNotation: null,
+            statutBois: null,
             integrite: { niveau: null, ignore: false, coeff: null }
         };
     }
@@ -18234,6 +18615,8 @@ renderInspection() {
 
     this.updateInspectionSimple('visibilite', currentLot);
     this.updateInspectionSimple('instrumentation', currentLot);
+    this.updateInspectionSimple('modesNotation', currentLot);
+    this.updateInspectionSimple('statutBois', currentLot);
     this.updateInspectionIntegrite(currentLot);
 }
 
@@ -18334,10 +18717,29 @@ updateInspectionSimple(key, lot) {
     const resetBtn     = row.querySelector('.inspection-reset-btn');
     const infoBtn      = row.querySelector('.inspection-info-small-btn');
 
-    const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
+    const levelToLabel = key === 'statutBois'
+        ? { 1: 'Trié et purgé', 2: 'Déposé', 3: 'En usage' }
+        : { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
     const nameToLevel  = { forte: 1,   moyenne: 2,   faible: 3   };
+    const levelToIntensity = key === 'statutBois'
+        ? { 1: '+3', 2: '+2', 3: '+1' }
+        : { 1: '+1', 2: '+2', 3: '+3' };
 
-    const stored = lot.inspection[key];
+    const isNotationModeRow = key === 'modesNotation';
+    const modeToInspectionValue = {
+        fort: 'forte',
+        moyen: 'moyenne',
+        faible: 'faible'
+    };
+    const inspectionToModeValue = {
+        forte: 'fort',
+        moyenne: 'moyen',
+        faible: 'faible'
+    };
+
+    const stored = isNotationModeRow
+        ? (modeToInspectionValue[this.normalizeNotationMode(this.data?.notationMode)] || null)
+        : lot.inspection[key];
     const currentLevel = stored ? nameToLevel[stored] : null;
 
     // affichage initial
@@ -18345,7 +18747,7 @@ updateInspectionSimple(key, lot) {
         valueBox.textContent = currentLevel ? levelToLabel[currentLevel] : '…';
     }
     if (intensityBox) {
-        intensityBox.textContent = currentLevel ? '+' + String(currentLevel) : '…';
+        intensityBox.textContent = currentLevel ? levelToIntensity[currentLevel] : '…';
     }
     if (slider) {
         slider.value = currentLevel || 2;
@@ -18364,8 +18766,14 @@ updateInspectionSimple(key, lot) {
                 v === 2 ? 'moyenne' :
                           'faible';
 
+            if (isNotationModeRow) {
+                this.data.notationMode = inspectionToModeValue[lot.inspection[key]] || null;
+                this.updateNotationModeUI();
+                this.applyNotationMode(this.getCurrentLot());
+            }
+
             if (valueBox)     valueBox.textContent = label;
-            if (intensityBox) intensityBox.textContent = '+' + String(v);
+            if (intensityBox) intensityBox.textContent = levelToIntensity[v];
             row.classList.remove('inspection-row--disabled');
             this.setRowNoteTone(row, this.getInspectionToneFromLevel(lot.inspection[key]));
 
@@ -18397,6 +18805,11 @@ updateInspectionSimple(key, lot) {
     if (resetBtn) {
         resetBtn.onclick = () => {
             lot.inspection[key] = null;
+            if (isNotationModeRow) {
+                this.data.notationMode = null;
+                this.updateNotationModeUI();
+                this.applyNotationMode(null);
+            }
             if (slider)       slider.value = 2;
             if (valueBox)     valueBox.textContent = '…';
             if (intensityBox) intensityBox.textContent = '…';
@@ -23697,6 +24110,8 @@ renderRadar() {
         this.data = parsed;
         this.data.meta = this.getDefaultMeta(this.data.meta || {});
         this.data.ui = this.getDefaultUi(this.data.ui || {});
+        this.data.notationMode = this.normalizeNotationMode(this.data.notationMode);
+        this.data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(this.data.notationModeCustomConfig);
         this.data.lots.forEach((lot) => {
             this.normalizeLotEssenceFields(lot);
             this.normalizeLotAllotissementFields(lot);
@@ -23877,11 +24292,15 @@ renderRadar() {
             }
         }
         this.data = this.createInitialData();
+        this.data.notationMode = null;
+        this.data.notationModeCustomConfig = null;
         this.currentLotIndex = 0;
         this.resetDetailLotActiveCardStore();
         if (typeof window.__valoboisResetFirestoreEvaluation === 'function') {
             window.__valoboisResetFirestoreEvaluation(this);
         }
+        this.updateNotationModeUI();
+        this.applyNotationMode(null);
         this.saveData();
         this.render();
     }

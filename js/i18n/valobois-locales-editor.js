@@ -177,6 +177,9 @@
                 faible: 'Faible',
                 fortMasc: 'Fort',
                 moyenMasc: 'Moyen',
+                statutBoisHigh: 'Trié et purgé',
+                statutBoisMedium: 'Déposé',
+                statutBoisLow: 'En usage',
             },
             section: {
                 allotissement: 'Allotissement',
@@ -219,6 +222,8 @@
             inspection: {
                 visibilite: 'Visibilité – Accessibilité',
                 instrumentation: 'Instrumentation',
+                modesNotation: 'Modes de notation',
+                statutBois: 'Statut du bois',
                 integrite: 'Intégrité générale',
                 modalIntro: 'Noter les conditions d’inspection du lot évalué.',
             },
@@ -554,6 +559,9 @@
                 faible: 'Low',
                 fortMasc: 'High',
                 moyenMasc: 'Medium',
+                statutBoisHigh: 'Sorted and cleared',
+                statutBoisMedium: 'Removed',
+                statutBoisLow: 'In use',
             },
             section: {
                 allotissement: 'Batching',
@@ -588,6 +596,8 @@
             inspection: {
                 visibilite: 'Visibility – access',
                 instrumentation: 'Instrumentation',
+                modesNotation: 'Scoring modes',
+                statutBois: 'Wood status',
                 integrite: 'Overall integrity',
                 modalIntro: 'Record inspection conditions for the assessed lot.',
             },
