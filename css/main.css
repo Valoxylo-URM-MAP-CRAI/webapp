@@ -4505,10 +4505,10 @@ body.day-mode .lot-group--collapsible summary:hover {
 .inspection-row {
     display: grid;
     grid-template-columns:
-        minmax(0, 2.2fr)    /* slider */
-        72px                /* reset / ignorer+reset */
-        minmax(0, 1.35fr)   /* critère */
-        46px                /* info */
+        minmax(0, 3.5fr)    /* slider */
+        36px                /* reset / ignorer+reset */
+        minmax(0, 1fr)      /* critère */
+        36px                /* info */
     ;
     grid-template-areas:
         "slider reset label info";
@@ -4882,7 +4882,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .inspection-row {
     display: grid;
-    grid-template-columns: minmax(0, 2.2fr) 72px minmax(0, 1.2fr) 42px;
+    grid-template-columns: minmax(0, 3.5fr) 36px minmax(0, 1fr) 36px;
     grid-template-areas: "slider reset label info";
     align-items: center;
     gap: var(--space-8);
@@ -10579,7 +10579,7 @@ body.day-mode .evalop-column-title {
 
 .inspection-row:not([data-inspection-field="integrite"]) .inspection-slider-wrapper,
 .inspection-row[data-inspection-field="integrite"] .inspection-slider-wrapper {
-    --inspection-slider-scale-width: 86%;
+    --inspection-slider-scale-width: 96%;
     --inspection-slider-thumb-radius: calc(var(--slider-thumb-size) / 2);
     --inspection-slider-track-width: calc((var(--inspection-slider-scale-width) * 2 / 3) + var(--slider-thumb-size));
     display: grid;
@@ -10628,6 +10628,10 @@ body.day-mode .evalop-column-title {
     white-space: normal;
     padding: 0 2px;
     overflow: hidden;
+}
+
+.inspection-row[data-inspection-field="statutBois"] .inspection-slider-scale span {
+    font-size: 8px;
 }
 
 .inspection-slider-display,
