@@ -7415,6 +7415,274 @@ class ValoboisApp {
         return [common, scientific].filter(Boolean).join(' - ');
     }
 
+    resolveDetailedEssenceFromNames(commonName, scientificName) {
+        const common = (commonName || '').toString().trim();
+        const scientific = (scientificName || '').toString().trim();
+        if (common && common !== 'Multiples') {
+            const byCommon = this.findEssenceByCommonName(common);
+            if (byCommon) return byCommon;
+        }
+        if (scientific && scientific !== 'Multiples') {
+            const byScientific = this.findEssenceByScientificName(scientific);
+            if (byScientific) return byScientific;
+        }
+        return null;
+    }
+
+    resolveDurabiliteNaturelleEssenceFromNames(commonName, scientificName) {
+        const common = (commonName || '').toString().trim();
+        const scientific = (scientificName || '').toString().trim();
+        if (common && common !== 'Multiples') {
+            const byCommon = ESSENCES_VALOBOIS_BY_COMMON.get(normalizeEssenceLookupKey(common));
+            if (byCommon) return byCommon;
+        }
+        if (scientific && scientific !== 'Multiples') {
+            const byScientific = ESSENCES_VALOBOIS_BY_SCIENTIFIC.get(normalizeEssenceLookupKey(scientific));
+            if (byScientific) return byScientific;
+        }
+        return null;
+    }
+
+    getDurabiliteNaturelleRows(essence, lang = 'fr') {
+        if (!essence) return [];
+
+        const formatDCPlain = (val) => {
+            if (!val || val === 'n/d') return 'n/d';
+            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
+            return labels[val] ? `DC ${val} — ${labels[val]}` : `DC ${val}`;
+        };
+        const formatImpregPlain = (val) => {
+            const map = {
+                '1': '1 — Imprégnable',
+                '2': '2 — Moy. imprégnable',
+                '3': '3 — Peu imprégnable',
+                '4': '4 — Non imprégnable'
+            };
+            if (!val || val === 'n/d' || val === 'inconnu') return 'n/d';
+            return map[val] || val;
+        };
+        const formatAubierPlain = (val) => {
+            const map = {
+                vs: '< 2 cm',
+                s: '2–5 cm',
+                m: '5–10 cm',
+                b: '> 10 cm',
+                x: 'indistinct',
+                '(x)': 'généralement indistinct'
+            };
+            if (!val || val === 'n/d') return 'n/d';
+            return map[val] || val;
+        };
+        const formatHyloPlain = (val) => {
+            if (val === 'n/a') return 'N/A (feuillus)';
+            return formatDCPlain(val);
+        };
+        const formatChampignonsPlain = (val) => {
+            const labo = essence.durabiliteChampignonsLabo;
+            const main = (val && val !== 'n/d') ? `DC ${val}` : 'n/d';
+            return (labo && labo !== val) ? `${main} (labo : DC ${labo})` : main;
+        };
+
+        const rows = [
+            {
+                key: 'durabiliteChampignons',
+                fr: 'Champignons lignivores',
+                en: 'Wood-destroying fungi',
+                ref: 'Tableau 1 EN 350',
+                value: formatChampignonsPlain(essence.durabiliteChampignons)
+            },
+            {
+                key: 'hylotrupes',
+                fr: 'Coléoptères — Hylotrupes bajulus',
+                en: 'Beetles — Hylotrupes bajulus',
+                ref: 'Tableau 2 EN 350',
+                value: formatHyloPlain(essence.hylotrupes)
+            },
+            {
+                key: 'anobium',
+                fr: 'Coléoptères — Anobium punctatum',
+                en: 'Beetles — Anobium punctatum',
+                ref: 'Tableau 2 EN 350',
+                value: formatDCPlain(essence.anobium)
+            },
+            {
+                key: 'termites',
+                fr: 'Termites',
+                en: 'Termites',
+                ref: 'Tableau 3 EN 350',
+                value: formatDCPlain(essence.termites)
+            },
+            {
+                key: 'xylophagesMarins',
+                fr: 'Térébrants marins',
+                en: 'Marine borers',
+                ref: 'Tableau 4 EN 350',
+                value: formatDCPlain(essence.xylophagesMarins)
+            },
+            {
+                key: 'aubierLargeur',
+                fr: 'Aubier — largeur type',
+                en: 'Sapwood — typical width',
+                ref: 'Annexe B.3 EN 350',
+                value: formatAubierPlain(essence.aubierLargeur)
+            },
+            {
+                key: 'impregnabiliteBoisParfait',
+                fr: 'Imprégnabilité — bois parfait',
+                en: 'Treatability — heartwood',
+                ref: 'Annexe B.4 EN 350',
+                value: formatImpregPlain(essence.impregnabiliteBoisParfait)
+            },
+            {
+                key: 'impregnabiliteAubier',
+                fr: 'Imprégnabilité — aubier',
+                en: 'Treatability — sapwood',
+                ref: 'Annexe B.4 EN 350',
+                value: formatImpregPlain(essence.impregnabiliteAubier)
+            }
+        ];
+
+        return rows.map((row) => ({
+            ...row,
+            label: lang === 'en' ? row.en : row.fr
+        }));
+    }
+
+    getLotDurabiliteNaturelleDetailEntries(lot) {
+        if (!lot || !lot.allotissement) return [];
+
+        const entries = new Map();
+        const baseCommon = (lot.allotissement.essenceNomCommun || '').toString().trim();
+        const baseScientific = (lot.allotissement.essenceNomScientifique || '').toString().trim();
+        const resolvedBaseCommon = baseCommon !== 'Multiples' ? baseCommon : '';
+        const resolvedBaseScientific = baseScientific !== 'Multiples' ? baseScientific : '';
+
+        const addEntry = (commonName, scientificName) => {
+            const common = (commonName || '').toString().trim() || resolvedBaseCommon;
+            const scientific = (scientificName || '').toString().trim() || resolvedBaseScientific;
+            const essence = this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific);
+            if (!essence) return;
+            const entryKey = `${(essence.nomUsuel || common || '').trim()}|${(essence.nomScientifique || scientific || '').trim()}`;
+            if (entries.has(entryKey)) return;
+            entries.set(entryKey, {
+                label: this.composeEssenceLabel(essence.nomUsuel || common, essence.nomScientifique || scientific) || essence.nomUsuel || common || scientific,
+                essence
+            });
+        };
+
+        addEntry(resolvedBaseCommon, resolvedBaseScientific);
+
+        (lot.pieces || []).forEach((piece) => {
+            if (!piece || typeof piece !== 'object') return;
+            addEntry(piece.essenceNomCommun, piece.essenceNomScientifique);
+        });
+
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (defaultQty <= 0) return;
+            addEntry(defaultPiece.essenceNomCommun, defaultPiece.essenceNomScientifique);
+        });
+
+        return Array.from(entries.values());
+    }
+
+    buildDurabiliteNaturelleModalContent(entries) {
+        if (!Array.isArray(entries) || !entries.length) {
+            return 'Aucune essence renseignée avec données de durabilité naturelle dans le Détail du lot.';
+        }
+
+        return {
+            intro: 'Profils EN 350 distincts détectés dans le lot.',
+            info: entries.map((entry) => {
+                const detailRows = this.getDurabiliteNaturelleRows(entry.essence);
+                return {
+                    title: entry.label,
+                    entries: detailRows.map((row) => ({
+                        label: row.label,
+                        value: row.value,
+                        ref: row.ref
+                    })),
+                    remark: entry.essence.remarques || ''
+                };
+            }),
+            references: ['NF EN 350:2016 — Données indicatives']
+        };
+    }
+
+    openSharedAlertPiecesModal(title, content, options = {}) {
+        const backdrop = document.getElementById('alertPiecesModalBackdrop');
+        const titleEl = document.getElementById('alertPiecesModalTitle');
+        const messageEl = document.getElementById('alertPiecesModalMessage');
+        if (!backdrop || !messageEl) return;
+
+        const {
+            textAlign = 'left',
+            whiteSpace = 'normal'
+        } = options;
+
+        if (titleEl) titleEl.textContent = title || 'Alerte';
+
+        messageEl.style.textAlign = textAlign;
+        messageEl.style.whiteSpace = whiteSpace;
+
+        const isDurabStructuredContent = content
+            && typeof content === 'object'
+            && !Array.isArray(content)
+            && Array.isArray(content.info)
+            && content.info.every((item) => item && typeof item === 'object' && Array.isArray(item.entries));
+
+        if (isDurabStructuredContent) {
+            const intro = String(content.intro || '').trim();
+            const cardsHtml = content.info.map((block) => {
+                const titleHtml = this.escapeHtml(block.title || 'Essence');
+                const rowsHtml = (block.entries || []).map((entry) => `
+                    <div class="durab-detail-card__row">
+                        <div class="durab-detail-card__main">
+                            <span class="durab-detail-card__label">${this.escapeHtml(entry.label || '')}</span>
+                            <span class="durab-detail-card__ref">${this.escapeHtml(entry.ref || '')}</span>
+                        </div>
+                        <span class="durab-detail-card__value">${this.escapeHtml(entry.value || 'n/d')}</span>
+                    </div>`).join('');
+                const remark = String(block.remark || '').trim();
+                const remarkHtml = remark
+                    ? `<p class="durab-detail-card__remark">${this.escapeHtml(`Remarque : ${remark}`)}</p>`
+                    : '';
+                return `
+                    <section class="durab-detail-card">
+                        <h3 class="durab-detail-card__title">${titleHtml}</h3>
+                        <div class="durab-detail-card__grid">${rowsHtml}
+                        </div>
+                        ${remarkHtml}
+                    </section>`;
+            }).join('');
+            const references = Array.isArray(content.references) && content.references.length
+                ? `<p class="durab-detail-modal__source">${this.escapeHtml(content.references.join(' | '))}</p>`
+                : '';
+            messageEl.innerHTML = `
+                <div class="durab-detail-modal">
+                    ${intro ? `<p class="durab-detail-modal__intro">${this.escapeHtml(intro)}</p>` : ''}
+                    <div class="durab-detail-modal__cards">${cardsHtml}</div>
+                    ${references}
+                </div>`;
+        } else if (this.isStructuredModalContent(content)) {
+            this.renderDetailModalContent(messageEl, content);
+        } else {
+            messageEl.textContent = String(content || '');
+        }
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    openLotDurabiliteNaturelleDetailsModal(lot) {
+        const entries = this.getLotDurabiliteNaturelleDetailEntries(lot);
+        this.openSharedAlertPiecesModal(
+            'Détail des classes de durabilité naturelle',
+            this.buildDurabiliteNaturelleModalContent(entries),
+            { textAlign: 'left', whiteSpace: 'normal' }
+        );
+    }
+
     getLotDetailDistinctValues(lot, fieldName) {
         if (!lot || !lot.allotissement || !fieldName) return [];
 
@@ -7468,25 +7736,11 @@ class ValoboisApp {
     }
 
     openLotDetailValuesModal(lot, fieldName, title) {
-        const backdrop = document.getElementById('alertPiecesModalBackdrop');
-        const titleEl = document.getElementById('alertPiecesModalTitle');
-        const messageEl = document.getElementById('alertPiecesModalMessage');
-        if (!backdrop || !messageEl) return;
-
         const values = this.getLotDetailDistinctValues(lot, fieldName);
-        if (titleEl) titleEl.textContent = title || 'Détails';
-
-        messageEl.style.whiteSpace = 'pre-line';
-        messageEl.style.textAlign = 'left';
-        if (!values.length) {
-            messageEl.textContent = 'Aucune valeur renseignée dans le Détail du lot.';
-        } else {
-            const lines = values.map((value, idx) => `${idx + 1}. ${value}`);
-            messageEl.textContent = lines.join('\n');
-        }
-
-        backdrop.classList.remove('hidden');
-        backdrop.setAttribute('aria-hidden', 'false');
+        const text = !values.length
+            ? 'Aucune valeur renseignée dans le Détail du lot.'
+            : values.map((value, idx) => `${idx + 1}. ${value}`).join('\n');
+        this.openSharedAlertPiecesModal(title || 'Détails', text, { textAlign: 'left', whiteSpace: 'pre-line' });
     }
 
     openLotLocationPiecesModal(title, linesText) {
@@ -8779,6 +9033,7 @@ class ValoboisApp {
         const typeButton = el('[data-lot-details-btn="typePiece"]');
         const typeProduitButton = el('[data-lot-details-btn="typeProduit"]');
         const classeBoisButton = el('[data-lot-details-btn="classeBois"]');
+        const durabNatDetailButton = el('[data-durab-nat-detail-btn]');
         const essenceButton = el('[data-lot-details-btn="essence"]');
         if (typeButton) {
             typeButton.hidden = !isTypePieceMultiple;
@@ -8794,6 +9049,9 @@ class ValoboisApp {
             classeBoisButton.hidden = !isClasseBoisMultiple;
             const classeBoisWrapper = classeBoisButton.closest('.lot-type-with-detail');
             if (classeBoisWrapper) classeBoisWrapper.classList.toggle('has-detail-btn', isClasseBoisMultiple);
+        }
+        if (durabNatDetailButton) {
+            durabNatDetailButton.hidden = this.getLotDurabiliteNaturelleDetailEntries(lot).length <= 1;
         }
         if (essenceButton) {
             essenceButton.hidden = !isEssenceMultiple;
@@ -11850,6 +12108,30 @@ if (denatBtn && denatBackdrop && denatClose && denatCloseFooter) {
     });
 }
 
+// Modale info durabilité naturelle EN 350
+const durabNatInfoBackdrop = document.getElementById('durabNatInfoModalBackdrop');
+const durabNatInfoClose = document.getElementById('btnCloseDurabNatInfoModal');
+const durabNatInfoCloseFooter = document.getElementById('btnCloseDurabNatInfoModalFooter');
+
+if (durabNatInfoBackdrop && durabNatInfoClose && durabNatInfoCloseFooter) {
+    durabNatInfoClose.addEventListener('click', () => this.closeDurabNatInfoModal());
+    durabNatInfoCloseFooter.addEventListener('click', () => this.closeDurabNatInfoModal());
+    durabNatInfoBackdrop.addEventListener('click', (e) => {
+        if (e.target === durabNatInfoBackdrop) this.closeDurabNatInfoModal();
+    });
+}
+
+if (!this._durabNatInfoClickBound) {
+    document.addEventListener('click', (e) => {
+        const infoBtn = e.target.closest('.durab-nat-info-btn');
+        if (!infoBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.openDurabNatInfoModal();
+    });
+    this._durabNatInfoClickBound = true;
+}
+
 // Modale détail denat
 const denatDetailBackdrop = document.getElementById('denatDetailModalBackdrop');
 const denatDetailClose = document.getElementById('btnCloseDenatDetailModal');
@@ -14165,6 +14447,22 @@ closeDenatModal() {
     }
 }
 
+openDurabNatInfoModal() {
+    const backdrop = document.getElementById('durabNatInfoModalBackdrop');
+    if (backdrop) {
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+}
+
+closeDurabNatInfoModal() {
+    const backdrop = document.getElementById('durabNatInfoModalBackdrop');
+    if (backdrop) {
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
+    }
+}
+
 
     getDenatDetailContents() {
         return this.normalizeModalContentsMap({
@@ -15590,13 +15888,15 @@ closeEvalOpModal() {
                     </div>
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--dp-${defaultPieceId}">
                         <summary class="mesures-accordion-summary">
-                            <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                            <span class="durab-nat-badge" id="durabiliteNaturelleBadge--dp-${defaultPieceId}" hidden></span>
+                            <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            </button>
                         </summary>
                         <div class="durab-nat-body">
                             <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
-                            <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                            <div class="durab-nat-list"></div>
                         </div>
                     </details>
                 </div>
@@ -15648,7 +15948,7 @@ closeEvalOpModal() {
                     </div>
                     <div class="mesures-accordion-shell mesures-accordion-shell--with-actions">
                         <details class="mesures-accordion mesures-accordion--with-actions"${_accOpenDp ? ' open' : ''}>
-                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresBadgeDp}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
+                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-default-piece-id="${defaultPieceId}"><span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span><span class="mesures-accordion-title-text">${mesuresTitleDp}</span>${mesuresBadgeDp}</summary>
                             <div class="mesures-inline-widget" data-default-piece-id="${defaultPieceId}">
                                 ${this._renderMesuresInlineWidget(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
                             </div>
@@ -15904,13 +16204,15 @@ closeEvalOpModal() {
                     </div>
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--piece-${pieceIndex}">
                         <summary class="mesures-accordion-summary">
-                            <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                            <span class="durab-nat-badge" id="durabiliteNaturelleBadge--piece-${pieceIndex}" hidden></span>
+                            <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            </button>
                         </summary>
                         <div class="durab-nat-body">
                             <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
-                            <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                            <div class="durab-nat-list"></div>
                         </div>
                     </details>
                 </div>
@@ -15962,7 +16264,7 @@ closeEvalOpModal() {
                     </div>
                     <div class="mesures-accordion-shell mesures-accordion-shell--with-actions">
                         <details class="mesures-accordion mesures-accordion--with-actions"${_accOpenP ? ' open' : ''}>
-                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresBadgeP}<span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span></summary>
+                            <summary class="mesures-accordion-trigger" data-mesures-multiples-summary data-piece-index="${pieceIndex}"><span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span><span class="mesures-accordion-title-text">${mesuresTitleP}</span>${mesuresBadgeP}</summary>
                             <div class="mesures-inline-widget" data-piece-index="${pieceIndex}">
                                 ${this._renderMesuresInlineWidget(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
                             </div>
@@ -16160,6 +16462,7 @@ closeEvalOpModal() {
         const lotClasseBoisDisplay = this.getLotAggregatedTextValue(lot, 'classeBois');
         const lotEssenceCommonDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
         const lotEssenceScientificDisplay = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
+        const showDurabNatDetailsBtn = this.getLotDurabiliteNaturelleDetailEntries(lot).length > 1;
         const showTypePieceDetailsBtn = lotTypePieceDisplay === 'Multiples';
         const showTypeProduitDetailsBtn = lotTypeProduitDisplay === 'Multiples';
         const showClasseBoisDetailsBtn = lotClasseBoisDisplay === 'Multiples';
@@ -16337,13 +16640,18 @@ closeEvalOpModal() {
                         </div>
                         <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--lot-${index}">
                             <summary class="mesures-accordion-summary">
-                                <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                                 <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                                <span class="durab-nat-badge" id="durabiliteNaturelleBadge--lot-${index}" hidden></span>
+                                <span class="durab-nat-summary-actions">
+                                    <button type="button" class="durab-nat-detail-btn" data-durab-nat-detail-btn${showDurabNatDetailsBtn ? '' : ' hidden'}>Détails</button>
+                                    <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                        <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    </button>
+                                </span>
                             </summary>
                             <div class="durab-nat-body">
                                 <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
-                                <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                                <div class="durab-nat-list"></div>
                             </div>
                         </details>
                     </div>
@@ -17471,6 +17779,15 @@ closeEvalOpModal() {
                 }
             });
         });
+
+        const durabNatDetailBtn = card.querySelector('[data-durab-nat-detail-btn]');
+        if (durabNatDetailBtn) {
+            durabNatDetailBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.openLotDurabiliteNaturelleDetailsModal(lot);
+            });
+        }
 
         // Branchement des inputs
         card.querySelectorAll('input[data-lot-input]').forEach(input => {
@@ -28788,12 +29105,8 @@ renderRadar() {
      */
     updateDurabiliteNaturelleAccordion(accordion, essenceNomUsuel, essenceNomScientifique = '') {
         if (!accordion) return;
-        const table = accordion.querySelector('.durab-nat-table');
-        const badge = accordion.querySelector('.durab-nat-badge');
-        if (!table) return;
-
-        const tbody = table.querySelector('tbody');
-        if (!tbody) return;
+        const list = accordion.querySelector('.durab-nat-list');
+        if (!list) return;
 
         // Normalisation pour lookup (même logique que normalizeEssenceLookupKey)
         const normalizeKey = (s) => (s == null ? '' : String(s))
@@ -28804,29 +29117,18 @@ renderRadar() {
             .replace(/\s+/g, ' ')
             .trim();
 
-        const list = typeof ESSENCES_VALOBOIS !== 'undefined' ? ESSENCES_VALOBOIS : [];
-        let essence = list.find(e => normalizeKey(e.nomUsuel) === normalizeKey(essenceNomUsuel));
+        const listData = typeof ESSENCES_VALOBOIS !== 'undefined' ? ESSENCES_VALOBOIS : [];
+        let essence = listData.find(e => normalizeKey(e.nomUsuel) === normalizeKey(essenceNomUsuel));
         // Fallback par nom scientifique si non trouvé par nom commun
         if (!essence && essenceNomScientifique) {
-            essence = list.find(e => normalizeKey(e.nomScientifique) === normalizeKey(essenceNomScientifique));
+            essence = listData.find(e => normalizeKey(e.nomScientifique) === normalizeKey(essenceNomScientifique));
         }
 
-        tbody.innerHTML = '';
+        list.innerHTML = '';
 
         if (!essence) {
             accordion.removeAttribute('open');
-            if (badge) badge.hidden = true;
             return;
-        }
-
-        // Badge visible si au moins une donnée EN 350 est disponible
-        const hasData = ['hylotrupes', 'anobium', 'termites', 'xylophagesMarins', 'aubierLargeur',
-            'impregnabiliteBoisParfait', 'impregnabiliteAubier']
-            .some(k => essence[k] && essence[k] !== 'n/d' && essence[k] !== 'inconnu' && essence[k] !== 'n/a');
-
-        if (badge) {
-            badge.hidden = !hasData;
-            badge.textContent = hasData ? 'EN 350' : '';
         }
 
         const _renderDC = (val) => {
@@ -28933,20 +29235,22 @@ renderRadar() {
             const val = essence[row.key];
             const isND = !val || val === 'n/d' || val === 'inconnu';
             const label = lang === 'en' ? row.en : row.fr;
-            const tr = document.createElement('tr');
-            if (isND && row.key !== 'hylotrupes') tr.classList.add('durab-nat-row--nd');
-            tr.innerHTML = `
-                <td class="durab-nat-critere">${label}</td>
-                <td class="durab-nat-valeur">${row.render(val)}</td>
-                <td class="durab-nat-ref">${row.ref}</td>`;
-            tbody.appendChild(tr);
+            const item = document.createElement('div');
+            item.className = 'durab-nat-item';
+            if (isND && row.key !== 'hylotrupes') item.classList.add('durab-nat-item--nd');
+            item.innerHTML = `<div class="durab-nat-item-label">${label}</div>
+                <div class="durab-nat-item-row">
+                    <span class="durab-nat-item-value">${row.render(val)}</span>
+                    <span class="durab-nat-item-ref">${row.ref}</span>
+                </div>`;
+            list.appendChild(item);
         });
 
         if (essence.remarques) {
-            const tr = document.createElement('tr');
-            tr.classList.add('durab-nat-row--remarques');
-            tr.innerHTML = `<td colspan="3" class="durab-nat-remarques">⚠ ${essence.remarques}</td>`;
-            tbody.appendChild(tr);
+            const item = document.createElement('div');
+            item.className = 'durab-nat-row--remarques';
+            item.innerHTML = `<div class="durab-nat-remarques">⚠ ${essence.remarques}</div>`;
+            list.appendChild(item);
         }
     }
 

@@ -3267,7 +3267,7 @@
                         <button class="modal-close" type="button" id="btnCloseAlertPiecesModal">&times;</button>
                     </header>
                     <div class="modal-body">
-                        <p id="alertPiecesModalMessage" style="text-align:center;">Ce lot contient des pièces non détaillées.</p>
+                        <div id="alertPiecesModalMessage" class="detail-modal-content" style="text-align:center;">Ce lot contient des pièces non détaillées.</div>
                     </div>
                     <footer class="modal-footer">
                         <button class="btn btn-primary" type="button" id="btnOkAlertPiecesModal">OK</button>
@@ -4166,6 +4166,25 @@
                         <footer class="modal-footer">
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseDenatModalFooter">
                                 J’ai compris
+                            </button>
+                        </footer>
+                    </div>
+                </div>
+
+<div class="modal-backdrop hidden" id="durabNatInfoModalBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="durabNatInfoModalTitle">
+                        <header class="modal-header">
+                            <h2 id="durabNatInfoModalTitle" class="text-center">Durabilité naturelle</h2>
+                            <button class="modal-close" type="button" id="btnCloseDurabNatInfoModal">×</button>
+                        </header>
+                        <div class="modal-body">
+                            <p>Données indicatives de durabilité naturelle issues de la norme NF EN 350:2016.</p>
+                            <p>Les classes affichées aident à apprécier le comportement du bois face aux agents biologiques (champignons, insectes, termites et térébrants marins), ainsi que l'imprégnabilité du bois parfait et de l'aubier.</p>
+                            <p>Ces informations sont données à titre d'aide et doivent être confirmées selon le contexte d'usage et le diagnostic du lot.</p>
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-primary btn-full" type="button" id="btnCloseDurabNatInfoModalFooter">
+                                J'ai compris
                             </button>
                         </footer>
                     </div>

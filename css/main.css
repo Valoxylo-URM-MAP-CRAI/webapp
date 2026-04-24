@@ -1434,6 +1434,109 @@ body.day-mode .accueil-collapsible-summary:hover {
             color: #7A3E3E;
         }
 
+        .durab-detail-modal {
+            display: grid;
+            gap: 12px;
+        }
+
+        .durab-detail-modal__intro {
+            margin: 0;
+            color: var(--color-text-muted);
+            font-size: var(--font-size-sm);
+            line-height: 1.45;
+        }
+
+        .durab-detail-modal__cards {
+            display: grid;
+            gap: 10px;
+        }
+
+        .durab-detail-card {
+            padding: 12px;
+            border: 1px solid #D4DBE2;
+            border-radius: var(--radius-sm);
+            background: linear-gradient(180deg, #F8F6F1 0%, #F2F4F6 100%);
+            display: grid;
+            gap: 10px;
+        }
+
+        .durab-detail-card__title {
+            margin: 0;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            line-height: 1.35;
+            color: var(--color-text);
+        }
+
+        .durab-detail-card__grid {
+            display: grid;
+            gap: 6px;
+        }
+
+        .durab-detail-card__row {
+            display: grid;
+            grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+            gap: 10px;
+            align-items: start;
+            padding: 6px 0;
+            border-top: 1px solid rgba(185, 195, 204, 0.5);
+            font-size: var(--font-size-sm);
+            line-height: 1.4;
+        }
+
+        .durab-detail-card__row:first-child {
+            border-top: none;
+            padding-top: 0;
+        }
+
+        .durab-detail-card__main {
+            display: grid;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .durab-detail-card__label {
+            color: var(--color-text-muted);
+        }
+
+        .durab-detail-card__ref {
+            color: #9AA3AD;
+            font-size: 11px;
+            line-height: 1.3;
+        }
+
+        .durab-detail-card__value {
+            font-weight: var(--font-weight-medium);
+            color: var(--color-text);
+            text-align: right;
+        }
+
+        .durab-detail-card__remark {
+            margin: 0;
+            padding-top: 2px;
+            font-size: var(--font-size-sm);
+            line-height: 1.45;
+            color: var(--color-text-muted);
+        }
+
+        .durab-detail-modal__source {
+            margin: 0;
+            font-size: 11px;
+            line-height: 1.4;
+            color: var(--color-text-muted);
+        }
+
+        @media (max-width: 640px) {
+            .durab-detail-card__row {
+                grid-template-columns: minmax(0, 1fr);
+                gap: 2px;
+            }
+
+            .durab-detail-card__value {
+                text-align: left;
+            }
+        }
+
         .detail-modal-references {
             padding: 10px 12px;
             border: 1px solid #DDD6C8;
@@ -11889,7 +11992,7 @@ body.day-mode .inspection-ignore-box {
 .durab-nat-accordion {
     margin-top: 6px;
     border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm, 4px);
+    border-radius: var(--radius-base);
     background: #fff;
     overflow: hidden;
 }
@@ -11897,84 +12000,139 @@ body.day-mode .inspection-ignore-box {
 .durab-nat-accordion > .mesures-accordion-summary {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: var(--space-8);
+    padding: 8px 12px;
+    border: none;
+    border-radius: 0;
     cursor: pointer;
     user-select: none;
-    background: #f9f9f9;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--color-text-primary, #222);
+    background-color: #F4F4F4;
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--bleu-crai) !important;
     list-style: none;
 }
 .durab-nat-accordion > .mesures-accordion-summary::-webkit-details-marker { display: none; }
-.durab-nat-accordion > .mesures-accordion-summary:hover { background: #f0f2f8; }
+.durab-nat-accordion > .mesures-accordion-summary:hover { background: #eceff7; }
+
+.durab-nat-accordion > .mesures-accordion-summary .mesures-accordion-title-text {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
 
 .durab-nat-accordion > .mesures-accordion-summary .mesures-accordion-chevron {
-    width: 14px;
-    height: 14px;
-    flex-shrink: 0;
-    transition: transform 0.18s ease;
-    color: #888;
-}
-.durab-nat-accordion[open] > .mesures-accordion-summary .mesures-accordion-chevron {
-    transform: rotate(180deg);
+    color: currentColor;
 }
 
-.durab-nat-accordion .durab-nat-badge {
-    display: inline-block;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    padding: 1px 6px;
-    border-radius: 10px;
-    background: #e8f0fe;
-    color: var(--color-primary, #1D3D96);
-    border: 1px solid #b8cdfb;
+.durab-nat-summary-actions {
     margin-left: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.durab-nat-accordion .durab-nat-detail-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: var(--radius-base);
+    border: 1px solid var(--bleu-crai);
+    background: #fff;
+    color: var(--bleu-crai);
+    font-size: 11px;
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.durab-nat-accordion .durab-nat-detail-btn:hover {
+    background: #eef2ff;
+}
+
+.durab-nat-accordion .durab-nat-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: 0;
+    padding: 0;
+    background-color: var(--bleu-crai);
+    border: none;
+    border-radius: var(--radius-base);
+    color: var(--blanc-pur, #fff);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.durab-nat-accordion .durab-nat-info-btn:hover {
+    background-color: #162e72;
+}
+
+.durab-nat-accordion[open] > .mesures-accordion-summary {
+    border-radius: var(--radius-base) var(--radius-base) 0 0;
 }
 
 .durab-nat-body {
-    padding: 8px 10px 10px;
+    padding: 4px 0 6px;
     border-top: 1px solid var(--color-border);
-    overflow-x: auto;
 }
 
 .durab-nat-source {
     font-size: 10px;
     color: #999;
-    margin: 0 0 8px;
+    margin: 0 0 4px;
     font-style: italic;
+    padding: 0 10px;
 }
 
-/* ── Table ───────────────────────────────────────────────── */
-.durab-nat-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
+/* ── Liste d'items ───────────────────────────────────────── */
+.durab-nat-list {
+    display: flex;
+    flex-direction: column;
 }
-.durab-nat-table th {
-    text-align: left;
-    font-size: 11px;
-    font-weight: 600;
-    color: #666;
-    padding: 3px 6px;
-    border-bottom: 1px solid var(--color-border);
-    background: #f5f5f5;
-}
-.durab-nat-table td {
-    padding: 4px 6px;
-    vertical-align: middle;
+
+.durab-nat-item {
     border-bottom: 1px solid #eee;
 }
-.durab-nat-table tr:last-child td { border-bottom: none; }
+.durab-nat-item:last-child { border-bottom: none; }
 
-.durab-nat-critere { color: #444; max-width: 160px; }
-.durab-nat-valeur  { min-width: 80px; }
-.durab-nat-ref     { font-size: 10px; color: #aaa; white-space: nowrap; }
+.durab-nat-item-label {
+    font-size: 11px;
+    color: #555;
+    font-weight: 500;
+    padding: 4px 10px 2px;
+    background: #f7f7f7;
+}
+
+.durab-nat-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    padding: 3px 10px 5px;
+}
+
+.durab-nat-item-value {
+    font-size: 12px;
+    flex: 1;
+    min-width: 0;
+}
+
+.durab-nat-item-ref {
+    font-size: 10px;
+    color: #bbb;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
 
 /* Ligne n/d atténuée */
-.durab-nat-row--nd td { opacity: 0.55; }
+.durab-nat-item--nd { opacity: 0.5; }
 
 /* ── Badges inline valeur ───────────────────────────────── */
 .durab-nat-badge-inline {
@@ -11993,13 +12151,14 @@ body.day-mode .inspection-ignore-box {
 .durab-nat-labo       { font-size: 10px; color: #666; font-weight: 400; }
 
 /* ── Ligne remarques ────────────────────────────────────── */
-.durab-nat-row--remarques td {
+.durab-nat-row--remarques {
     background: #fff8e1;
+    border-top: 1px solid #ffe082;
+}
+.durab-nat-row--remarques .durab-nat-remarques {
     color: #7a4f00;
     font-size: 11px;
-    padding: 5px 8px;
-    border-top: 1px solid #ffe082;
-    border-radius: 0 0 3px 3px;
+    padding: 5px 10px;
 }
 
 /* ============================================================
