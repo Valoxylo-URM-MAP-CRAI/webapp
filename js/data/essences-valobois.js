@@ -1477,6 +1477,30 @@ const normalizeEssenceLookupKey = (value) => (value == null ? '' : String(value)
         .replace(/\s+/g, ' ')
         .trim();
 
+const normalizeEn350Value = (value, { allowNA = false } = {}) => {
+    if (value == null) return 'n/d';
+    const normalized = String(value).trim();
+    if (!normalized) return 'n/d';
+    const lowered = normalized.toLowerCase();
+    if (allowNA && lowered === 'n/a') return 'n/a';
+    if (lowered === 'n/d' || lowered === 'inconnu') return 'n/d';
+    return normalized;
+};
+
+ESSENCES_VALOBOIS.forEach((essence) => {
+    if (!essence || typeof essence !== 'object') return;
+
+    essence.codeEn13556 = normalizeEn350Value(essence.codeEn13556);
+    essence.durabiliteChampignons = normalizeEn350Value(essence.durabiliteChampignons);
+    essence.hylotrupes = normalizeEn350Value(essence.hylotrupes, { allowNA: true });
+    essence.anobium = normalizeEn350Value(essence.anobium);
+    essence.termites = normalizeEn350Value(essence.termites);
+    essence.xylophagesMarins = normalizeEn350Value(essence.xylophagesMarins);
+    essence.aubierLargeur = normalizeEn350Value(essence.aubierLargeur);
+    essence.impregnabiliteBoisParfait = normalizeEn350Value(essence.impregnabiliteBoisParfait);
+    essence.impregnabiliteAubier = normalizeEn350Value(essence.impregnabiliteAubier);
+});
+
 const ESSENCES_VALOBOIS_BY_COMMON = new Map();
 const ESSENCES_VALOBOIS_BY_SCIENTIFIC = new Map();
 ESSENCES_VALOBOIS.forEach((essence) => {

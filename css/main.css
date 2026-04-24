@@ -12041,8 +12041,8 @@ body.day-mode .inspection-ignore-box {
     padding: 0 8px;
     border-radius: var(--radius-base);
     border: 1px solid var(--bleu-crai);
-    background: #fff;
-    color: var(--bleu-crai);
+    background: var(--bleu-crai);
+    color: var(--blanc-pur, #fff);
     font-size: 11px;
     font-weight: var(--font-weight-semibold);
     cursor: pointer;
@@ -12050,7 +12050,7 @@ body.day-mode .inspection-ignore-box {
 }
 
 .durab-nat-accordion .durab-nat-detail-btn:hover {
-    background: #eef2ff;
+    background: #162e72;
 }
 
 .durab-nat-accordion .durab-nat-info-btn {
@@ -12081,6 +12081,12 @@ body.day-mode .inspection-ignore-box {
 .durab-nat-body {
     padding: 4px 0 6px;
     border-top: 1px solid var(--color-border);
+}
+
+.durab-nat-body-actions {
+    display: flex;
+    justify-content: flex-start;
+    padding: 0 10px 4px;
 }
 
 .durab-nat-source {

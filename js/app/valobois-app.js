@@ -7443,108 +7443,202 @@ class ValoboisApp {
         return null;
     }
 
-    getDurabiliteNaturelleRows(essence, lang = 'fr') {
+    getDurabiliteNaturelleRows(essence, lang = 'fr', options = {}) {
         if (!essence) return [];
 
-        const formatDCPlain = (val) => {
-            if (!val || val === 'n/d') return 'n/d';
-            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
-            return labels[val] ? `DC ${val} — ${labels[val]}` : `DC ${val}`;
+        const withHtml = !!options.withHtml;
+        const normalizeValue = (value, { allowNA = false } = {}) => {
+            if (value == null) return 'n/d';
+            const normalized = String(value).trim();
+            if (!normalized) return 'n/d';
+            const lowered = normalized.toLowerCase();
+            if (allowNA && lowered === 'n/a') return 'n/a';
+            if (lowered === 'n/d' || lowered === 'inconnu') return 'n/d';
+            return normalized;
         };
-        const formatImpregPlain = (val) => {
+
+        const formatDC = (value, { allowNA = false } = {}) => {
+            const val = normalizeValue(value, { allowNA });
+            if (val === 'n/a') {
+                return {
+                    plain: 'N/A (feuillus)',
+                    html: '<span class="durab-nat-na">N/A (feuillus)</span>',
+                    isND: false
+                };
+            }
+            if (val === 'n/d') {
+                return {
+                    plain: 'n/d',
+                    html: '<span class="durab-nat-nd">n/d</span>',
+                    isND: true
+                };
+            }
+
+            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
+            const badgeClass = val === 'D'
+                ? 'durab-nat-durable'
+                : val === 'S'
+                    ? 'durab-nat-nondurable'
+                    : 'durab-nat-medium';
+            const plain = labels[val] ? `DC ${val} — ${labels[val]}` : `DC ${val}`;
+            const escapedVal = this.escapeHtml(val);
+            const escapedLabel = labels[val] ? this.escapeHtml(labels[val]) : '';
+            const html = labels[val]
+                ? `<span class="durab-nat-badge-inline ${badgeClass}">DC ${escapedVal} — ${escapedLabel}</span>`
+                : `<span class="durab-nat-badge-inline ${badgeClass}">DC ${escapedVal}</span>`;
+            return { plain, html, isND: false };
+        };
+
+        const formatChampignons = () => {
+            const main = formatDC(essence.durabiliteChampignons);
+            const laboRaw = normalizeValue(essence.durabiliteChampignonsLabo);
+            if (laboRaw !== 'n/d' && laboRaw !== normalizeValue(essence.durabiliteChampignons)) {
+                const laboPlain = ` (labo : DC ${laboRaw})`;
+                const laboHtml = ` <span class="durab-nat-labo">(labo : DC ${this.escapeHtml(laboRaw)})</span>`;
+                return {
+                    plain: `${main.plain}${laboPlain}`,
+                    html: `${main.html}${laboHtml}`,
+                    isND: main.isND
+                };
+            }
+            return main;
+        };
+
+        const formatAubier = (value) => {
+            const val = normalizeValue(value);
+            const map = {
+                vs: '< 2 cm',
+                s: '2-5 cm',
+                m: '5-10 cm',
+                b: '> 10 cm',
+                x: 'indistinct',
+                '(x)': 'généralement indistinct'
+            };
+            if (val === 'n/d') {
+                return { plain: 'n/d', html: '<span class="durab-nat-nd">n/d</span>', isND: true };
+            }
+            const display = map[val] || val;
+            return { plain: display, html: this.escapeHtml(display), isND: false };
+        };
+
+        const formatImpreg = (value) => {
+            const val = normalizeValue(value);
             const map = {
                 '1': '1 — Imprégnable',
                 '2': '2 — Moy. imprégnable',
                 '3': '3 — Peu imprégnable',
                 '4': '4 — Non imprégnable'
             };
-            if (!val || val === 'n/d' || val === 'inconnu') return 'n/d';
-            return map[val] || val;
+            if (val === 'n/d') {
+                return { plain: 'n/d', html: '<span class="durab-nat-nd">n/d</span>', isND: true };
+            }
+            const display = map[val] || val;
+            return { plain: display, html: this.escapeHtml(display), isND: false };
         };
-        const formatAubierPlain = (val) => {
-            const map = {
-                vs: '< 2 cm',
-                s: '2–5 cm',
-                m: '5–10 cm',
-                b: '> 10 cm',
-                x: 'indistinct',
-                '(x)': 'généralement indistinct'
+
+        const formatRaw = (value) => {
+            const val = normalizeValue(value);
+            if (val === 'n/d') {
+                return { plain: 'n/d', html: '<span class="durab-nat-nd">n/d</span>', isND: true };
+            }
+            return { plain: val, html: this.escapeHtml(val), isND: false };
+        };
+
+        const combine = (parts) => {
+            const validParts = parts.filter(Boolean);
+            if (!validParts.length || validParts.every((part) => part.isND)) {
+                return { plain: 'n/d', html: '<span class="durab-nat-nd">n/d</span>', isND: true };
+            }
+            return {
+                plain: validParts.map((part) => part.plain).join(' | '),
+                html: validParts.map((part) => part.html).join(' | '),
+                isND: validParts.every((part) => part.isND)
             };
-            if (!val || val === 'n/d') return 'n/d';
-            return map[val] || val;
-        };
-        const formatHyloPlain = (val) => {
-            if (val === 'n/a') return 'N/A (feuillus)';
-            return formatDCPlain(val);
-        };
-        const formatChampignonsPlain = (val) => {
-            const labo = essence.durabiliteChampignonsLabo;
-            const main = (val && val !== 'n/d') ? `DC ${val}` : 'n/d';
-            return (labo && labo !== val) ? `${main} (labo : DC ${labo})` : main;
         };
 
         const rows = [
             {
-                key: 'durabiliteChampignons',
+                key: 'tableau1Champignons',
                 fr: 'Champignons lignivores',
                 en: 'Wood-destroying fungi',
-                ref: 'Tableau 1 EN 350',
-                value: formatChampignonsPlain(essence.durabiliteChampignons)
+                ref: 'Annexes B.1 a B.4 EN 350',
+                riskFamily: 'agents-biologiques',
+                valueData: formatChampignons()
             },
             {
-                key: 'hylotrupes',
-                fr: 'Coléoptères — Hylotrupes bajulus',
-                en: 'Beetles — Hylotrupes bajulus',
-                ref: 'Tableau 2 EN 350',
-                value: formatHyloPlain(essence.hylotrupes)
+                key: 'tableau2aHylotrupes',
+                fr: 'Hylotrupes',
+                en: 'Hylotrupes',
+                ref: 'Annexes B.1 et B.4 EN 350',
+                riskFamily: 'agents-biologiques',
+                valueData: formatDC(essence.hylotrupes, { allowNA: true })
             },
             {
-                key: 'anobium',
-                fr: 'Coléoptères — Anobium punctatum',
-                en: 'Beetles — Anobium punctatum',
-                ref: 'Tableau 2 EN 350',
-                value: formatDCPlain(essence.anobium)
+                key: 'tableau2bAnobium',
+                fr: 'Anobium',
+                en: 'Anobium',
+                ref: 'Annexes B.1 a B.4 EN 350',
+                riskFamily: 'agents-biologiques',
+                valueData: formatDC(essence.anobium)
             },
             {
-                key: 'termites',
+                key: 'tableau3Termites',
                 fr: 'Termites',
                 en: 'Termites',
-                ref: 'Tableau 3 EN 350',
-                value: formatDCPlain(essence.termites)
+                ref: 'Annexes B.1 a B.4 EN 350',
+                riskFamily: 'agents-biologiques',
+                valueData: formatDC(essence.termites)
             },
             {
-                key: 'xylophagesMarins',
-                fr: 'Térébrants marins',
+                key: 'tableau4XylophagesMarins',
+                fr: 'Xylophages marins',
                 en: 'Marine borers',
-                ref: 'Tableau 4 EN 350',
-                value: formatDCPlain(essence.xylophagesMarins)
+                ref: 'Annexes B.2 a B.4 EN 350',
+                riskFamily: 'agents-biologiques',
+                valueData: formatDC(essence.xylophagesMarins)
             },
             {
-                key: 'aubierLargeur',
-                fr: 'Aubier — largeur type',
+                key: 'annexeB3Aubier',
+                fr: "Largeur de l'aubier",
                 en: 'Sapwood — typical width',
                 ref: 'Annexe B.3 EN 350',
-                value: formatAubierPlain(essence.aubierLargeur)
+                riskFamily: 'aubier',
+                valueData: formatAubier(essence.aubierLargeur)
             },
             {
-                key: 'impregnabiliteBoisParfait',
-                fr: 'Imprégnabilité — bois parfait',
-                en: 'Treatability — heartwood',
+                key: 'annexeB4Impregnabilite',
+                fr: 'Impregnabilité (bois parfait + aubier)',
+                en: 'Treatability (heartwood + sapwood)',
                 ref: 'Annexe B.4 EN 350',
-                value: formatImpregPlain(essence.impregnabiliteBoisParfait)
+                riskFamily: 'impregnabilite',
+                valueData: (() => {
+                    const heartwood = formatImpreg(essence.impregnabiliteBoisParfait);
+                    const sapwood = formatImpreg(essence.impregnabiliteAubier);
+                    return {
+                        plain: `Bois parfait: ${heartwood.plain} | Aubier: ${sapwood.plain}`,
+                        html: `Bois parfait: ${heartwood.html}<br>Aubier: ${sapwood.html}`,
+                        isND: heartwood.isND && sapwood.isND
+                    };
+                })()
             },
             {
-                key: 'impregnabiliteAubier',
-                fr: 'Imprégnabilité — aubier',
-                en: 'Treatability — sapwood',
-                ref: 'Annexe B.4 EN 350',
-                value: formatImpregPlain(essence.impregnabiliteAubier)
+                key: 'en13556Code',
+                fr: 'Code selon EN 13556',
+                en: 'Code according to EN 13556',
+                ref: 'Annexes B.1 a B.4 EN 350',
+                riskFamily: 'identification',
+                valueData: formatRaw(essence.codeEn13556)
             }
         ];
 
         return rows.map((row) => ({
-            ...row,
-            label: lang === 'en' ? row.en : row.fr
+            key: row.key,
+            ref: row.ref,
+            riskFamily: row.riskFamily,
+            label: lang === 'en' ? row.en : row.fr,
+            value: row.valueData.plain,
+            htmlValue: withHtml ? row.valueData.html : null,
+            isND: row.valueData.isND
         }));
     }
 
@@ -16642,15 +16736,15 @@ closeEvalOpModal() {
                             <summary class="mesures-accordion-summary">
                                 <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                                 <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                                <span class="durab-nat-summary-actions">
-                                    <button type="button" class="durab-nat-detail-btn" data-durab-nat-detail-btn${showDurabNatDetailsBtn ? '' : ' hidden'}>Détails</button>
-                                    <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
-                                        <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                    </button>
-                                </span>
+                                <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </button>
                             </summary>
                             <div class="durab-nat-body">
                                 <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                                <div class="durab-nat-body-actions">
+                                    <button type="button" class="durab-nat-detail-btn" data-durab-nat-detail-btn${showDurabNatDetailsBtn ? '' : ' hidden'}>Détails</button>
+                                </div>
                                 <div class="durab-nat-list"></div>
                             </div>
                         </details>
@@ -29130,118 +29224,18 @@ renderRadar() {
             accordion.removeAttribute('open');
             return;
         }
-
-        const _renderDC = (val) => {
-            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
-            const cls = val === 'D' ? 'durab-nat-durable' : val === 'S' ? 'durab-nat-nondurable' : '';
-            const label = val === 'D' ? 'Durable' : val === 'S' ? 'Non durable' : `DC ${val}`;
-            return `<span class="durab-nat-badge-inline ${cls}">DC ${val} — ${label}</span>`;
-        };
-        const _renderDCTermite = (val) => {
-            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
-            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
-            // Valeurs composées comme "M-D", "D(S)", "S-M"
-            if (labels[val]) {
-                const cls = val === 'D' ? 'durab-nat-durable' : val === 'S' ? 'durab-nat-nondurable' : 'durab-nat-medium';
-                return `<span class="durab-nat-badge-inline ${cls}">DC ${val} — ${labels[val]}</span>`;
-            }
-            return `<span class="durab-nat-badge-inline durab-nat-medium">DC ${val}</span>`;
-        };
-        const _renderImpreg = (val) => {
-            const map = { '1': '1 — Imprégnable', '2': '2 — Moy. imprégnable',
-                '3': '3 — Peu imprégnable', '4': '4 — Non imprégnable' };
-            if (!val || val === 'n/d' || val === 'inconnu') return '<span class="durab-nat-nd">n/d</span>';
-            return map[val] || val;
-        };
-        const _renderAubier = (val) => {
-            const map = { vs: '< 2 cm', s: '2–5 cm', m: '5–10 cm', b: '> 10 cm',
-                x: 'indistinct', '(x)': 'généralement indistinct' };
-            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
-            return map[val] || val;
-        };
-        const _renderHylo = (val) => {
-            if (val === 'n/a') return '<span class="durab-nat-na">N/A (feuillus)</span>';
-            return _renderDC(val);
-        };
-
         const lang = (window.getValoboisLang ? window.getValoboisLang() : 'fr');
 
-        const ROWS = [
-            {
-                key: 'durabiliteChampignons',
-                fr: 'Champignons lignivores',
-                en: 'Wood-destroying fungi',
-                ref: 'Tableau 1 EN 350',
-                render: (v) => {
-                    const labo = essence.durabiliteChampignonsLabo;
-                    const main = (v && v !== 'n/d') ? `DC ${v}` : '<span class="durab-nat-nd">n/d</span>';
-                    const laboStr = (labo && labo !== v)
-                        ? ` <span class="durab-nat-labo">(labo : DC ${labo})</span>` : '';
-                    return main + laboStr;
-                }
-            },
-            {
-                key: 'hylotrupes',
-                fr: 'Coléoptères — Hylotrupes bajulus',
-                en: 'Beetles — Hylotrupes bajulus',
-                ref: 'Tableau 2 EN 350',
-                render: _renderHylo
-            },
-            {
-                key: 'anobium',
-                fr: 'Coléoptères — Anobium punctatum',
-                en: 'Beetles — Anobium punctatum',
-                ref: 'Tableau 2 EN 350',
-                render: _renderDC
-            },
-            {
-                key: 'termites',
-                fr: 'Termites',
-                en: 'Termites',
-                ref: 'Tableau 3 EN 350',
-                render: _renderDCTermite
-            },
-            {
-                key: 'xylophagesMarins',
-                fr: 'Térébrants marins',
-                en: 'Marine borers',
-                ref: 'Tableau 4 EN 350',
-                render: _renderDCTermite
-            },
-            {
-                key: 'aubierLargeur',
-                fr: 'Aubier — largeur type',
-                en: 'Sapwood — typical width',
-                ref: 'Annexe B.3 EN 350',
-                render: _renderAubier
-            },
-            {
-                key: 'impregnabiliteBoisParfait',
-                fr: 'Imprégnabilité — bois parfait',
-                en: 'Treatability — heartwood',
-                ref: 'Annexe B.4 EN 350',
-                render: _renderImpreg
-            },
-            {
-                key: 'impregnabiliteAubier',
-                fr: 'Imprégnabilité — aubier',
-                en: 'Treatability — sapwood',
-                ref: 'Annexe B.4 EN 350',
-                render: _renderImpreg
-            },
-        ];
+        const rows = this.getDurabiliteNaturelleRows(essence, lang, { withHtml: true });
 
-        ROWS.forEach(row => {
-            const val = essence[row.key];
-            const isND = !val || val === 'n/d' || val === 'inconnu';
-            const label = lang === 'en' ? row.en : row.fr;
+        rows.forEach((row) => {
             const item = document.createElement('div');
             item.className = 'durab-nat-item';
-            if (isND && row.key !== 'hylotrupes') item.classList.add('durab-nat-item--nd');
-            item.innerHTML = `<div class="durab-nat-item-label">${label}</div>
+            if (row.isND) item.classList.add('durab-nat-item--nd');
+            item.innerHTML = `<div class="durab-nat-item-label">${this.escapeHtml(row.label)}</div>
                 <div class="durab-nat-item-row">
-                    <span class="durab-nat-item-value">${row.render(val)}</span>
-                    <span class="durab-nat-item-ref">${row.ref}</span>
+                    <span class="durab-nat-item-value">${row.htmlValue || this.escapeHtml(row.value || 'n/d')}</span>
+                    <span class="durab-nat-item-ref">${this.escapeHtml(row.ref)}</span>
                 </div>`;
             list.appendChild(item);
         });
