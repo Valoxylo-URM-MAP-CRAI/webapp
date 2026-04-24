@@ -15588,6 +15588,17 @@ closeEvalOpModal() {
                         <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                     </div>
+                    <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--dp-${defaultPieceId}">
+                        <summary class="mesures-accordion-summary">
+                            <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            <span class="mesures-accordion-title-text">Durabilité naturelle</span>
+                            <span class="durab-nat-badge" id="durabiliteNaturelleBadge--dp-${defaultPieceId}" hidden></span>
+                        </summary>
+                        <div class="durab-nat-body">
+                            <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                            <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                        </div>
+                    </details>
                 </div>
                 <div class="lot-group">
                     <p class="lot-group-title">Dimensions, volume, surface</p>
@@ -15891,6 +15902,17 @@ closeEvalOpModal() {
                         <input type="text" class="lot-input lot-input--essence-common" value="${pEffEssenceCommun}" placeholder="Essence (nom commun)" data-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${pEffEssenceScientifique}" placeholder="Essence (nom scientifique)" data-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                     </div>
+                    <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--piece-${pieceIndex}">
+                        <summary class="mesures-accordion-summary">
+                            <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                            <span class="mesures-accordion-title-text">Durabilité naturelle</span>
+                            <span class="durab-nat-badge" id="durabiliteNaturelleBadge--piece-${pieceIndex}" hidden></span>
+                        </summary>
+                        <div class="durab-nat-body">
+                            <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                            <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                        </div>
+                    </details>
                 </div>
                 <div class="lot-group">
                     <p class="lot-group-title">Dimensions, volume, surface</p>
@@ -16313,6 +16335,17 @@ closeEvalOpModal() {
                             </div>
                             <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="essence"${showEssenceDetailsBtn ? '' : ' hidden'}>Détail des essences</button>
                         </div>
+                        <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--lot-${index}">
+                            <summary class="mesures-accordion-summary">
+                                <svg class="mesures-accordion-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                                <span class="mesures-accordion-title-text">Durabilité naturelle</span>
+                                <span class="durab-nat-badge" id="durabiliteNaturelleBadge--lot-${index}" hidden></span>
+                            </summary>
+                            <div class="durab-nat-body">
+                                <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                                <table class="durab-nat-table"><thead><tr><th>Critère</th><th>Valeur</th><th>Référence</th></tr></thead><tbody></tbody></table>
+                            </div>
+                        </details>
                     </div>
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : dimensions, volumes, surface</p>
@@ -17596,6 +17629,10 @@ closeEvalOpModal() {
                     (lot.allotissement.essenceNomCommun || '').toString().trim(),
                     (lot.allotissement.essenceNomScientifique || '').toString().trim()
                 ].filter(Boolean).join(' - ');
+                if ((field === 'essenceNomCommun' || field === 'essenceNomScientifique') && e.type !== 'input') {
+                    const durabAcc = card.querySelector('[id^="durabiliteNaturelleAccordion--lot-"]');
+                    if (durabAcc) this.updateDurabiliteNaturelleAccordion(durabAcc, lot.allotissement.essenceNomCommun || '', lot.allotissement.essenceNomScientifique || '');
+                }
                 updateCalculs();
             };
             input.addEventListener('click', (e) => {
@@ -17720,6 +17757,12 @@ closeEvalOpModal() {
 
         rail.appendChild(card);
 
+        // Initialiser l'accordéon durabilité naturelle si une essence est déjà définie
+        const durabAccLot = card.querySelector(`#durabiliteNaturelleAccordion--lot-${index}`);
+        if (durabAccLot && lot.allotissement.essenceNomCommun) {
+            this.updateDurabiliteNaturelleAccordion(durabAccLot, lot.allotissement.essenceNomCommun || '', lot.allotissement.essenceNomScientifique || '');
+        }
+
         // Points de navigation
         const dot = document.createElement('div');
         dot.className = 'lot-slider-dot ' + (index === this.currentLotIndex ? 'lot-slider-dot--active' : '');
@@ -17779,6 +17822,16 @@ closeEvalOpModal() {
         }).join('')
             + lot.pieces.map((p, pi) => this.renderPieceCardHTML(p, pi, lot, activeCardKey === `piece:${pi}`)).join('');
         this.applyDetailLotCardActivation(pieceRail, lot);
+
+        // Initialiser les accordéons durabilité naturelle
+        defaultPieces.forEach(dp => {
+            const acc = pieceRail.querySelector(`#durabiliteNaturelleAccordion--dp-${dp.id}`);
+            if (acc && (dp.essenceNomCommun || dp.essenceNomScientifique)) this.updateDurabiliteNaturelleAccordion(acc, dp.essenceNomCommun || '', dp.essenceNomScientifique || '');
+        });
+        lot.pieces.forEach((piece, pi) => {
+            const acc = pieceRail.querySelector(`#durabiliteNaturelleAccordion--piece-${pi}`);
+            if (acc && (piece.essenceNomCommun || piece.essenceNomScientifique)) this.updateDurabiliteNaturelleAccordion(acc, piece.essenceNomCommun || '', piece.essenceNomScientifique || '');
+        });
 
         // Mémoriser l'état ouvert/fermé des accordéons Localisation-Situation
         pieceRail.querySelectorAll('details[data-acc-loc-sit]').forEach((detailsEl) => {
@@ -18127,6 +18180,11 @@ closeEvalOpModal() {
                         (dp.essenceNomCommun || '').toString().trim(),
                         (dp.essenceNomScientifique || '').toString().trim()
                     ].filter(Boolean).join(' - ');
+
+                    if ((field === 'essenceNomCommun' || field === 'essenceNomScientifique') && e.type !== 'input') {
+                        const durabAcc = defaultPieceCard.querySelector(`[id^="durabiliteNaturelleAccordion--dp-"]`);
+                        if (durabAcc) this.updateDurabiliteNaturelleAccordion(durabAcc, dp.essenceNomCommun || '', dp.essenceNomScientifique || '');
+                    }
 
                     // Mise à jour dynamique des libellés de position (longueur → positions de mesure)
                     if (field === 'longueur') {
@@ -18504,6 +18562,11 @@ closeEvalOpModal() {
                         (piece.essenceNomCommun || '').toString().trim(),
                         (piece.essenceNomScientifique || '').toString().trim()
                     ].filter(Boolean).join(' - ');
+
+                    if ((field === 'essenceNomCommun' || field === 'essenceNomScientifique') && e.type !== 'input') {
+                        const durabAcc = pieceCard.querySelector(`[id^="durabiliteNaturelleAccordion--piece-"]`);
+                        if (durabAcc) this.updateDurabiliteNaturelleAccordion(durabAcc, piece.essenceNomCommun || '', piece.essenceNomScientifique || '');
+                    }
 
                     // Mise à jour dynamique des libellés de position (longueur → positions de mesure)
                     if (field === 'longueur') {
@@ -28713,6 +28776,177 @@ renderRadar() {
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
+        }
+    }
+
+    // ── Durabilité naturelle EN 350 ───────────────────────────────────
+
+    /**
+     * Met à jour l'accordéon "Durabilité naturelle" d'un formulaire.
+     * @param {HTMLElement} accordion - L'élément <details> de l'accordéon
+     * @param {string} essenceNomUsuel - Nom usuel de l'essence sélectionnée
+     */
+    updateDurabiliteNaturelleAccordion(accordion, essenceNomUsuel, essenceNomScientifique = '') {
+        if (!accordion) return;
+        const table = accordion.querySelector('.durab-nat-table');
+        const badge = accordion.querySelector('.durab-nat-badge');
+        if (!table) return;
+
+        const tbody = table.querySelector('tbody');
+        if (!tbody) return;
+
+        // Normalisation pour lookup (même logique que normalizeEssenceLookupKey)
+        const normalizeKey = (s) => (s == null ? '' : String(s))
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/['']/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const list = typeof ESSENCES_VALOBOIS !== 'undefined' ? ESSENCES_VALOBOIS : [];
+        let essence = list.find(e => normalizeKey(e.nomUsuel) === normalizeKey(essenceNomUsuel));
+        // Fallback par nom scientifique si non trouvé par nom commun
+        if (!essence && essenceNomScientifique) {
+            essence = list.find(e => normalizeKey(e.nomScientifique) === normalizeKey(essenceNomScientifique));
+        }
+
+        tbody.innerHTML = '';
+
+        if (!essence) {
+            accordion.removeAttribute('open');
+            if (badge) badge.hidden = true;
+            return;
+        }
+
+        // Badge visible si au moins une donnée EN 350 est disponible
+        const hasData = ['hylotrupes', 'anobium', 'termites', 'xylophagesMarins', 'aubierLargeur',
+            'impregnabiliteBoisParfait', 'impregnabiliteAubier']
+            .some(k => essence[k] && essence[k] !== 'n/d' && essence[k] !== 'inconnu' && essence[k] !== 'n/a');
+
+        if (badge) {
+            badge.hidden = !hasData;
+            badge.textContent = hasData ? 'EN 350' : '';
+        }
+
+        const _renderDC = (val) => {
+            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
+            const cls = val === 'D' ? 'durab-nat-durable' : val === 'S' ? 'durab-nat-nondurable' : '';
+            const label = val === 'D' ? 'Durable' : val === 'S' ? 'Non durable' : `DC ${val}`;
+            return `<span class="durab-nat-badge-inline ${cls}">DC ${val} — ${label}</span>`;
+        };
+        const _renderDCTermite = (val) => {
+            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
+            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
+            // Valeurs composées comme "M-D", "D(S)", "S-M"
+            if (labels[val]) {
+                const cls = val === 'D' ? 'durab-nat-durable' : val === 'S' ? 'durab-nat-nondurable' : 'durab-nat-medium';
+                return `<span class="durab-nat-badge-inline ${cls}">DC ${val} — ${labels[val]}</span>`;
+            }
+            return `<span class="durab-nat-badge-inline durab-nat-medium">DC ${val}</span>`;
+        };
+        const _renderImpreg = (val) => {
+            const map = { '1': '1 — Imprégnable', '2': '2 — Moy. imprégnable',
+                '3': '3 — Peu imprégnable', '4': '4 — Non imprégnable' };
+            if (!val || val === 'n/d' || val === 'inconnu') return '<span class="durab-nat-nd">n/d</span>';
+            return map[val] || val;
+        };
+        const _renderAubier = (val) => {
+            const map = { vs: '< 2 cm', s: '2–5 cm', m: '5–10 cm', b: '> 10 cm',
+                x: 'indistinct', '(x)': 'généralement indistinct' };
+            if (!val || val === 'n/d') return '<span class="durab-nat-nd">n/d</span>';
+            return map[val] || val;
+        };
+        const _renderHylo = (val) => {
+            if (val === 'n/a') return '<span class="durab-nat-na">N/A (feuillus)</span>';
+            return _renderDC(val);
+        };
+
+        const lang = (window.getValoboisLang ? window.getValoboisLang() : 'fr');
+
+        const ROWS = [
+            {
+                key: 'durabiliteChampignons',
+                fr: 'Champignons lignivores',
+                en: 'Wood-destroying fungi',
+                ref: 'Tableau 1 EN 350',
+                render: (v) => {
+                    const labo = essence.durabiliteChampignonsLabo;
+                    const main = (v && v !== 'n/d') ? `DC ${v}` : '<span class="durab-nat-nd">n/d</span>';
+                    const laboStr = (labo && labo !== v)
+                        ? ` <span class="durab-nat-labo">(labo : DC ${labo})</span>` : '';
+                    return main + laboStr;
+                }
+            },
+            {
+                key: 'hylotrupes',
+                fr: 'Coléoptères — Hylotrupes bajulus',
+                en: 'Beetles — Hylotrupes bajulus',
+                ref: 'Tableau 2 EN 350',
+                render: _renderHylo
+            },
+            {
+                key: 'anobium',
+                fr: 'Coléoptères — Anobium punctatum',
+                en: 'Beetles — Anobium punctatum',
+                ref: 'Tableau 2 EN 350',
+                render: _renderDC
+            },
+            {
+                key: 'termites',
+                fr: 'Termites',
+                en: 'Termites',
+                ref: 'Tableau 3 EN 350',
+                render: _renderDCTermite
+            },
+            {
+                key: 'xylophagesMarins',
+                fr: 'Térébrants marins',
+                en: 'Marine borers',
+                ref: 'Tableau 4 EN 350',
+                render: _renderDCTermite
+            },
+            {
+                key: 'aubierLargeur',
+                fr: 'Aubier — largeur type',
+                en: 'Sapwood — typical width',
+                ref: 'Annexe B.3 EN 350',
+                render: _renderAubier
+            },
+            {
+                key: 'impregnabiliteBoisParfait',
+                fr: 'Imprégnabilité — bois parfait',
+                en: 'Treatability — heartwood',
+                ref: 'Annexe B.4 EN 350',
+                render: _renderImpreg
+            },
+            {
+                key: 'impregnabiliteAubier',
+                fr: 'Imprégnabilité — aubier',
+                en: 'Treatability — sapwood',
+                ref: 'Annexe B.4 EN 350',
+                render: _renderImpreg
+            },
+        ];
+
+        ROWS.forEach(row => {
+            const val = essence[row.key];
+            const isND = !val || val === 'n/d' || val === 'inconnu';
+            const label = lang === 'en' ? row.en : row.fr;
+            const tr = document.createElement('tr');
+            if (isND && row.key !== 'hylotrupes') tr.classList.add('durab-nat-row--nd');
+            tr.innerHTML = `
+                <td class="durab-nat-critere">${label}</td>
+                <td class="durab-nat-valeur">${row.render(val)}</td>
+                <td class="durab-nat-ref">${row.ref}</td>`;
+            tbody.appendChild(tr);
+        });
+
+        if (essence.remarques) {
+            const tr = document.createElement('tr');
+            tr.classList.add('durab-nat-row--remarques');
+            tr.innerHTML = `<td colspan="3" class="durab-nat-remarques">⚠ ${essence.remarques}</td>`;
+            tbody.appendChild(tr);
         }
     }
 

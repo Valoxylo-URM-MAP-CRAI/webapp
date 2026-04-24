@@ -11882,3 +11882,127 @@ body.day-mode .inspection-ignore-box {
    /Mesures inline widget
    ============================================================ */
 
+/* ============================================================
+   Durabilité naturelle EN 350 — Accordéon
+   ============================================================ */
+
+.durab-nat-accordion {
+    margin-top: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm, 4px);
+    background: #fff;
+    overflow: hidden;
+}
+
+.durab-nat-accordion > .mesures-accordion-summary {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    cursor: pointer;
+    user-select: none;
+    background: #f9f9f9;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--color-text-primary, #222);
+    list-style: none;
+}
+.durab-nat-accordion > .mesures-accordion-summary::-webkit-details-marker { display: none; }
+.durab-nat-accordion > .mesures-accordion-summary:hover { background: #f0f2f8; }
+
+.durab-nat-accordion > .mesures-accordion-summary .mesures-accordion-chevron {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+    transition: transform 0.18s ease;
+    color: #888;
+}
+.durab-nat-accordion[open] > .mesures-accordion-summary .mesures-accordion-chevron {
+    transform: rotate(180deg);
+}
+
+.durab-nat-accordion .durab-nat-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    padding: 1px 6px;
+    border-radius: 10px;
+    background: #e8f0fe;
+    color: var(--color-primary, #1D3D96);
+    border: 1px solid #b8cdfb;
+    margin-left: auto;
+}
+
+.durab-nat-body {
+    padding: 8px 10px 10px;
+    border-top: 1px solid var(--color-border);
+    overflow-x: auto;
+}
+
+.durab-nat-source {
+    font-size: 10px;
+    color: #999;
+    margin: 0 0 8px;
+    font-style: italic;
+}
+
+/* ── Table ───────────────────────────────────────────────── */
+.durab-nat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.durab-nat-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #666;
+    padding: 3px 6px;
+    border-bottom: 1px solid var(--color-border);
+    background: #f5f5f5;
+}
+.durab-nat-table td {
+    padding: 4px 6px;
+    vertical-align: middle;
+    border-bottom: 1px solid #eee;
+}
+.durab-nat-table tr:last-child td { border-bottom: none; }
+
+.durab-nat-critere { color: #444; max-width: 160px; }
+.durab-nat-valeur  { min-width: 80px; }
+.durab-nat-ref     { font-size: 10px; color: #aaa; white-space: nowrap; }
+
+/* Ligne n/d atténuée */
+.durab-nat-row--nd td { opacity: 0.55; }
+
+/* ── Badges inline valeur ───────────────────────────────── */
+.durab-nat-badge-inline {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 3px;
+    white-space: nowrap;
+}
+.durab-nat-durable    { background: #e8f5ee; color: #2d8a4e; border: 1px solid #a8d8ba; }
+.durab-nat-nondurable { background: #fdecea; color: #c0392b; border: 1px solid #f0b8b4; }
+.durab-nat-medium     { background: #fff3e0; color: #8a5a00; border: 1px solid #f5d190; }
+.durab-nat-na         { font-size: 11px; color: #999; font-style: italic; }
+.durab-nat-nd         { font-size: 11px; color: #bbb; }
+.durab-nat-labo       { font-size: 10px; color: #666; font-weight: 400; }
+
+/* ── Ligne remarques ────────────────────────────────────── */
+.durab-nat-row--remarques td {
+    background: #fff8e1;
+    color: #7a4f00;
+    font-size: 11px;
+    padding: 5px 8px;
+    border-top: 1px solid #ffe082;
+    border-radius: 0 0 3px 3px;
+}
+
+/* ============================================================
+   /Durabilité naturelle EN 350 — Accordéon
+   ============================================================ */
+

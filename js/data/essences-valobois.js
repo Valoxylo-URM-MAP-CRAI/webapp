@@ -11,154 +11,264 @@ const ESSENCES_VALOBOIS = [
         nomScientifique: "Abies alba / A. grandis",
         type: "Résineux", origine: "Europe / Amérique du Nord (Cultivé)",
         massevolumique: 460, massevolumiqueRange: [440, 480], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "2"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "2",
+        hylotrupes: "S", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Sujet au bleuissement ; non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Cèdre de l'Atlas",
         nomScientifique: "Cedrus atlantica",
         type: "Résineux", origine: "Afrique du Nord / Méditerranée",
         massevolumique: 580, massevolumiqueRange: [540, 620], sourceDensite: "Réf. CIRAD/FCBA",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu",
+        hylotrupes: "D", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Cyprès chauve",
         nomScientifique: "Taxodium distichum",
         type: "Résineux", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 510, massevolumiqueRange: [460, 560], sourceDensite: "Réf. Wood Database",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/d", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Cyprès de Lawson",
         nomScientifique: "Chamaecyparis lawsoniana",
         type: "Résineux", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 490, massevolumiqueRange: [450, 530], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/d", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Cyprès méditerranéen",
         nomScientifique: "Cupressus sempervirens",
         type: "Résineux", origine: "Méditerranée",
         massevolumique: 560, massevolumiqueRange: [500, 620], sourceDensite: "Réf. CIRAD",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2",
+        hylotrupes: "n/d", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Douglas (Pin d'Oregon)",
         nomScientifique: "Pseudotsuga menziesii",
         type: "Résineux", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 530, massevolumiqueRange: [470, 550], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "3"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "3",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "3-5", aubierLargeur: "s",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Épicéa commun (Épicéa de Norvège)",
         nomScientifique: "Picea abies",
         type: "Résineux", origine: "Europe",
         massevolumique: 460, massevolumiqueRange: [440, 470], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "3"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "3",
+        hylotrupes: "S", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "4-5", aubierLargeur: "x",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Épicéa de Sitka",
         nomScientifique: "Picea sitchensis",
         type: "Résineux", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 440, massevolumiqueRange: [400, 450], sourceDensite: "EN 350",
-        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2-3"
+        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2-3",
+        hylotrupes: "D", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "(x)",
+        basidiomycetes: "4-5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Hemlock (Tsuga de l'Ouest)",
         nomScientifique: "Tsuga heterophylla",
         type: "Résineux", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 490, massevolumiqueRange: [470, 510], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "If commun",
         nomScientifique: "Taxus baccata",
         type: "Résineux", origine: "Europe",
         massevolumique: 690, massevolumiqueRange: [650, 800], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2",
+        hylotrupes: "D", anobium: "D",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "vs",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Mélèze d'Europe / Mélèze du Japon",
         nomScientifique: "Larix decidua / L. kaempferi",
         type: "Résineux", origine: "Europe / Japon (Cultivé en Europe)",
         massevolumique: 600, massevolumiqueRange: [470, 650], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "3-4", aubierLargeur: "s",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Mélèze de Sibérie",
         nomScientifique: "Larix sibirica",
         type: "Résineux", origine: "Sibérie / Russie",
         massevolumique: 700, massevolumiqueRange: [680, 720], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Pin à crochets (Pin de montagne)",
         nomScientifique: "Pinus uncinata",
         type: "Résineux", origine: "Europe (Montagne)",
         massevolumique: 560, massevolumiqueRange: [500, 620], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Pin d'Alep",
         nomScientifique: "Pinus halepensis",
         type: "Résineux", origine: "Méditerranée",
         massevolumique: 550, massevolumiqueRange: [490, 610], sourceDensite: "Réf. CIRAD",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Pin laricio / Pin noir d'Autriche",
         nomScientifique: "Pinus nigra (laricio / nigra)",
         type: "Résineux", origine: "Méditerranée / Europe du Sud",
         massevolumique: 580, massevolumiqueRange: [510, 650], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "3", aubierLargeur: "m-b",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Pin maritime (Pin des Landes)",
         nomScientifique: "Pinus pinaster",
         type: "Résineux", origine: "Europe du Sud-Ouest",
         massevolumique: 540, massevolumiqueRange: [530, 550], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "b",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Pin parasol (Pin pignon)",
         nomScientifique: "Pinus pinea",
         type: "Résineux", origine: "Méditerranée",
         massevolumique: 584, massevolumiqueRange: [560, 620], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Pin radiata",
         nomScientifique: "Pinus radiata",
         type: "Résineux", origine: "Cultivé (Amérique du Sud, Australie, Europe)",
         massevolumique: 470, massevolumiqueRange: [420, 500], sourceDensite: "EN 350",
-        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "b",
+        basidiomycetes: "4-5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Pin sylvestre",
         nomScientifique: "Pinus sylvestris",
         type: "Résineux", origine: "Europe",
         massevolumique: 520, massevolumiqueRange: [500, 540], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "2-5", aubierLargeur: "s-m",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Durabilité très variable vis-à-vis des basidiomycètes en conditions de laboratoire"
     },
     {
         nomUsuel: "Pin Weymouth",
         nomScientifique: "Pinus strobus",
         type: "Résineux", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 410, massevolumiqueRange: [400, 420], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "D", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "b",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Cèdre rouge de l'Ouest (Red Cedar)",
         nomScientifique: "Thuja plicata",
         type: "Résineux", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 370, massevolumiqueRange: [330, 390], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "3"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "3",
+        hylotrupes: "D", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Séquoia (Redwood côtier)",
         nomScientifique: "Sequoia sempervirens",
         type: "Résineux", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 420, massevolumiqueRange: [380, 480], sourceDensite: "Réf. Wood Database",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/d", anobium: "n/d",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
 
     // ════════════════════════════════════════════════════════
@@ -170,252 +280,432 @@ const ESSENCES_VALOBOIS = [
         nomScientifique: "Sorbus torminalis / S. aria",
         type: "Feuillu", origine: "Europe",
         massevolumique: 700, massevolumiqueRange: [650, 760], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Aulne glutineux / Aulne de Corse",
         nomScientifique: "Alnus glutinosa / A. cordata",
         type: "Feuillu", origine: "Europe",
         massevolumique: 530, massevolumiqueRange: [500, 550], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Trichoferus holosericeus"
     },
     {
         nomUsuel: "Bouleau européen",
         nomScientifique: "Betula pubescens / B. pendula",
         type: "Feuillu", origine: "Europe",
         massevolumique: 660, massevolumiqueRange: [640, 670], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1-2", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1-2", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Bouleau jaune (Amérique)",
         nomScientifique: "Betula alleghaniensis",
         type: "Feuillu", origine: "Amérique du Nord",
         massevolumique: 670, massevolumiqueRange: [550, 710], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Charme",
         nomScientifique: "Carpinus betulus",
         type: "Feuillu", origine: "Europe",
         massevolumique: 800, massevolumiqueRange: [750, 850], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Châtaignier",
         nomScientifique: "Castanea sativa",
         type: "Feuillu", origine: "Europe",
         massevolumique: 590, massevolumiqueRange: [540, 650], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1", aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Trichoferus holosericeus ; non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Cerisier (Merisier)",
         nomScientifique: "Prunus avium",
         type: "Feuillu", origine: "Europe",
         massevolumique: 600, massevolumiqueRange: [560, 650], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "3-5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "3-5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "3-5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Chêne blanc d'Amérique",
         nomScientifique: "Quercus alba",
         type: "Feuillu", origine: "Amérique du Nord",
         massevolumique: 730, massevolumiqueRange: [670, 770], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Lyctus"
     },
     {
         nomUsuel: "Chêne chevelu (Chêne de Turquie)",
         nomScientifique: "Quercus cerris",
         type: "Feuillu", origine: "Europe du Sud / Méditerranée orientale",
         massevolumique: 690, massevolumiqueRange: [650, 750], sourceDensite: "EN 350 / Réf. FCBA",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "b",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier Lyctus n/d ; non résistant à Trichoferus holosericeus"
     },
     {
         nomUsuel: "Chêne des marais",
         nomScientifique: "Quercus palustris",
         type: "Feuillu", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 700, massevolumiqueRange: [650, 750], sourceDensite: "Réf. Wood Database",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Chêne européen (Pédonculé / Sessile)",
         nomScientifique: "Quercus robur / Q. petraea",
         type: "Feuillu", origine: "Europe",
         massevolumique: 690, massevolumiqueRange: [650, 760], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-4", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "s",
+        basidiomycetes: "2-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Lyctus ni à Trichoferus holosericeus"
     },
     {
         nomUsuel: "Chêne liège",
         nomScientifique: "Quercus suber",
         type: "Feuillu", origine: "Méditerranée occidentale",
         massevolumique: 750, massevolumiqueRange: [700, 820], sourceDensite: "Réf. CIRAD",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Chêne pubescent",
         nomScientifique: "Quercus pubescens",
         type: "Feuillu", origine: "Europe / Méditerranée",
         massevolumique: 750, massevolumiqueRange: [700, 820], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Chêne rouge d'Amérique",
         nomScientifique: "Quercus rubra",
         type: "Feuillu", origine: "Amérique du Nord / Cultivé en Europe",
         massevolumique: 700, massevolumiqueRange: [650, 790], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "3", aubierLargeur: "s",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Lyctus"
     },
     {
         nomUsuel: "Chêne tauzin",
         nomScientifique: "Quercus pyrenaica",
         type: "Feuillu", origine: "Europe (Péninsule ibérique / SO France)",
         massevolumique: 680, massevolumiqueRange: [640, 730], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Chêne vert (Yeuse)",
         nomScientifique: "Quercus ilex",
         type: "Feuillu", origine: "Méditerranée",
         massevolumique: 960, massevolumiqueRange: [900, 1050], sourceDensite: "Réf. CIRAD",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Cormier (Sorbier domestique)",
         nomScientifique: "Sorbus domestica",
         type: "Feuillu", origine: "Europe",
         massevolumique: 760, massevolumiqueRange: [700, 830], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Érable sycomore / Érable plane",
         nomScientifique: "Acer pseudoplatanus / A. platanoides",
         type: "Feuillu", origine: "Europe",
         massevolumique: 640, massevolumiqueRange: [610, 680], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Frêne commun",
         nomScientifique: "Fraxinus excelsior",
         type: "Feuillu", origine: "Europe",
         massevolumique: 700, massevolumiqueRange: [680, 750], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "2"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "4", aubierLargeur: "(x)",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Hêtre commun",
         nomScientifique: "Fagus sylvatica",
         type: "Feuillu", origine: "Europe",
         massevolumique: 710, massevolumiqueRange: [690, 750], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "4-5", aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Trichoferus holosericeus ; l'imprégnabilité (4) concerne le cœur rouge"
     },
     {
         nomUsuel: "Hickory",
         nomScientifique: "Carya spp.",
         type: "Feuillu", origine: "Amérique du Nord",
         massevolumique: 800, massevolumiqueRange: [790, 830], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Marronnier d'Inde",
         nomScientifique: "Aesculus hippocastanum",
         type: "Feuillu", origine: "Europe (introduit des Balkans)",
         massevolumique: 540, massevolumiqueRange: [500, 590], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Noyer européen",
         nomScientifique: "Juglans regia",
         type: "Feuillu", origine: "Europe / Asie occidentale",
         massevolumique: 670, massevolumiqueRange: [630, 680], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Noyer noir (Américain)",
         nomScientifique: "Juglans nigra",
         type: "Feuillu", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 620, massevolumiqueRange: [550, 660], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Olivier",
         nomScientifique: "Olea europaea",
         type: "Feuillu", origine: "Méditerranée",
         massevolumique: 960, massevolumiqueRange: [900, 1080], sourceDensite: "Réf. CIRAD",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Orme (Européen)",
         nomScientifique: "Ulmus spp.",
         type: "Feuillu", origine: "Europe",
         massevolumique: 650, massevolumiqueRange: [630, 680], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Paulownia",
         nomScientifique: "Paulownia tomentosa / P. fortunei",
         type: "Feuillu", origine: "Asie / Cultivé en Europe",
         massevolumique: 280, massevolumiqueRange: [240, 320], sourceDensite: "EN 350 / Réf. FCBA",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Peuplier",
         nomScientifique: "Populus spp.",
         type: "Feuillu", origine: "Europe",
         massevolumique: 440, massevolumiqueRange: [420, 480], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "5", aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Trichoferus holosericeus ; sujet au bleuissement"
     },
     {
         nomUsuel: "Platane (d'Europe)",
         nomScientifique: "Platanus x hispanica",
         type: "Feuillu", origine: "Europe",
         massevolumique: 630, massevolumiqueRange: [600, 680], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Poirier",
         nomScientifique: "Pyrus communis",
         type: "Feuillu", origine: "Europe",
         massevolumique: 730, massevolumiqueRange: [680, 780], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Pommier",
         nomScientifique: "Malus sylvestris",
         type: "Feuillu", origine: "Europe",
         massevolumique: 730, massevolumiqueRange: [680, 790], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Prunier",
         nomScientifique: "Prunus domestica",
         type: "Feuillu", origine: "Europe",
         massevolumique: 750, massevolumiqueRange: [700, 810], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Robinier (Faux-Acacia)",
         nomScientifique: "Robinia pseudoacacia",
         type: "Feuillu", origine: "Amérique du Nord / Naturalisé en Europe",
         massevolumique: 740, massevolumiqueRange: [720, 800], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "vs",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux xylophages marins"
     },
     {
         nomUsuel: "Saule",
         nomScientifique: "Salix spp.",
         type: "Feuillu", origine: "Europe",
         massevolumique: 430, massevolumiqueRange: [380, 500], sourceDensite: "Réf. FCBA",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tilleul",
         nomScientifique: "Tilia spp.",
         type: "Feuillu", origine: "Europe",
         massevolumique: 540, massevolumiqueRange: [520, 560], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tulipier de Virginie (Tulipwood)",
         nomScientifique: "Liriodendron tulipifera",
         type: "Feuillu", origine: "Amérique du Nord / Introduit en Europe",
         massevolumique: 614, massevolumiqueRange: [560, 660], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "inconnu", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
 
     // ════════════════════════════════════════════════════════
@@ -427,422 +717,757 @@ const ESSENCES_VALOBOIS = [
         nomScientifique: "Khaya spp.",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 520, massevolumiqueRange: [490, 800], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Acajou d'Amérique (Mahogany)",
         nomScientifique: "Swietenia macrophylla / S. mahagoni",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 550, massevolumiqueRange: [510, 580], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2-3"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2-3",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Afrormosia",
         nomScientifique: "Pericopsis elata",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 690, massevolumiqueRange: [680, 710], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S-M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "vs",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Amarante (Purpleheart)",
         nomScientifique: "Peltogyne spp.",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 860, massevolumiqueRange: [830, 880], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Andiroba",
         nomScientifique: "Carapa guianensis",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 620, massevolumiqueRange: [610, 640], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Angélique (Basralocus)",
         nomScientifique: "Dicorynia guianensis",
         type: "Feuillu", origine: "Amérique du Sud (Guyane)",
         massevolumique: 750, massevolumiqueRange: [720, 790], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: "2", aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Aniégré",
         nomScientifique: "Chrysophyllum spp. (Aningeria spp.)",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 580, massevolumiqueRange: [540, 630], sourceDensite: "EN 350",
-        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4-5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "4-5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Ayous / Samba / Obeche / Abachi",
         nomScientifique: "Triplochiton scleroxylon",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 390, massevolumiqueRange: [370, 400], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "4", aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Lyctus ; sujet au bleuissement"
     },
     {
         nomUsuel: "Azobé (Ekki / Bongossi)",
         nomScientifique: "Lophira alata",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 1060, massevolumiqueRange: [950, 1100], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M-D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "s",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Badi (Bilinga / Opepe)",
         nomScientifique: "Nauclea diderrichii",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 750, massevolumiqueRange: [740, 780], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Balsa",
         nomScientifique: "Ochroma pyramidale",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 150, massevolumiqueRange: [100, 220], sourceDensite: "Réf. Wood Database",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Bangkirai (Yellow Balau)",
         nomScientifique: "Shorea laevis / S. maxwelliana",
         type: "Feuillu", origine: "Asie du Sud-Est",
         massevolumique: 930, massevolumiqueRange: [700, 1150], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D(S)", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: "2", aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Bossé (clair)",
         nomScientifique: "Guarea cedrata",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 580, massevolumiqueRange: [570, 630], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "2", aubierLargeur: "m",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Bubinga",
         nomScientifique: "Guibourtia spp.",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 830, massevolumiqueRange: [700, 910], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S-M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "2", aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Courbaril (Jatoba)",
         nomScientifique: "Hymenaea courbaril",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 950, massevolumiqueRange: [800, 1100], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S-M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s-l",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Cumaru (Gaïac de Cayenne)",
         nomScientifique: "Dipteryx odorata",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 1050, massevolumiqueRange: [1000, 1150], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Dabéma (Dahoma)",
         nomScientifique: "Piptadeniastrum africanum",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 700, massevolumiqueRange: [600, 800], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "3", aubierLargeur: "m-b",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Dibétou (African Walnut)",
         nomScientifique: "Lovoa trichilioides",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 550, massevolumiqueRange: [450, 650], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3-4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s-m",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Doussié (Afzelia)",
         nomScientifique: "Afzelia spp.",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 800, massevolumiqueRange: [730, 830], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D(S)", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Ébène",
         nomScientifique: "Diospyros spp.",
         type: "Feuillu", origine: "Afrique / Asie tropicale",
         massevolumique: 1100, massevolumiqueRange: [1000, 1250], sourceDensite: "Réf. CIRAD / Wood Database",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Eucalyptus (Jarrah)",
         nomScientifique: "Eucalyptus marginata",
         type: "Feuillu", origine: "Australie",
         massevolumique: 830, massevolumiqueRange: [700, 950], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "1", aubierLargeur: "s",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Eucalyptus bleu (Blue Gum)",
         nomScientifique: "Eucalyptus globulus",
         type: "Feuillu", origine: "Australie / Cultivé en Europe",
         massevolumique: 750, massevolumiqueRange: [700, 900], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Fraké (Limba / Afara)",
         nomScientifique: "Terminalia superba",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 560, massevolumiqueRange: [550, 600], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "(x)",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Lyctus"
     },
     {
         nomUsuel: "Framiré (Idigbo)",
         nomScientifique: "Terminalia ivorensis",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 550, massevolumiqueRange: [520, 560], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "2",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "(x)",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Garapa (Grapia)",
         nomScientifique: "Apuleia leiocarpa",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 800, massevolumiqueRange: [700, 900], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "3"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "3",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Ipé (Ébène verte / Lapacho)",
         nomScientifique: "Handroanthus spp.",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 1050, massevolumiqueRange: [900, 1150], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s-m",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Iroko (Kambala / Mvule)",
         nomScientifique: "Milicia excelsa / M. regia",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 650, massevolumiqueRange: [630, 670], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "m",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Lyctus ; non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Itauba",
         nomScientifique: "Mezilaurus itauba",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 850, massevolumiqueRange: [800, 950], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Kapur",
         nomScientifique: "Dryobalanops spp.",
         type: "Feuillu", origine: "Asie du Sud-Est",
         massevolumique: 700, massevolumiqueRange: [630, 790], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "m",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Kempas",
         nomScientifique: "Koompassia malaccensis",
         type: "Feuillu", origine: "Asie du Sud-Est",
         massevolumique: 860, massevolumiqueRange: [850, 880], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Aubier non résistant à Lyctus"
     },
     {
         nomUsuel: "Kosipo (Omu)",
         nomScientifique: "Entandrophragma candollei",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 670, massevolumiqueRange: [640, 720], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: "2-3", aubierLargeur: "s",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Kotibé (Danta)",
         nomScientifique: "Nesogordonia papaverifera",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 730, massevolumiqueRange: [710, 760], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M-D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Koto",
         nomScientifique: "Pterygota macrocarpa",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 560, massevolumiqueRange: [510, 630], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "1", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Lyctus ; sujet au bleuissement"
     },
     {
         nomUsuel: "Makoré (Douka)",
         nomScientifique: "Tieghemella heckelii / T. africana",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 660, massevolumiqueRange: [620, 720], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Mansonia (Bété)",
         nomScientifique: "Mansonia altissima",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 620, massevolumiqueRange: [610, 630], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Merbau (Intsia)",
         nomScientifique: "Intsia spp.",
         type: "Feuillu", origine: "Asie du Sud-Est / Australasie",
         massevolumique: 800, massevolumiqueRange: [730, 830], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "D(S)", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: "1-2", aubierLargeur: "m",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Meranti (Rouge / Blanc / Jaune)",
         nomScientifique: "Shorea spp.",
         type: "Feuillu", origine: "Asie du Sud-Est",
         massevolumique: 610, massevolumiqueRange: [490, 730], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1-2"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "2-3", impregnabiliteAubier: "1-2",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Moabi",
         nomScientifique: "Baillonella toxisperma",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 800, massevolumiqueRange: [770, 830], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Movingui (Ayan)",
         nomScientifique: "Distemonanthus benthamianus",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 710, massevolumiqueRange: [690, 740], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Muiracatiara (Gonçalo Alves)",
         nomScientifique: "Astronium fraxinifolium / A. lecointei",
         type: "Feuillu", origine: "Amérique centrale et du Sud",
         massevolumique: 800, massevolumiqueRange: [650, 950], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m-l",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Mukulungu",
         nomScientifique: "Autranella congolensis",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 950, massevolumiqueRange: [850, 1100], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Niangon (Mengkulang)",
         nomScientifique: "Heritiera spp.",
         type: "Feuillu", origine: "Afrique de l'Ouest / Asie du Sud-Est",
         massevolumique: 690, massevolumiqueRange: [670, 720], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M-D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Niové",
         nomScientifique: "Staudtia kamerunensis",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 900, massevolumiqueRange: [800, 950], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Okan",
         nomScientifique: "Cylicodiscus gabunensis",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 920, massevolumiqueRange: [850, 960], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Okoumé (Gaboon)",
         nomScientifique: "Aucoumea klaineana",
         type: "Feuillu", origine: "Afrique de l'Ouest (Gabon / Congo)",
         massevolumique: 440, massevolumiqueRange: [430, 450], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: "4-5", aubierLargeur: "s",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Padouk d'Afrique",
         nomScientifique: "Pterocarpus soyauxii / P. tinctorius",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 740, massevolumiqueRange: [720, 820], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D(S)", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: "1", aubierLargeur: "m",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Palissandre (Rio / Indes)",
         nomScientifique: "Dalbergia spp.",
         type: "Feuillu", origine: "Amérique du Sud / Asie",
         massevolumique: 870, massevolumiqueRange: [800, 1000], sourceDensite: "Réf. CIRAD / Wood Database",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Ramin",
         nomScientifique: "Gonystylus spp.",
         type: "Feuillu", origine: "Asie du Sud-Est",
         massevolumique: 630, massevolumiqueRange: [560, 670], sourceDensite: "EN 350",
-        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "4", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "4", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Lyctus ; très sujet au bleuissement"
     },
     {
         nomUsuel: "Sapelli (Sapele)",
         nomScientifique: "Entandrophragma cylindricum",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 650, massevolumiqueRange: [640, 700], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: "3-4", aubierLargeur: "m",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Sipo (Utile)",
         nomScientifique: "Entandrophragma utile",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 640, massevolumiqueRange: [590, 660], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "M",
+        durabiliteChampignonsLabo: "2-3", aubierLargeur: "m",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Sucupira",
         nomScientifique: "Bowdichia nitida / B. virgilioides",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 950, massevolumiqueRange: [850, 1050], sourceDensite: "Réf. ATIBT / Wood Database",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tali (Missanda)",
         nomScientifique: "Erythrophleum spp.",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 900, massevolumiqueRange: [800, 1000], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tatajuba (Bagassa)",
         nomScientifique: "Bagassa guianensis",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 800, massevolumiqueRange: [700, 900], sourceDensite: "EN 350",
-        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "2-3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "2-3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Teck",
         nomScientifique: "Tectona grandis",
         type: "Feuillu", origine: "Asie du Sud-Est (Cultivé en Afrique / Amériques)",
         massevolumique: 680, massevolumiqueRange: [650, 750], sourceDensite: "EN 350",
-        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "1-2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "M", xylophagesMarins: "M-D",
+        durabiliteChampignonsLabo: "1-3", aubierLargeur: "s",
+        basidiomycetes: "1-2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tiama (Gedu Nohor)",
         nomScientifique: "Entandrophragma angolense",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 560, massevolumiqueRange: [550, 570], sourceDensite: "EN 350",
-        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3-4", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "b",
+        basidiomycetes: "3-4", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Tola (Agba)",
         nomScientifique: "Gossweilerodendron balsamiferum",
         type: "Feuillu", origine: "Afrique de l'Ouest",
         massevolumique: 500, massevolumiqueRange: [480, 510], sourceDensite: "EN 350",
-        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "3", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "m",
+        basidiomycetes: "3", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Virola (Baboen)",
         nomScientifique: "Virola spp.",
         type: "Feuillu", origine: "Amérique du Sud",
         massevolumique: 440, massevolumiqueRange: [400, 480], sourceDensite: "EN 350",
-        durabiliteChampignons: "5", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1"
+        durabiliteChampignons: "5", impregnabiliteBoisParfait: "2", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "S",
+        termites: "S", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "x",
+        basidiomycetes: "5", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant à Lyctus"
     },
     {
         nomUsuel: "Wacapou",
         nomScientifique: "Vouacapoua americana",
         type: "Feuillu", origine: "Amérique du Sud (Guyane)",
         massevolumique: 900, massevolumiqueRange: [800, 1000], sourceDensite: "EN 350",
-        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu"
+        durabiliteChampignons: "1", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "inconnu",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "D",
+        durabiliteChampignonsLabo: null, aubierLargeur: "s",
+        basidiomycetes: "1", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     },
     {
         nomUsuel: "Wengé (Panga Panga)",
         nomScientifique: "Millettia laurentii / M. stuhlmannii",
         type: "Feuillu", origine: "Afrique de l'Ouest et de l'Est",
         massevolumique: 830, massevolumiqueRange: [780, 900], sourceDensite: "EN 350",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "4", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "D",
+        termites: "D", xylophagesMarins: "S",
+        durabiliteChampignonsLabo: "2", aubierLargeur: "s",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: "Non résistant aux termites en laboratoire"
     },
     {
         nomUsuel: "Zebrano (Zingana)",
         nomScientifique: "Microberlinia brazzavillensis",
         type: "Feuillu", origine: "Afrique de l'Ouest (Cameroun / Gabon)",
         massevolumique: 780, massevolumiqueRange: [700, 860], sourceDensite: "Réf. ATIBT / Wood Database",
-        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1"
+        durabiliteChampignons: "2", impregnabiliteBoisParfait: "3", impregnabiliteAubier: "1",
+        hylotrupes: "n/a", anobium: "n/d",
+        termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "2", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
+    },
+{
+        nomUsuel: "Bangkirai (Nauclea)",
+        nomScientifique: "Nauclea orientalis",
+        type: "Feuillu", origine: "Asie du Sud-Est",
+        massevolumique: null, massevolumiqueRange: null, sourceDensite: "n/d",
+        durabiliteChampignons: "n/d", impregnabiliteBoisParfait: "n/d", impregnabiliteAubier: "n/d",
+        hylotrupes: "n/a", anobium: "n/d", termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "n/d", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
+    },
+{
+        nomUsuel: "Cerisier (Griotte)",
+        nomScientifique: "Prunus cerasus",
+        type: "Feuillu", origine: "Europe",
+        massevolumique: null, massevolumiqueRange: null, sourceDensite: "n/d",
+        durabiliteChampignons: "n/d", impregnabiliteBoisParfait: "n/d", impregnabiliteAubier: "n/d",
+        hylotrupes: "n/a", anobium: "n/d", termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "n/d", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
+    },
+{
+        nomUsuel: "Pommier cultivé",
+        nomScientifique: "Malus domestica",
+        type: "Feuillu", origine: "Europe",
+        massevolumique: null, massevolumiqueRange: null, sourceDensite: "n/d",
+        durabiliteChampignons: "n/d", impregnabiliteBoisParfait: "n/d", impregnabiliteAubier: "n/d",
+        hylotrupes: "n/a", anobium: "n/d", termites: "n/d", xylophagesMarins: "n/d",
+        durabiliteChampignonsLabo: null, aubierLargeur: "n/d",
+        basidiomycetes: "n/d", pourriture: "n/d", contactSol: "n/d",
+        remarques: null
     }
+
 ];
+
 
 const normalizeEssenceLookupKey = (value) => (value == null ? '' : String(value))
         .toLowerCase()
