@@ -415,6 +415,8 @@ class ValoboisApp {
         this._accordionOpenStates = new Map();
         /** Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage). */
         this._detailLotActiveCardByLot = {};
+        this._geoFranceHandlersBound = false;
+        this._geoFranceViewport = { width: 1000, height: 720, padding: 24 };
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -532,6 +534,310 @@ class ValoboisApp {
             option.value = label;
             datalist.appendChild(option);
         });
+    }
+
+    getDefaultGeoFrance(existingGeo = {}) {
+        const source = existingGeo && typeof existingGeo === 'object' ? existingGeo : {};
+        return {
+            granularity: 'canton',
+            departementCode: source.departementCode ? String(source.departementCode).trim() : '',
+            departementNom: source.departementNom ? String(source.departementNom).trim() : '',
+            cantonCode: source.cantonCode ? String(source.cantonCode).trim() : '',
+            cantonNom: source.cantonNom ? String(source.cantonNom).trim() : '',
+            selectionMode: source.selectionMode ? String(source.selectionMode).trim() : '',
+            source: source.source ? String(source.source).trim() : 'france-geojson-2018'
+        };
+    }
+
+    normalizeGeoFranceSelection(raw) {
+        return this.getDefaultGeoFrance(raw);
+    }
+
+    getFranceDepartementOptions() {
+        return Array.isArray(window.VALOBOIS_FRANCE_DEPARTEMENTS)
+            ? window.VALOBOIS_FRANCE_DEPARTEMENTS.slice()
+            : [];
+    }
+
+    getFranceCantonsByDepartement() {
+        return window.VALOBOIS_FRANCE_CANTONS && typeof window.VALOBOIS_FRANCE_CANTONS === 'object'
+            ? window.VALOBOIS_FRANCE_CANTONS
+            : {};
+    }
+
+    getCantonsForDepartement(codeRaw) {
+        const code = codeRaw ? String(codeRaw).trim().toUpperCase() : '';
+        if (!code) return [];
+        const grouped = this.getFranceCantonsByDepartement();
+        const fc = grouped[code];
+        if (!fc || !Array.isArray(fc.features)) return [];
+        return fc.features
+            .filter((feature) => feature && feature.properties && feature.geometry)
+            .slice()
+            .sort((a, b) => String(a.properties.nom || '').localeCompare(String(b.properties.nom || ''), 'fr', { sensitivity: 'base', numeric: true }));
+    }
+
+    getGeoFranceCurrentSelection() {
+        this.data.meta = this.getDefaultMeta(this.data.meta || {});
+        return this.normalizeGeoFranceSelection(this.data.meta.geoFrance);
+    }
+
+    commitGeoFranceSelection(nextGeoFrance, { rerender = true } = {}) {
+        this.data.meta = this.getDefaultMeta(this.data.meta || {});
+        this.data.meta.geoFrance = this.normalizeGeoFranceSelection(nextGeoFrance);
+        this.saveData();
+        if (rerender) this.renderAccueilMeta();
+    }
+
+    setGeoFranceDepartement(codeRaw, { selectionMode = 'select', rerender = true } = {}) {
+        const code = codeRaw ? String(codeRaw).trim().toUpperCase() : '';
+        const current = this.getGeoFranceCurrentSelection();
+        if (!code) {
+            this.commitGeoFranceSelection(this.getDefaultGeoFrance(), { rerender });
+            return;
+        }
+        const departement = this.getFranceDepartementOptions().find((item) => String(item.code || '').toUpperCase() === code);
+        const next = this.getDefaultGeoFrance(current);
+        next.departementCode = code;
+        next.departementNom = departement ? String(departement.nom || '') : '';
+        next.selectionMode = selectionMode;
+        if (current.departementCode !== code) {
+            next.cantonCode = '';
+            next.cantonNom = '';
+        }
+        this.commitGeoFranceSelection(next, { rerender });
+    }
+
+    setGeoFranceCanton(codeRaw, { selectionMode = 'select', rerender = true } = {}) {
+        const code = codeRaw ? String(codeRaw).trim() : '';
+        const current = this.getGeoFranceCurrentSelection();
+        if (!current.departementCode) return;
+        const features = this.getCantonsForDepartement(current.departementCode);
+        const match = features.find((feature) => String(feature.properties.code || '') === code);
+        const next = this.getDefaultGeoFrance(current);
+        next.selectionMode = selectionMode;
+        next.cantonCode = match ? String(match.properties.code || '') : '';
+        next.cantonNom = match ? String(match.properties.nom || '') : '';
+        this.commitGeoFranceSelection(next, { rerender });
+    }
+
+    clearGeoFranceSelection({ rerender = true } = {}) {
+        this.commitGeoFranceSelection(this.getDefaultGeoFrance(), { rerender });
+    }
+
+    getFeatureCollectionBounds(features) {
+        let minLon = Infinity;
+        let minLat = Infinity;
+        let maxLon = -Infinity;
+        let maxLat = -Infinity;
+
+        const visitCoord = (coord) => {
+            if (!Array.isArray(coord) || coord.length < 2) return;
+            const lon = Number(coord[0]);
+            const lat = Number(coord[1]);
+            if (!Number.isFinite(lon) || !Number.isFinite(lat)) return;
+            if (lon < minLon) minLon = lon;
+            if (lat < minLat) minLat = lat;
+            if (lon > maxLon) maxLon = lon;
+            if (lat > maxLat) maxLat = lat;
+        };
+
+        const visitGeometry = (geometry) => {
+            if (!geometry || !geometry.type || !Array.isArray(geometry.coordinates)) return;
+            if (geometry.type === 'Polygon') {
+                geometry.coordinates.forEach((ring) => Array.isArray(ring) && ring.forEach(visitCoord));
+                return;
+            }
+            if (geometry.type === 'MultiPolygon') {
+                geometry.coordinates.forEach((polygon) => Array.isArray(polygon) && polygon.forEach((ring) => Array.isArray(ring) && ring.forEach(visitCoord)));
+            }
+        };
+
+        features.forEach((feature) => visitGeometry(feature && feature.geometry));
+
+        if (!Number.isFinite(minLon) || !Number.isFinite(minLat) || !Number.isFinite(maxLon) || !Number.isFinite(maxLat)) {
+            return null;
+        }
+
+        return { minLon, minLat, maxLon, maxLat };
+    }
+
+    projectGeoPointToSvg(coord, bounds, viewport = this._geoFranceViewport) {
+        const width = viewport.width;
+        const height = viewport.height;
+        const padding = viewport.padding;
+
+        const midLat = (bounds.minLat + bounds.maxLat) / 2;
+        const cosLat = Math.cos(midLat * Math.PI / 180);
+
+        const spanLon = Math.max(0.000001, bounds.maxLon - bounds.minLon);
+        const spanLat = Math.max(0.000001, bounds.maxLat - bounds.minLat);
+        const spanLonCorrected = spanLon * cosLat;
+        const usableWidth = Math.max(1, width - padding * 2);
+        const usableHeight = Math.max(1, height - padding * 2);
+        const scale = Math.min(usableWidth / spanLonCorrected, usableHeight / spanLat);
+        const drawWidth = spanLonCorrected * scale;
+        const drawHeight = spanLat * scale;
+        const offsetX = (width - drawWidth) / 2;
+        const offsetY = (height - drawHeight) / 2;
+
+        const lon = Number(coord[0]);
+        const lat = Number(coord[1]);
+
+        return {
+            x: offsetX + (lon - bounds.minLon) * cosLat * scale,
+            y: height - offsetY - (lat - bounds.minLat) * scale
+        };
+    }
+
+    geometryToSvgPath(geometry, bounds, viewport = this._geoFranceViewport) {
+        if (!geometry || !geometry.type || !Array.isArray(geometry.coordinates)) return '';
+
+        const ringToPath = (ring) => {
+            if (!Array.isArray(ring) || ring.length === 0) return '';
+            let path = '';
+            ring.forEach((coord, index) => {
+                const point = this.projectGeoPointToSvg(coord, bounds, viewport);
+                path += (index === 0 ? 'M' : 'L') + point.x.toFixed(2) + ' ' + point.y.toFixed(2) + ' ';
+            });
+            path += 'Z';
+            return path;
+        };
+
+        if (geometry.type === 'Polygon') {
+            return geometry.coordinates.map(ringToPath).join(' ');
+        }
+
+        if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates
+                .map((polygon) => Array.isArray(polygon) ? polygon.map(ringToPath).join(' ') : '')
+                .join(' ');
+        }
+
+        return '';
+    }
+
+    renderContexteTechniqueGeoFrance() {
+        const widget = document.querySelector('[data-geo-france-widget]');
+        if (!widget) return;
+
+        const departementSelect = widget.querySelector('[data-geo-france-role="departement"]');
+        const cantonSelect = widget.querySelector('[data-geo-france-role="canton"]');
+        const summaryEl = widget.querySelector('[data-geo-france-role="summary"]');
+        const mapEl = widget.querySelector('[data-geo-france-role="map"]');
+        if (!departementSelect || !cantonSelect || !summaryEl || !mapEl) return;
+
+        const geo = this.getGeoFranceCurrentSelection();
+        const departements = this.getFranceDepartementOptions()
+            .slice()
+            .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr', { sensitivity: 'base', numeric: true }));
+
+        departementSelect.innerHTML = [
+            '<option value="">Sélectionner un département</option>',
+            ...departements.map((item) => {
+                const value = this.escapeHtml(String(item.code || ''));
+                const label = this.escapeHtml(String(item.nom || ''));
+                const selected = geo.departementCode === String(item.code || '') ? ' selected' : '';
+                return '<option value="' + value + '"' + selected + '>' + label + '</option>';
+            })
+        ].join('');
+
+        const cantonFeatures = geo.departementCode ? this.getCantonsForDepartement(geo.departementCode) : [];
+        cantonSelect.disabled = !geo.departementCode || cantonFeatures.length === 0;
+        cantonSelect.innerHTML = [
+            '<option value="">' + (geo.departementCode ? 'Sélectionner un canton' : 'Choisir d’abord un département') + '</option>',
+            ...cantonFeatures.map((feature) => {
+                const value = this.escapeHtml(String(feature.properties.code || ''));
+                const label = this.escapeHtml(String(feature.properties.nom || ''));
+                const selected = geo.cantonCode === String(feature.properties.code || '') ? ' selected' : '';
+                return '<option value="' + value + '"' + selected + '>' + label + '</option>';
+            })
+        ].join('');
+
+        if (!geo.departementCode) {
+            summaryEl.textContent = 'Aucune sélection géographique. Le champ Localisation libre reste la référence principale.';
+            mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Sélectionner un département pour afficher ses cantons</text>';
+            return;
+        }
+
+        if (!cantonFeatures.length) {
+            summaryEl.textContent = 'Département sélectionné : ' + (geo.departementNom || geo.departementCode) + '. Aucun canton n’a été chargé pour ce département.';
+            mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Aucun canton disponible pour ce département</text>';
+            return;
+        }
+
+        const bounds = this.getFeatureCollectionBounds(cantonFeatures);
+        if (!bounds) {
+            summaryEl.textContent = 'Département sélectionné : ' + (geo.departementNom || geo.departementCode) + '. Les géométries chargées sont invalides.';
+            mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Géométries indisponibles</text>';
+            return;
+        }
+
+        const cantonLabel = geo.cantonNom
+            ? 'Canton sélectionné : ' + geo.cantonNom + ' (' + geo.cantonCode + ').'
+            : 'Aucun canton sélectionné dans le département ' + (geo.departementNom || geo.departementCode) + '.';
+
+        summaryEl.textContent = 'Département : ' + (geo.departementNom || geo.departementCode) + '. ' + cantonLabel;
+
+        const paths = cantonFeatures.map((feature) => {
+            const code = String(feature.properties.code || '');
+            const nom = String(feature.properties.nom || '');
+            const pathData = this.geometryToSvgPath(feature.geometry, bounds);
+            const selected = geo.cantonCode === code;
+            const className = 'accueil-geo-france-canton' + (selected ? ' is-selected' : geo.cantonCode ? ' is-dimmed' : '');
+            return '<path class="' + className + '" d="' + pathData + '" data-canton-code="' + this.escapeHtml(code) + '" data-canton-nom="' + this.escapeHtml(nom) + '" tabindex="0"><title>' + this.escapeHtml(nom) + '</title></path>';
+        });
+
+        mapEl.innerHTML = paths.join('');
+    }
+
+    bindContexteTechniqueGeoFranceEvents() {
+        if (this._geoFranceHandlersBound) return;
+        this._geoFranceHandlersBound = true;
+
+        const widget = document.querySelector('[data-geo-france-widget]');
+        if (!widget) return;
+
+        const departementSelect = widget.querySelector('[data-geo-france-role="departement"]');
+        const cantonSelect = widget.querySelector('[data-geo-france-role="canton"]');
+        const resetBtn = widget.querySelector('[data-geo-france-role="reset"]');
+        const mapEl = widget.querySelector('[data-geo-france-role="map"]');
+
+        if (departementSelect) {
+            departementSelect.addEventListener('change', () => {
+                this.setGeoFranceDepartement(departementSelect.value, { selectionMode: 'select', rerender: true });
+            });
+        }
+
+        if (cantonSelect) {
+            cantonSelect.addEventListener('change', () => {
+                this.setGeoFranceCanton(cantonSelect.value, { selectionMode: 'select', rerender: true });
+            });
+        }
+
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.clearGeoFranceSelection({ rerender: true });
+            });
+        }
+
+        if (mapEl) {
+            mapEl.addEventListener('click', (event) => {
+                const target = event.target && event.target.closest ? event.target.closest('[data-canton-code]') : null;
+                if (!target) return;
+                const code = target.getAttribute('data-canton-code') || '';
+                this.setGeoFranceCanton(code, { selectionMode: 'map', rerender: true });
+            });
+
+            mapEl.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                const target = event.target && event.target.closest ? event.target.closest('[data-canton-code]') : null;
+                if (!target) return;
+                event.preventDefault();
+                const code = target.getAttribute('data-canton-code') || '';
+                this.setGeoFranceCanton(code, { selectionMode: 'map', rerender: true });
+            });
+        }
     }
 
     buildClasseBoisSelectOptions(selectedValue = '') {
@@ -2582,6 +2888,7 @@ class ValoboisApp {
             datePermisConstruction: '',
             phaseIntervention: '',
             localisation: '',
+            geoFrance: this.getDefaultGeoFrance(existingMeta.geoFrance || {}),
             conditionnementType: '',
             protectionType: '',
             // Champs CERFA PEMD spécifiques
@@ -11584,7 +11891,8 @@ deleteLot(index) {
 
     bindEvents() {
         this.setupNotationResetIcons();
-                this.setupInspectionIgnoreIcons();
+        this.setupInspectionIgnoreIcons();
+        this.bindContexteTechniqueGeoFranceEvents();
 
         window.addEventListener('valobois:langchange', () => {
             this.renderScatterDims();
@@ -16239,6 +16547,8 @@ closeEvalOpModal() {
         ].forEach((field) => {
             this.syncMetaToggleGroup(field);
         });
+
+        this.renderContexteTechniqueGeoFrance();
     }
 
     renderDefaultPieceCardHTML(lot, defaultPiece, defaultPieceIndex, isActive = true) {
@@ -28715,6 +29025,10 @@ renderRadar() {
             'Historique autre intervention',
             'Phase d\'intervention',
             'Localisation',
+            'Département géographique',
+            'Code département géographique',
+            'Canton géographique',
+            'Code canton géographique',
             'Conditionnement',
             'Protection',
             'Diagnostic Structure',
@@ -28933,6 +29247,10 @@ renderRadar() {
                     withDash(meta.historiqueAutreIntervention),
                     withDash(meta.phaseIntervention),
                     withDash(meta.localisation),
+                    withDash((meta.geoFrance || {}).departementNom),
+                    withDash((meta.geoFrance || {}).departementCode),
+                    withDash((meta.geoFrance || {}).cantonNom),
+                    withDash((meta.geoFrance || {}).cantonCode),
                     withDash(meta.conditionnementType),
                     withDash(meta.protectionType),
                     withDash(meta.diagnosticStructure),
@@ -29061,6 +29379,10 @@ renderRadar() {
             { label: 'Historique autre intervention', getValue: () => meta.historiqueAutreIntervention || '-' },
             { label: 'Phase d\'intervention', getValue: () => meta.phaseIntervention || '-' },
             { label: 'Localisation', getValue: () => meta.localisation || '-' },
+            { label: 'Département géographique', getValue: () => ((meta.geoFrance || {}).departementNom || '-') },
+            { label: 'Code département géographique', getValue: () => ((meta.geoFrance || {}).departementCode || '-') },
+            { label: 'Canton géographique', getValue: () => ((meta.geoFrance || {}).cantonNom || '-') },
+            { label: 'Code canton géographique', getValue: () => ((meta.geoFrance || {}).cantonCode || '-') },
             { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
             { label: 'Protection', getValue: () => meta.protectionType || '-' },
             { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },

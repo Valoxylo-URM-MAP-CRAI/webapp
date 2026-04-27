@@ -3,6 +3,7 @@
   "private": true,
   "scripts": {
     "build:standalone": "node scripts/build-standalone.mjs",
-    "serve": "npx --yes serve ."
+    "serve": "npx --yes serve .",
+    "import:france-geojson": "node scripts/import-france-geojson.mjs"
   }
 }

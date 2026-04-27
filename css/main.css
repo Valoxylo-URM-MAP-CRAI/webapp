@@ -1014,6 +1014,106 @@ body.day-mode .accueil-collapsible-summary:hover {
     color: #777777;
 }
 
+.accueil-geo-france {
+    display: grid;
+    gap: var(--space-12);
+    padding: var(--space-12);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background: #ffffff;
+}
+
+.accueil-geo-france-head {
+    display: grid;
+    gap: var(--space-4);
+}
+
+.accueil-geo-france-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-12);
+    align-items: start;
+}
+
+.accueil-geo-france-summary {
+    grid-column: 1 / -1;
+    min-height: 42px;
+    padding: 10px 12px;
+    border: 1px solid #d9e1f3;
+    border-radius: var(--radius-sm);
+    background: #f4f7fd;
+    color: #1f2a44;
+    font-size: var(--font-size-sm);
+    line-height: 1.45;
+}
+
+.accueil-geo-france-actions {
+    grid-column: 1 / -1;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.accueil-geo-france-map-shell {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    background:
+        radial-gradient(circle at top left, rgba(29, 61, 150, 0.08), transparent 32%),
+        linear-gradient(180deg, #fbfcff 0%, #f2f5fb 100%);
+    overflow: hidden;
+}
+
+.accueil-geo-france-map {
+    display: block;
+    width: 100%;
+    height: auto;
+    min-height: 320px;
+}
+
+.accueil-geo-france-map-empty {
+    fill: #60708f;
+    font-size: 24px;
+    font-weight: 500;
+}
+
+.accueil-geo-france-canton {
+    fill: #d8deea;
+    stroke: #ffffff;
+    stroke-width: 1.5;
+    cursor: pointer;
+    transition: fill 0.18s ease, opacity 0.18s ease;
+}
+
+.accueil-geo-france-canton:hover,
+.accueil-geo-france-canton:focus {
+    fill: #94acd9;
+    outline: none;
+}
+
+.accueil-geo-france-canton.is-selected {
+    fill: var(--bleu-crai, #1d3d96);
+}
+
+.accueil-geo-france-canton.is-dimmed {
+    opacity: 0.78;
+}
+
+.accueil-geo-france-map-label {
+    fill: #223354;
+    font-size: 18px;
+    font-weight: 600;
+    pointer-events: none;
+}
+
+@media (max-width: 900px) {
+    .accueil-geo-france-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .accueil-geo-france-map {
+        min-height: 240px;
+    }
+}
+
 @media (max-width: 600px) {
     .accueil-dashboard {
         grid-template-columns: 1fr;

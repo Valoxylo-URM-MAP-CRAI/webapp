@@ -986,6 +986,36 @@
                                         data-i18n-placeholder="editor.meta.placeholderLoc" placeholder="Localisation de l’opération" data-meta-field="localisation">
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
+                                    <div class="accueil-geo-france" data-geo-france-widget>
+                                        <div class="accueil-geo-france-head">
+                                            <span class="accueil-meta-label">Localisation géographique</span>
+                                            <span class="accueil-meta-hint">Sélection facultative par département puis canton. Cette sélection complète la localisation libre de l’opération sans la remplacer.</span>
+                                        </div>
+                                        <div class="accueil-geo-france-grid">
+                                            <div class="accueil-meta-row">
+                                                <label class="accueil-meta-label" for="inputGeoDepartement">Département</label>
+                                                <select id="inputGeoDepartement" class="accueil-select" data-geo-france-role="departement"></select>
+                                            </div>
+                                            <div class="accueil-meta-row">
+                                                <label class="accueil-meta-label" for="inputGeoCanton">Canton</label>
+                                                <select id="inputGeoCanton" class="accueil-select" data-geo-france-role="canton"></select>
+                                            </div>
+                                            <div class="accueil-geo-france-summary" data-geo-france-role="summary" aria-live="polite"></div>
+                                            <div class="accueil-geo-france-actions">
+                                                <button type="button" class="btn btn-secondary" data-geo-france-role="reset">Réinitialiser la sélection</button>
+                                            </div>
+                                        </div>
+                                        <div class="accueil-geo-france-map-shell">
+                                            <svg id="geoFranceCantonMap"
+                                                class="accueil-geo-france-map"
+                                                viewBox="0 0 1000 720"
+                                                role="img"
+                                                aria-label="Carte des cantons du département sélectionné"
+                                                data-geo-france-role="map"></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.storageHintTitle">Condition de stockage sur site</span>
                                     <span class="accueil-meta-hint" data-i18n="editor.meta.storageHint">Préciser le type de conditionnement et le type de
                                         protection observés sur place.</span>
@@ -4741,6 +4771,8 @@
     <script defer src="js/data/datalist-conditionnement.js"></script>
     <script defer src="js/data/datalist-protection.js"></script>
     <script defer src="js/data/datalist-situations-lot.js"></script>
+    <script defer src="js/data/france-departements.js"></script>
+    <script defer src="js/data/france-cantons.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
     <script defer src="js/lib/build-standalone-html.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
