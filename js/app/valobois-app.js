@@ -6651,6 +6651,96 @@ class ValoboisApp {
         return (hardLockActive || doubleLowIntegrite) ? 'none' : 'active';
     }
 
+    getDurabiliteNaturelleAlertState(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return 'none';
+
+        const entries = this.getLotDurabiliteNaturelleDetailEntries(targetLot);
+        if (!entries || !entries.length) return 'none';
+
+        const normalize = (value) => String(value ?? '').trim().toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '');
+
+        const worstRank = (raw) => {
+            const val = normalize(raw);
+            if (!val || val === 'n/d' || val === 'inconnu') return null;
+            if (val === 'n/a') return -1;
+
+            const match = val.match(/^([1-5dms])\s*[-–]\s*([1-5dms])$/i);
+            const codeA = match ? match[1].toUpperCase() : val.toUpperCase();
+            const codeB = match ? match[2].toUpperCase() : null;
+
+            const rank = (code) => {
+                if (['1', '2', 'D'].includes(code)) return 0;
+                if (['3', 'M'].includes(code)) return 1;
+                if (['4', '5', 'S'].includes(code)) return 2;
+                return 1;
+            };
+
+            return Math.max(rank(codeA), codeB ? rank(codeB) : rank(codeA));
+        };
+
+        const stateRank = (state) => {
+            if (state === 'none') return 0;
+            if (state === 'missing') return 1;
+            if (state === 'strong') return 2;
+            if (state === 'medium') return 3;
+            return 4; // low
+        };
+
+        const perEssenceStates = entries.map((entry) => {
+            const essence = entry && entry.essence;
+            if (!essence) return 'none';
+
+            const champRank = Math.max(
+                worstRank(essence.durabiliteChampignons) ?? -1,
+                worstRank(essence.durabiliteChampignonsLabo) ?? -1
+            );
+            const champMissing = worstRank(essence.durabiliteChampignons) === null
+                && worstRank(essence.durabiliteChampignonsLabo) === null;
+
+            const rankHylotrupes = worstRank(essence.hylotrupes);
+            const rankAnobium = worstRank(essence.anobium);
+            const rankTermites = worstRank(essence.termites);
+            const rankXylophagesMarins = worstRank(essence.xylophagesMarins);
+
+            const aubier = normalize(essence.aubierLargeur);
+            const aubierAbaisser = aubier === 'm'
+                || aubier === 'b'
+                || aubier === 'x'
+                || aubier === '(x)'
+                || (/\baubier\b/i.test(String(essence.remarques || '')) && /non\s+resistant/i.test(normalize(essence.remarques || '')));
+
+            const anyAgentRenseigne = [rankHylotrupes, rankAnobium, rankTermites, rankXylophagesMarins]
+                .some((rank) => rank !== null && rank !== -1);
+            if (champMissing && !anyAgentRenseigne) return 'missing';
+
+            const allRanks = [
+                champRank >= 0 ? champRank : null,
+                rankHylotrupes !== null && rankHylotrupes >= 0 ? rankHylotrupes : null,
+                rankAnobium !== null && rankAnobium >= 0 ? rankAnobium : null,
+                rankTermites !== null && rankTermites >= 0 ? rankTermites : null,
+                rankXylophagesMarins !== null && rankXylophagesMarins >= 0 ? rankXylophagesMarins : null,
+            ].filter((rank) => rank !== null);
+
+            if (!allRanks.length) return 'missing';
+
+            let globalRank = Math.max(...allRanks);
+            if (aubierAbaisser) {
+                globalRank = Math.min(globalRank + 1, 2);
+            }
+
+            if (globalRank === 0) return 'strong';
+            if (globalRank === 1) return 'medium';
+            return 'low';
+        });
+
+        return perEssenceStates.reduce((worst, state) => {
+            return stateRank(state) > stateRank(worst) ? state : worst;
+        }, 'none');
+    }
+
     refreshDurabiliteConfDenatAlertButton(lot) {
         const targetLot = lot || this.getCurrentLot();
         const currentLot = this.getCurrentLot();
@@ -6675,6 +6765,18 @@ class ValoboisApp {
 
         const state = this.getHumiditeUsageAlertState(targetLot);
         alertBtn.dataset.alertHumiditeState = state;
+    }
+
+    refreshDurabiliteNaturelleUsageAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return;
+
+        const row = document.querySelector('.usage-row[data-usage-field="durabiliteUsage"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-usage-durabilite-nat-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertDurabiliteNatState = this.getDurabiliteNaturelleAlertState(targetLot);
     }
 
     refreshMasseVolEssenceAlertButton(lot) {
@@ -7474,17 +7576,77 @@ class ValoboisApp {
                 };
             }
 
-            const labels = { D: 'Durable', M: 'Moy. durable', S: 'Non durable' };
-            const badgeClass = val === 'D'
+            const labels = {
+                '1': 'Très durable',
+                '2': 'Durable',
+                '3': 'Moyennement durable',
+                '4': 'Faiblement durable',
+                '5': 'Non durable',
+                D: 'Durable',
+                M: 'Moy. durable',
+                S: 'Non durable'
+            };
+
+            const rangeLabels = {
+                '1-2': 'Très durable à Durable',
+                '2-3': 'Durable à Moyennement durable',
+                '3-4': 'Moyennement à Faiblement durable',
+                '4-5': 'Faiblement à Non durable',
+                'D-M': 'Durable à Moyennement durable',
+                'M-S': 'Moyennement à Non durable',
+                'D-S': 'Durable à Non durable'
+            };
+
+            const normalizeCode = (raw) => String(raw || '').trim().toUpperCase();
+            const rangeMatch = val.match(/^([1-5DMS])\s*-\s*([1-5DMS])$/i);
+            const codeA = rangeMatch ? normalizeCode(rangeMatch[1]) : normalizeCode(val);
+            const codeB = rangeMatch ? normalizeCode(rangeMatch[2]) : null;
+            const displayCode = codeB ? `${codeA}-${codeB}` : codeA;
+
+            const getCodeRiskRank = (code) => {
+                if (code === '1' || code === '2' || code === 'D') return 0;
+                if (code === '3' || code === 'M') return 1;
+                if (code === '4' || code === '5' || code === 'S') return 2;
+                return 1;
+            };
+
+            const rankA = getCodeRiskRank(codeA);
+            const rankB = codeB ? getCodeRiskRank(codeB) : rankA;
+            const worstRank = Math.max(rankA, rankB);
+            const badgeClass = worstRank === 0
                 ? 'durab-nat-durable'
-                : val === 'S'
+                : worstRank === 2
                     ? 'durab-nat-nondurable'
                     : 'durab-nat-medium';
-            const plain = labels[val] ? `DC ${val} — ${labels[val]}` : `DC ${val}`;
-            const escapedVal = this.escapeHtml(val);
-            const escapedLabel = labels[val] ? this.escapeHtml(labels[val]) : '';
-            const html = labels[val]
-                ? `<span class="durab-nat-badge-inline ${badgeClass}">DC ${escapedVal} — ${escapedLabel}</span>`
+
+            let description = '';
+            if (codeB) {
+                const pairKey = `${codeA}-${codeB}`;
+                if (rangeLabels[pairKey]) {
+                    description = rangeLabels[pairKey];
+                }
+                const labelA = labels[codeA];
+                const labelB = labels[codeB];
+                if (!description && labelA && labelB) {
+                    const firstCore = labelA.replace(/\s*durable$/i, '').trim();
+                    const secondCore = labelB.replace(/\s*durable$/i, '').trim();
+                    description = (firstCore && secondCore)
+                        ? `${firstCore} à ${secondCore} durable`
+                        : `${labelA} à ${labelB}`;
+                }
+            } else if (labels[codeA]) {
+                description = labels[codeA];
+            }
+
+            const plain = description
+                ? (codeB ? `DC ${displayCode}\n${description}` : `DC ${displayCode} — ${description}`)
+                : `DC ${displayCode}`;
+            const escapedVal = this.escapeHtml(displayCode);
+            const escapedLabel = description ? this.escapeHtml(description) : '';
+            const html = description
+                ? (codeB
+                    ? `<span class="durab-nat-badge-inline durab-nat-badge-inline--range ${badgeClass}">DC ${escapedVal}<br>${escapedLabel}</span>`
+                    : `<span class="durab-nat-badge-inline ${badgeClass}">DC ${escapedVal} — ${escapedLabel}</span>`)
                 : `<span class="durab-nat-badge-inline ${badgeClass}">DC ${escapedVal}</span>`;
             return { plain, html, isND: false };
         };
@@ -7561,23 +7723,23 @@ class ValoboisApp {
                 key: 'tableau1Champignons',
                 fr: 'Champignons lignivores',
                 en: 'Wood-destroying fungi',
-                ref: 'Annexes B.1 a B.4 EN 350',
+                ref: '',
                 riskFamily: 'agents-biologiques',
                 valueData: formatChampignons()
             },
             {
                 key: 'tableau2aHylotrupes',
-                fr: 'Hylotrupes',
+                fr: 'Hylotrupes (Capricornes)',
                 en: 'Hylotrupes',
-                ref: 'Annexes B.1 et B.4 EN 350',
+                ref: '',
                 riskFamily: 'agents-biologiques',
                 valueData: formatDC(essence.hylotrupes, { allowNA: true })
             },
             {
                 key: 'tableau2bAnobium',
-                fr: 'Anobium',
+                fr: 'Anobium (Vrillette)',
                 en: 'Anobium',
-                ref: 'Annexes B.1 a B.4 EN 350',
+                ref: '',
                 riskFamily: 'agents-biologiques',
                 valueData: formatDC(essence.anobium)
             },
@@ -7585,7 +7747,7 @@ class ValoboisApp {
                 key: 'tableau3Termites',
                 fr: 'Termites',
                 en: 'Termites',
-                ref: 'Annexes B.1 a B.4 EN 350',
+                ref: '',
                 riskFamily: 'agents-biologiques',
                 valueData: formatDC(essence.termites)
             },
@@ -7593,7 +7755,7 @@ class ValoboisApp {
                 key: 'tableau4XylophagesMarins',
                 fr: 'Xylophages marins',
                 en: 'Marine borers',
-                ref: 'Annexes B.2 a B.4 EN 350',
+                ref: '',
                 riskFamily: 'agents-biologiques',
                 valueData: formatDC(essence.xylophagesMarins)
             },
@@ -7601,15 +7763,15 @@ class ValoboisApp {
                 key: 'annexeB3Aubier',
                 fr: "Largeur de l'aubier",
                 en: 'Sapwood — typical width',
-                ref: 'Annexe B.3 EN 350',
+                ref: '',
                 riskFamily: 'aubier',
                 valueData: formatAubier(essence.aubierLargeur)
             },
             {
                 key: 'annexeB4Impregnabilite',
-                fr: 'Impregnabilité (bois parfait + aubier)',
+                fr: 'Imprégnabilité (bois parfait + aubier)',
                 en: 'Treatability (heartwood + sapwood)',
-                ref: 'Annexe B.4 EN 350',
+                ref: '',
                 riskFamily: 'impregnabilite',
                 valueData: (() => {
                     const heartwood = formatImpreg(essence.impregnabiliteBoisParfait);
@@ -7625,7 +7787,7 @@ class ValoboisApp {
                 key: 'en13556Code',
                 fr: 'Code selon EN 13556',
                 en: 'Code according to EN 13556',
-                ref: 'Annexes B.1 a B.4 EN 350',
+                ref: '',
                 riskFamily: 'identification',
                 valueData: formatRaw(essence.codeEn13556)
             }
@@ -7680,6 +7842,213 @@ class ValoboisApp {
         return Array.from(entries.values());
     }
 
+    buildDurabiliteNaturelleAlertMessage(state, lot) {
+        const entries = this.getLotDurabiliteNaturelleDetailEntries(lot);
+
+        const normalize = (v) => String(v ?? '').trim().toLowerCase()
+            .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+        const worstRank = (raw) => {
+            const val = normalize(raw);
+            if (!val || val === 'n/d' || val === 'inconnu') return null;
+            if (val === 'n/a') return -1;
+            const m = val.match(/^([1-5dms])\s*[-\u2013]\s*([1-5dms])$/i);
+            const codeA = m ? m[1].toUpperCase() : val.toUpperCase();
+            const codeB = m ? m[2].toUpperCase() : null;
+            const rank = (code) => {
+                if (['1', '2', 'D'].includes(code)) return 0;
+                if (['3', 'M'].includes(code)) return 1;
+                if (['4', '5', 'S'].includes(code)) return 2;
+                return 1;
+            };
+            return Math.max(rank(codeA), codeB ? rank(codeB) : rank(codeA));
+        };
+
+        const bioFieldMap = {
+            tableau1Champignons: ['durabiliteChampignons', 'durabiliteChampignonsLabo'],
+            tableau2aHylotrupes: ['hylotrupes'],
+            tableau2bAnobium: ['anobium'],
+            tableau3Termites: ['termites'],
+            tableau4XylophagesMarins: ['xylophagesMarins'],
+        };
+
+        const rankThreshold = state === 'low' ? 2 : state === 'medium' ? 1 : 0;
+
+        const introMap = {
+            low: 'Critères défavorables détectés dans le lot (synthèse par essence).',
+            medium: 'Critères intermédiaires détectés dans le lot (synthèse par essence).',
+            strong: 'Critères favorables détectés dans le lot (synthèse par essence).',
+            missing: 'Données insuffisantes de durabilité biologique pour une ou plusieurs essences du lot.'
+        };
+
+        const recommendationMap = {
+            strong: { label: 'Forte', className: 'forte', reason: 'La notation Forte est justifiée.' },
+            medium: { label: 'Moyenne', className: 'moyenne', reason: 'La notation Moyenne est appropriée.' },
+            low: { label: 'Faible', className: 'faible', reason: 'La notation Faible est recommandée.' },
+            missing: { label: 'Faible (prudence)', className: 'faible', reason: 'En absence de données confirmées, privilégier Faible par prudence (NF EN 350, Annexe B.1).' }
+        };
+
+        const synthesis = {
+            consideredEssences: 0,
+            criteriaLabels: new Set(),
+            plageCount: 0,
+            aubierPenaltyCount: 0,
+            ndCriticalCount: 0,
+            variableCount: 0
+        };
+
+        const infoBlocks = entries.map((entry) => {
+            const essence = entry.essence;
+            if (!essence) return null;
+
+            const rows = this.getDurabiliteNaturelleRows(essence, 'fr', { withHtml: true });
+            const bioRows = rows.filter((r) => r.riskFamily === 'agents-biologiques');
+
+            let criteriaToShow = [];
+            if (state === 'missing') {
+                criteriaToShow = bioRows.filter((r) => r.isND);
+            } else if (state === 'strong') {
+                criteriaToShow = bioRows.filter((r) => !r.isND);
+            } else {
+                criteriaToShow = bioRows.filter((r) => {
+                    const fields = bioFieldMap[r.key] || [];
+                    const maxRank = fields.length
+                        ? Math.max(...fields.map((f) => worstRank(essence[f]) ?? -1))
+                        : -1;
+                    return maxRank >= rankThreshold;
+                });
+            }
+
+            const entriesForCard = criteriaToShow.map((r) => ({
+                label: r.label,
+                value: (r.value || 'n/d').replace(/\n/g, ' '),
+                htmlValue: r.htmlValue || null,
+                ref: r.ref || ''
+            }));
+
+            const champRaw = String(essence.durabiliteChampignons || '').trim();
+            const champLaboRaw = String(essence.durabiliteChampignonsLabo || '').trim();
+            const hasPlageChampignons =
+                /^([1-5dms])\s*[-\u2013]\s*([1-5dms])$/i.test(champRaw)
+                || /^([1-5dms])\s*[-\u2013]\s*([1-5dms])$/i.test(champLaboRaw);
+            if (hasPlageChampignons) synthesis.plageCount += 1;
+
+            const termitesNorm = normalize(essence.termites);
+            const marinsNorm = normalize(essence.xylophagesMarins);
+            const termitesMissing = !termitesNorm || termitesNorm === 'n/d' || termitesNorm === 'inconnu';
+            const marinsMissing = !marinsNorm || marinsNorm === 'n/d' || marinsNorm === 'inconnu';
+            if (termitesMissing || marinsMissing) synthesis.ndCriticalCount += 1;
+
+            const remarksNorm = normalize(essence.remarques || '');
+            if (/\bvariab/.test(remarksNorm) || /\bv\b/.test(remarksNorm)) {
+                synthesis.variableCount += 1;
+            }
+
+            const aubierRow = rows.find((r) => r.riskFamily === 'aubier' && !r.isND);
+            const aubierRaw = normalize(essence.aubierLargeur);
+            const aubierUnfav = ['m', 'b', 'x', '(x)'].includes(aubierRaw)
+                || (/\baubier\b/i.test(String(essence.remarques || ''))
+                    && /non.{0,6}r.{0,6}sistant/i.test(normalize(essence.remarques || '')));
+            if (aubierUnfav && aubierRow && (state === 'low' || state === 'medium')) {
+                entriesForCard.push({
+                    label: "Largeur de l'aubier",
+                    value: `${aubierRow.value} — prise en compte dans l'évaluation`,
+                    htmlValue: aubierRow.htmlValue
+                        ? `${aubierRow.htmlValue} <span class="durab-nat-labo">prise en compte dans l'évaluation</span>`
+                        : null,
+                    ref: ''
+                });
+                synthesis.aubierPenaltyCount += 1;
+            }
+
+            if (!entriesForCard.length) return null;
+
+            synthesis.consideredEssences += 1;
+            criteriaToShow.forEach((r) => synthesis.criteriaLabels.add(r.label));
+
+            return {
+                title: entry.label,
+                entries: entriesForCard,
+                remark: ''
+            };
+        }).filter(Boolean);
+
+        const recommendation = recommendationMap[state] || recommendationMap.low;
+
+        const criteriaList = Array.from(synthesis.criteriaLabels);
+        const criteriaShown = criteriaList.slice(0, 3);
+        const criteriaMore = Math.max(0, criteriaList.length - criteriaShown.length);
+
+        const justificationLines = [recommendation.reason];
+
+        if (synthesis.consideredEssences > 0) {
+            justificationLines.push(
+                `Synthèse sur ${synthesis.consideredEssences} essence(s) retenue(s) dans le lot.`
+            );
+        }
+
+        if (criteriaShown.length) {
+            const base = `Critères déclenchants observés : ${criteriaShown.join(', ')}`;
+            justificationLines.push(criteriaMore > 0 ? `${base} (+${criteriaMore} autre(s)).` : `${base}.`);
+        }
+
+        if (synthesis.plageCount > 0) {
+            justificationLines.push(
+                `Règle EN 350 (plages champignons) appliquée sur ${synthesis.plageCount} essence(s) : la classe la plus défavorable est retenue.`
+            );
+        }
+
+        if (synthesis.aubierPenaltyCount > 0) {
+            justificationLines.push(
+                `Aubier : abaissement d'un niveau appliqué sur ${synthesis.aubierPenaltyCount} essence(s) (m, b, x/(x) ou mention non résistant).`
+            );
+        }
+
+        if (state === 'missing' || synthesis.ndCriticalCount > 0) {
+            justificationLines.push(
+                "Agents sans donnée : absence de donnée non pénalisante par défaut, sauf usage classe 4-5 où la prudence conduit à Faible."
+            );
+        }
+
+        if (synthesis.variableCount > 0) {
+            justificationLines.push(
+                `Variabilité : ${synthesis.variableCount} essence(s) signalée(s) variable(s), la note reste une estimation et non une garantie de performance.`
+            );
+        }
+
+        if (entries.length > 1) {
+            justificationLines.push(
+                'En présence de plusieurs essences, la synthèse est alignée sur le profil le plus défavorable du lot.'
+            );
+        }
+
+        infoBlocks.push({
+            title: 'Recommandation de notation',
+            entries: [
+                {
+                    label: 'Niveau conseillé',
+                    value: recommendation.label,
+                    htmlValue: `<span class="detail-modal-scale-pill detail-modal-scale-pill--${recommendation.className}">${this.escapeHtml(recommendation.label)}</span>`,
+                    ref: ''
+                },
+                {
+                    label: 'Justification',
+                    value: justificationLines.join(' '),
+                    htmlValue: justificationLines.map((line) => this.escapeHtml(line)).join('<br>'),
+                    rowClass: 'durab-detail-card__row--justification',
+                    ref: ''
+                }
+            ],
+            remark: ''
+        });
+
+        return {
+            intro: introMap[state] || introMap.low,
+            info: infoBlocks,
+            references: ['NF EN 350:2016 — Données indicatives']
+        };
+    }
+
     buildDurabiliteNaturelleModalContent(entries) {
         if (!Array.isArray(entries) || !entries.length) {
             return 'Aucune essence renseignée avec données de durabilité naturelle dans le Détail du lot.';
@@ -7688,12 +8057,13 @@ class ValoboisApp {
         return {
             intro: 'Profils EN 350 distincts détectés dans le lot.',
             info: entries.map((entry) => {
-                const detailRows = this.getDurabiliteNaturelleRows(entry.essence);
+                const detailRows = this.getDurabiliteNaturelleRows(entry.essence, 'fr', { withHtml: true });
                 return {
                     title: entry.label,
                     entries: detailRows.map((row) => ({
                         label: row.label,
                         value: row.value,
+                        htmlValue: row.htmlValue || null,
                         ref: row.ref
                     })),
                     remark: entry.essence.remarques || ''
@@ -7730,12 +8100,12 @@ class ValoboisApp {
             const cardsHtml = content.info.map((block) => {
                 const titleHtml = this.escapeHtml(block.title || 'Essence');
                 const rowsHtml = (block.entries || []).map((entry) => `
-                    <div class="durab-detail-card__row">
+                    <div class="durab-detail-card__row${entry.rowClass ? ` ${this.escapeHtml(entry.rowClass)}` : ''}">
                         <div class="durab-detail-card__main">
                             <span class="durab-detail-card__label">${this.escapeHtml(entry.label || '')}</span>
                             <span class="durab-detail-card__ref">${this.escapeHtml(entry.ref || '')}</span>
                         </div>
-                        <span class="durab-detail-card__value">${this.escapeHtml(entry.value || 'n/d')}</span>
+                        <span class="durab-detail-card__value">${(typeof entry.htmlValue === 'string' && entry.htmlValue.trim()) ? entry.htmlValue : this.escapeHtml(entry.value || 'n/d')}</span>
                     </div>`).join('');
                 const remark = String(block.remark || '').trim();
                 const remarkHtml = remark
@@ -14234,7 +14604,7 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
             purge: 'Purge des dégradations biologiques',
             expansion: 'Expansion',
             integriteBio: 'Intégrité biologique',
-            exposition: 'Exposition',
+            exposition: 'Exposition biologique',
             confianceBio: 'Confiance'
         };
 
@@ -14397,13 +14767,31 @@ Une confiance moyenne vaut pour une notation de la catégorie à compléter [+2]
 Une confiance faible vaut pour une notation de la catégorie à investiguer [+1].`,
         durabiliteUsage: `Durabilité naturelle.
 
-Noter la durabilité naturelle de l’essence de bois identifiée.
+    Noter la durabilité naturelle de l'essence de bois identifiée.
 
-Une durabilité naturelle « forte » vaut pour les bois des essences de classe 1 ou 2 vis‑à‑vis des champignons et ne présentant pas de classe supérieure à 2 et A pour les autres agents biologiques [+3].
-Une durabilité naturelle « moyenne » vaut pour les bois des essences de classe 3 vis‑à‑vis des champignons, et/ou présentant au plus une classe 3 ou M pour un autre agent biologique, sans classe 4 ou 5 [+2].
-Une durabilité naturelle « faible » vaut pour les essences de classes 4 ou 5 vis‑à‑vis des champignons et/ou présentant au moins une classe 4, 5 ou S pour l’un des autres agents biologiques [+1].
+    Une durabilité naturelle « forte » vaut pour les bois des essences de classe 1 ou 2 vis‑à‑vis des champignons, présentant DC D pour les coléoptères concernés (résineux uniquement), et DC D ou DC M pour les termites et xylophages marins lorsque renseigné [+3].
+    Une durabilité naturelle « moyenne » vaut pour les bois des essences de classe 3 vis‑à‑vis des champignons, et/ou présentant au plus DC M pour un autre agent biologique, sans DC S ni classe 4 ou 5 pour aucun agent [+2].
+    Une durabilité naturelle « faible » vaut pour les essences de classes 4 ou 5 vis‑à‑vis des champignons et/ou présentant DC S pour au moins un des autres agents biologiques [+1].
 
-À noter : Cette durabilité biologique globale est appréciée à partir des classes de l’EN 350 vis‑à‑vis des champignons, termites, coléoptères et xylophages marins (agents biologiques). La présence d’aubier peut être prise en compte : lorsque la largeur de l’aubier est identifiable et supérieure ou égale à 5 cm, ou est indiqué comme « non résistant » dans l’EN 350, la note est abaissée d’un niveau.`,
+    Règles d'application.
+
+    Champignons — classes en plage : lorsque l'EN 350 fournit une plage (ex. DC 3–4), retenir la classe la plus défavorable conformément à l'Annexe B.1 de la NF EN 350:2016. Lorsque deux valeurs sont disponibles, notées X (Y) — X pour les essais terrain ou contact sol, Y pour les basidiomycètes en laboratoire — retenir également la plus défavorable.
+
+    Agents sans donnée (n/d) : l'absence de donnée pour les xylophages marins ou les termites ne pénalise pas la note sauf si l'usage prévu correspond à une classe d'emploi 4 ou 5 (contact sol permanent ou milieu marin), auquel cas retenir le niveau Faible par précaution.
+
+    Coléoptères : la durabilité vis‑à‑vis d'Hylotrupes bajulus n'est renseignée que pour les résineux dans la NF EN 350. Pour les feuillus, le champ est structurellement absent (les bois feuillus ne sont pas attaqués). La note n'est pas affectée.
+
+    Pourriture molle : Sans donnée explicite sur ce critère, il n'est pas intégré au calcul de la note.
+
+    Aubier : la note est abaissée d'un niveau lorsque la largeur de l'aubier est identifiable et classée « m » (5–10 cm) ou « b » (> 10 cm) dans la NF EN 350, ou lorsque l'essence est indiquée « non résistant » pour l'aubier. Pour les catégories « vs » (< 2 cm) ou « s » (2–5 cm), l'abaissement automatique ne s'applique pas, mais la vigilance est recommandée si l'aubier est visuellement identifiable sur les pièces du lot. Pour les essences notées « x » ou « (x) » (absence de distinction nette entre aubier et bois parfait), considérer l'ensemble de la section comme aubier et appliquer l'abaissement d'un niveau.
+
+    Variabilité : certaines essences présentent une durabilité variable selon leur origine géographique ou le débit (notée « v » dans la NF EN 350). Pour ces essences, la note attribuée doit être considérée comme une estimation haute et non comme une garantie de performance.
+
+    À noter : Cette durabilité biologique globale est appréciée à partir des classes de la NF EN 350:2016 — Tableaux B.1 à B.3 — vis‑à‑vis des champignons lignivores, coléoptères xylophages, termites et xylophages marins. Le classement fourni par la NF EN 350 ne constitue pas une garantie de performance en service.
+
+    Références et ressources.
+    • NF EN 350:2016 — Durabilité du bois et des matériaux dérivés du bois — Essai et classification de la durabilité biologique du bois et des matériaux dérivés du bois.
+    • NF EN 335 — Durabilité du bois et des matériaux dérivés du bois — Classes d'emploi : définitions, application au bois massif et aux matériaux dérivés du bois.`,
         classementUsage: `Noter la classe mécanique estimée des bois évalués (couramment relative à la flexion sur chant).
 
 Un classement estimé « fort » vaut pour : un classement visuel STI, un classement de résistance supérieur ou égal à C30 (résineux); un classement visuel 1 (chêne), un classement de résistance supérieur ou égal à D30 (feuillus) [+3].
@@ -15313,7 +15701,7 @@ closeProvenanceDetailModal() {
                     purge: 'Purge des dégradations biologiques',
                     expansion: 'Expansion',
                     integriteBio: 'Intégrité biologique',
-                    exposition: 'Exposition',
+                    exposition: 'Exposition biologique',
                     confianceBio: 'Confiance'
                 },
                 contents: this.getBioDetailContents()
@@ -15989,7 +16377,7 @@ closeEvalOpModal() {
                             </button>
                         </summary>
                         <div class="durab-nat-body">
-                            <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                            <p class="durab-nat-source">Source : EN 350:2016 — Tableaux 1-10, annexes B.</p>
                             <div class="durab-nat-list"></div>
                         </div>
                     </details>
@@ -17470,6 +17858,7 @@ closeEvalOpModal() {
             this.refreshMacroHistoireAlertButton(lot);
             this.refreshVieillissementAlertButton(lot);
             this.refreshHumiditeUsageAlertButton(lot);
+            this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
@@ -18321,6 +18710,7 @@ closeEvalOpModal() {
             this.refreshMacroHistoireAlertButton(lot);
             this.refreshVieillissementAlertButton(lot);
             this.refreshHumiditeUsageAlertButton(lot);
+            this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
         };
 
@@ -18756,6 +19146,7 @@ closeEvalOpModal() {
                 this.refreshFeuMechAlertButton(lot);
                 this.refreshVieillissementAlertButton(lot);
                 this.refreshHumiditeUsageAlertButton(lot);
+                this.refreshDurabiliteNaturelleUsageAlertButton(lot);
                 this.refreshMasseVolEssenceAlertButton(lot);
             };
 
@@ -19945,6 +20336,7 @@ updateUsageRow(row, key, lot) {
     const infoBtn = row.querySelector('.usage-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const humiditeAlertBtn = key === 'humiditeUsage' ? row.querySelector('[data-usage-humidite-alert-btn]') : null;
+    const durabiliteNatAlertBtn = key === 'durabiliteUsage' ? row.querySelector('[data-usage-durabilite-nat-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-usage-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -20011,6 +20403,9 @@ updateUsageRow(row, key, lot) {
             if (key === 'humiditeUsage') {
                 this.refreshHumiditeUsageAlertButton(lot);
             }
+            if (key === 'durabiliteUsage') {
+                this.refreshDurabiliteNaturelleUsageAlertButton(lot);
+            }
 
         };
     }
@@ -20059,6 +20454,9 @@ updateUsageRow(row, key, lot) {
             if (key === 'humiditeUsage') {
                 this.refreshHumiditeUsageAlertButton(lot);
             }
+            if (key === 'durabiliteUsage') {
+                this.refreshDurabiliteNaturelleUsageAlertButton(lot);
+            }
 
         };
     }
@@ -20083,6 +20481,18 @@ updateUsageRow(row, key, lot) {
             this.refreshHumiditeUsageAlertButton(lot);
             const alertState = humiditeAlertBtn.dataset.alertHumiditeState || 'none';
             this.openUsageHumiditeAlertModal(alertState, lot);
+        };
+    }
+
+    if (durabiliteNatAlertBtn) {
+        this.refreshDurabiliteNaturelleUsageAlertButton(lot);
+        durabiliteNatAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshDurabiliteNaturelleUsageAlertButton(lot);
+
+            const state = durabiliteNatAlertBtn.dataset.alertDurabiliteNatState || 'missing';
+            const msg = this.buildDurabiliteNaturelleAlertMessage(state, lot);
+            this.openSharedAlertPiecesModal('Durabilité naturelle', msg, { textAlign: 'left', whiteSpace: 'normal' });
         };
     }
 

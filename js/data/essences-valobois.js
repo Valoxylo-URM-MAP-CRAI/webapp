@@ -1487,10 +1487,71 @@ const normalizeEn350Value = (value, { allowNA = false } = {}) => {
     return normalized;
 };
 
+const EN13556_CODE_BY_SCIENTIFIC = new Map([
+    [normalizeEssenceLookupKey('Pinus pinaster'), 'PNPN']
+]);
+
+const EN13556_CODE_BY_COMMON = new Map([
+    [normalizeEssenceLookupKey('Pin maritime (Pin des Landes)'), 'PNPN']
+]);
+
+const buildEn13556CodeFromScientificName = (scientificNameRaw) => {
+    if (!scientificNameRaw) return '';
+
+    const scientificName = String(scientificNameRaw)
+        .replace(/\([^)]*\)/g, ' ')
+        .trim();
+    if (!scientificName) return '';
+
+    const firstTaxon = scientificName.split('/')[0].trim();
+    if (!firstTaxon) return '';
+
+    const tokens = firstTaxon.split(/\s+/).filter(Boolean);
+    if (!tokens.length) return '';
+
+    const cleanToken = (token) => normalizeEssenceLookupKey(token).replace(/[^a-z]/g, '');
+
+    const genusToken = cleanToken(tokens[0]);
+    if (genusToken.length < 2) return '';
+
+    const speciesTokenRaw = tokens.slice(1).find((token) => {
+        const cleaned = cleanToken(token);
+        return cleaned && cleaned !== 'x';
+    }) || '';
+    const speciesToken = cleanToken(speciesTokenRaw);
+    if (!speciesToken) return '';
+
+    const genusCode = genusToken.slice(0, 2).toUpperCase();
+    if (speciesToken === 'sp' || speciesToken === 'spp') return `${genusCode}SP`;
+    if (speciesToken.length < 2) return '';
+
+    return `${genusCode}${speciesToken.slice(0, 2).toUpperCase()}`;
+};
+
+const resolveEn13556Code = (essence) => {
+    const explicitCode = normalizeEn350Value(essence && essence.codeEn13556);
+    if (explicitCode !== 'n/d') return explicitCode.toUpperCase();
+
+    const scientificKey = normalizeEssenceLookupKey(essence && essence.nomScientifique);
+    if (scientificKey && EN13556_CODE_BY_SCIENTIFIC.has(scientificKey)) {
+        return EN13556_CODE_BY_SCIENTIFIC.get(scientificKey);
+    }
+
+    const commonKey = normalizeEssenceLookupKey(essence && essence.nomUsuel);
+    if (commonKey && EN13556_CODE_BY_COMMON.has(commonKey)) {
+        return EN13556_CODE_BY_COMMON.get(commonKey);
+    }
+
+    const generatedCode = buildEn13556CodeFromScientificName(essence && essence.nomScientifique);
+    if (generatedCode) return generatedCode;
+
+    return 'n/d';
+};
+
 ESSENCES_VALOBOIS.forEach((essence) => {
     if (!essence || typeof essence !== 'object') return;
 
-    essence.codeEn13556 = normalizeEn350Value(essence.codeEn13556);
+    essence.codeEn13556 = normalizeEn350Value(resolveEn13556Code(essence));
     essence.durabiliteChampignons = normalizeEn350Value(essence.durabiliteChampignons);
     essence.hylotrupes = normalizeEn350Value(essence.hylotrupes, { allowNA: true });
     essence.anobium = normalizeEn350Value(essence.anobium);

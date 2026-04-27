@@ -1511,6 +1511,15 @@ body.day-mode .accueil-collapsible-summary:hover {
             text-align: right;
         }
 
+        .durab-detail-card__row--justification {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .durab-detail-card__row--justification .durab-detail-card__value {
+            text-align: left;
+            font-weight: var(--font-weight-semibold);
+        }
+
         .durab-detail-card__remark {
             margin: 0;
             padding-top: 2px;
@@ -3607,6 +3616,35 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-alert-btn--usage-humidite[data-alert-humidite-state="none"] {
     opacity: 0.3;
     pointer-events: auto;
+}
+
+.lot-alert-btn--usage-durabilite[data-alert-durabilite-nat-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--usage-durabilite[data-alert-durabilite-nat-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--usage-durabilite[data-alert-durabilite-nat-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--usage-durabilite[data-alert-durabilite-nat-state="missing"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #9B9B9B;
+}
+
+.lot-alert-btn--usage-durabilite[data-alert-durabilite-nat-state="none"] {
+    opacity: 0.3;
+    pointer-events: none;
 }
 
 .lot-prix-group-header {
@@ -12092,7 +12130,7 @@ body.day-mode .inspection-ignore-box {
 .durab-nat-source {
     font-size: 10px;
     color: #999;
-    margin: 0 0 4px;
+    margin: 10px 0px 10px;
     font-style: italic;
     padding: 0 10px;
 }
@@ -12148,6 +12186,10 @@ body.day-mode .inspection-ignore-box {
     padding: 1px 7px;
     border-radius: 3px;
     white-space: nowrap;
+}
+.durab-nat-badge-inline--range {
+    white-space: normal;
+    line-height: 1.2;
 }
 .durab-nat-durable    { background: #e8f5ee; color: #2d8a4e; border: 1px solid #a8d8ba; }
 .durab-nat-nondurable { background: #fdecea; color: #c0392b; border: 1px solid #f0b8b4; }
