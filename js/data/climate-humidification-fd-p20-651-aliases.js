@@ -10,7 +10,10 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "ALPES-DE-HAUTE-PROVENCE": {
         "BARCELLONNETTE": "Barcelonnette",
+        "COLMARS": "Castellane",
         "ENTREVAUX": "Castellane",
+        "LA JAVIE": "Seyne",
+        "LE LAUZET-UBAYE": "Barcelonnette",
         "TURRIERS": "Seyne"
     },
     "ALPES-MARITIMES": {
@@ -23,7 +26,10 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "TENDE": "Contes"
     },
     "ARDECHE": {
+        "AUBENAS": "Aubenas-1",
         "CHOMERAC": "Privas",
+        "LA VOULTE-SUR-RHONE": "Rhône-Eyrieux",
+        "LES VANS": "Cévennes Ardéchoises",
         "ROCHEMAURE": "Berg-Helvie",
         "SAINT-PERAY": "Guilherand-Granges",
         "VALS-LES-BAINS": "Aubenas-1",
@@ -38,10 +44,14 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "ARIEGE": {
         "CASTILLON-EN-COUSERANS": "Couserans Ouest",
+        "LES CABANNES": "Haute-Ariège",
         "MASSAT": "Couserans Est",
         "OUST": "Couserans Est",
         "TARASCON-SUR-ARIEGE": "Sabarthès",
         "VICDESSOS": "Sabarthès"
+    },
+    "AUBE": {
+        "LA CHAPELLE-SAINT-LUC": "Saint-André-les-Vergers"
     },
     "AUDE": {
         "CAPENDU": "Montagne d'Alaric"
@@ -55,6 +65,7 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "WASSELONNE": "Molsheim"
     },
     "CALVADOS": {
+        "LE BENY-BOCAGE": "Vire",
         "SAINT-SEVER-CALVADOS": "Vire"
     },
     "CANTAL": {
@@ -73,6 +84,7 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "TREIGNAC": "Seilhac-Monédières"
     },
     "CORSE-DU-SUD": {
+        "AJACCIO": "Ajaccio-1",
         "AJACCIO 7E CANTON": "Ajaccio-5",
         "BONIFACIO": "Grand Sud",
         "FIGARI": "Grand Sud",
@@ -99,22 +111,26 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "DOUBS": {
         "AUDEUX": "Saint-Vit",
+        "BESANCON": "Besançon-1",
         "BESANCON EST": "Besançon-4",
         "BOUSSIERES": "Besançon-6",
         "ETUPES": "Bethoncourt",
         "MARCHAUX": "Baume-les-Dames",
         "QUINGEY": "Saint-Vit",
-        "ROUGEMONT": "Baume-les-Dames"
+        "ROUGEMONT": "Baume-les-Dames",
+        "SOCHAUX": "Montbéliard"
     },
     "DROME": {
         "BOURG-LES-VALENCE": "Valence-1",
         "BUIS-LES-BARONNIES": "Nyons et Baronnies",
         "MARSANNE": "Dieulefit",
+        "MONTELIMAR": "Montélimar-1",
         "PIERRELATTE": "Grignan",
         "PORTES-LES-VALENCE": "Valence-3",
         "REMUZAT": "Nyons et Baronnies",
         "SAINT-PAUL-TROIS-CHATEAUX": "Grignan",
-        "SEDERON": "Nyons et Baronnies"
+        "SEDERON": "Nyons et Baronnies",
+        "VALENCE": "Valence-1"
     },
     "FINISTERE": {
         "ARZANO": "Quimperlé",
@@ -143,8 +159,10 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "HAUTE-CORSE": {
         "BELGODERE": "Calvi",
+        "CALACUCCIA": "Golo-Morosaglia",
         "CALENZANA": "Calvi",
         "GHISONI": "Fiumorbo-Castello",
+        "MOROSAGLIA": "Golo-Morosaglia",
         "PRUNELLI-DI-FIUMORBO": "Fiumorbo-Castello",
         "VENACO": "Corte"
     },
@@ -162,6 +180,7 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     "HAUTE-SAVOIE": {
         "ABONDANCE": "Évian-les-Bains",
         "CHAMONIX-MONT-BLANC": "Mont-Blanc",
+        "LE BIOT": "Évian-les-Bains",
         "SAINT-GERVAIS-LES-BAINS": "Mont-Blanc",
         "SAINT-JEOIRE": "Bonneville",
         "SAMOENS": "Cluses",
@@ -171,6 +190,8 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "HAUTES-ALPES": {
         "BARCILLONNETTE": "Tallard",
+        "BRIANCON": "Briançon-1",
+        "LA BATIE-NEUVE": "Chorges",
         "ORPIERRE": "Serres",
         "RIBIERS": "Laragne-Montéglin",
         "ROSANS": "Serres"
@@ -190,6 +211,8 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "HERAULT": {
         "BEDARIEUX": "Clermont-l'Hérault",
+        "LA SALVETAT-SUR-AGOUT": "Saint-Pons-de-Thomières",
+        "LE CAYLAR": "Lodève",
         "LUNAS": "Clermont-l'Hérault",
         "OLARGUES": "Saint-Pons-de-Thomières",
         "OLONZAC": "Saint-Pons-de-Thomières",
@@ -201,11 +224,14 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     "ISERE": {
         "ALLEVARD": "Haut-Grésivaudan",
         "DOMENE": "Meylan",
-        "GONCELIN": "Haut-Grésivaudan"
+        "GONCELIN": "Haut-Grésivaudan",
+        "LE BOURG-D'OISANS": "Oisans-Romanche"
     },
     "JURA": {
         "CLAIRVAUX-LES-LACS": "Saint-Laurent-en-Grandvaux",
         "CONLIEGE": "Poligny",
+        "LES BOUCHOUX": "Saint-Lupicin",
+        "LES PLANCHES-EN-MONTAGNE": "Champagnole",
         "NOZEROY": "Saint-Laurent-en-Grandvaux",
         "ORGELET": "Moirans-en-Montagne",
         "SALINS-LES-BAINS": "Arbois",
@@ -220,7 +246,10 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "BRECEY": "Isigny-le-Buat",
         "CERISY-LA-SALLE": "Quettreville-sur-Sienne",
         "GAVRAY": "Quettreville-sur-Sienne",
+        "JULLOUVILLE": "Granville",
         "JUVIGNY-LE-TERTRE": "Isigny-le-Buat",
+        "LA HAYE-DU-PUITS": "Créances",
+        "LA HAYE-PESNEL": "Bréhal",
         "MONTMARTIN-SUR-MER": "Quettreville-sur-Sienne",
         "PERCY": "Villedieu-les-Poêles",
         "SAINT-MALO-DE-LA-LANDE": "Coutances",
@@ -228,7 +257,8 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "SAINT-SAUVEUR-LENDELIN": "Agon-Coutainville",
         "SARTILLY": "Avranches",
         "SOURDEVAL": "Mortainais",
-        "TESSY-SUR-VIRE": "Condé-sur-Vire"
+        "TESSY-SUR-VIRE": "Condé-sur-Vire",
+        "VESLY": "Créances"
     },
     "MEURTHE-ET-MOSELLE": {
         "BADONVILLER": "Baccarat",
@@ -236,7 +266,8 @@ window.VALOBOIS_CLIMATE_ALIASES = {
     },
     "MORBIHAN": {
         "CLEGUEREC": "Gourin",
-        "GUEMENE-SUR-SCORFF": "Gourin"
+        "GUEMENE-SUR-SCORFF": "Gourin",
+        "LE FAOUET": "Gourin"
     },
     "MOSELLE": {
         "LORQUIN": "Phalsbourg"
@@ -261,6 +292,7 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "BESSE-ET-SAINT-ANASTAISE": "Sancy",
         "BOURG-LASTIC": "Saint-Ours",
         "HERMENT": "Saint-Ours",
+        "LA TOUR-D'AUVERGNE": "Sancy",
         "OLLIERGUES": "Monts du Livradois",
         "ROCHEFORT-MONTAGNE": "Orcines",
         "SAINT-AMANT-ROCHE-SAVINE": "Monts du Livradois",
@@ -301,7 +333,10 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "SAINT-LEGER-SOUS-BEUVRAY": "Autun-2"
     },
     "SAVOIE": {
+        "LA CHAMBRE": "Saint-Jean-de-Maurienne",
+        "LA ROCHETTE": "Montmélian",
         "LANSLEBOURG-MONT-CENIS": "Modane",
+        "LE CHATELARD": "Saint-Alban-Leysse",
         "SAINT-MICHEL-DE-MAURIENNE": "Modane"
     },
     "VOSGES": {
@@ -311,10 +346,12 @@ window.VALOBOIS_CLIMATE_ALIASES = {
         "CHATENOIS": "Mirecourt",
         "COUSSEY": "Neufchâteau",
         "DOMPAIRE": "Darney",
+        "EPINAL": "Épinal-1",
         "EPINAL OUEST": "Épinal-1",
         "LAMARCHE": "Darney",
         "MONTHUREUX-SUR-SAONE": "Darney",
-        "RAMBERVILLERS": "Raon-l'Etape"
+        "RAMBERVILLERS": "Raon-l'Etape",
+        "SAINT-DIDIER-DES-VOSGES": "Saint-Dié-des-Vosges-1"
     },
     "YONNE": {
         "QUARRE-LES-TOMBES": "Avallon"

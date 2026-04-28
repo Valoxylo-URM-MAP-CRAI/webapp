@@ -1021,6 +1021,23 @@
                                                     (zone côtière, fond de vallée, altitude > 900 m, proximité d'un plan d'eau, etc.).
                                                 </small>
                                             </div>
+                                            <div class="accueil-meta-row accueil-meta-row--full accueil-geo-france-climate-row">
+                                                <label class="accueil-meta-label" for="inputGeoWindDominant">
+                                                    Vent de pluie dominant
+                                                    <span class="accueil-geo-france-climate-norm">(FD P 20-651 – Annexe A)</span>
+                                                </label>
+                                                <input
+                                                    id="inputGeoWindDominant"
+                                                    type="text"
+                                                    class="accueil-input accueil-geo-france-climate-input"
+                                                    readonly
+                                                    placeholder="Sélectionnez un département"
+                                                    data-geo-france-role="wind-dominant">
+                                                <small class="accueil-geo-france-climate-hint">
+                                                    Secteurs de vent de pluie dominants identifiés à la station météo de référence du département
+                                                    (source Météo-France 1994–2008, Annexe A). Le séparateur · distingue deux secteurs angulaires distincts.
+                                                </small>
+                                            </div>
                                             <div class="accueil-geo-france-summary" data-geo-france-role="summary" aria-live="polite"></div>
                                             <div class="accueil-geo-france-actions">
                                                 <button type="button" class="btn btn-outline accueil-geo-france-detect-btn" data-geo-france-role="detect" hidden>Détecter depuis « Adresse »</button>
@@ -1033,6 +1050,36 @@
                                             <div class="accueil-geo-france-zoom-controls" aria-label="Contrôles de zoom">
                                                 <button type="button" class="accueil-geo-france-zoom-btn" data-geo-france-role="zoom-in" aria-label="Zoomer la carte" title="Zoomer la carte">+</button>
                                                 <button type="button" class="accueil-geo-france-zoom-btn" data-geo-france-role="zoom-out" aria-label="Dézoomer la carte" title="Dézoomer la carte">−</button>
+                                            </div>
+                                            <div class="accueil-geo-france-wind-rose" data-geo-france-role="wind-rose" aria-hidden="true" title="Vent de pluie dominant (Annexe A)">
+                                                <svg viewBox="0 0 100 100" class="accueil-geo-france-wind-rose-svg" focusable="false">
+                                                    <circle cx="50" cy="50" r="47" class="accueil-geo-france-wind-rose-ring"></circle>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="N">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="NE" transform="rotate(45 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="E" transform="rotate(90 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="SE" transform="rotate(135 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="S" transform="rotate(180 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="SO" transform="rotate(225 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="O" transform="rotate(270 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <g class="accueil-geo-france-wind-rose-branch" data-dir="NO" transform="rotate(315 50 50)">
+                                                        <path d="M43 3 L57 3 L50 24 Z"></path>
+                                                    </g>
+                                                    <circle cx="50" cy="50" r="9" class="accueil-geo-france-wind-rose-core"></circle>
+                                                </svg>
                                             </div>
                                             <svg id="geoFranceCantonMap"
                                                 class="accueil-geo-france-map"

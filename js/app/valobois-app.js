@@ -583,6 +583,102 @@ class ValoboisApp {
             : {};
     }
 
+    getGeoFranceWindData() {
+        return {
+            '01': { station: 'AMBERIEU',             directions: 'Sud-Est, Sud, Sud-Ouest · Nord, Nord-Est' },
+            '02': { station: 'ST QUENTIN',            directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '03': { station: 'VICHY-CHARMEIL',        directions: 'Sud, Sud-Ouest · Nord, Ouest, Nord-Ouest' },
+            '04': { station: 'SAINT-AUBAN',           directions: 'Nord, Nord-Est, Est, Sud-Est, Sud' },
+            '05': { station: 'EMBRUN',                directions: 'Nord, Nord-Est · Sud, Sud-Ouest, Ouest' },
+            '06': { station: 'NICE',                  directions: 'Nord, Nord-Est, Est, Nord-Ouest' },
+            '07': { station: 'LANAS SYN',             directions: 'Nord, Nord-Est · Sud-Est, Sud' },
+            '08': { station: 'CHARLEVILLE-MEZ',       directions: 'Est, Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '09': { station: 'ST GIRONS',             directions: 'Nord, Ouest, Nord-Ouest' },
+            '10': { station: 'TROYES-BARBEREY',       directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '11': { station: 'CARCASSONNE',           directions: 'Est, Sud-Est · Ouest, Nord-Ouest' },
+            '12': { station: 'MILLAU',                directions: 'Nord, Est, Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '13': { station: 'MARIGNANE',             directions: 'Nord, Nord-Est, Est, Sud-Est, Sud · Nord-Ouest' },
+            '14': { station: 'CAEN-CARPIQUET',        directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '15': { station: 'AURILLAC',              directions: 'Nord, Est, Sud-Est · Sud-Ouest, Ouest, Nord-Ouest' },
+            '17': { station: 'LA ROCHELLE',           directions: 'Nord · Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '18': { station: 'BOURGES',               directions: 'Est, Sud-Est, Sud · Ouest, Nord-Ouest' },
+            '19': { station: 'BRIVE',                 directions: 'Sud-Est, Sud, Sud-Ouest, Ouest' },
+            '2A': { station: 'AJACCIO',               directions: 'Nord, Nord-Est, Est · Ouest' },
+            '2B': { station: 'CALVI',                 directions: 'Nord, Nord-Est · Sud, Sud-Ouest, Ouest' },
+            '21': { station: 'DIJON-LONGVIC',         directions: 'Nord, Nord-Est, Sud · Ouest, Nord-Ouest' },
+            '22': { station: 'ST BRIEUC',             directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '23': { station: 'LEPAUD AERO',           directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '24': { station: 'BERGERAC',              directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '25': { station: 'BESANÇON',              directions: 'Sud, Sud-Ouest, Ouest' },
+            '26': { station: 'MONTÉLIMAR',            directions: 'Nord, Nord-Est · Sud, Sud-Ouest' },
+            '27': { station: 'ÉVREUX-HUEST',          directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '28': { station: 'CHARTRES',              directions: 'Sud-Est, Sud, Sud-Ouest, Ouest' },
+            '29': { station: 'BREST-GUIPAVAS',        directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '30': { station: 'NÎMES-COURBESSAC',      directions: 'Nord, Nord-Est, Est, Sud-Est · Nord-Ouest' },
+            '31': { station: 'TOULOUSE-BLAGNAC',      directions: 'Nord · Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '32': { station: 'AUCH',                  directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '33': { station: 'BORDEAUX-MÉRIGNAC',     directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '34': { station: 'MONTPELLIER',           directions: 'Nord, Est, Sud-Est, Sud · Ouest, Nord-Ouest' },
+            '35': { station: 'RENNES-ST JACQUES',     directions: 'Nord · Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '36': { station: 'CHÂTEAUROUX',           directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '37': { station: 'TOURS',                 directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '38': { station: 'GRENOBLE-ST GEOIRS',    directions: 'Nord-Est, Est, Sud-Est · Nord, Nord-Ouest' },
+            '39': { station: 'LONS-LE-SAUNIER',       directions: 'Sud, Sud-Ouest, Ouest' },
+            '40': { station: 'MONT-DE-MARSAN',        directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '41': { station: 'ROMORANTIN',            directions: 'Sud, Sud-Ouest, Ouest' },
+            '42': { station: 'ST-ÉTIENNE-BOUTHÉON',   directions: 'Nord-Ouest, Nord · Sud-Est, Sud, Sud-Ouest' },
+            '43': { station: 'LE PUY-LOUDES',         directions: 'Nord · Sud-Ouest, Ouest, Nord-Ouest' },
+            '44': { station: 'NANTES-BOUGUENAIS',     directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '45': { station: 'ORLÉANS',               directions: 'Sud, Sud-Ouest, Ouest' },
+            '46': { station: 'GOURDON',               directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '47': { station: 'AGEN',                  directions: 'Est, Sud-Est · Sud-Ouest, Ouest, Nord-Ouest' },
+            '48': { station: 'MENDE-BRENOUX',         directions: 'Nord · Sud-Est, Sud · Ouest, Nord-Ouest' },
+            '49': { station: 'BEAUCOUZÉ',             directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '50': { station: 'GONNEVILLE',            directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '51': { station: 'REIMS-COURCY',          directions: 'Nord · Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '52': { station: 'ST-DIZIER',             directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '53': { station: 'LAVAL-ENTRAMMES',       directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '54': { station: 'NANCY-ESSEY',           directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '55': { station: 'ERNEVILLE-AUX-BOIS',    directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '56': { station: 'LORIENT-LANN BIHOUÉ',   directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '57': { station: 'M.N.L. (GOIN)',         directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '58': { station: 'NEVERS-MARZY',          directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '59': { station: 'LILLE-LESQUIN',         directions: 'Nord · Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '60': { station: 'BEAUVAIS-TILLÉ',        directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '61': { station: 'ALENÇON',               directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '62': { station: 'BOULOGNE-SUR-MER',      directions: 'Sud-Est, Sud, Sud-Ouest, Ouest' },
+            '63': { station: 'CLERMONT-FERRAND',      directions: 'Nord-Ouest, Nord · Sud-Est, Sud, Sud-Ouest' },
+            '64': { station: 'PAU-UZEIN',             directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '65': { station: 'TARBES-OSSUN',          directions: 'Sud-Ouest, Ouest, Nord-Ouest' },
+            '66': { station: 'PERPIGNAN',             directions: 'Nord · Est, Sud-Est · Sud-Ouest, Ouest, Nord-Ouest' },
+            '67': { station: 'STRASBOURG-ENTZHEIM',   directions: 'Nord · Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '68': { station: 'COLMAR-MEYENHEIM',      directions: 'Nord, Nord-Est · Sud, Sud-Ouest · Ouest, Nord-Ouest' },
+            '69': { station: 'LYON-ST EXUPÉRY',       directions: 'Nord · Sud-Est, Sud, Sud-Ouest · Nord-Ouest' },
+            '70': { station: 'LUXEUIL',               directions: 'Est, Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '71': { station: 'MÂCON',                 directions: 'Nord · Sud-Est, Sud, Sud-Ouest · Ouest, Nord-Ouest' },
+            '72': { station: 'LE MANS',               directions: 'Sud, Sud-Ouest, Ouest' },
+            '73': { station: 'CHAMBÉRY-AIX',          directions: 'Nord · Sud-Est, Sud, Sud-Ouest' },
+            '74': { station: 'MEYTHET (ANNECY)',       directions: 'Est, Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '75': { station: 'PARIS-MONTSOURIS',      directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '76': { station: 'ROUEN-BOOS',            directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '77': { station: 'MELUN',                 directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '78': { station: 'TRAPPES',               directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '79': { station: 'NIORT',                 directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '80': { station: 'ABBEVILLE',             directions: 'Nord · Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '81': { station: 'ALBI',                  directions: 'Sud-Ouest, Ouest, Nord-Ouest' },
+            '82': { station: 'MONTAUBAN',             directions: 'Nord · Sud-Ouest, Ouest, Nord-Ouest' },
+            '83': { station: 'TOULON',                directions: 'Nord-Est, Est, Sud-Est · Ouest, Nord-Ouest' },
+            '84': { station: 'ORANGE',                directions: 'Nord, Nord-Est, Est, Sud-Est, Sud · Ouest, Nord-Ouest' },
+            '85': { station: 'LA ROCHE-SUR-YON',      directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '86': { station: 'POITIERS-BIARD',        directions: 'Sud, Sud-Ouest, Ouest · Nord-Ouest' },
+            '87': { station: 'LIMOGES',               directions: 'Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '88': { station: 'ÉPINAL',                directions: 'Sud, Sud-Ouest, Ouest' },
+            '89': { station: 'AUXERRE',               directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '91': { station: 'ORLY',                  directions: 'Nord · Sud, Sud-Ouest, Ouest, Nord-Ouest' },
+            '95': { station: 'ROISSY',                directions: 'Sud-Est, Sud, Sud-Ouest, Ouest, Nord-Ouest' }
+        };
+    }
+
     _getGeoFranceClimateAliasIndex() {
         if (this._geoFranceClimateAliasIndex) return this._geoFranceClimateAliasIndex;
 
@@ -686,6 +782,66 @@ class ValoboisApp {
             source: this.getGeoFranceClimateSourceLabel(condition.source),
             norme: 'FD P 20-651 - Annexe B'
         };
+    }
+
+    getGeoFranceWindExportData(geoSelection = null) {
+        const geo = geoSelection || this.getGeoFranceCurrentSelection();
+        const code = String(geo.departementCode || '').padStart(2, '0').toUpperCase();
+        const entry = this.getGeoFranceWindData()[code] || null;
+        return {
+            directions: entry ? entry.directions : '',
+            station: entry ? entry.station : '',
+            norme: 'FD P 20-651 - Annexe A'
+        };
+    }
+
+    _normalizeGeoFranceWindDirectionToken(rawToken) {
+        const token = String(rawToken || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase()
+            .replace(/[^A-Z]/g, '');
+
+        if (token === 'N' || token === 'NORD') return 'N';
+        if (token === 'NE' || token === 'NORDEST') return 'NE';
+        if (token === 'E' || token === 'EST') return 'E';
+        if (token === 'SE' || token === 'SUDEST') return 'SE';
+        if (token === 'S' || token === 'SUD') return 'S';
+        if (token === 'SO' || token === 'SUDOUEST') return 'SO';
+        if (token === 'O' || token === 'OUEST') return 'O';
+        if (token === 'NO' || token === 'NORDOUEST') return 'NO';
+        return '';
+    }
+
+    _parseGeoFranceWindDirectionSet(rawDirections) {
+        const active = new Set();
+        String(rawDirections || '')
+            .split('·')
+            .forEach((sector) => {
+                String(sector || '')
+                    .split(',')
+                    .forEach((token) => {
+                        const dir = this._normalizeGeoFranceWindDirectionToken(token);
+                        if (dir) active.add(dir);
+                    });
+            });
+        return active;
+    }
+
+    _updateGeoFranceWindRose(widget, departementCode, directionsRaw) {
+        if (!widget) return;
+        const roseEl = widget.querySelector('[data-geo-france-role="wind-rose"]');
+        if (!roseEl) return;
+
+        const code = String(departementCode || '').padStart(2, '0').toUpperCase();
+        const activeDirections = this._parseGeoFranceWindDirectionSet(directionsRaw);
+        const isEmpty = !code || code === '00' || activeDirections.size === 0;
+
+        roseEl.classList.toggle('is-empty', isEmpty);
+        roseEl.querySelectorAll('[data-dir]').forEach((branchEl) => {
+            const dir = String(branchEl.getAttribute('data-dir') || '').toUpperCase();
+            branchEl.classList.toggle('is-active', !isEmpty && activeDirections.has(dir));
+        });
     }
 
     _validateGeoFranceClimateData(raw) {
@@ -880,6 +1036,33 @@ class ValoboisApp {
         if (climateWarning) {
             climateWarning.hidden = false;
         }
+
+        const windInput = widget.querySelector('[data-geo-france-role="wind-dominant"]');
+        const resolvedGeo = geoSelection || this.getGeoFranceCurrentSelection();
+        const code = String(resolvedGeo.departementCode || '').padStart(2, '0').toUpperCase();
+
+        if (windInput) {
+            if (code && code !== '00') {
+                const entry = this.getGeoFranceWindData()[code] || null;
+                if (entry) {
+                    windInput.value = entry.directions;
+                    windInput.title = `Station de référence : ${entry.station}`;
+                    this._updateGeoFranceWindRose(widget, code, entry.directions);
+                } else {
+                    windInput.value = 'Non renseigné (Annexe A)';
+                    windInput.title = '';
+                    this._updateGeoFranceWindRose(widget, code, '');
+                }
+            } else {
+                windInput.value = '';
+                windInput.placeholder = 'Sélectionnez un département';
+                windInput.title = '';
+                this._updateGeoFranceWindRose(widget, '', '');
+            }
+            return;
+        }
+
+        this._updateGeoFranceWindRose(widget, code, '');
     }
 
     getCantonsForDepartement(codeRaw) {
@@ -2801,6 +2984,7 @@ class ValoboisApp {
         exported.meta = this.getDefaultMeta(exported.meta || {});
         exported.meta.geoFrance = this.getDefaultGeoFrance(exported.meta.geoFrance || {});
         exported.meta.geoFrance.conditionClimatiqueHumidification = this.getGeoFranceClimateExportData(exported.meta.geoFrance);
+        exported.meta.geoFrance.ventPluieDominant = this.getGeoFranceWindExportData(exported.meta.geoFrance);
         return exported;
     }
 
@@ -29156,7 +29340,8 @@ renderRadar() {
             { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) },
             { label: tpdf('pdf.summary.geoDepartment', 'Département géographique', 'Geographic department'), value: geoFrance.departementNom || '—' },
             { label: tpdf('pdf.summary.geoCanton', 'Canton géographique', 'Geographic canton'), value: geoFrance.cantonNom || '—' },
-            { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d’humidification', 'Humidification climatic condition'), value: climate.niveau || '—' }
+            { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d’humidification', 'Humidification climatic condition'), value: climate.niveau || '—' },
+            { label: tpdf('pdf.summary.geoWind', 'Vent de pluie dominant', 'Driving rain wind'), value: this.getGeoFranceWindExportData(geoFrance).directions || '—' }
         ];
 
         return [
@@ -30357,6 +30542,8 @@ renderRadar() {
             { label: 'Code canton géographique', getValue: () => ((meta.geoFrance || {}).cantonCode || '-') },
             { label: 'Condition climatique d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).niveau || '-' },
             { label: 'Source climat d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).source || '-' },
+            { label: 'Vent de pluie dominant', getValue: () => this.getGeoFranceWindExportData(meta.geoFrance || {}).directions || '-' },
+            { label: 'Station vent de pluie (réf.)', getValue: () => this.getGeoFranceWindExportData(meta.geoFrance || {}).station || '-' },
             { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
             { label: 'Protection', getValue: () => meta.protectionType || '-' },
             { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },
