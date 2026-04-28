@@ -1000,6 +1000,27 @@
                                                 <label class="accueil-meta-label" for="inputGeoCanton">Canton</label>
                                                 <select id="inputGeoCanton" class="accueil-select" data-geo-france-role="canton"></select>
                                             </div>
+                                            <div class="accueil-meta-row accueil-meta-row--full accueil-geo-france-climate-row">
+                                                <label class="accueil-meta-label" for="inputGeoClimateCondition">
+                                                    Condition climatique d'humidification
+                                                    <span class="accueil-geo-france-climate-norm">(FD P 20-651 - Annexe B)</span>
+                                                </label>
+                                                <input
+                                                    id="inputGeoClimateCondition"
+                                                    type="text"
+                                                    class="accueil-input accueil-geo-france-climate-input"
+                                                    readonly
+                                                    placeholder="Renseignez le département et le canton"
+                                                    data-geo-france-role="climate-condition">
+                                                <small class="accueil-geo-france-climate-hint">
+                                                    Sèche : N <= 100 j/an · Modérée : 100 < N <= 150 j/an · Humide : N > 150 j/an
+                                                    (N = nombre moyen annuel de jours de précipitations > 1 mm, source Météo-France 1971-2000)
+                                                </small>
+                                                <small class="accueil-geo-france-climate-warning" data-geo-france-role="climate-warning">
+                                                    Note locale (§6.2) : des conditions microclimatiques peuvent modifier ce classement
+                                                    (zone côtière, fond de vallée, altitude > 900 m, proximité d'un plan d'eau, etc.).
+                                                </small>
+                                            </div>
                                             <div class="accueil-geo-france-summary" data-geo-france-role="summary" aria-live="polite"></div>
                                             <div class="accueil-geo-france-actions">
                                                 <button type="button" class="btn btn-outline accueil-geo-france-detect-btn" data-geo-france-role="detect" hidden>Détecter depuis « Adresse »</button>
@@ -4811,6 +4832,8 @@
     <script defer src="js/data/datalist-situations-lot.js"></script>
     <script defer src="js/data/france-departements.js"></script>
     <script defer src="js/data/france-cantons.js"></script>
+    <script defer src="js/data/climate-humidification-fd-p20-651.js"></script>
+    <script defer src="js/data/climate-humidification-fd-p20-651-aliases.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
     <script defer src="js/lib/build-standalone-html.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>

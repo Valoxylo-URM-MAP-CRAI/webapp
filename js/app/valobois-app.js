@@ -418,6 +418,9 @@ class ValoboisApp {
         this._geoFranceHandlersBound = false;
         this._geoFranceSuggestedCantonCodes = [];
         this._geoFranceViewport = { width: 1000, height: 720, padding: 24 };
+        this._geoFranceClimateIndex = null;
+        this._geoFranceClimateValidation = null;
+        this._geoFranceClimateValidationLogged = false;
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this.ensureTermesBoisDatalist();
@@ -566,6 +569,317 @@ class ValoboisApp {
         return window.VALOBOIS_FRANCE_CANTONS && typeof window.VALOBOIS_FRANCE_CANTONS === 'object'
             ? window.VALOBOIS_FRANCE_CANTONS
             : {};
+    }
+
+    getGeoFranceClimateData() {
+        return window.VALOBOIS_CLIMATE_DATA && typeof window.VALOBOIS_CLIMATE_DATA === 'object'
+            ? window.VALOBOIS_CLIMATE_DATA
+            : {};
+    }
+
+    getGeoFranceClimateAliasesData() {
+        return window.VALOBOIS_CLIMATE_ALIASES && typeof window.VALOBOIS_CLIMATE_ALIASES === 'object'
+            ? window.VALOBOIS_CLIMATE_ALIASES
+            : {};
+    }
+
+    _getGeoFranceClimateAliasIndex() {
+        if (this._geoFranceClimateAliasIndex) return this._geoFranceClimateAliasIndex;
+
+        const raw = this.getGeoFranceClimateAliasesData();
+        const index = {};
+
+        Object.entries(raw).forEach(([depName, aliases]) => {
+            const depKey = this._normalizeGeoFranceClimateKey(depName);
+            if (!depKey || !aliases || typeof aliases !== 'object') return;
+
+            const byNormative = {};
+            const byTarget = {};
+
+            Object.entries(aliases).forEach(([normativeName, targetName]) => {
+                const normativeKey = this._normalizeGeoFranceClimateKey(normativeName);
+                const targetKey = this._normalizeGeoFranceClimateKey(targetName);
+                if (!normativeKey || !targetKey) return;
+
+                byNormative[normativeKey] = {
+                    normativeName: String(normativeName),
+                    targetName: String(targetName),
+                    targetKey
+                };
+                if (!Array.isArray(byTarget[targetKey])) byTarget[targetKey] = [];
+                byTarget[targetKey].push(normativeKey);
+            });
+
+            index[depKey] = { byNormative, byTarget };
+        });
+
+        this._geoFranceClimateAliasIndex = index;
+        return index;
+    }
+
+    _resolveGeoFranceClimateAliasByNormative(departementNom, normativeCantonName) {
+        const depKey = this._normalizeGeoFranceClimateKey(departementNom);
+        const normativeKey = this._normalizeGeoFranceClimateKey(normativeCantonName);
+        if (!depKey || !normativeKey) return null;
+
+        const depAliasIndex = this._getGeoFranceClimateAliasIndex()[depKey];
+        return depAliasIndex && depAliasIndex.byNormative
+            ? (depAliasIndex.byNormative[normativeKey] || null)
+            : null;
+    }
+
+    _findGeoFranceClimateAliasNormativeKeysByTarget(departementNom, currentCantonName) {
+        const depKey = this._normalizeGeoFranceClimateKey(departementNom);
+        const targetKey = this._normalizeGeoFranceClimateKey(currentCantonName);
+        if (!depKey || !targetKey) return [];
+
+        const depAliasIndex = this._getGeoFranceClimateAliasIndex()[depKey];
+        const targetKeys = depAliasIndex && depAliasIndex.byTarget
+            ? depAliasIndex.byTarget[targetKey]
+            : null;
+        return Array.isArray(targetKeys) ? targetKeys.slice() : [];
+    }
+
+    getGeoFranceClimateDisplayLabel(levelRaw) {
+        const normalized = String(levelRaw || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .trim()
+            .toLowerCase();
+
+        if (normalized === 'seche') return 'Sèche';
+        if (normalized === 'moderee') return 'Modérée';
+        if (normalized === 'humide') return 'Humide';
+        return String(levelRaw || '').trim();
+    }
+
+    _normalizeGeoFranceClimateKey(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase()
+            .replace(/[^A-Z0-9]+/g, '')
+            .trim();
+    }
+
+    _isGeoFranceClimateCantonMatch(currentCantonName, exceptionCantonName) {
+        const currentKey = this._normalizeGeoFranceClimateKey(currentCantonName);
+        const exceptionKey = this._normalizeGeoFranceClimateKey(exceptionCantonName);
+        if (!currentKey || !exceptionKey) return false;
+        if (currentKey === exceptionKey) return true;
+        return currentKey.startsWith(exceptionKey) || exceptionKey.startsWith(currentKey);
+    }
+
+    getGeoFranceClimateSourceLabel(sourceRaw) {
+        if (sourceRaw === 'exception') return 'Exception cantonale';
+        if (sourceRaw === 'defaut') return 'Règle départementale';
+        if (sourceRaw === 'missing-departement') return 'Département introuvable';
+        if (sourceRaw === 'incomplete') return 'Sélection incomplète';
+        return '';
+    }
+
+    getGeoFranceClimateExportData(geoSelection = null) {
+        const condition = this.getGeoFranceClimateCondition(geoSelection);
+        return {
+            niveau: condition.text || '',
+            niveauCode: condition.level || '',
+            source: this.getGeoFranceClimateSourceLabel(condition.source),
+            norme: 'FD P 20-651 - Annexe B'
+        };
+    }
+
+    _validateGeoFranceClimateData(raw) {
+        const allowedLevels = new Set(['Seche', 'Moderee', 'Humide']);
+        const departements = this.getFranceDepartementOptions();
+        const departementsByKey = new Map();
+
+        departements.forEach((entry) => {
+            const depKey = this._normalizeGeoFranceClimateKey(entry && (entry.nom || entry.name || entry.label));
+            if (depKey) departementsByKey.set(depKey, entry);
+        });
+
+        const report = {
+            invalidDepartmentLevels: [],
+            invalidExceptionLevels: [],
+            unknownDepartments: [],
+            unknownCantons: [],
+            ambiguousCantons: []
+        };
+
+        Object.entries(raw || {}).forEach(([departementNom, config]) => {
+            if (!config || typeof config !== 'object') return;
+            const depLevel = String(config.defaut || '').trim();
+            if (!allowedLevels.has(depLevel)) {
+                report.invalidDepartmentLevels.push(`${departementNom}: ${depLevel || '∅'}`);
+            }
+
+            const depKey = this._normalizeGeoFranceClimateKey(departementNom);
+            const departementEntry = departementsByKey.get(depKey);
+            if (!departementEntry) {
+                report.unknownDepartments.push(departementNom);
+            }
+
+            let cantonNames = null;
+            if (departementEntry && departementEntry.code) {
+                cantonNames = [];
+                this.getCantonsForDepartement(departementEntry.code).forEach((feature) => {
+                    const cantonName = feature && feature.properties && feature.properties.nom;
+                    if (!cantonName) return;
+                    cantonNames.push(String(cantonName));
+                });
+            }
+
+            const exceptions = config.exceptions && typeof config.exceptions === 'object' ? config.exceptions : {};
+            Object.entries(exceptions).forEach(([cantonNom, level]) => {
+                const exceptionLevel = String(level || '').trim();
+                if (!allowedLevels.has(exceptionLevel)) {
+                    report.invalidExceptionLevels.push(`${departementNom} > ${cantonNom}: ${exceptionLevel || '∅'}`);
+                }
+
+                if (!cantonNames) return;
+
+                const aliasResolved = this._resolveGeoFranceClimateAliasByNormative(departementNom, cantonNom);
+                const matchCount = aliasResolved
+                    ? cantonNames.filter((candidate) => this._normalizeGeoFranceClimateKey(candidate) === aliasResolved.targetKey).length
+                    : cantonNames.filter((candidate) => this._isGeoFranceClimateCantonMatch(candidate, cantonNom)).length;
+
+                if (matchCount === 0) {
+                    report.unknownCantons.push(`${departementNom} > ${cantonNom}`);
+                } else if (matchCount > 1) {
+                    report.ambiguousCantons.push(`${departementNom} > ${cantonNom}`);
+                }
+            });
+        });
+
+        report.hasIssues = Object.keys(report).some((key) => Array.isArray(report[key]) && report[key].length > 0);
+        return report;
+    }
+
+    _logGeoFranceClimateValidationReport(report) {
+        if (this._geoFranceClimateValidationLogged || !report) return;
+        this._geoFranceClimateValidationLogged = true;
+
+        if (!report.hasIssues) {
+            console.info('[Valobois] Table climatique FD P 20-651 validée.');
+            return;
+        }
+
+        const sample = (list) => list.slice(0, 8).join(' | ');
+        console.warn('[Valobois] Contrôle qualité table climatique FD P 20-651 :', {
+            invalidDepartmentLevels: report.invalidDepartmentLevels.length,
+            invalidExceptionLevels: report.invalidExceptionLevels.length,
+            unknownDepartments: report.unknownDepartments.length,
+            unknownCantons: report.unknownCantons.length,
+            ambiguousCantons: report.ambiguousCantons.length,
+            sampleInvalidDepartmentLevels: sample(report.invalidDepartmentLevels),
+            sampleInvalidExceptionLevels: sample(report.invalidExceptionLevels),
+            sampleUnknownDepartments: sample(report.unknownDepartments),
+            sampleUnknownCantons: sample(report.unknownCantons),
+            sampleAmbiguousCantons: sample(report.ambiguousCantons)
+        });
+    }
+
+    _getGeoFranceClimateIndex() {
+        if (this._geoFranceClimateIndex) return this._geoFranceClimateIndex;
+
+        const raw = this.getGeoFranceClimateData();
+        const validation = this._validateGeoFranceClimateData(raw);
+        const index = {};
+
+        Object.entries(raw).forEach(([depName, config]) => {
+            const depKey = this._normalizeGeoFranceClimateKey(depName);
+            if (!depKey || !config || typeof config !== 'object') return;
+            const exceptions = {};
+            const exceptionEntries = [];
+            const rawExceptions = config.exceptions && typeof config.exceptions === 'object' ? config.exceptions : {};
+            Object.entries(rawExceptions).forEach(([cantonName, level]) => {
+                const cantonKey = this._normalizeGeoFranceClimateKey(cantonName);
+                if (!cantonKey) return;
+                exceptions[cantonKey] = String(level || '').trim();
+                exceptionEntries.push({ name: String(cantonName), level: String(level || '').trim() });
+            });
+
+            index[depKey] = {
+                defaut: String(config.defaut || '').trim(),
+                exceptions,
+                exceptionEntries
+            };
+        });
+
+        this._geoFranceClimateValidation = validation;
+        this._geoFranceClimateIndex = index;
+        this._logGeoFranceClimateValidationReport(validation);
+        return index;
+    }
+
+    getGeoFranceClimateCondition(geoSelection = null) {
+        const geo = geoSelection || this.getGeoFranceCurrentSelection();
+        const departementCode = String((geo && geo.departementCode) || '').trim().toUpperCase();
+        const departementNom = String((geo && geo.departementNom) || '').trim();
+        const cantonNom = String((geo && geo.cantonNom) || '').trim();
+
+        if (!departementCode || !departementNom || !cantonNom) {
+            return {
+                level: '',
+                source: 'incomplete',
+                text: '',
+                hint: 'Renseignez le département et le canton'
+            };
+        }
+
+        const index = this._getGeoFranceClimateIndex();
+        const depKey = this._normalizeGeoFranceClimateKey(departementNom);
+        const depData = index[depKey];
+
+        if (!depData) {
+            return {
+                level: '',
+                source: 'missing-departement',
+                text: 'Non déterminée (département introuvable)',
+                hint: ''
+            };
+        }
+
+        const cantonKey = this._normalizeGeoFranceClimateKey(cantonNom);
+        const aliasNormativeKeys = this._findGeoFranceClimateAliasNormativeKeysByTarget(departementNom, cantonNom);
+
+        const matchedExceptionByAlias = aliasNormativeKeys.length > 0 && Array.isArray(depData.exceptionEntries)
+            ? depData.exceptionEntries.find((entry) => aliasNormativeKeys.includes(this._normalizeGeoFranceClimateKey(entry.name))) || null
+            : null;
+
+        const matchedException = matchedExceptionByAlias
+            || (depData.exceptions[cantonKey]
+                ? { level: depData.exceptions[cantonKey], source: 'exception' }
+                : (Array.isArray(depData.exceptionEntries)
+                    ? depData.exceptionEntries.find((entry) => this._isGeoFranceClimateCantonMatch(cantonNom, entry.name)) || null
+                    : null));
+        const level = (matchedException && matchedException.level) || depData.defaut || '';
+        const source = matchedException ? 'exception' : 'defaut';
+        const displayLevel = this.getGeoFranceClimateDisplayLabel(level);
+
+        return {
+            level,
+            source,
+            text: displayLevel || 'Non déterminée',
+            hint: ''
+        };
+    }
+
+    _updateGeoFranceClimateDisplay(widget, geoSelection = null) {
+        if (!widget) return;
+        const climateInput = widget.querySelector('[data-geo-france-role="climate-condition"]');
+        const climateWarning = widget.querySelector('[data-geo-france-role="climate-warning"]');
+        if (!climateInput) return;
+
+        const condition = this.getGeoFranceClimateCondition(geoSelection);
+        climateInput.value = condition.text || '';
+        climateInput.setAttribute('data-climate-level', condition.level || '');
+        climateInput.setAttribute('title', condition.source === 'exception' ? 'Exception cantonale (Annexe B)' : 'Règle départementale (Annexe B)');
+        climateInput.placeholder = condition.hint || 'Renseignez le département et le canton';
+
+        if (climateWarning) {
+            climateWarning.hidden = false;
+        }
     }
 
     getCantonsForDepartement(codeRaw) {
@@ -1246,6 +1560,7 @@ class ValoboisApp {
 
         this._updateGeoFranceDetectButton();
         const geo = this.getGeoFranceCurrentSelection();
+        this._updateGeoFranceClimateDisplay(widget, geo);
         const departements = this.getFranceDepartementOptions()
             .slice()
             .sort((a, b) => String(a.nom || '').localeCompare(String(b.nom || ''), 'fr', { sensitivity: 'base', numeric: true }));
@@ -2479,6 +2794,14 @@ class ValoboisApp {
             if (raw.ui.detailLotActiveCardByLot != null) delete raw.ui.detailLotActiveCardByLot;
         }
         return raw;
+    }
+
+    buildEvaluationJsonExportData() {
+        const exported = this.prepareDataForCloudSnapshot();
+        exported.meta = this.getDefaultMeta(exported.meta || {});
+        exported.meta.geoFrance = this.getDefaultGeoFrance(exported.meta.geoFrance || {});
+        exported.meta.geoFrance.conditionClimatiqueHumidification = this.getGeoFranceClimateExportData(exported.meta.geoFrance);
+        return exported;
     }
 
     /** Retire du payload distant les champs UI non modèle (`ui.collapsibles`, `ui.detailLotActiveCardByLot`). */
@@ -25969,7 +26292,8 @@ renderRadar() {
     exportEvaluationJson() {
         try {
             const stamp = new Date().toISOString().slice(0, 10);
-            const blob = new Blob([JSON.stringify(this.data, null, 2)], {
+            const exportData = this.buildEvaluationJsonExportData();
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json;charset=utf-8',
             });
             const url = URL.createObjectURL(blob);
@@ -28814,6 +29138,9 @@ renderRadar() {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const opSummary = this.getPdfOperationSummary(lotIndices);
+        const meta = this.data.meta || {};
+        const geoFrance = this.getDefaultGeoFrance(meta.geoFrance || {});
+        const climate = this.getGeoFranceClimateExportData(geoFrance);
         const rows = opSummary.orientations.map((item) => [
             item.label,
             this.formatPdfVolume(item.volume),
@@ -28826,7 +29153,10 @@ renderRadar() {
             { label: tpdf('pdf.summary.circularVolume', 'Volume circulaire', 'Circular volume'), value: this.formatPdfVolume(opSummary.volCirculaire) },
             { label: tpdf('pdf.summary.financialBalance', 'Bilan monétaire', 'Financial balance'), value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
             { label: tpdf('pdf.summary.circularity', 'Circularité', 'Circularity'), value: this.formatPdfPercent(opSummary.circularite) },
-            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
+            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) },
+            { label: tpdf('pdf.summary.geoDepartment', 'Département géographique', 'Geographic department'), value: geoFrance.departementNom || '—' },
+            { label: tpdf('pdf.summary.geoCanton', 'Canton géographique', 'Geographic canton'), value: geoFrance.cantonNom || '—' },
+            { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d’humidification', 'Humidification climatic condition'), value: climate.niveau || '—' }
         ];
 
         return [
@@ -29666,6 +29996,8 @@ renderRadar() {
             'Code département géographique',
             'Canton géographique',
             'Code canton géographique',
+            'Condition climatique d’humidification',
+            'Source climat d’humidification',
             'Conditionnement',
             'Protection',
             'Diagnostic Structure',
@@ -29772,6 +30104,7 @@ renderRadar() {
             expandedPieces.forEach((entry, pieceIndex) => {
                 const piece = entry.piece || {};
                 const sectionValues = [];
+                const climate = this.getGeoFranceClimateExportData(meta.geoFrance || {});
 
                 sections.forEach((section) => {
                     section.rows.forEach((rowDef) => {
@@ -29888,6 +30221,8 @@ renderRadar() {
                     withDash((meta.geoFrance || {}).departementCode),
                     withDash((meta.geoFrance || {}).cantonNom),
                     withDash((meta.geoFrance || {}).cantonCode),
+                    withDash(climate.niveau),
+                    withDash(climate.source),
                     withDash(meta.conditionnementType),
                     withDash(meta.protectionType),
                     withDash(meta.diagnosticStructure),
@@ -30020,6 +30355,8 @@ renderRadar() {
             { label: 'Code département géographique', getValue: () => ((meta.geoFrance || {}).departementCode || '-') },
             { label: 'Canton géographique', getValue: () => ((meta.geoFrance || {}).cantonNom || '-') },
             { label: 'Code canton géographique', getValue: () => ((meta.geoFrance || {}).cantonCode || '-') },
+            { label: 'Condition climatique d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).niveau || '-' },
+            { label: 'Source climat d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).source || '-' },
             { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
             { label: 'Protection', getValue: () => meta.protectionType || '-' },
             { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },

@@ -1051,6 +1051,47 @@ body.day-mode .accueil-collapsible-summary:hover {
     line-height: 1.45;
 }
 
+.accueil-geo-france-climate-norm {
+    font-size: 0.82em;
+    font-weight: 500;
+    color: #475875;
+}
+
+.accueil-geo-france-climate-input[readonly] {
+    font-weight: 700;
+}
+
+.accueil-geo-france-climate-input[data-climate-level="Seche"] {
+    color: #009e73;
+    border-color: #009e73;
+    background: #f2fbf8;
+}
+
+.accueil-geo-france-climate-input[data-climate-level="Moderee"] {
+    color: #e69f00;
+    border-color: #e69f00;
+    background: #fff8eb;
+}
+
+.accueil-geo-france-climate-input[data-climate-level="Humide"] {
+    color: #d55e00;
+    border-color: #d55e00;
+    background: #fff3ea;
+}
+
+.accueil-geo-france-climate-hint,
+.accueil-geo-france-climate-warning {
+    display: block;
+    margin-top: 6px;
+    font-size: 0.8em;
+    line-height: 1.35;
+    color: #4b5d7f;
+}
+
+.accueil-geo-france-climate-warning {
+    margin-top: 4px;
+}
+
 .accueil-geo-france-actions {
     grid-column: 1 / -1;
     display: grid;
