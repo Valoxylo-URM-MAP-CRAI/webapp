@@ -416,7 +416,10 @@ class ValoboisApp {
         /** Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage). */
         this._detailLotActiveCardByLot = {};
         this._geoFranceHandlersBound = false;
+        this._geoFranceSuggestedCantonCodes = [];
         this._geoFranceViewport = { width: 1000, height: 720, padding: 24 };
+        this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
+        this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -582,6 +585,10 @@ class ValoboisApp {
         return this.normalizeGeoFranceSelection(this.data.meta.geoFrance);
     }
 
+    clearGeoFranceCantonSuggestions() {
+        this._geoFranceSuggestedCantonCodes = [];
+    }
+
     commitGeoFranceSelection(nextGeoFrance, { rerender = true } = {}) {
         this.data.meta = this.getDefaultMeta(this.data.meta || {});
         this.data.meta.geoFrance = this.normalizeGeoFranceSelection(nextGeoFrance);
@@ -593,6 +600,9 @@ class ValoboisApp {
         const code = codeRaw ? String(codeRaw).trim().toUpperCase() : '';
         const current = this.getGeoFranceCurrentSelection();
         if (!code) {
+            this._geoFranceMapZoom.level = 1;
+            this._geoFranceMapPan.active = false;
+            this.clearGeoFranceCantonSuggestions();
             this.commitGeoFranceSelection(this.getDefaultGeoFrance(), { rerender });
             return;
         }
@@ -604,6 +614,9 @@ class ValoboisApp {
         if (current.departementCode !== code) {
             next.cantonCode = '';
             next.cantonNom = '';
+            this._geoFranceMapZoom.level = 1;
+            this._geoFranceMapPan.active = false;
+            this.clearGeoFranceCantonSuggestions();
         }
         this.commitGeoFranceSelection(next, { rerender });
     }
@@ -618,11 +631,167 @@ class ValoboisApp {
         next.selectionMode = selectionMode;
         next.cantonCode = match ? String(match.properties.code || '') : '';
         next.cantonNom = match ? String(match.properties.nom || '') : '';
+        if (next.cantonCode) this.clearGeoFranceCantonSuggestions();
         this.commitGeoFranceSelection(next, { rerender });
     }
 
     clearGeoFranceSelection({ rerender = true } = {}) {
+        this.clearGeoFranceCantonSuggestions();
+        this._geoFranceMapZoom.level = 1;
+        this._geoFranceMapPan.active = false;
         this.commitGeoFranceSelection(this.getDefaultGeoFrance(), { rerender });
+    }
+
+    _getGeoFranceMapZoomFactor() {
+        const minLevel = this._geoFranceMapZoom.minLevel || 1;
+        const maxLevel = this._geoFranceMapZoom.maxLevel || 4;
+        const level = Math.max(minLevel, Math.min(maxLevel, Number(this._geoFranceMapZoom.level) || minLevel));
+        const factorsByLevel = [1, 1.5, 2.25, 3.2];
+        return factorsByLevel[level - 1] || 1;
+    }
+
+    _applyGeoFranceMapViewBox(mapEl) {
+        if (!mapEl) return;
+
+        const baseWidth = this._geoFranceViewport.width;
+        const baseHeight = this._geoFranceViewport.height;
+        const factor = this._getGeoFranceMapZoomFactor();
+
+        if (factor <= 1) {
+            mapEl.setAttribute('viewBox', '0 0 ' + baseWidth + ' ' + baseHeight);
+            return;
+        }
+
+        const zoomWidth = baseWidth / factor;
+        const zoomHeight = baseHeight / factor;
+        const halfWidth = zoomWidth / 2;
+        const halfHeight = zoomHeight / 2;
+        const centerX = Number.isFinite(this._geoFranceMapZoom.centerX) ? this._geoFranceMapZoom.centerX : (baseWidth / 2);
+        const centerY = Number.isFinite(this._geoFranceMapZoom.centerY) ? this._geoFranceMapZoom.centerY : (baseHeight / 2);
+
+        const minX = 0;
+        const minY = 0;
+        const maxX = baseWidth - zoomWidth;
+        const maxY = baseHeight - zoomHeight;
+
+        const x = Math.max(minX, Math.min(maxX, centerX - halfWidth));
+        const y = Math.max(minY, Math.min(maxY, centerY - halfHeight));
+
+        mapEl.setAttribute('viewBox', x.toFixed(2) + ' ' + y.toFixed(2) + ' ' + zoomWidth.toFixed(2) + ' ' + zoomHeight.toFixed(2));
+    }
+
+    _setGeoFranceMapZoomLevel(mapEl, level) {
+        if (!mapEl) return;
+
+        const baseWidth = this._geoFranceViewport.width;
+        const baseHeight = this._geoFranceViewport.height;
+        const minLevel = this._geoFranceMapZoom.minLevel || 1;
+        const maxLevel = this._geoFranceMapZoom.maxLevel || 4;
+        const nextLevel = Math.max(minLevel, Math.min(maxLevel, Number(level) || minLevel));
+
+        this._geoFranceMapZoom.centerX = baseWidth / 2;
+        this._geoFranceMapZoom.centerY = baseHeight / 2;
+
+        this._geoFranceMapZoom.level = nextLevel;
+
+        if (nextLevel === minLevel) {
+            this._geoFranceMapZoom.centerX = baseWidth / 2;
+            this._geoFranceMapZoom.centerY = baseHeight / 2;
+        }
+
+        this._applyGeoFranceMapViewBox(mapEl);
+    }
+
+    _stepGeoFranceMapZoom(mapEl, delta) {
+        if (!mapEl) return;
+        const minLevel = this._geoFranceMapZoom.minLevel || 1;
+        const maxLevel = this._geoFranceMapZoom.maxLevel || 4;
+        const currentLevel = Math.max(minLevel, Math.min(maxLevel, Number(this._geoFranceMapZoom.level) || minLevel));
+        const nextLevel = Math.max(minLevel, Math.min(maxLevel, currentLevel + delta));
+        this._setGeoFranceMapZoomLevel(mapEl, nextLevel);
+    }
+
+    _startGeoFranceMapPan(mapEl, event) {
+        if (!mapEl || !event) return;
+        if (this._getGeoFranceMapZoomFactor() <= 1) return;
+
+        this._geoFranceMapPan.active = true;
+        this._geoFranceMapPan.pointerId = event.pointerId;
+        this._geoFranceMapPan.startX = event.clientX;
+        this._geoFranceMapPan.startY = event.clientY;
+        this._geoFranceMapPan.startCenterX = this._geoFranceMapZoom.centerX;
+        this._geoFranceMapPan.startCenterY = this._geoFranceMapZoom.centerY;
+        this._geoFranceMapPan.moved = false;
+    }
+
+    _updateGeoFranceMapPan(mapEl, event) {
+        if (!mapEl || !event || !this._geoFranceMapPan.active) return;
+        if (this._geoFranceMapPan.pointerId != null && event.pointerId !== this._geoFranceMapPan.pointerId) return;
+
+        const rect = mapEl.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+
+        const factor = this._getGeoFranceMapZoomFactor();
+        const viewWidth = this._geoFranceViewport.width / factor;
+        const viewHeight = this._geoFranceViewport.height / factor;
+        const dxPx = event.clientX - this._geoFranceMapPan.startX;
+        const dyPx = event.clientY - this._geoFranceMapPan.startY;
+
+        if (!this._geoFranceMapPan.moved && (Math.abs(dxPx) > 4 || Math.abs(dyPx) > 4)) {
+            this._geoFranceMapPan.moved = true;
+        }
+
+        const dxView = (dxPx / rect.width) * viewWidth;
+        const dyView = (dyPx / rect.height) * viewHeight;
+
+        this._geoFranceMapZoom.centerX = this._geoFranceMapPan.startCenterX - dxView;
+        this._geoFranceMapZoom.centerY = this._geoFranceMapPan.startCenterY - dyView;
+        this._applyGeoFranceMapViewBox(mapEl);
+    }
+
+    _endGeoFranceMapPan(mapEl, event) {
+        if (!this._geoFranceMapPan.active) return;
+        if (event && this._geoFranceMapPan.pointerId != null && event.pointerId !== this._geoFranceMapPan.pointerId) return;
+        const hadMoved = !!this._geoFranceMapPan.moved;
+
+        if (hadMoved) {
+            this._geoFranceMapPan.suppressClickUntil = Date.now() + 250;
+        }
+
+        this._geoFranceMapPan.active = false;
+        this._geoFranceMapPan.pointerId = null;
+        this._geoFranceMapPan.moved = false;
+        return { hadMoved };
+    }
+
+    _updateGeoFranceMapZoomControls(widget, { disabled = false } = {}) {
+        if (!widget) return;
+        const zoomInBtn = widget.querySelector('[data-geo-france-role="zoom-in"]');
+        const zoomOutBtn = widget.querySelector('[data-geo-france-role="zoom-out"]');
+        if (!zoomInBtn || !zoomOutBtn) return;
+
+        const shell = widget.querySelector('.accueil-geo-france-map-shell');
+        const mapEl = widget.querySelector('[data-geo-france-role="map"]');
+        const minLevel = this._geoFranceMapZoom.minLevel || 1;
+        const maxLevel = this._geoFranceMapZoom.maxLevel || 4;
+        const currentLevel = Math.max(minLevel, Math.min(maxLevel, Number(this._geoFranceMapZoom.level) || minLevel));
+        const isDisabled = !!disabled;
+
+        zoomInBtn.disabled = isDisabled || currentLevel >= maxLevel;
+        zoomOutBtn.disabled = isDisabled || currentLevel <= minLevel;
+
+        zoomInBtn.setAttribute('aria-label', 'Zoomer la carte (niveau ' + currentLevel + ' vers ' + Math.min(maxLevel, currentLevel + 1) + ')');
+        zoomInBtn.setAttribute('title', isDisabled ? 'Sélectionner un département pour activer le zoom' : 'Zoom + (niveau ' + currentLevel + ' à ' + Math.min(maxLevel, currentLevel + 1) + ')');
+        zoomOutBtn.setAttribute('aria-label', 'Dézoomer la carte (niveau ' + currentLevel + ' vers ' + Math.max(minLevel, currentLevel - 1) + ')');
+        zoomOutBtn.setAttribute('title', isDisabled ? 'Sélectionner un département pour activer le zoom' : 'Zoom - (niveau ' + currentLevel + ' à ' + Math.max(minLevel, currentLevel - 1) + ')');
+
+        if (shell) {
+            shell.classList.toggle('is-map-zoomed', !isDisabled && currentLevel > minLevel);
+            shell.classList.toggle('is-map-panning', this._geoFranceMapPan.active);
+        }
+        if (mapEl) {
+            mapEl.style.touchAction = (!isDisabled && currentLevel > minLevel) ? 'none' : 'pan-y';
+        }
     }
 
     getFeatureCollectionBounds(features) {
@@ -717,6 +886,354 @@ class ValoboisApp {
         return '';
     }
 
+    _normalizeStringForMatch(str) {
+        return (str || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9\s]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    _updateGeoFranceDetectButton() {
+        const widget = document.querySelector('[data-geo-france-widget]');
+        if (!widget) return;
+        const detectBtn = widget.querySelector('[data-geo-france-role="detect"]');
+        if (!detectBtn) return;
+        const localisation = (this.data && this.data.meta && this.data.meta.localisation) || '';
+        const hasCP = /\b\d{5}\b/.test(localisation);
+        detectBtn.hidden = !hasCP;
+    }
+
+    async geocodeLocalisationPoint(localisation, codePostal = '', villeRaw = '') {
+        const queries = [];
+        const full = String(localisation || '').trim();
+        const city = String(villeRaw || '').trim();
+        const cp = String(codePostal || '').trim();
+
+        if (full) queries.push(full);
+        if (cp && city) queries.push(cp + ' ' + city);
+        if (cp) queries.push(cp);
+
+        for (const q of queries) {
+            const url = 'https://api-adresse.data.gouv.fr/search/?limit=5&q=' + encodeURIComponent(q);
+            let response;
+            try {
+                response = await fetch(url);
+            } catch (_) {
+                continue;
+            }
+            if (!response || !response.ok) continue;
+
+            let payload;
+            try {
+                payload = await response.json();
+            } catch (_) {
+                continue;
+            }
+
+            const features = Array.isArray(payload && payload.features) ? payload.features : [];
+            if (!features.length) continue;
+
+            const best = cp
+                ? (features.find((feature) => String((feature && feature.properties && feature.properties.postcode) || '') === cp) || features[0])
+                : features[0];
+
+            const coords = best && best.geometry && Array.isArray(best.geometry.coordinates) ? best.geometry.coordinates : null;
+            if (!coords || coords.length < 2) continue;
+
+            const lon = Number(coords[0]);
+            const lat = Number(coords[1]);
+            if (!Number.isFinite(lon) || !Number.isFinite(lat)) continue;
+
+            return {
+                lon,
+                lat,
+                label: String((best && best.properties && best.properties.label) || ''),
+                city: String((best && best.properties && best.properties.city) || ''),
+                postcode: String((best && best.properties && best.properties.postcode) || '')
+            };
+        }
+
+        return null;
+    }
+
+    isPointOnSegment(point, start, end, tolerance = 1e-10) {
+        const x = Number(point && point[0]);
+        const y = Number(point && point[1]);
+        const x1 = Number(start && start[0]);
+        const y1 = Number(start && start[1]);
+        const x2 = Number(end && end[0]);
+        const y2 = Number(end && end[1]);
+        if (![x, y, x1, y1, x2, y2].every(Number.isFinite)) return false;
+
+        const cross = (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
+        if (Math.abs(cross) > tolerance) return false;
+
+        const dot = (x - x1) * (x2 - x1) + (y - y1) * (y2 - y1);
+        if (dot < -tolerance) return false;
+
+        const squaredLen = (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
+        if (dot - squaredLen > tolerance) return false;
+
+        return true;
+    }
+
+    isPointInRing(point, ring) {
+        if (!Array.isArray(ring) || ring.length < 3) return false;
+
+        const x = Number(point && point[0]);
+        const y = Number(point && point[1]);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+
+        let inside = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+            const a = ring[i];
+            const b = ring[j];
+            const xi = Number(a && a[0]);
+            const yi = Number(a && a[1]);
+            const xj = Number(b && b[0]);
+            const yj = Number(b && b[1]);
+
+            if (![xi, yi, xj, yj].every(Number.isFinite)) continue;
+            if (this.isPointOnSegment([x, y], [xi, yi], [xj, yj])) return true;
+
+            const intersects = ((yi > y) !== (yj > y))
+                && (x < ((xj - xi) * (y - yi)) / ((yj - yi) || 1e-12) + xi);
+            if (intersects) inside = !inside;
+        }
+
+        return inside;
+    }
+
+    isPointInGeometry(point, geometry) {
+        if (!geometry || !geometry.type || !Array.isArray(geometry.coordinates)) return false;
+
+        const isInsidePolygon = (polygonCoords) => {
+            if (!Array.isArray(polygonCoords) || polygonCoords.length === 0) return false;
+            const outer = polygonCoords[0];
+            if (!this.isPointInRing(point, outer)) return false;
+            for (let i = 1; i < polygonCoords.length; i++) {
+                if (this.isPointInRing(point, polygonCoords[i])) return false;
+            }
+            return true;
+        };
+
+        if (geometry.type === 'Polygon') {
+            return isInsidePolygon(geometry.coordinates);
+        }
+
+        if (geometry.type === 'MultiPolygon') {
+            return geometry.coordinates.some((polygonCoords) => isInsidePolygon(polygonCoords));
+        }
+
+        return false;
+    }
+
+    findCantonByPoint(cantonFeatures, lon, lat) {
+        if (!Array.isArray(cantonFeatures) || cantonFeatures.length === 0) return null;
+        if (!Number.isFinite(lon) || !Number.isFinite(lat)) return null;
+
+        const point = [lon, lat];
+        return cantonFeatures.find((feature) => this.isPointInGeometry(point, feature && feature.geometry)) || null;
+    }
+
+    findSuggestedCantonsByCommuneName(cantonFeatures, communeNomRaw) {
+        if (!Array.isArray(cantonFeatures) || cantonFeatures.length === 0) return [];
+        const communeNorm = this._normalizeStringForMatch(communeNomRaw || '');
+        if (!communeNorm) return [];
+
+        const scored = [];
+
+        cantonFeatures.forEach((feature) => {
+            const nom = String((feature && feature.properties && feature.properties.nom) || '');
+            const nomNorm = this._normalizeStringForMatch(nom);
+            if (!nomNorm) return;
+
+            let score = 0;
+            if (nomNorm === communeNorm) score = 4;
+            else if (nomNorm.startsWith(communeNorm) || communeNorm.startsWith(nomNorm)) score = 3;
+            else if (nomNorm.includes(communeNorm) || communeNorm.includes(nomNorm)) score = 2;
+            else {
+                const communeTokens = communeNorm.split(' ').filter(Boolean);
+                const cantonTokens = nomNorm.split(' ').filter(Boolean);
+                const overlap = communeTokens.filter((token) => cantonTokens.includes(token)).length;
+                if (overlap >= 2) score = 1;
+            }
+
+            if (score > 0) scored.push({ feature, score });
+        });
+
+        scored.sort((a, b) => b.score - a.score);
+        return scored
+            .filter((item) => item.score >= 2)
+            .map((item) => item.feature);
+    }
+
+    findBestCantonByCommuneName(cantonFeatures, communeNomRaw) {
+        const suggestions = this.findSuggestedCantonsByCommuneName(cantonFeatures, communeNomRaw);
+        return suggestions.length ? suggestions[0] : null;
+    }
+
+    async detectGeoFranceFromLocalisation() {
+        const widget = document.querySelector('[data-geo-france-widget]');
+        if (!widget) return;
+
+        const detectBtn = widget.querySelector('[data-geo-france-role="detect"]');
+        const statusEl = widget.querySelector('[data-geo-france-role="detect-status"]');
+
+        const localisation = (this.data && this.data.meta && this.data.meta.localisation) || '';
+        const cpMatch = localisation.match(/\b(\d{5})\b/);
+        if (!cpMatch) return;
+        const codePostal = cpMatch[1];
+
+        // Extraire un nom de ville candidat : texte après "CP" ou "CP,"
+        const villeMatch = localisation.match(/\b\d{5}[,\s]+([A-Za-zÀ-ÿ\s\u00C0-\u024F\-]+)/);
+        const villeRaw = villeMatch ? villeMatch[1].trim().split(/[,;(]/)[0].trim() : '';
+
+        if (detectBtn) {
+            detectBtn.disabled = true;
+            detectBtn.setAttribute('aria-busy', 'true');
+        }
+        if (statusEl) {
+            statusEl.hidden = false;
+            statusEl.textContent = 'Recherche en cours…';
+            statusEl.className = 'accueil-geo-france-detect-status';
+        }
+
+        try {
+            const url = 'https://geo.api.gouv.fr/communes?codePostal=' + encodeURIComponent(codePostal)
+                + '&fields=nom,code,codeDepartement&boost=population&limit=20';
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            const communes = await response.json();
+
+            if (!communes || communes.length === 0) {
+                if (statusEl) {
+                    statusEl.textContent = 'Aucune commune trouvée pour le code postal ' + codePostal + '.';
+                    statusEl.className = 'accueil-geo-france-detect-status is-warning';
+                }
+                return;
+            }
+
+            // Sélection de la meilleure commune
+            let best = communes[0];
+            if (villeRaw && communes.length > 1) {
+                const villeNorm = this._normalizeStringForMatch(villeRaw);
+                const scored = communes.map((c) => {
+                    const nomNorm = this._normalizeStringForMatch(c.nom || '');
+                    let score = 0;
+                    if (nomNorm === villeNorm) score = 3;
+                    else if (nomNorm.startsWith(villeNorm) || villeNorm.startsWith(nomNorm)) score = 2;
+                    else if (nomNorm.includes(villeNorm) || villeNorm.includes(nomNorm)) score = 1;
+                    return { commune: c, score };
+                });
+                scored.sort((a, b) => b.score - a.score);
+                if (scored[0].score > 0) best = scored[0].commune;
+            }
+
+            const codeDep = best.codeDepartement || '';
+            const communeNom = best.nom || villeRaw || codePostal;
+
+            if (!codeDep) {
+                if (statusEl) {
+                    statusEl.textContent = 'Données incomplètes pour la commune « ' + (best.nom || codePostal) + ' ».';
+                    statusEl.className = 'accueil-geo-france-detect-status is-warning';
+                }
+                return;
+            }
+
+            // Appliquer le département
+            this.setGeoFranceDepartement(codeDep, { rerender: false });
+
+            // Détection canton robuste : proposition multi-cantons par commune, puis fallback géocodage
+            const cantonFeatures = this.getCantonsForDepartement(codeDep);
+            let cantonFound = false;
+            let suggestions = [];
+            if (cantonFeatures.length > 0) {
+                suggestions = this.findSuggestedCantonsByCommuneName(cantonFeatures, communeNom || villeRaw);
+
+                if (suggestions.length === 1) {
+                    const single = suggestions[0];
+                    if (single && single.properties && single.properties.code) {
+                        this.setGeoFranceCanton(single.properties.code, { rerender: false });
+                        cantonFound = true;
+                    }
+                }
+
+                // En cas de commune ambiguë (ex: Nancy-1/2/3), ne pas forcer un canton:
+                // proposer explicitement le choix utilisateur.
+                if (!cantonFound && suggestions.length > 1) {
+                    const currentGeo = this.getGeoFranceCurrentSelection();
+                    const next = this.getDefaultGeoFrance(currentGeo);
+                    next.cantonCode = '';
+                    next.cantonNom = '';
+                    next.selectionMode = 'suggest';
+                    this.commitGeoFranceSelection(next, { rerender: false });
+                    this._geoFranceSuggestedCantonCodes = suggestions
+                        .map((feature) => String((feature && feature.properties && feature.properties.code) || ''))
+                        .filter(Boolean);
+                }
+
+                // Fallback géocodage uniquement si aucune suggestion nominale exploitable.
+                if (!cantonFound && suggestions.length === 0) {
+                    const geoPoint = await this.geocodeLocalisationPoint(localisation, codePostal, communeNom || villeRaw);
+                    if (geoPoint) {
+                        const matchByPoint = this.findCantonByPoint(cantonFeatures, geoPoint.lon, geoPoint.lat);
+                        if (matchByPoint && matchByPoint.properties && matchByPoint.properties.code) {
+                            this.setGeoFranceCanton(matchByPoint.properties.code, { rerender: false });
+                            cantonFound = true;
+                        }
+                    }
+                }
+
+                if (cantonFound) {
+                    this.clearGeoFranceCantonSuggestions();
+                } else if (suggestions.length === 0) {
+                    this.clearGeoFranceCantonSuggestions();
+                }
+            } else {
+                this.clearGeoFranceCantonSuggestions();
+            }
+
+            this.renderContexteTechniqueGeoFrance();
+
+            if (cantonFound) {
+                if (statusEl) {
+                    statusEl.textContent = 'Commune détectée : ' + communeNom + '. Département et canton sélectionnés automatiquement.';
+                    statusEl.className = 'accueil-geo-france-detect-status is-success';
+                }
+            } else if (suggestions.length > 1) {
+                if (statusEl) {
+                    const suggestionNames = suggestions
+                        .slice(0, 5)
+                        .map((feature) => String((feature && feature.properties && feature.properties.nom) || ''))
+                        .filter(Boolean)
+                        .join(', ');
+                    statusEl.textContent = 'Commune détectée : ' + communeNom + '. Plusieurs cantons correspondent, choisissez dans la liste : ' + suggestionNames + '.';
+                    statusEl.className = 'accueil-geo-france-detect-status is-warning';
+                }
+            } else {
+                if (statusEl) {
+                    statusEl.textContent = 'Commune détectée : ' + communeNom + '. Département sélectionné. Canton introuvable dans les données locales.';
+                    statusEl.className = 'accueil-geo-france-detect-status is-warning';
+                }
+            }
+
+        } catch (err) {
+            if (statusEl) {
+                statusEl.textContent = 'Erreur lors de la détection : ' + (err && err.message ? err.message : String(err));
+                statusEl.className = 'accueil-geo-france-detect-status is-error';
+            }
+        } finally {
+            if (detectBtn) {
+                detectBtn.disabled = false;
+                detectBtn.removeAttribute('aria-busy');
+            }
+        }
+    }
+
     renderContexteTechniqueGeoFrance() {
         const widget = document.querySelector('[data-geo-france-widget]');
         if (!widget) return;
@@ -727,6 +1244,7 @@ class ValoboisApp {
         const mapEl = widget.querySelector('[data-geo-france-role="map"]');
         if (!departementSelect || !cantonSelect || !summaryEl || !mapEl) return;
 
+        this._updateGeoFranceDetectButton();
         const geo = this.getGeoFranceCurrentSelection();
         const departements = this.getFranceDepartementOptions()
             .slice()
@@ -744,32 +1262,62 @@ class ValoboisApp {
 
         const cantonFeatures = geo.departementCode ? this.getCantonsForDepartement(geo.departementCode) : [];
         cantonSelect.disabled = !geo.departementCode || cantonFeatures.length === 0;
-        cantonSelect.innerHTML = [
-            '<option value="">' + (geo.departementCode ? 'Sélectionner un canton' : 'Choisir d’abord un département') + '</option>',
-            ...cantonFeatures.map((feature) => {
-                const value = this.escapeHtml(String(feature.properties.code || ''));
-                const label = this.escapeHtml(String(feature.properties.nom || ''));
-                const selected = geo.cantonCode === String(feature.properties.code || '') ? ' selected' : '';
-                return '<option value="' + value + '"' + selected + '>' + label + '</option>';
-            })
-        ].join('');
+        const suggestedCodes = new Set((this._geoFranceSuggestedCantonCodes || []).map((code) => String(code || '')));
+        const suggestedFeatures = suggestedCodes.size
+            ? cantonFeatures.filter((feature) => suggestedCodes.has(String((feature && feature.properties && feature.properties.code) || '')))
+            : [];
+        const otherFeatures = suggestedCodes.size
+            ? cantonFeatures.filter((feature) => !suggestedCodes.has(String((feature && feature.properties && feature.properties.code) || '')))
+            : cantonFeatures;
+
+        const placeholderLabel = geo.departementCode
+            ? (suggestedFeatures.length > 1 ? 'Choisir un canton (suggestions en tête)' : 'Sélectionner un canton')
+            : 'Choisir d’abord un département';
+
+        const renderOption = (feature) => {
+            const value = this.escapeHtml(String(feature.properties.code || ''));
+            const label = this.escapeHtml(String(feature.properties.nom || ''));
+            const selected = geo.cantonCode === String(feature.properties.code || '') ? ' selected' : '';
+            return '<option value="' + value + '"' + selected + '>' + label + '</option>';
+        };
+
+        const options = ['<option value="">' + placeholderLabel + '</option>'];
+        if (suggestedFeatures.length > 1) {
+            options.push('<optgroup label="Cantons suggérés">');
+            options.push(...suggestedFeatures.map(renderOption));
+            options.push('</optgroup>');
+        }
+        options.push(...otherFeatures.map(renderOption));
+        cantonSelect.innerHTML = options.join('');
 
         if (!geo.departementCode) {
-            summaryEl.textContent = 'Aucune sélection géographique. Le champ Localisation libre reste la référence principale.';
+            this._geoFranceMapZoom.level = 1;
+            this._geoFranceMapPan.active = false;
+            summaryEl.textContent = 'Aucune sélection géographique. Le champ Adresse de l’opération reste la référence principale.';
             mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Sélectionner un département pour afficher ses cantons</text>';
+            this._applyGeoFranceMapViewBox(mapEl);
+            this._updateGeoFranceMapZoomControls(widget, { disabled: true });
             return;
         }
 
         if (!cantonFeatures.length) {
+            this._geoFranceMapZoom.level = 1;
+            this._geoFranceMapPan.active = false;
             summaryEl.textContent = 'Département sélectionné : ' + (geo.departementNom || geo.departementCode) + '. Aucun canton n’a été chargé pour ce département.';
             mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Aucun canton disponible pour ce département</text>';
+            this._applyGeoFranceMapViewBox(mapEl);
+            this._updateGeoFranceMapZoomControls(widget, { disabled: true });
             return;
         }
 
         const bounds = this.getFeatureCollectionBounds(cantonFeatures);
         if (!bounds) {
+            this._geoFranceMapZoom.level = 1;
+            this._geoFranceMapPan.active = false;
             summaryEl.textContent = 'Département sélectionné : ' + (geo.departementNom || geo.departementCode) + '. Les géométries chargées sont invalides.';
             mapEl.innerHTML = '<text x="500" y="360" text-anchor="middle" class="accueil-geo-france-map-empty">Géométries indisponibles</text>';
+            this._applyGeoFranceMapViewBox(mapEl);
+            this._updateGeoFranceMapZoomControls(widget, { disabled: true });
             return;
         }
 
@@ -789,6 +1337,8 @@ class ValoboisApp {
         });
 
         mapEl.innerHTML = paths.join('');
+        this._applyGeoFranceMapViewBox(mapEl);
+        this._updateGeoFranceMapZoomControls(widget, { disabled: false });
     }
 
     bindContexteTechniqueGeoFranceEvents() {
@@ -801,7 +1351,14 @@ class ValoboisApp {
         const departementSelect = widget.querySelector('[data-geo-france-role="departement"]');
         const cantonSelect = widget.querySelector('[data-geo-france-role="canton"]');
         const resetBtn = widget.querySelector('[data-geo-france-role="reset"]');
+        const detectBtn = widget.querySelector('[data-geo-france-role="detect"]');
+        const infoBtn = widget.querySelector('[data-geo-france-role="info"]');
+        const zoomInBtn = widget.querySelector('[data-geo-france-role="zoom-in"]');
+        const zoomOutBtn = widget.querySelector('[data-geo-france-role="zoom-out"]');
         const mapEl = widget.querySelector('[data-geo-france-role="map"]');
+        const geoFranceSourcesBackdrop = document.getElementById('geoFranceSourcesModalBackdrop');
+        const btnCloseGeoFranceSourcesModal = document.getElementById('btnCloseGeoFranceSourcesModal');
+        const btnOkGeoFranceSourcesModal = document.getElementById('btnOkGeoFranceSourcesModal');
 
         if (departementSelect) {
             departementSelect.addEventListener('change', () => {
@@ -818,6 +1375,49 @@ class ValoboisApp {
         if (resetBtn) {
             resetBtn.addEventListener('click', () => {
                 this.clearGeoFranceSelection({ rerender: true });
+                const statusEl = widget.querySelector('[data-geo-france-role="detect-status"]');
+                if (statusEl) { statusEl.hidden = true; statusEl.textContent = ''; }
+            });
+        }
+
+        if (detectBtn) {
+            detectBtn.addEventListener('click', () => {
+                this.detectGeoFranceFromLocalisation();
+            });
+        }
+
+        const closeGeoFranceSourcesModal = () => {
+            if (!geoFranceSourcesBackdrop) return;
+            geoFranceSourcesBackdrop.classList.add('hidden');
+            geoFranceSourcesBackdrop.setAttribute('aria-hidden', 'true');
+        };
+
+        if (infoBtn && geoFranceSourcesBackdrop) {
+            infoBtn.addEventListener('click', () => {
+                geoFranceSourcesBackdrop.classList.remove('hidden');
+                geoFranceSourcesBackdrop.setAttribute('aria-hidden', 'false');
+            });
+        }
+
+        if (btnCloseGeoFranceSourcesModal) {
+            btnCloseGeoFranceSourcesModal.addEventListener('click', closeGeoFranceSourcesModal);
+        }
+
+        if (btnOkGeoFranceSourcesModal) {
+            btnOkGeoFranceSourcesModal.addEventListener('click', closeGeoFranceSourcesModal);
+        }
+
+        if (geoFranceSourcesBackdrop) {
+            geoFranceSourcesBackdrop.addEventListener('click', (event) => {
+                if (event.target === geoFranceSourcesBackdrop) closeGeoFranceSourcesModal();
+            });
+        }
+
+        // Mettre à jour la visibilité du bouton Détecter quand le champ Localisation change
+        const localisationInput = document.querySelector('[data-meta-field="localisation"]');
+        if (localisationInput) {
+            localisationInput.addEventListener('input', () => {
+                this._updateGeoFranceDetectButton();
             });
         }
 
@@ -836,6 +1436,43 @@ class ValoboisApp {
                 event.preventDefault();
                 const code = target.getAttribute('data-canton-code') || '';
                 this.setGeoFranceCanton(code, { selectionMode: 'map', rerender: true });
+            });
+
+            mapEl.addEventListener('pointerdown', (event) => {
+                this._startGeoFranceMapPan(mapEl, event);
+                this._updateGeoFranceMapZoomControls(widget, { disabled: false });
+            });
+
+            mapEl.addEventListener('pointermove', (event) => {
+                this._updateGeoFranceMapPan(mapEl, event);
+            });
+
+            const endPan = (event) => {
+                const panResult = this._endGeoFranceMapPan(mapEl, event) || { hadMoved: false };
+                if (!panResult.hadMoved) {
+                    const target = event && event.target && event.target.closest ? event.target.closest('[data-canton-code]') : null;
+                    if (target) {
+                        const code = target.getAttribute('data-canton-code') || '';
+                        this.setGeoFranceCanton(code, { selectionMode: 'map', rerender: true });
+                    }
+                }
+                this._updateGeoFranceMapZoomControls(widget, { disabled: false });
+            };
+            mapEl.addEventListener('pointerup', endPan);
+            mapEl.addEventListener('pointercancel', endPan);
+        }
+
+        if (zoomInBtn && mapEl) {
+            zoomInBtn.addEventListener('click', () => {
+                this._stepGeoFranceMapZoom(mapEl, 1);
+                this._updateGeoFranceMapZoomControls(widget, { disabled: false });
+            });
+        }
+
+        if (zoomOutBtn && mapEl) {
+            zoomOutBtn.addEventListener('click', () => {
+                this._stepGeoFranceMapZoom(mapEl, -1);
+                this._updateGeoFranceMapZoomControls(widget, { disabled: false });
             });
         }
     }

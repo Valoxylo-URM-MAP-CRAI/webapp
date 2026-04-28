@@ -1035,6 +1035,10 @@ body.day-mode .accueil-collapsible-summary:hover {
     align-items: start;
 }
 
+.accueil-geo-france-address-row {
+    grid-column: 1 / -1;
+}
+
 .accueil-geo-france-summary {
     grid-column: 1 / -1;
     min-height: 42px;
@@ -1049,11 +1053,74 @@ body.day-mode .accueil-collapsible-summary:hover {
 
 .accueil-geo-france-actions {
     grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 8px;
+}
+
+.accueil-geo-france-actions .btn {
+    width: 100%;
+    min-height: 42px;
+    height: 100%;
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    line-height: 1.2;
+}
+
+.accueil-geo-france-detect-status {
+    grid-column: 1 / -1;
+    font-size: 0.82em;
+    padding: 4px 6px;
+    border-radius: 4px;
+}
+
+.btn.btn-secondary.accueil-geo-france-reset-btn {
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    border: 1px solid var(--bleu-crai);
+}
+
+.btn.btn-secondary.accueil-geo-france-info-btn {
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
+    border: 1px solid var(--bleu-crai);
+}
+
+.btn.btn-secondary.accueil-geo-france-reset-btn:hover {
+    background-color: #152d6e;
+    border-color: #152d6e;
+}
+
+.btn.btn-secondary.accueil-geo-france-info-btn:hover {
+    background-color: #152d6e;
+    border-color: #152d6e;
+}
+
+.accueil-geo-france-detect-status.is-success {
+    color: #1a6635;
+    background: #eaf6ee;
+}
+
+.accueil-geo-france-detect-status.is-warning {
+    color: #7a5200;
+    background: #fff8e1;
+}
+
+.accueil-geo-france-detect-status.is-error {
+    color: #8b1a1a;
+    background: #fdf0f0;
+}
+
+.accueil-geo-france-detect-btn[aria-busy="true"] {
+    opacity: 0.65;
+    cursor: wait;
 }
 
 .accueil-geo-france-map-shell {
+    position: relative;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background:
@@ -1062,11 +1129,58 @@ body.day-mode .accueil-collapsible-summary:hover {
     overflow: hidden;
 }
 
+.accueil-geo-france-zoom-controls {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 2;
+}
+
+.accueil-geo-france-zoom-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    border: 1px solid var(--bleu-crai);
+    background: var(--bleu-crai);
+    color: var(--color-white);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.accueil-geo-france-zoom-btn:hover {
+    background: #152d6e;
+    border-color: #152d6e;
+}
+
+.accueil-geo-france-zoom-btn:disabled {
+    background: #9fb0db;
+    border-color: #9fb0db;
+    cursor: not-allowed;
+    opacity: 0.8;
+}
+
 .accueil-geo-france-map {
     display: block;
     width: 100%;
     height: auto;
     min-height: 320px;
+}
+
+.accueil-geo-france-map-shell.is-map-zoomed .accueil-geo-france-map {
+    cursor: grab;
+}
+
+.accueil-geo-france-map-shell.is-map-panning .accueil-geo-france-map {
+    cursor: grabbing;
 }
 
 .accueil-geo-france-map-empty {
