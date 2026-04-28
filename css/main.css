@@ -1224,6 +1224,34 @@ body.day-mode .accueil-collapsible-summary:hover {
     opacity: 0.78;
 }
 
+/* Vigilance termites */
+.accueil-geo-france-termite-field-group {
+    grid-column: 1 / -1;
+    margin-top: var(--space-8);
+}
+
+.accueil-geo-france-termite-input[readonly] {
+    font-weight: 700;
+}
+
+.accueil-geo-france-termite-input[data-termite-statut="O"] {
+    color: #c0392b;
+    background-color: #fff0ee;
+    border-color: #c0392b;
+}
+
+.accueil-geo-france-termite-input[data-termite-statut="P"] {
+    color: #b07800;
+    background-color: #fff8eb;
+    border-color: #e69f00;
+}
+
+.accueil-geo-france-termite-input[data-termite-statut="N"] {
+    color: #007a57;
+    background-color: #f2fbf8;
+    border-color: #009e73;
+}
+
 .accueil-geo-france-zoom-btn {
     width: 32px;
     height: 32px;

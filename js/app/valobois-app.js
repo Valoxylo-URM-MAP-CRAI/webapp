@@ -795,6 +795,57 @@ class ValoboisApp {
         };
     }
 
+    getGeoFranceTermiteData() {
+        return window.VALOBOIS_TERMITES_DATA || {};
+    }
+
+    _updateGeoFranceTermiteDisplay(widget, departementCode) {
+        if (!widget) return;
+        const input = widget.querySelector('[data-geo-france-role="termite-status"]');
+        if (!input) return;
+        const hintEl = widget.querySelector('[data-geo-france-role="termite-hint"]');
+
+        const code = String(departementCode || '').toUpperCase();
+        const entry = code && code !== '00' ? (this.getGeoFranceTermiteData()[code] || null) : null;
+
+        if (!entry) {
+            input.value = '';
+            input.removeAttribute('data-termite-statut');
+            input.placeholder = 'Sélectionnez un département';
+            input.title = '';
+            if (hintEl) { hintEl.textContent = ''; hintEl.hidden = true; }
+            return;
+        }
+
+        const labelMap = {
+            O: 'Totalité du département sous arrêté préfectoral',
+            P: 'Partie du département concernée (arrêté préfectoral partiel)',
+            N: 'Pas d\u2019arrêté préfectoral dans ce département'
+        };
+        input.value = labelMap[entry.statut] || '';
+        input.setAttribute('data-termite-statut', entry.statut);
+        input.title = `Source : Cerema / Cartagene – actualisation 21/03/2024`;
+
+        if (hintEl) {
+            let hint = '';
+            if (entry.statut === 'O' && entry.date_arrete) {
+                hint = `Arrêté préfectoral du ${entry.date_arrete}.`;
+            } else if (entry.statut === 'P') {
+                const ratio = entry.nb_communes_infestees > 0
+                    ? ` (${entry.nb_communes_infestees}\u202fcommune${entry.nb_communes_infestees > 1 ? 's' : ''} sur ${entry.nb_communes_total})`
+                    : '';
+                hint = `Vérification communale recommandée${ratio}.`;
+            }
+            if (hint) {
+                hintEl.textContent = hint;
+                hintEl.hidden = false;
+            } else {
+                hintEl.textContent = '';
+                hintEl.hidden = true;
+            }
+        }
+    }
+
     _normalizeGeoFranceWindDirectionToken(rawToken) {
         const token = String(rawToken || '')
             .normalize('NFD')
@@ -1059,10 +1110,12 @@ class ValoboisApp {
                 windInput.title = '';
                 this._updateGeoFranceWindRose(widget, '', '');
             }
+            this._updateGeoFranceTermiteDisplay(widget, code);
             return;
         }
 
         this._updateGeoFranceWindRose(widget, code, '');
+        this._updateGeoFranceTermiteDisplay(widget, code);
     }
 
     getCantonsForDepartement(codeRaw) {
@@ -17523,7 +17576,7 @@ closeEvalOpModal() {
 
         if (!lots.length) {
             const emptyText = document.createElement('p');
-            emptyText.style.margin = '0';
+            emptyText.style.margin = '5px';
             emptyText.style.fontSize = '13px';
             emptyText.style.color = '#666666';
             emptyText.textContent = 'Aucun lot disponible.';

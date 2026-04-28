@@ -1038,6 +1038,20 @@
                                                     (source Météo-France 1994–2008, Annexe A). Le séparateur · distingue deux secteurs angulaires distincts.
                                                 </small>
                                             </div>
+                                            <div class="accueil-meta-row accueil-meta-row--full accueil-geo-france-termite-field-group">
+                                                <label class="accueil-meta-label" for="inputGeoTermites">
+                                                    Vigilance termites
+                                                    <span class="accueil-geo-france-climate-norm">(Cerema / Cartagene – 2024)</span>
+                                                </label>
+                                                <input
+                                                    id="inputGeoTermites"
+                                                    type="text"
+                                                    class="accueil-input accueil-geo-france-termite-input"
+                                                    readonly
+                                                    placeholder="Sélectionnez un département"
+                                                    data-geo-france-role="termite-status">
+                                                <small class="accueil-geo-france-climate-hint accueil-geo-france-termite-hint" data-geo-france-role="termite-hint" hidden></small>
+                                            </div>
                                             <div class="accueil-geo-france-summary" data-geo-france-role="summary" aria-live="polite"></div>
                                             <div class="accueil-geo-france-actions">
                                                 <button type="button" class="btn btn-outline accueil-geo-france-detect-btn" data-geo-france-role="detect" hidden>Détecter depuis « Adresse »</button>
@@ -4881,6 +4895,7 @@
     <script defer src="js/data/france-cantons.js"></script>
     <script defer src="js/data/climate-humidification-fd-p20-651.js"></script>
     <script defer src="js/data/climate-humidification-fd-p20-651-aliases.js"></script>
+    <script defer src="js/data/termites-cerema.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
     <script defer src="js/lib/build-standalone-html.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
