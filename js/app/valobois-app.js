@@ -12770,11 +12770,22 @@ class ValoboisApp {
     closeCreatePieceDeductionModal() {
         const backdrop = document.getElementById('createPieceDeductionBackdrop');
         if (backdrop) {
+            const activeEl = document.activeElement;
+            if (activeEl && backdrop.contains(activeEl) && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+            }
+            backdrop.setAttribute('inert', '');
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
+
+            const trigger = this._lastCreatePieceDeductionTrigger;
+            if (trigger && typeof trigger.focus === 'function' && document.contains(trigger)) {
+                trigger.focus();
+            }
         }
         this.pendingPieceCreationDecision = null;
         this.pendingPieceCreationModalOptions = null;
+        this._lastCreatePieceDeductionTrigger = null;
     }
 
     openMesuresResetConfirmModal(onConfirm) {
@@ -17520,6 +17531,7 @@ closeEvalOpModal() {
             defaultModeMessage = 'Créer un nouveau formulaire de pièce par défaut à partir de cette pièce ?',
             defaultModeYesLabel = 'Créer la pièce par défaut',
             defaultModeNoLabel = 'Annuler',
+            trigger = null,
             onDecision = () => {}
         } = options;
 
@@ -17533,6 +17545,10 @@ closeEvalOpModal() {
         const modeDefaultRadio = document.getElementById('createPieceDuplicationModeDefault');
 
         if (backdrop) {
+            const activeTrigger = trigger && document.contains(trigger)
+                ? trigger
+                : (document.activeElement && document.contains(document.activeElement) ? document.activeElement : null);
+            this._lastCreatePieceDeductionTrigger = activeTrigger;
             this.pendingPieceCreationDecision = onDecision;
             this.pendingPieceCreationModalOptions = { showCreationModeChoice };
             if (titleEl) titleEl.textContent = title;
@@ -17561,7 +17577,11 @@ closeEvalOpModal() {
 
             this.updateCreatePieceDeductionModalByMode();
             backdrop.classList.remove('hidden');
+            backdrop.removeAttribute('inert');
             backdrop.setAttribute('aria-hidden', 'false');
+            if (yesBtn && typeof yesBtn.focus === 'function') {
+                yesBtn.focus();
+            }
         }
     }
 
@@ -17936,11 +17956,13 @@ closeEvalOpModal() {
                     <summary class="lot-group-summary lot-group-summary--with-info">
                         <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                         <span class="lot-group-summary-text">Localisation - Situation</span>
-                        <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
-                            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                        </button>
                     </summary>
                     <div class="lot-group-content">
+                        <div class="lot-group-content-actions">
+                            <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
+                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            </button>
+                        </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${viewValue(defaultPiece.localisation || '')}" placeholder="Bâtiment, zone, espace…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="localisation">
@@ -17982,11 +18004,13 @@ closeEvalOpModal() {
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                            <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
-                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                            </button>
                         </summary>
                         <div class="durab-nat-body">
+                            <div class="durab-nat-body-actions">
+                                <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </button>
+                            </div>
                             <p class="durab-nat-source">Source : EN 350:2016 — Tableaux 1-10, annexes B.</p>
                             <div class="durab-nat-list"></div>
                         </div>
@@ -18235,6 +18259,7 @@ closeEvalOpModal() {
         const _hDim = _effDimsP.epaisseur;
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
+        const viewValue = (value) => value;
 
         const _mmP = piece.mesuresMultiples;
         const hasMmP = !!(_mmP && _mmP.active);
@@ -18268,11 +18293,13 @@ closeEvalOpModal() {
                     <summary class="lot-group-summary lot-group-summary--with-info">
                         <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                         <span class="lot-group-summary-text">Localisation - Situation</span>
-                        <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
-                            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                        </button>
                     </summary>
                     <div class="lot-group-content">
+                        <div class="lot-group-content-actions">
+                            <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
+                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                            </button>
+                        </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${piece.localisation || ''}" placeholder="Bâtiment, zone, espace…" data-piece-input="localisation">
@@ -18308,11 +18335,13 @@ closeEvalOpModal() {
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                            <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
-                                <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                            </button>
                         </summary>
                         <div class="durab-nat-body">
+                            <div class="durab-nat-body-actions">
+                                <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                </button>
+                            </div>
                             <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
                             <div class="durab-nat-list"></div>
                         </div>
@@ -18744,13 +18773,13 @@ closeEvalOpModal() {
                             <summary class="mesures-accordion-summary">
                                 <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                                 <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                                <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
-                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-                                </button>
                             </summary>
                             <div class="durab-nat-body">
                                 <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
                                 <div class="durab-nat-body-actions">
+                                    <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
+                                        <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                    </button>
                                     <button type="button" class="durab-nat-detail-btn" data-durab-nat-detail-btn${showDurabNatDetailsBtn ? '' : ' hidden'}>Détails</button>
                                 </div>
                                 <div class="durab-nat-list"></div>

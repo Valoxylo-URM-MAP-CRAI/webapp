@@ -4393,15 +4393,142 @@
                             <button class="modal-close" type="button" id="btnCloseLocSitInfoModal">×</button>
                         </header>
                         <div class="modal-body detail-modal-content">
-                            <p>Ce bloc aide à qualifier le contexte d'usage de la pièce pour guider l'évaluation.</p>
-                            <p><strong>Bâtiment, zone, espace…</strong> : préciser où se trouve la pièce dans l'ouvrage (ex. Hall A, façade nord, local technique, toiture).</p>
-                            <p><strong>Situation du lot</strong> : caractériser la position constructive de la pièce (ex. toiture, murs, plancher, revêtement intérieur/extérieur, structure libre).</p>
-                            <p><strong>Conception - Mise en œuvre</strong> : indiquer le niveau de conception vis-à-vis de l'eau et de l'humidité :</p>
-                            <ul>
-                                <li><strong>Piégeante</strong> : configuration favorisant la rétention d'eau/humidité.</li>
-                                <li><strong>Moyenne</strong> : configuration intermédiaire.</li>
-                                <li><strong>Drainante</strong> : configuration favorisant l'écoulement et le séchage.</li>
-                            </ul>
+                            <p class="detail-modal-instruction">Ce bloc positionne le contexte constructif et climatique de la pièce évaluée. Il conditionne directement l'affectation de la classe d'emploi, paramètre central du diagnostic de durabilité.</p>
+
+                            <h3 class="detail-modal-subtitle">Bâtiment, zone, espace</h3>
+                            <p class="detail-modal-paragraph">Préciser la localisation physique dans l'ouvrage (ex. : Hall A, façade nord, local technique, toiture, sous-face de plancher).</p>
+                            <p class="detail-modal-paragraph">Attention : la classe d'emploi n'est pas seulement situationnelle. Elle est aussi contextuelle, relative à l'usage et à l'état du bâtiment. Un solivage issu d'un ouvrage en friche peut être reclassé en classe 2 voire 3 si des flaques ont pu être observées sur les sols intérieurs.</p>
+
+                            <h3 class="detail-modal-subtitle">Situation du lot</h3>
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Position constructive</th>
+                                        <th>Classe d'emploi indicative</th>
+                                        <th>Exemples</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Intérieur, local chauffé, sec</td>
+                                        <td>1</td>
+                                        <td>Parquet, lambris, meuble</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Sous abri, comble ventilé, sans pluie directe</td>
+                                        <td>2</td>
+                                        <td>Charpente de toiture, solivage abrité</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Façade en retrait sous débord de toiture</td>
+                                        <td>2 à 3.1</td>
+                                        <td>Bardage abrité, menuiserie en feuillure</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Extérieur, surface verticale, pleine exposition</td>
+                                        <td>3.1 à 3.2</td>
+                                        <td>Bardage exposé, menuiserie extérieure</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Extérieur, surface horizontale exposée</td>
+                                        <td>3.2 à 4</td>
+                                        <td>Platelage, pergola, solive de terrasse</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Contact direct avec le sol ou eau douce</td>
+                                        <td>4</td>
+                                        <td>Poteau, pieu, élément enterré</td>
+                                    </tr>
+                                    <tr>
+                                        <td>Immersion en eau salée</td>
+                                        <td>5</td>
+                                        <td>Structure maritime, ponton</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <p class="detail-modal-paragraph">Note : tout élément entièrement situé dans la zone protégée par un débord de toiture (hauteur H liée à la profondeur du débord D) peut être affecté en classe d'emploi 2, quelle que soit sa position constructive apparente.</p>
+
+                            <h3 class="detail-modal-subtitle">Conception - Mise en œuvre</h3>
+                            <div class="detail-modal-scale">
+                                <p class="detail-modal-scale-item">
+                                    <span class="detail-modal-scale-pill detail-modal-scale-pill--faible">🔴 Piégeante</span>
+                                    <span>Faces supérieures horizontales (angle &lt; 15° par rapport à l'horizontale), assemblages avec tenons-mortaises, embrèvements ou mi-bois, bois de bout exposé vers le ciel. Favorise la rétention d'eau et le développement fongique. Conduit à une classe d'emploi 4 en pleine exposition pour les climats modéré et humide.</span>
+                                </p>
+                                <p class="detail-modal-scale-item">
+                                    <span class="detail-modal-scale-pill detail-modal-scale-pill--moyenne">🟡 Moyenne</span>
+                                    <span>Éléments inclinés entre 15° et 75°, assemblages avec contacts surfaciques sans encastrements. Séchage possible mais ralenti. Conduit en général à une classe d'emploi 3.1 ou 3.2 selon le climat et la massivité.</span>
+                                </p>
+                                <p class="detail-modal-scale-item">
+                                    <span class="detail-modal-scale-pill detail-modal-scale-pill--forte">🟢 Drainante</span>
+                                    <span>Éléments verticaux ou inclinés ≥ 75°, faces usinées en pente ≥ 15°, assemblages avec espacements et rondelles d'étanchéité. Favorise l'écoulement et le séchage naturel. Conduit à une classe d'emploi 3.1 au plus en exposition partielle.</span>
+                                </p>
+                            </div>
+                            <p class="detail-modal-paragraph">⚠️ L'affectation globale d'une pièce retient toujours l'exposition la plus pénalisante. Un seul point singulier piégeant (bois de bout, assemblage, pied de poteau sans drainage) peut déclasser l'ensemble de l'élément.</p>
+
+                            <h3 class="detail-modal-subtitle">Aide à l'affectation de la classe d'emploi (FD P 20-651)</h3>
+                            <div class="detail-modal-fdp-tables">
+                                <details>
+                                    <summary>Exposition partielle - Tableau 2</summary>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Massivité</th>
+                                                <th>Conception</th>
+                                                <th>Sec</th>
+                                                <th>Modéré</th>
+                                                <th>Humide</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Faible</td><td>Drainante</td><td>3.1</td><td>3.1</td><td>3.1</td></tr>
+                                            <tr><td>Faible</td><td>Moyenne</td><td>3.1</td><td>3.1</td><td>3.2</td></tr>
+                                            <tr><td>Faible</td><td>Piégeante</td><td>3.1</td><td>3.2</td><td>3.2</td></tr>
+                                            <tr><td>Moyenne</td><td>Drainante</td><td>3.1</td><td>3.1</td><td>3.2</td></tr>
+                                            <tr><td>Moyenne</td><td>Moyenne</td><td>3.1</td><td>3.1</td><td>3.2</td></tr>
+                                            <tr><td>Moyenne</td><td>Piégeante</td><td>3.1</td><td>3.2</td><td class="fdp-class-4">4</td></tr>
+                                            <tr><td>Forte</td><td>Drainante</td><td>3.1</td><td>3.1</td><td>3.2</td></tr>
+                                            <tr><td>Forte</td><td>Moyenne</td><td>3.1</td><td>3.2</td><td>3.2</td></tr>
+                                            <tr><td>Forte</td><td>Piégeante</td><td>3.2</td><td>3.2</td><td class="fdp-class-4">4</td></tr>
+                                        </tbody>
+                                    </table>
+                                </details>
+                                <details>
+                                    <summary>Pleine exposition - Tableau 3</summary>
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Massivité</th>
+                                                <th>Conception</th>
+                                                <th>Sec</th>
+                                                <th>Modéré</th>
+                                                <th>Humide</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr><td>Faible</td><td>Drainante</td><td>3.1</td><td>3.1</td><td>3.1</td></tr>
+                                            <tr><td>Faible</td><td>Moyenne</td><td>3.1</td><td>3.2</td><td>3.2</td></tr>
+                                            <tr><td>Faible</td><td>Piégeante</td><td>3.2</td><td class="fdp-class-4">4</td><td class="fdp-class-4">4</td></tr>
+                                            <tr><td>Moyenne</td><td>Drainante</td><td>3.1</td><td>3.1</td><td>3.2</td></tr>
+                                            <tr><td>Moyenne</td><td>Moyenne</td><td>3.1</td><td>3.2</td><td>3.2</td></tr>
+                                            <tr><td>Moyenne</td><td>Piégeante</td><td>3.2</td><td class="fdp-class-4">4</td><td class="fdp-class-4">4</td></tr>
+                                            <tr><td>Forte</td><td>Drainante</td><td>3.1</td><td>3.2</td><td>3.2</td></tr>
+                                            <tr><td>Forte</td><td>Moyenne</td><td>3.2</td><td>3.2</td><td class="fdp-class-4">4</td></tr>
+                                            <tr><td>Forte</td><td>Piégeante</td><td class="fdp-class-4">4</td><td class="fdp-class-4">4</td><td class="fdp-class-4">4</td></tr>
+                                        </tbody>
+                                    </table>
+                                </details>
+                            </div>
+
+                            <details class="detail-modal-references">
+                                <summary>Références et ressources</summary>
+                                <ul>
+                                    <li>AFNOR. (2011). <em>FD P 20-651 - Durabilité des éléments et ouvrages en bois</em>. AFNOR.</li>
+                                    <li>AFNOR. (2013). <em>NF EN 335 - Classes d'emploi : définitions et application au bois massif</em>. AFNOR.</li>
+                                    <li>AFNOR. (2017). <em>NF DTU 31.1 - Charpente en bois</em>. AFNOR.</li>
+                                    <li>FCBA Institut Technologique. (2019). <em>Comprendre et maîtriser la durabilité du bois dans la construction</em> (2e éd.). FCBA / Le Moniteur.</li>
+                                    <li>FCBA, CODIFAB &amp; France Bois Forêt. (2022). <em>Guide de conception des ouvrages bois exposés aux intempéries</em> (v1). FCBA.</li>
+                                </ul>
+                            </details>
                         </div>
                         <footer class="modal-footer">
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseLocSitInfoModalFooter">J'ai compris</button>

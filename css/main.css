@@ -2434,7 +2434,7 @@ body.day-mode .lot-group--collapsible summary::after {
     min-width: 0;
 }
 
-.lot-group--loc-sit > summary .loc-sit-info-btn {
+.lot-group--loc-sit .loc-sit-info-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2451,8 +2451,75 @@ body.day-mode .lot-group--collapsible summary::after {
     transition: background-color 0.15s;
 }
 
-.lot-group--loc-sit > summary .loc-sit-info-btn:hover {
+.lot-group--loc-sit .loc-sit-info-btn:hover {
     background-color: #162e72;
+}
+
+.lot-group--loc-sit .lot-group-content-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 6px;
+}
+
+/* Modale Loc-Sit : tableaux FD P 20-651 */
+.detail-modal-fdp-tables {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8, 8px);
+    margin-top: var(--space-8, 8px);
+}
+
+.detail-modal-fdp-tables details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: var(--text-sm, 0.875rem);
+    padding: var(--space-4, 4px) 0;
+    color: var(--bleu-crai);
+    list-style: none;
+    display: flex;
+    align-items: center;
+    gap: var(--space-4, 4px);
+}
+
+.detail-modal-fdp-tables details > summary::before {
+    content: '▶';
+    font-size: 0.65em;
+    transition: transform 0.15s;
+}
+
+.detail-modal-fdp-tables details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.detail-modal-fdp-tables table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--text-xs, 0.8rem);
+    margin-top: var(--space-4, 4px);
+}
+
+.detail-modal-fdp-tables th,
+.detail-modal-fdp-tables td {
+    border: 1px solid var(--gris-clair, #ddd);
+    padding: var(--space-4, 4px) var(--space-6, 6px);
+    text-align: center;
+}
+
+.detail-modal-fdp-tables th {
+    background-color: var(--bleu-crai-pale, #e8ecf7);
+    font-weight: 600;
+    color: var(--bleu-crai);
+}
+
+.detail-modal-fdp-tables td:first-child,
+.detail-modal-fdp-tables td:nth-child(2) {
+    text-align: left;
+}
+
+.detail-modal-fdp-tables .fdp-class-4 {
+    background-color: #fde8d8;
+    color: #b34700;
+    font-weight: 700;
 }
 
 .lot-group--collapsible summary:hover {
