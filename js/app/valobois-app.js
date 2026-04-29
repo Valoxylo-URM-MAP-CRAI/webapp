@@ -385,11 +385,164 @@ const NOTATION_MODE_SECTION_SELECTORS = [
     { section: 'provenance', rowSelector: '.provenance-row', fieldAttr: 'data-provenance-field' }
 ];
 
+const LOC_SIT_FD_TABLES = {
+    partielle: {
+        Faible: {
+            Drainante: { Seche: '3.1', Moderee: '3.1', Humide: '3.1' },
+            Moyenne: { Seche: '3.1', Moderee: '3.1', Humide: '3.2' },
+            'Piégeante': { Seche: '3.1', Moderee: '3.2', Humide: '3.2' },
+        },
+        Moyenne: {
+            Drainante: { Seche: '3.1', Moderee: '3.1', Humide: '3.2' },
+            Moyenne: { Seche: '3.1', Moderee: '3.1', Humide: '3.2' },
+            'Piégeante': { Seche: '3.1', Moderee: '3.2', Humide: '4' },
+        },
+        Forte: {
+            Drainante: { Seche: '3.1', Moderee: '3.1', Humide: '3.2' },
+            Moyenne: { Seche: '3.1', Moderee: '3.2', Humide: '3.2' },
+            'Piégeante': { Seche: '3.2', Moderee: '3.2', Humide: '4' },
+        },
+    },
+    pleine: {
+        Faible: {
+            Drainante: { Seche: '3.1', Moderee: '3.1', Humide: '3.1' },
+            Moyenne: { Seche: '3.1', Moderee: '3.2', Humide: '3.2' },
+            'Piégeante': { Seche: '3.2', Moderee: '4', Humide: '4' },
+        },
+        Moyenne: {
+            Drainante: { Seche: '3.1', Moderee: '3.1', Humide: '3.2' },
+            Moyenne: { Seche: '3.1', Moderee: '3.2', Humide: '3.2' },
+            'Piégeante': { Seche: '3.2', Moderee: '4', Humide: '4' },
+        },
+        Forte: {
+            Drainante: { Seche: '3.1', Moderee: '3.2', Humide: '3.2' },
+            Moyenne: { Seche: '3.2', Moderee: '3.2', Humide: '4' },
+            'Piégeante': { Seche: '4', Moderee: '4', Humide: '4' },
+        },
+    },
+};
+
+const LOC_SIT_REFERENTIAL_META = {
+    versionRef: '2026.04',
+    updatedAt: '2026-04-29',
+    validatedBy: 'Validation métier EN 335 / FD P 20-651',
+    scope: 'Situations de base Localisation - Situation'
+};
+
+const LOC_SIT_BASE_SITUATIONS = [
+    {
+        id: 'en335-interieur-sec',
+        label: 'Bois en intérieur chauffé et sec, protégé des intempéries, sans humidification durable',
+        indicativeClass: '1',
+        mode: 'fixed',
+        fixedClass: '1',
+        exposure: '',
+        examples: 'Parquets intérieurs en locaux secs, lambris intérieurs hors locaux humides, escaliers intérieurs, mobiliers intégrés, huisseries intérieures non exposées, habillages décoratifs intérieurs, ossatures intérieures en ambiance sèche',
+        source: 'EN 335:2013 (Tableau 4.7)',
+        normRef: 'EN 335:2013 §4.7 - Classe 1',
+        guideShort: 'Conserver un bois sec en service; surveiller toute condensation persistante.',
+        guideExpert: 'Situation intérieure sans humidification durable. Contrôler la ventilation du local et les interfaces avec zones froides pour éviter des cycles de condensation non prévus. Cas limite: en présence de condensation répétée ou de fuites chroniques, réexaminer en classe 2.',
+        riskTags: ['Condensation'],
+        limits: 'Si humidification répétée observée, réévaluer vers classe 2.'
+    },
+    {
+        id: 'en335-sous-abri-condensation',
+        label: 'Bois en intérieur ou sous abri ventilé, hors pluie directe, avec humidification occasionnelle non persistante',
+        indicativeClass: '2',
+        mode: 'fixed',
+        fixedClass: '2',
+        exposure: '',
+        examples: 'Charpentes de combles ventilés, solivages abrités, ossatures en volume non chauffé mais protégé, chevrons sous couverture étanche, éléments de toiture non exposés à la pluie battante, planchers intermédiaires en atmosphère humide occasionnelle, menuiseries en zone couverte non ruissellée',
+        source: 'EN 335:2013 (Tableau 4.7)',
+        normRef: 'EN 335:2013 §4.7 - Classe 2',
+        guideShort: 'Vérifier les risques de condensation occasionnelle et la qualité de la ventilation.',
+        guideExpert: 'Sous abri, hors pluie directe, avec humidification occasionnelle possible. Vérifier ponts thermiques, entrées d\'air parasite et zones confinées. Cas limite: si stagnation locale ou humidification persistante est constatée, basculer vers la logique 3.1/3.2.',
+        riskTags: ['Condensation'],
+        limits: 'Si exposition pluie ou stagnation apparaît, basculer vers logique classe 3.1/3.2.'
+    },
+    {
+        id: 'fd-facade-retrait',
+        label: 'Bois extérieur partiellement protégé, humidification intermittente, séchage rapide entre épisodes',
+        indicativeClass: '2 à 3.1',
+        mode: 'table',
+        fixedClass: '',
+        exposure: 'partielle',
+        examples: 'Bardages en retrait sous débord, menuiseries extérieures en feuillure abritée, encadrements sous auvent, habillages de façade en zone peu arrosée, volets en niche protégée, éléments de rive sous protection architecturale, ossatures secondaires en façade abritée',
+        source: 'FD P 20-651 (Partie 7)',
+        normRef: 'FD P 20-651 §7 - Exposition partielle',
+        guideShort: 'Confirmer que la zone reste réellement protégée du vent de pluie dominant.',
+        guideExpert: 'Cas d\'humidification intermittente avec protection architecturale effective. Contrôler le rapport débord/protection, les rejaillissements en pied de façade et la ventilation arrière. Cas limite: si pluie battante fréquente, traiter en exposition pleine.',
+        riskTags: ['Stagnation', 'Condensation'],
+        limits: 'Protection insuffisante ou singularité piégeante: traiter en exposition pleine.'
+    },
+    {
+        id: 'fd-exterieur-vertical',
+        label: 'Bois extérieur vertical en pleine exposition, alternances pluie/séchage selon climat et conception',
+        indicativeClass: '3.1 à 3.2',
+        mode: 'table',
+        fixedClass: '',
+        exposure: 'pleine',
+        examples: 'Bardages verticaux exposés, menuiseries extérieures en façade non protégée, volets battants exposés, persiennes bois, habillages verticaux de façade, éléments décoratifs verticaux extérieurs, ossatures secondaires verticales exposées',
+        source: 'FD P 20-651 (Partie 7)',
+        normRef: 'FD P 20-651 §7 - Exposition pleine',
+        guideShort: 'Examiner le drainage de surface et les points de rétention au droit des assemblages.',
+        guideExpert: 'Exposition directe aux intempéries. Le classement dépend du couple climat/massivité et de la conception de mise en œuvre (drainante, moyenne, piégeante). Cas limite: assemblages piégeants ou bois de bout exposé peuvent aggraver le classement.',
+        riskTags: ['Stagnation'],
+        limits: 'Présence durable d\'eau libre ou défaut majeur d\'évacuation: envisager surclassement.'
+    },
+    {
+        id: 'fd-exterieur-horizontal',
+        label: 'Bois extérieur horizontal ou faiblement incliné, humidification prolongée, séchage lent',
+        indicativeClass: '3.2 à 4',
+        mode: 'table',
+        fixedClass: '',
+        exposure: 'pleine',
+        examples: 'Platelages extérieurs, lames de terrasse, solives et lambourdes exposées, pergolas avec surfaces horizontales, mains courantes horizontales non drainées, couvertines bois, seuils extérieurs, pièces de liaison horizontales en façade',
+        source: 'FD P 20-651 (Partie 7)',
+        normRef: 'FD P 20-651 §7 - Exposition pleine, humidification prolongée',
+        guideShort: 'Prioriser pentes, évacuation et ventilation pour limiter humidification prolongée.',
+        guideExpert: 'Les surfaces horizontales accumulent l\'eau et ralentissent le séchage; la conception et la massivité deviennent prépondérantes pour éviter un passage en classe 4. Cas limite: rétention durable ou eau libre récurrente = scénario proche classe 4.',
+        riskTags: ['Stagnation', 'Contact sol/eau'],
+        limits: 'En présence de zones d\'eau récurrentes, rapprocher l\'analyse des conditions classe 4.'
+    },
+    {
+        id: 'en335-contact-sol',
+        label: 'Bois en contact direct avec sol ou eau douce, humidification fréquente à permanente',
+        indicativeClass: '4',
+        mode: 'fixed',
+        fixedClass: '4',
+        exposure: '',
+        examples: 'Poteaux enterrés, pieux en eau douce, éléments bois en pied d\'ouvrage sans rupture capillaire, traverses en contact sol, structures de soutènement en ambiance humide, ouvrages extérieurs en zone de ruissellement permanent, parties basses soumises à remontées capillaires',
+        source: 'EN 335:2013 (Tableau 4.7)',
+        normRef: 'EN 335:2013 §4.7 - Classe 4',
+        guideShort: 'Identifier les interfaces sol/eau et le risque de remontées capillaires permanentes.',
+        guideExpert: 'Contact permanent ou très fréquent avec humidité élevée. Vérifier interfaces d\'ancrage, drainage en pied et zones de marnage en eau douce. Cas limite: exposition saline régulière => requalification classe 5.',
+        riskTags: ['Contact sol/eau'],
+        limits: 'En immersion saline régulière, requalifier en classe 5.'
+    },
+    {
+        id: 'en335-immersion-salee',
+        label: 'Bois en immersion régulière ou permanente en eau salée, environnement marin actif',
+        indicativeClass: '5',
+        mode: 'fixed',
+        fixedClass: '5',
+        exposure: '',
+        examples: 'Pieux de pontons, structures de jetée, ouvrages portuaires en zone de marée, passerelles maritimes, défenses et appontements bois, éléments immergés en eau saumâtre, structures en zone d\'embruns avec immersion périodique',
+        source: 'EN 335:2013 (Tableau 4.7)',
+        normRef: 'EN 335:2013 §4.7 - Classe 5',
+        guideShort: 'Confirmer l\'exposition marine effective et les cycles d\'immersion/émersion.',
+        guideExpert: 'Environnement marin avec eau salée et agents biologiques spécifiques. Documenter la zone immergée, les cycles de marée et les parties émergées. Cas limite: les zones hors immersion peuvent relever localement d\'une classe inférieure.',
+        riskTags: ['Eau salée'],
+        limits: 'Les zones hors immersion peuvent relever d\'un autre classement local.'
+    }
+];
+
 class ValoboisApp {
     constructor() {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
         this.storageKey = 'valobois_v1';
         this.storageBackupKey = 'valobois_v1_backup';
+        this.locSitGlobalStorageKey = 'valobois_locsit_custom_global_v1';
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */
         this.persistenceMode = 'guest';
         this.data = this.loadGuestDataFromLocalStorage();
@@ -423,6 +576,7 @@ class ValoboisApp {
         this._geoFranceClimateValidationLogged = false;
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
+        this._locSitInfoDictionaryBound = false;
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -2694,6 +2848,587 @@ class ValoboisApp {
         return Array.from(groups.values());
     }
 
+    normalizeLocSitKey(value) {
+        return String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, ' ')
+            .trim();
+    }
+
+    normalizeLocSitConceptionValue(value) {
+        const key = this.normalizeLocSitKey(value);
+        if (key === 'piegeante') return 'Piégeante';
+        if (key === 'moyenne') return 'Moyenne';
+        if (key === 'drainante') return 'Drainante';
+        return '';
+    }
+
+    normalizeLocSitClimateValue(value) {
+        const key = this.normalizeLocSitKey(value);
+        if (key === 'seche') return 'Seche';
+        if (key === 'moderee') return 'Moderee';
+        if (key === 'humide') return 'Humide';
+        return '';
+    }
+
+    getLocSitBaseSituationEntries() {
+        return LOC_SIT_BASE_SITUATIONS.map((entry) => ({ ...entry, isCustom: false }));
+    }
+
+    getLocSitReferentialMeta() {
+        return { ...LOC_SIT_REFERENTIAL_META };
+    }
+
+    getLocSitReferentialMetaLabel() {
+        const meta = this.getLocSitReferentialMeta();
+        const parts = [];
+        if (meta.versionRef) parts.push(`Version ${meta.versionRef}`);
+        if (meta.updatedAt) parts.push(`Mise à jour ${meta.updatedAt}`);
+        if (meta.validatedBy) parts.push(meta.validatedBy);
+        return parts.join(' | ');
+    }
+
+    normalizeLocSitGuideShort(value, maxLength = 180) {
+        const clean = String(value || '').trim().replace(/\s+/g, ' ');
+        if (!clean) return '';
+        if (!Number.isFinite(maxLength) || maxLength <= 0 || clean.length <= maxLength) return clean;
+        return `${clean.slice(0, maxLength - 3).trimEnd()}...`;
+    }
+
+    renderLocSitRiskBadges(tagsRaw) {
+        const tags = Array.isArray(tagsRaw) ? tagsRaw.filter((tag) => String(tag || '').trim()) : [];
+        if (!tags.length) return '';
+        return `
+            <div class="loc-sit-row__tags">
+                ${tags.map((tag) => `<span class="loc-sit-tag">${this.escapeHtml(tag)}</span>`).join('')}
+            </div>
+        `;
+    }
+
+    renderLocSitExpertDetails(row) {
+        const guideExpert = String(row && row.guideExpert || '').trim();
+        const limits = String(row && row.limits || '').trim();
+        const riskTags = Array.isArray(row && row.riskTags) ? row.riskTags : [];
+        if (!guideExpert && !limits && riskTags.length === 0) return '';
+        return `
+            <details class="loc-sit-row__details">
+                <summary>Mode expert</summary>
+                <div class="loc-sit-row__details-body">
+                    ${guideExpert ? `<p><strong>Analyse:</strong> ${this.escapeHtml(guideExpert)}</p>` : ''}
+                    ${limits ? `<p><strong>Limites:</strong> ${this.escapeHtml(limits)}</p>` : ''}
+                    ${riskTags.length ? `<p><strong>Vigilance:</strong> ${this.escapeHtml(riskTags.join(', '))}</p>` : ''}
+                </div>
+            </details>
+        `;
+    }
+
+    normalizeLocSitCustomSituationRows(ui = this.data?.ui) {
+        if (!ui || typeof ui !== 'object') return;
+        const raw = Array.isArray(ui.locSitCustomSituations) ? ui.locSitCustomSituations : [];
+        const normalized = [];
+        raw.forEach((entry, idx) => {
+            if (!entry || typeof entry !== 'object') return;
+            const label = String(entry.label || '').trim();
+            if (!label) return;
+            const modeRaw = String(entry.mode || '').trim().toLowerCase();
+            const mode = modeRaw === 'fixed' ? 'fixed' : 'table';
+            const exposureRaw = String(entry.exposure || '').trim().toLowerCase();
+            const exposure = exposureRaw === 'partielle' || exposureRaw === 'pleine' ? exposureRaw : 'pleine';
+            const fixedClassRaw = String(entry.fixedClass || '').trim();
+            const fixedClass = ['1', '2', '3.1', '3.2', '4', '5'].includes(fixedClassRaw) ? fixedClassRaw : '';
+            const indicativeClass = String(entry.indicativeClass || '').trim() || (mode === 'fixed' ? fixedClass : '3.1 à 3.2');
+            const examples = String(entry.examples || '').trim();
+            const normRef = String(entry.normRef || '').trim();
+            const guideShort = this.normalizeLocSitGuideShort(entry.guideShort || '');
+            normalized.push({
+                id: String(entry.id || `loc-sit-custom-${Date.now()}-${idx}`),
+                label,
+                indicativeClass,
+                mode,
+                fixedClass,
+                exposure,
+                examples,
+                normRef,
+                guideShort,
+                source: 'Utilisateur',
+                isCustom: true
+            });
+        });
+        ui.locSitCustomSituations = normalized;
+    }
+
+    getLocSitCustomSituationRows() {
+        if (!this.data || typeof this.data !== 'object') this.data = this.createInitialData();
+        if (!this.data.ui || typeof this.data.ui !== 'object') this.data.ui = this.getDefaultUi();
+        this.normalizeLocSitCustomSituationRows(this.data.ui);
+        const uiRows = Array.isArray(this.data.ui.locSitCustomSituations) ? this.data.ui.locSitCustomSituations : [];
+        const globalRows = this.loadGlobalLocSitCustomSituations();
+        const merged = [];
+        const seen = new Set();
+
+        [...globalRows, ...uiRows].forEach((row) => {
+            const labelKey = this.normalizeLocSitKey(row && row.label);
+            if (!labelKey || seen.has(labelKey)) return;
+            seen.add(labelKey);
+            merged.push({ ...row });
+        });
+
+        this.data.ui.locSitCustomSituations = merged;
+        this.saveGlobalLocSitCustomSituations(merged);
+        return merged;
+    }
+
+    loadGlobalLocSitCustomSituations() {
+        try {
+            if (typeof localStorage === 'undefined') return [];
+            const raw = localStorage.getItem(this.locSitGlobalStorageKey);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            const holder = { locSitCustomSituations: Array.isArray(parsed) ? parsed : [] };
+            this.normalizeLocSitCustomSituationRows(holder);
+            return holder.locSitCustomSituations;
+        } catch (_) {
+            return [];
+        }
+    }
+
+    saveGlobalLocSitCustomSituations(rows) {
+        try {
+            if (typeof localStorage === 'undefined') return;
+            localStorage.setItem(this.locSitGlobalStorageKey, JSON.stringify(Array.isArray(rows) ? rows : []));
+        } catch (_) {
+            /* noop */
+        }
+    }
+
+    getLocSitAllSituationEntries() {
+        return [...this.getLocSitBaseSituationEntries(), ...this.getLocSitCustomSituationRows()];
+    }
+
+    getLocSitEntryIndicativeClass(entry) {
+        if (!entry || typeof entry !== 'object') return '';
+        const indicative = String(entry.indicativeClass || '').trim();
+        if (indicative) return indicative;
+        const fixed = String(entry.fixedClass || '').trim();
+        return fixed;
+    }
+
+    getLocSitEntrySelectionLabel(entry, maxLength = 50) {
+        const label = String(entry && entry.label || '').replace(/\s+/g, ' ').trim();
+        if (!label) return '';
+        const classPrefix = this.getLocSitEntryIndicativeClass(entry);
+        const prefix = classPrefix ? `${classPrefix} - ` : '';
+        const available = Math.max(10, maxLength - prefix.length);
+        const compact = label.length > available
+            ? `${label.slice(0, available - 3).trimEnd()}...`
+            : label;
+        return `${prefix}${compact}`;
+    }
+
+    getLocSitEntryTooltip(entry) {
+        const label = String(entry && entry.label || '').trim();
+        if (!label) return '';
+        const classPrefix = this.getLocSitEntryIndicativeClass(entry);
+        return classPrefix ? `${classPrefix} - ${label}` : label;
+    }
+
+    getLocSitSituationDisplayValue(valueRaw) {
+        const raw = String(valueRaw || '').trim();
+        if (!raw) return '';
+        const entry = this.resolveLocSitSituationEntry(raw);
+        return entry ? this.getLocSitEntrySelectionLabel(entry) : raw;
+    }
+
+    getLocSitSituationTooltip(valueRaw) {
+        const entry = this.resolveLocSitSituationEntry(valueRaw);
+        return entry ? this.getLocSitEntryTooltip(entry) : '';
+    }
+
+    getLocSitSituationOptions() {
+        const seen = new Set();
+        const out = [];
+        this.getLocSitAllSituationEntries().forEach((entry) => {
+            const label = String(entry.label || '').trim();
+            if (!label) return;
+            const key = this.normalizeLocSitKey(label);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            out.push({
+                value: this.getLocSitEntrySelectionLabel(entry),
+                title: this.getLocSitEntryTooltip(entry),
+                rawLabel: label
+            });
+        });
+        return out;
+    }
+
+    refreshLocSitSituationDatalist() {
+        const datalist = document.getElementById('liste-situations');
+        if (!datalist) return;
+        datalist.innerHTML = '';
+        this.getLocSitSituationOptions().forEach((optionDef) => {
+            const option = document.createElement('option');
+            option.value = optionDef.value;
+            option.title = optionDef.title;
+            datalist.appendChild(option);
+        });
+    }
+
+    resolveLocSitSituationEntry(valueRaw) {
+        const key = this.normalizeLocSitKey(valueRaw);
+        if (!key) return null;
+        const entries = this.getLocSitAllSituationEntries();
+        const getCandidates = (entry) => {
+            const candidates = [
+                String(entry && entry.label || '').trim(),
+                this.getLocSitEntrySelectionLabel(entry)
+            ];
+            return candidates
+                .map((item) => String(item || '').trim())
+                .filter((item, index, arr) => item && arr.indexOf(item) === index);
+        };
+
+        const exact = entries.find((entry) => getCandidates(entry).some((candidate) => this.normalizeLocSitKey(candidate) === key));
+        if (exact) return exact;
+        return entries.find((entry) => getCandidates(entry).some((candidate) => {
+            const candidateKey = this.normalizeLocSitKey(candidate);
+            return candidateKey.includes(key) || key.includes(candidateKey);
+        })) || null;
+    }
+
+    getLocSitSituationExportInfoByValue(valueRaw) {
+        const entry = this.resolveLocSitSituationEntry(valueRaw);
+        return {
+            normRef: String(entry && entry.normRef || '').trim(),
+            guideShort: this.normalizeLocSitGuideShort(entry && entry.guideShort || '')
+        };
+    }
+
+    getLocSitLotSituationExportSummary(lot) {
+        const refs = [];
+        const notes = [];
+        const seenRefs = new Set();
+        const seenNotes = new Set();
+        const pushUnique = (value, bucket, seen) => {
+            const trimmed = String(value || '').trim();
+            if (!trimmed) return;
+            const key = trimmed.toLowerCase();
+            if (seen.has(key)) return;
+            seen.add(key);
+            bucket.push(trimmed);
+        };
+        const collectFromSituation = (situation) => {
+            const info = this.getLocSitSituationExportInfoByValue(situation);
+            pushUnique(info.normRef, refs, seenRefs);
+            pushUnique(info.guideShort, notes, seenNotes);
+        };
+
+        collectFromSituation(lot && lot.situation);
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((piece) => {
+            collectFromSituation(piece && piece.situation);
+        });
+
+        if (Array.isArray(lot && lot.pieces)) {
+            lot.pieces.forEach((piece) => {
+                if (!piece || typeof piece !== 'object') return;
+                collectFromSituation(piece.situation);
+            });
+        }
+
+        return {
+            normRef: refs.length ? refs.join(' | ') : '-',
+            guideShort: notes.length ? notes.join(' | ') : '-'
+        };
+    }
+
+    getLocSitClimateAutoState() {
+        const geo = this.getDefaultGeoFrance((this.data && this.data.meta && this.data.meta.geoFrance) || {});
+        const condition = this.getGeoFranceClimateCondition(geo);
+        const normalized = this.normalizeLocSitClimateValue(condition.level);
+        if (normalized) {
+            return {
+                value: this.getGeoFranceClimateDisplayLabel(normalized),
+                missing: false,
+                tooltip: ''
+            };
+        }
+        const missingHints = [
+            'Compléter Contexte technique > Localisation.',
+            'Vérifier le Département et le Canton dans le Contexte technique géographique.'
+        ];
+        return {
+            value: 'Données manquantes',
+            missing: true,
+            tooltip: missingHints.join(' ')
+        };
+    }
+
+    getLocSitMassiviteAutoState(lot) {
+        const details = this.collectMassiviteAlertContributors(lot);
+        if (!details || !details.hasData) {
+            return {
+                value: 'Données manquantes',
+                missing: true,
+                level: '',
+                tooltip: 'Renseigner les dimensions de la pièce (au minimum Épaisseur, ou Diamètre, ou sections valides des mesures multiples).'
+            };
+        }
+        const alertState = this.getMassiviteAlertState(details.epaisseurValue);
+        const level = alertState === 'strong' ? 'Forte' : alertState === 'medium' ? 'Moyenne' : alertState === 'low' ? 'Faible' : '';
+        if (!level) {
+            return {
+                value: 'Données manquantes',
+                missing: true,
+                level: '',
+                tooltip: 'Renseigner une épaisseur exploitable pour déterminer la massivité.'
+            };
+        }
+        return {
+            value: level,
+            missing: false,
+            level,
+            tooltip: ''
+        };
+    }
+
+    getLocSitEffectiveClassState(pieceLike, lot) {
+        const situationEntry = this.resolveLocSitSituationEntry(pieceLike && pieceLike.situation);
+        const climate = this.getLocSitClimateAutoState();
+        const massivite = this.getLocSitMassiviteAutoState(lot);
+        const conception = this.normalizeLocSitConceptionValue(pieceLike && pieceLike.conception);
+        const missing = [];
+
+        if (!situationEntry) {
+            missing.push('Situation dans la construction');
+        }
+
+        if (situationEntry && situationEntry.mode === 'table') {
+            if (climate.missing) missing.push('Condition climatique d’humidification');
+            if (massivite.missing) missing.push('Massivité');
+            if (!conception) missing.push('Conception - Mise en œuvre');
+        }
+
+        if (missing.length > 0) {
+            return {
+                activeClass: '',
+                climate,
+                massivite,
+                conception,
+                tooltip: `Calcul automatique incomplet. Données à renseigner : ${missing.join(', ')}.`
+            };
+        }
+
+        if (!situationEntry) {
+            return {
+                activeClass: '',
+                climate,
+                massivite,
+                conception,
+                tooltip: 'Sélectionner une situation du glossaire pour activer le calcul.'
+            };
+        }
+
+        if (situationEntry.mode === 'fixed') {
+            return {
+                activeClass: situationEntry.fixedClass,
+                climate,
+                massivite,
+                conception,
+                tooltip: ''
+            };
+        }
+
+        const climateKey = this.normalizeLocSitClimateValue(climate.value);
+        const table = LOC_SIT_FD_TABLES[situationEntry.exposure || 'pleine'] || LOC_SIT_FD_TABLES.pleine;
+        const nextClass = table
+            && table[massivite.level]
+            && table[massivite.level][conception]
+            ? table[massivite.level][conception][climateKey] || ''
+            : '';
+
+        return {
+            activeClass: nextClass,
+            climate,
+            massivite,
+            conception,
+            tooltip: nextClass ? '' : 'La combinaison actuelle ne permet pas de déterminer une classe d’emploi.'
+        };
+    }
+
+    renderLocSitConceptionButtons(pieceLike, context = {}) {
+        const selected = this.normalizeLocSitConceptionValue(pieceLike && pieceLike.conception);
+        const values = ['Piégeante', 'Moyenne', 'Drainante'];
+        const attrs = context.isDefault
+            ? `data-default-piece-id="${context.defaultPieceId || ''}"`
+            : `data-piece-index="${context.pieceIndex != null ? context.pieceIndex : ''}"`;
+        const dataAttr = context.isDefault ? 'data-default-piece-conception' : 'data-piece-conception';
+        return `
+            <div class="loc-sit-conception-group" role="group" aria-label="Conception - Mise en œuvre">
+                ${values.map((value) => {
+                    const isActive = selected === value;
+                    return `<button type="button" class="loc-sit-conception-btn${isActive ? ' is-active' : ''}" ${attrs} ${dataAttr}="${value}" aria-pressed="${isActive ? 'true' : 'false'}">${value}</button>`;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    renderLocSitClassPills(pieceLike, lot) {
+        const result = this.getLocSitEffectiveClassState(pieceLike, lot);
+        const classes = ['1', '2', '3.1', '3.2', '4', '5'];
+        const tooltip = result.tooltip || '';
+        const hasActiveClass = !!result.activeClass;
+        return `
+            <div class="loc-sit-class-pill-list" title="${tooltip.replace(/"/g, '&quot;')}">
+                ${classes.map((label) => {
+                    const isActive = result.activeClass === label;
+                    const pillTitle = isActive
+                        ? `Classe ${label} retenue automatiquement.`
+                        : hasActiveClass
+                            ? `Classe ${label} non retenue pour les données actuelles.`
+                            : `Classe ${label} indisponible tant que le calcul est incomplet.`;
+                    return `<span class="loc-sit-class-pill${isActive ? ' is-active' : ''}" aria-disabled="true" title="${pillTitle.replace(/"/g, '&quot;')}">${label}</span>`;
+                }).join('')}
+            </div>
+        `;
+    }
+
+    renderLocSitInfoTable() {
+        const baseBody = document.getElementById('locSitSituationBaseRows');
+        const customBody = document.getElementById('locSitSituationCustomRows');
+        const referentialMeta = document.getElementById('locSitReferentialMeta');
+        if (!baseBody || !customBody) return;
+        if (referentialMeta) {
+            referentialMeta.textContent = this.getLocSitReferentialMetaLabel();
+        }
+
+        const baseRows = this.getLocSitBaseSituationEntries();
+        const customRows = this.getLocSitCustomSituationRows();
+
+        baseBody.innerHTML = baseRows.map((row) => `
+            <article class="price-preset-row loc-sit-row loc-sit-row--base">
+                <div class="loc-sit-row__head">
+                    <span class="price-preset-row__badge">Base</span>
+                </div>
+                <div class="loc-sit-row__grid">
+                    <div class="loc-sit-row__field">
+                        <div class="loc-sit-row__label">Position constructive</div>
+                        <div class="loc-sit-row__value">${this.escapeHtml(row.label)}</div>
+                    </div>
+                    <div class="loc-sit-row__field">
+                        <div class="loc-sit-row__label">Classe d'emploi indicative</div>
+                        <div class="loc-sit-row__value">${this.escapeHtml(row.indicativeClass)}</div>
+                    </div>
+                    <div class="loc-sit-row__field">
+                        <div class="loc-sit-row__label">Exemples</div>
+                        <div class="loc-sit-row__value">${this.escapeHtml(row.examples || '-')}</div>
+                    </div>
+                </div>
+                <div class="loc-sit-row__meta">
+                    <div class="loc-sit-row__meta-item"><strong>Référence:</strong> ${this.escapeHtml(row.normRef || row.source || '-')}</div>
+                    <div class="loc-sit-row__meta-item"><strong>Note guide:</strong> ${this.escapeHtml(this.normalizeLocSitGuideShort(row.guideShort || '-'))}</div>
+                </div>
+                ${this.renderLocSitRiskBadges(row.riskTags)}
+                ${this.renderLocSitExpertDetails(row)}
+            </article>
+        `).join('');
+
+        customBody.innerHTML = customRows.length > 0
+            ? customRows.map((row) => `
+                <article class="price-preset-row loc-sit-row loc-sit-row--custom">
+                    <div class="loc-sit-row__head">
+                        <span class="price-preset-row__badge price-preset-row__badge--custom">Custom</span>
+                        <div class="loc-sit-row__actions">
+                            <button type="button" class="btn btn-secondary" data-loc-sit-custom-edit="${this.escapeHtml(row.id)}">Modifier</button>
+                            <button type="button" class="btn btn-secondary" data-loc-sit-custom-delete="${this.escapeHtml(row.id)}">Supprimer</button>
+                        </div>
+                    </div>
+                    <div class="loc-sit-row__grid">
+                        <div class="loc-sit-row__field">
+                            <div class="loc-sit-row__label">Position constructive</div>
+                            <div class="loc-sit-row__value">${this.escapeHtml(row.label)}</div>
+                        </div>
+                        <div class="loc-sit-row__field">
+                            <div class="loc-sit-row__label">Classe d'emploi indicative</div>
+                            <div class="loc-sit-row__value">${this.escapeHtml(row.indicativeClass || '-')}</div>
+                        </div>
+                        <div class="loc-sit-row__field">
+                            <div class="loc-sit-row__label">Exemples</div>
+                            <div class="loc-sit-row__value">${this.escapeHtml(row.examples || '-')}</div>
+                        </div>
+                    </div>
+                    <div class="loc-sit-row__meta">
+                        <div class="loc-sit-row__meta-item"><strong>Référence:</strong> ${this.escapeHtml(row.normRef || '-')}</div>
+                        <div class="loc-sit-row__meta-item"><strong>Note guide:</strong> ${this.escapeHtml(this.normalizeLocSitGuideShort(row.guideShort || '-'))}</div>
+                    </div>
+                    ${this.renderLocSitRiskBadges(row.riskTags)}
+                    ${this.renderLocSitExpertDetails(row)}
+                </article>
+            `).join('')
+            : '<p class="price-preset-editor__empty loc-sit-table-empty">Aucune entrée personnalisée.</p>';
+    }
+
+    upsertLocSitCustomSituation(payload = {}, editId = '') {
+        const label = String(payload.label || '').trim();
+        if (!label) return false;
+        const typeRaw = String(payload.type || '').trim().toLowerCase();
+        let mode = 'table';
+        let exposure = 'pleine';
+        let fixedClass = '';
+
+        if (typeRaw === 'table-partielle') {
+            mode = 'table';
+            exposure = 'partielle';
+        } else if (typeRaw === 'table-pleine') {
+            mode = 'table';
+            exposure = 'pleine';
+        } else if (typeRaw.startsWith('fixed-')) {
+            mode = 'fixed';
+            fixedClass = typeRaw.replace('fixed-', '');
+        }
+
+        if (!this.data.ui || typeof this.data.ui !== 'object') this.data.ui = this.getDefaultUi();
+        this.normalizeLocSitCustomSituationRows(this.data.ui);
+        const rows = this.data.ui.locSitCustomSituations;
+        const targetId = String(editId || '').trim();
+        const nextRow = {
+            id: targetId || `loc-sit-custom-${Date.now()}`,
+            label,
+            mode,
+            exposure,
+            fixedClass,
+            indicativeClass: mode === 'fixed' ? fixedClass : '3.1 à 3.2',
+            examples: String(payload.examples || '').trim(),
+            normRef: String(payload.normRef || '').trim(),
+            guideShort: this.normalizeLocSitGuideShort(payload.guideShort || ''),
+            source: 'Utilisateur',
+            isCustom: true
+        };
+
+        const existingIndex = rows.findIndex((row) => String(row.id) === nextRow.id);
+        if (existingIndex >= 0) {
+            rows[existingIndex] = nextRow;
+        } else {
+            rows.push(nextRow);
+        }
+        this.saveGlobalLocSitCustomSituations(rows);
+        this.refreshLocSitSituationDatalist();
+        this.saveData();
+        return true;
+    }
+
+    deleteLocSitCustomSituation(idRaw) {
+        const id = String(idRaw || '').trim();
+        if (!id || !this.data?.ui || !Array.isArray(this.data.ui.locSitCustomSituations)) return;
+        this.data.ui.locSitCustomSituations = this.data.ui.locSitCustomSituations.filter((row) => String(row.id) !== id);
+        this.saveGlobalLocSitCustomSituations(this.data.ui.locSitCustomSituations);
+        this.refreshLocSitSituationDatalist();
+        this.saveData();
+    }
+
     getLotQuantityFromDetail(lot) {
         if (!lot) return 0;
         const defaultQty = this.getTotalDefaultPieceQuantity(lot);
@@ -2770,6 +3505,7 @@ class ValoboisApp {
             if (!piece || typeof piece !== 'object') return;
             if (piece.localisation == null) piece.localisation = '';
             if (piece.situation == null) piece.situation = '';
+            if (piece.conception == null) piece.conception = '';
             if (piece.typeProduit == null) piece.typeProduit = '';
             if (piece.classeBois == null) piece.classeBois = '';
             if (piece.masseVolumiqueMesuree == null) piece.masseVolumiqueMesuree = '';
@@ -3115,6 +3851,9 @@ class ValoboisApp {
             ? existingUi.priceCategoryPresets.custom.map((entry) => ({ ...(entry || {}) }))
             : [];
         const seedCustom = CEEB_PRICE_PRESET_IMPORT_BASE.presets.map((entry) => ({ ...entry }));
+        const existingLocSitCustom = Array.isArray(existingUi?.locSitCustomSituations)
+            ? existingUi.locSitCustomSituations.map((entry) => ({ ...(entry || {}) }))
+            : [];
         return {
             // [ARCHIVE TECHNIQUE] Seuils historiques conservés pour compatibilité
             // des données locales et réutilisation future éventuelle.
@@ -3144,7 +3883,8 @@ class ValoboisApp {
                 meta: { ...(existingUi?.priceCategoryPresets?.meta || CEEB_PRICE_PRESET_IMPORT_BASE.meta) },
                 baseOverrides: { ...(existingUi?.priceCategoryPresets?.baseOverrides || {}) },
                 custom: existingCustom.length > 0 ? existingCustom : seedCustom
-            }
+            },
+            locSitCustomSituations: existingLocSitCustom
         };
     }
 
@@ -4254,6 +4994,7 @@ class ValoboisApp {
         data.notationMode = this.normalizeNotationMode(data.notationMode);
         data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(data.notationModeCustomConfig);
         this.normalizePriceCategoryPresets(data.ui);
+        this.normalizeLocSitCustomSituationRows(data.ui);
         data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
         if (!data.lots.length) {
             data.lots = [this.createEmptyLot(0)];
@@ -14167,6 +14908,75 @@ if (locSitInfoBackdrop && locSitInfoClose && locSitInfoCloseFooter) {
     });
 }
 
+if (!this._locSitInfoDictionaryBound) {
+    document.addEventListener('click', (e) => {
+        const addBtn = e.target.closest('#btnLocSitCustomAdd');
+        if (addBtn) {
+            e.preventDefault();
+            const labelInput = document.getElementById('inputLocSitCustomLabel');
+            const typeSelect = document.getElementById('selectLocSitCustomType');
+            const examplesInput = document.getElementById('inputLocSitCustomExamples');
+            const normRefInput = document.getElementById('inputLocSitCustomNormRef');
+            const guideShortInput = document.getElementById('inputLocSitCustomGuideShort');
+            const editIdInput = document.getElementById('inputLocSitCustomEditId');
+            const label = labelInput ? labelInput.value : '';
+            const type = typeSelect ? typeSelect.value : 'fixed-3.1';
+            const examples = examplesInput ? examplesInput.value : '';
+            const normRef = normRefInput ? normRefInput.value : '';
+            const guideShort = guideShortInput ? guideShortInput.value : '';
+            const editId = editIdInput ? editIdInput.value : '';
+            const ok = this.upsertLocSitCustomSituation({ label, type, examples, normRef, guideShort }, editId);
+            if (!ok) return;
+            if (labelInput) labelInput.value = '';
+            if (typeSelect) typeSelect.value = 'fixed-3.1';
+            if (examplesInput) examplesInput.value = '';
+            if (normRefInput) normRefInput.value = '';
+            if (guideShortInput) guideShortInput.value = '';
+            if (editIdInput) editIdInput.value = '';
+            this.renderLocSitInfoTable();
+            return;
+        }
+
+        const editBtn = e.target.closest('[data-loc-sit-custom-edit]');
+        if (editBtn) {
+            e.preventDefault();
+            const rowId = String(editBtn.getAttribute('data-loc-sit-custom-edit') || '').trim();
+            const row = this.getLocSitCustomSituationRows().find((entry) => String(entry.id) === rowId);
+            if (!row) return;
+            const labelInput = document.getElementById('inputLocSitCustomLabel');
+            const typeSelect = document.getElementById('selectLocSitCustomType');
+            const examplesInput = document.getElementById('inputLocSitCustomExamples');
+            const normRefInput = document.getElementById('inputLocSitCustomNormRef');
+            const guideShortInput = document.getElementById('inputLocSitCustomGuideShort');
+            const editIdInput = document.getElementById('inputLocSitCustomEditId');
+            if (labelInput) labelInput.value = row.label || '';
+            if (examplesInput) examplesInput.value = row.examples || '';
+            if (normRefInput) normRefInput.value = row.normRef || '';
+            if (guideShortInput) guideShortInput.value = row.guideShort || '';
+            if (editIdInput) editIdInput.value = row.id || '';
+            if (typeSelect) {
+                if (row.mode === 'fixed' && row.fixedClass) {
+                    typeSelect.value = `fixed-${row.fixedClass}`;
+                } else if (row.exposure === 'partielle') {
+                    typeSelect.value = 'fixed-3.2';
+                } else {
+                    typeSelect.value = 'fixed-3.1';
+                }
+            }
+            return;
+        }
+
+        const deleteBtn = e.target.closest('[data-loc-sit-custom-delete]');
+        if (deleteBtn) {
+            e.preventDefault();
+            const rowId = String(deleteBtn.getAttribute('data-loc-sit-custom-delete') || '').trim();
+            this.deleteLocSitCustomSituation(rowId);
+            this.renderLocSitInfoTable();
+        }
+    });
+    this._locSitInfoDictionaryBound = true;
+}
+
 if (!this._durabNatInfoClickBound) {
     document.addEventListener('click', (e) => {
         const infoBtn = e.target.closest('.durab-nat-info-btn');
@@ -16541,6 +17351,8 @@ closeDurabNatInfoModal() {
 openLocSitInfoModal() {
     const backdrop = document.getElementById('locSitInfoModalBackdrop');
     if (backdrop) {
+        this.renderLocSitInfoTable();
+        this.refreshLocSitSituationDatalist();
         backdrop.classList.remove('hidden');
         backdrop.setAttribute('aria-hidden', 'false');
     }
@@ -17911,6 +18723,7 @@ closeEvalOpModal() {
 
         const showAsDisabled = isDisabled && !isActive;
         const viewValue = (value) => (showAsDisabled ? '' : value);
+        const attrValue = (value) => String(value || '').replace(/"/g, '&quot;');
 
         const _mmDp = defaultPiece.mesuresMultiples;
         const hasMmDp = !!(_mmDp && _mmDp.active);
@@ -17937,6 +18750,13 @@ closeEvalOpModal() {
 
         const _locSitKeyDp = `loc-sit:${lot.id}:default:${defaultPieceId}`;
         const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : !!(defaultPiece.localisation || defaultPiece.situation || defaultPiece.conception);
+        const locSitStateDp = this.getLocSitEffectiveClassState(defaultPiece, lot);
+        const locSitSituationDisplayDp = this.getLocSitSituationDisplayValue(viewValue(defaultPiece.situation || ''));
+        const locSitSituationTooltipDp = this.getLocSitSituationTooltip(viewValue(defaultPiece.situation || ''));
+        const climateDisplayDp = locSitStateDp.climate && !locSitStateDp.climate.missing ? locSitStateDp.climate.value : 'Données manquantes';
+        const massDisplayDp = locSitStateDp.massivite && !locSitStateDp.massivite.missing ? locSitStateDp.massivite.value : 'Données manquantes';
+        const climateTooltipDp = (locSitStateDp.climate && locSitStateDp.climate.tooltip) || '';
+        const massTooltipDp = (locSitStateDp.massivite && locSitStateDp.massivite.tooltip) || '';
 
         return `
         <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
@@ -17969,11 +18789,23 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
-                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.situation || '')}" placeholder="Situation du lot" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
+                            <input type="text" class="lot-input" value="${attrValue(locSitSituationDisplayDp)}" title="${attrValue(locSitSituationTooltipDp)}" placeholder="Situation dans la construction" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                         <div class="lot-field-block">
-                            <label class="lot-field-label lot-field-label--hidden">Conception - Mise en œuvre</label>
-                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.conception || '')}" placeholder="Conception - Mise en œuvre" data-default-piece-id="${defaultPieceId}" data-default-piece-input="conception" list="liste-conception-mise-en-oeuvre" autocomplete="off">
+                            <label class="lot-field-label">Condition climatique d’humidification</label>
+                            <input type="text" class="lot-input lot-input--auto${locSitStateDp.climate && locSitStateDp.climate.missing ? ' lot-input--missing' : ''}" value="${attrValue(climateDisplayDp)}" readonly title="${attrValue(climateTooltipDp)}" data-default-piece-id="${defaultPieceId}" data-default-piece-display="locSitClimate">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Massivité</label>
+                            <input type="text" class="lot-input lot-input--auto${locSitStateDp.massivite && locSitStateDp.massivite.missing ? ' lot-input--missing' : ''}" value="${attrValue(massDisplayDp)}" readonly title="${attrValue(massTooltipDp)}" data-default-piece-id="${defaultPieceId}" data-default-piece-display="locSitMassivite">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Conception - Mise en œuvre</label>
+                            ${this.renderLocSitConceptionButtons(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Classe d’emploi effective</label>
+                            ${this.renderLocSitClassPills(defaultPiece, lot)}
                         </div>
                     </div>
                 </details>
@@ -18260,6 +19092,7 @@ closeEvalOpModal() {
         const isSurfaceMutedByShape = _hDim > 55 || (_lDim > 0 && _hDim > 0 && _lDim / _hDim <= 4);
         const isSurfaceMuted = hasDiametre || isSurfaceMutedByShape;
         const viewValue = (value) => value;
+        const attrValue = (value) => String(value || '').replace(/"/g, '&quot;');
 
         const _mmP = piece.mesuresMultiples;
         const hasMmP = !!(_mmP && _mmP.active);
@@ -18278,6 +19111,13 @@ closeEvalOpModal() {
 
         const _locSitKeyP = `loc-sit:${lot.id}:piece:${pieceIndex}`;
         const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation || piece.conception);
+        const locSitStateP = this.getLocSitEffectiveClassState(piece, lot);
+        const locSitSituationDisplayP = this.getLocSitSituationDisplayValue(piece.situation || '');
+        const locSitSituationTooltipP = this.getLocSitSituationTooltip(piece.situation || '');
+        const climateDisplayP = locSitStateP.climate && !locSitStateP.climate.missing ? locSitStateP.climate.value : 'Données manquantes';
+        const massDisplayP = locSitStateP.massivite && !locSitStateP.massivite.missing ? locSitStateP.massivite.value : 'Données manquantes';
+        const climateTooltipP = (locSitStateP.climate && locSitStateP.climate.tooltip) || '';
+        const massTooltipP = (locSitStateP.massivite && locSitStateP.massivite.tooltip) || '';
 
         return `
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
@@ -18306,11 +19146,23 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
-                            <input type="text" class="lot-input" value="${piece.situation || ''}" placeholder="Situation du lot" data-piece-input="situation" list="liste-situations" autocomplete="off">
+                            <input type="text" class="lot-input" value="${attrValue(locSitSituationDisplayP)}" title="${attrValue(locSitSituationTooltipP)}" placeholder="Situation dans la construction" data-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                         <div class="lot-field-block">
-                            <label class="lot-field-label lot-field-label--hidden">Conception - Mise en œuvre</label>
-                            <input type="text" class="lot-input" value="${viewValue(piece.conception || '')}" placeholder="Conception - Mise en œuvre" data-piece-input="conception" list="liste-conception-mise-en-oeuvre" autocomplete="off">
+                            <label class="lot-field-label">Condition climatique d’humidification</label>
+                            <input type="text" class="lot-input lot-input--auto${locSitStateP.climate && locSitStateP.climate.missing ? ' lot-input--missing' : ''}" value="${attrValue(climateDisplayP)}" readonly title="${attrValue(climateTooltipP)}" data-piece-display="locSitClimate">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Massivité</label>
+                            <input type="text" class="lot-input lot-input--auto${locSitStateP.massivite && locSitStateP.massivite.missing ? ' lot-input--missing' : ''}" value="${attrValue(massDisplayP)}" readonly title="${attrValue(massTooltipP)}" data-piece-display="locSitMassivite">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Conception - Mise en œuvre</label>
+                            ${this.renderLocSitConceptionButtons(piece, { isDefault: false, defaultPieceId: null, pieceIndex })}
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label">Classe d’emploi effective</label>
+                            ${this.renderLocSitClassPills(piece, lot)}
                         </div>
                     </div>
                 </details>
@@ -20250,6 +21102,8 @@ closeEvalOpModal() {
             return;
         }
 
+        this.refreshLocSitSituationDatalist();
+
         if (!Array.isArray(lot.pieces)) lot.pieces = [];
         const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         lot.allotissement.quantite = String(this.getLotQuantityFromDetail(lot));
@@ -20426,6 +21280,19 @@ closeEvalOpModal() {
                 const _dp = this.getDefaultPieceById(lot, defaultPieceId);
                 if (_dp) this._bindMesuresInlineWidget(defaultMesuresWidget, _dp, lot, { isDefault: true, defaultPieceId, pieceIndex: null });
             }
+
+            defaultPieceCard.querySelectorAll(`button[data-default-piece-id="${defaultPieceId}"][data-default-piece-conception]`).forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
+                    const nextConception = this.normalizeLocSitConceptionValue(btn.dataset.defaultPieceConception);
+                    if (!nextConception) return;
+                    dp.conception = this.normalizeLocSitConceptionValue(dp.conception) === nextConception ? '' : nextConception;
+                    this.saveData();
+                    this.renderDetailLot();
+                });
+            });
 
             defaultPieceCard.querySelectorAll(`button[data-default-piece-id="${defaultPieceId}"][data-default-piece-price-unit]`).forEach((btn) => {
                 btn.addEventListener('click', (e) => {
@@ -20703,7 +21570,11 @@ closeEvalOpModal() {
                 newDefaultPiece.localisation = (lot.localisation || '').toString();
                 newDefaultPiece.situation = (lot.situation || '').toString();
                 const defaultPiecesList = this.ensureDefaultPiecesData(lot);
-                const normalizedDefaultPiece = this.ensureDefaultPieceShape(newDefaultPiece, defaultPiecesList.length);
+                const normalizedDefaultPiece = this.ensureDefaultPieceShape(lot, newDefaultPiece, {
+                    fallbackQty: '1',
+                    fallbackLocation: (lot.localisation || '').toString(),
+                    fallbackSituation: (lot.situation || '').toString()
+                });
                 defaultPiecesList.push(normalizedDefaultPiece);
                 this.setDetailLotActiveCardKey(lot, `default:${normalizedDefaultPiece.id}`);
                 this.recalculateLotAllotissement(lot);
@@ -20804,6 +21675,18 @@ closeEvalOpModal() {
             if (pieceMesuresWidget) {
                 this._bindMesuresInlineWidget(pieceMesuresWidget, piece, lot, { isDefault: false, defaultPieceId: null, pieceIndex: pi });
             }
+
+            pieceCard.querySelectorAll('button[data-piece-conception]').forEach((btn) => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, `piece:${pi}`)) return;
+                    const nextConception = this.normalizeLocSitConceptionValue(btn.dataset.pieceConception);
+                    if (!nextConception) return;
+                    piece.conception = this.normalizeLocSitConceptionValue(piece.conception) === nextConception ? '' : nextConception;
+                    this.saveData();
+                    this.renderDetailLot();
+                });
+            });
 
             // Boutons unité de prix pièce
             pieceCard.querySelectorAll('button[data-piece-price-unit]').forEach((btn) => {
@@ -28108,6 +28991,40 @@ renderRadar() {
         return (allotissement.typePiece || allotissement.typePieces || '').toString().trim() || '—';
     }
 
+    getPdfLotEffectiveUseClasses(lot) {
+        if (!lot || typeof lot !== 'object') return [];
+
+        const orderedClasses = ['1', '2', '3.1', '3.2', '4', '5'];
+        const rank = new Map(orderedClasses.map((label, index) => [label, index]));
+        const classSet = new Set();
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((piece) => {
+            const state = this.getLocSitEffectiveClassState(piece, lot);
+            if (state && state.activeClass) classSet.add(state.activeClass);
+        });
+
+        if (Array.isArray(lot.pieces)) {
+            lot.pieces.forEach((piece) => {
+                if (!piece || typeof piece !== 'object') return;
+                const state = this.getLocSitEffectiveClassState(piece, lot);
+                if (state && state.activeClass) classSet.add(state.activeClass);
+            });
+        }
+
+        return Array.from(classSet).sort((a, b) => {
+            const aRank = rank.has(a) ? rank.get(a) : Number.MAX_SAFE_INTEGER;
+            const bRank = rank.has(b) ? rank.get(b) : Number.MAX_SAFE_INTEGER;
+            if (aRank !== bRank) return aRank - bRank;
+            return String(a).localeCompare(String(b));
+        });
+    }
+
+    formatPdfLotEffectiveUseClasses(lot) {
+        const classes = this.getPdfLotEffectiveUseClasses(lot);
+        return classes.length ? classes.join(', ') : '—';
+    }
+
 
 
 
@@ -29572,6 +30489,7 @@ renderRadar() {
             tpdf('pdf.lot.type', 'Type', 'Type'),
             tpdf('pdf.lot.product', 'Produit', 'Product'),
             tpdf('pdf.lot.species', 'Essence', 'Species'),
+            tpdf('pdf.lot.effectiveUseClassShort', 'Classe d’emploi eff.', 'Eff. use class'),
             tpdf('pdf.lot.volume', 'Volume', 'Volume'),
             tpdf('pdf.lot.price', 'Prix', 'Price'),
             tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'),
@@ -29595,6 +30513,7 @@ renderRadar() {
                 this.getPdfLotCompositionValue(lot, 'typePiece'),
                 this.getPdfLotCompositionValue(lot, 'typeProduit'),
                 this.getPdfLotCompositionValue(lot, 'essenceNomCommun'),
+                this.formatPdfLotEffectiveUseClasses(lot),
                 this.formatPdfVolume(allotissement.volumeLot),
                 this.formatPdfCurrency(allotissement.prixLot),
                 orientation.label,
@@ -29621,9 +30540,9 @@ renderRadar() {
                 lotIdentityRows.length ? lotIdentityRows : [lotIdentityHeaders.map(() => '—')],
                 {
                     fontSize: f.tableCompact,
-                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto'],
-                    noWrapColumns: [0, 4, 5, 6, 7],
-                    columnAlignments: ['left', 'left', 'left', 'left', 'right', 'right', 'left', 'right'],
+                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 4, 5, 6, 7, 8],
+                    columnAlignments: ['left', 'left', 'left', 'left', 'center', 'right', 'right', 'left', 'right'],
                     padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
                 }
             ),
@@ -29943,11 +30862,15 @@ renderRadar() {
             ? tpdf('pdf.common.yes', 'Oui', 'Yes') + ` (${this.formatPdfDecimal(mmSummary.validPieces, 0, 0)})`
             : tpdf('pdf.common.no', 'Non', 'No');
         const mmSectionsLabel = mmSummary.totalSections > 0 ? this.formatPdfDecimal(mmSummary.totalSections, 0, 0) : '—';
+        const lotSituationExport = this.getLocSitLotSituationExportSummary(currentLot);
 
         const lotPairs = [
             { label: tpdf('pdf.lot.pieceType', 'Type de pièces', 'Piece type'), value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
             { label: tpdf('pdf.lot.productType', 'Type de produit', 'Product type'), value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
             { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
+            { label: tpdf('pdf.lot.effectiveUseClass', 'Classe d’emploi effective', 'Effective use class'), value: this.formatPdfLotEffectiveUseClasses(currentLot) },
+            { label: tpdf('pdf.lot.situationNormRef', 'Réf. normative situation', 'Situation norm ref'), value: lotSituationExport.normRef || '—' },
+            { label: tpdf('pdf.lot.situationGuide', 'Note guide situation', 'Situation guide note'), value: lotSituationExport.guideShort || '—' },
             { label: tpdf('pdf.lot.quantity', 'Quantité', 'Quantity'), value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
             { label: tpdf('pdf.lot.avgDims', 'Dimensions moyennes (mm) (L × l × e)', 'Average dimensions (mm) (L × W × T)'), value: dimensionsValue },
             { label: tpdf('pdf.lot.volumeLot', 'Volume lot', 'Lot volume'), value: this.formatPdfVolume(allotissement.volumeLot) },
@@ -30279,6 +31202,9 @@ renderRadar() {
             'Nom pièce',
             'Localisation pièce',
             'Situation pièce',
+            'Référence normative situation pièce',
+            'Note guide courte situation pièce',
+            'Classe d’emploi effective pièce',
             'Type de pièce',
             'Type de produit',
             'Essence (nom commun)',
@@ -30313,6 +31239,9 @@ renderRadar() {
             'Quantité source (pièce par défaut)',
             'Localisation lot',
             'Situation lot',
+            'Référence normative situation lot',
+            'Note guide courte situation lot',
+            'Classe(s) d’emploi effective(s) lot',
             'Destination lot',
             'Type pièce lot',
             'Type produit lot',
@@ -30454,6 +31383,8 @@ renderRadar() {
             const allotissement = lot.allotissement || {};
             const lotLabel = this.getPdfLotLabel(lot, lotIndex);
             const orientation = this.getPdfOrientationSummary(lot);
+            const lotEffectiveUseClasses = this.formatPdfLotEffectiveUseClasses(lot);
+            const lotSituationExport = this.getLocSitLotSituationExportSummary(lot);
             const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
             const expandedPieces = [];
 
@@ -30485,6 +31416,8 @@ renderRadar() {
                 const piece = entry.piece || {};
                 const sectionValues = [];
                 const climate = this.getGeoFranceClimateExportData(meta.geoFrance || {});
+                const pieceSituation = getPieceValue(piece.situation, lot.situation);
+                const pieceSituationExport = this.getLocSitSituationExportInfoByValue(pieceSituation);
 
                 sections.forEach((section) => {
                     section.rows.forEach((rowDef) => {
@@ -30503,7 +31436,10 @@ renderRadar() {
                     withDash(piece.id || piece.sourceDefaultPieceId),
                     withDash(piece.nom),
                     withDash(getPieceValue(piece.localisation, lot.localisation)),
-                    withDash(getPieceValue(piece.situation, lot.situation)),
+                    withDash(pieceSituation),
+                    withDash(pieceSituationExport.normRef),
+                    withDash(pieceSituationExport.guideShort),
+                    withDash((this.getLocSitEffectiveClassState(piece, lot) || {}).activeClass),
                     withDash(getPieceValue(piece.typePiece, allotissement.typePiece)),
                     withDash(getPieceValue(piece.typeProduit, allotissement.typeProduit)),
                     withDash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)),
@@ -30538,6 +31474,9 @@ renderRadar() {
                     withDash(entry.sourceQuantity),
                     withDash(lot.localisation),
                     withDash(lot.situation),
+                    withDash(lotSituationExport.normRef),
+                    withDash(lotSituationExport.guideShort),
+                    withDash(lotEffectiveUseClasses),
                     withDash(allotissement.destination),
                     withDash(allotissement.typePiece),
                     withDash(allotissement.typeProduit),
@@ -30693,6 +31632,9 @@ renderRadar() {
             { label: 'Date estimée début chantier', getValue: () => meta.dateDebutChantier || '-' },
             { label: 'Date estimée fin chantier', getValue: () => meta.dateFinChantier || '-' },
             { label: 'Révision', getValue: () => meta.revision !== undefined ? meta.revision : '-' },
+            { label: 'Référentiel Loc-Sit (version)', getValue: () => this.getLocSitReferentialMeta().versionRef || '-' },
+            { label: 'Référentiel Loc-Sit (mise à jour)', getValue: () => this.getLocSitReferentialMeta().updatedAt || '-' },
+            { label: 'Référentiel Loc-Sit (validation)', getValue: () => this.getLocSitReferentialMeta().validatedBy || '-' },
             
             // --- DIAGNOSTIQUEUR ---
             { label: 'Diagnostiqueur (Structure)', getValue: () => meta.diagnostiqueurNom || '-' },
@@ -30770,6 +31712,9 @@ renderRadar() {
             { label: 'Nom du lot', getValue: (lot) => (lot && lot.nom) || '-' },
             { label: 'Localisation du lot', getValue: (lot) => (lot && lot.localisation) || '-' },
             { label: 'Situation du lot', getValue: (lot) => (lot && lot.situation) || '-' },
+            { label: 'Référence normative situation lot', getValue: (lot) => this.getLocSitLotSituationExportSummary(lot).normRef },
+            { label: 'Note guide courte situation lot', getValue: (lot) => this.getLocSitLotSituationExportSummary(lot).guideShort },
+            { label: 'Classe(s) d’emploi effective(s) du lot', getValue: (lot) => this.formatPdfLotEffectiveUseClasses(lot) },
             { label: 'Destination', getValue: (lot) => ((lot && lot.allotissement) || {}).destination || '-' },
             { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '-' },
             { label: 'Type de produit', getValue: (lot) => ((lot && lot.allotissement) || {}).typeProduit || '-' },

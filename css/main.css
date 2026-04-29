@@ -2461,6 +2461,269 @@ body.day-mode .lot-group--collapsible summary::after {
     margin-bottom: 6px;
 }
 
+.lot-group--loc-sit .lot-input--auto {
+    background: #f4f4f4;
+    cursor: default;
+}
+
+.lot-group--loc-sit .lot-input--missing {
+    color: #8d8d8d;
+    font-style: italic;
+}
+
+.loc-sit-conception-group {
+    display: flex;
+    gap: 6px;
+}
+
+.loc-sit-conception-btn {
+    flex: 1;
+    min-height: 30px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background: #ececec;
+    color: #8d8d8d;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.loc-sit-conception-btn.is-active {
+    background: var(--bleu-crai);
+    color: var(--blanc-pur, #fff);
+    border-color: var(--bleu-crai);
+}
+
+.loc-sit-class-pill-list {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 6px;
+}
+
+.loc-sit-class-pill {
+    height: 30px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background: #ececec;
+    color: #b3b3b3;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    user-select: none;
+    transition: opacity 0.15s, color 0.15s, border-color 0.15s, background-color 0.15s;
+}
+
+.loc-sit-class-pill:not(.is-active) {
+    opacity: 0.72;
+}
+
+.loc-sit-class-pill[title] {
+    cursor: help;
+}
+
+.loc-sit-class-pill.is-active {
+    background: var(--bleu-crai);
+    color: var(--blanc-pur, #fff);
+    border-color: var(--bleu-crai);
+}
+
+.loc-sit-custom-editor {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-base);
+    background: #fafafa;
+}
+
+.loc-sit-custom-editor-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.loc-sit-dictionary-groups {
+    display: grid;
+    gap: 10px;
+}
+
+.loc-sit-dictionary-group {
+    display: grid;
+    gap: 6px;
+}
+
+.loc-sit-dictionary-group-title {
+    margin: 0;
+    font-size: var(--font-size-sm);
+    color: #344054;
+}
+
+.loc-sit-referential-meta {
+    margin: 4px 0 8px;
+    font-size: 12px;
+    color: #475467;
+}
+
+.loc-sit-row__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.loc-sit-row__actions {
+    display: flex;
+    gap: 6px;
+}
+
+.loc-sit-row__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+}
+
+.loc-sit-row__field {
+    min-width: 0;
+    display: grid;
+    gap: 3px;
+}
+
+.loc-sit-row__label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #667085;
+    margin-bottom: 3px;
+}
+
+.loc-sit-row__value {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    padding: 0 8px;
+    border: 1px solid #e4e4e4;
+    border-radius: var(--radius-sm);
+    background: #fafafa;
+    font-size: var(--font-size-sm);
+}
+
+.loc-sit-row__meta {
+    margin-top: 8px;
+    display: grid;
+    gap: 4px;
+}
+
+.loc-sit-row__meta-item {
+    font-size: 12px;
+    color: #475467;
+}
+
+.loc-sit-row__tags {
+    margin-top: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.loc-sit-tag {
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid #bfd8ef;
+    background: #edf6fd;
+    color: #1d4f7a;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.loc-sit-row__details {
+    margin-top: 8px;
+}
+
+.loc-sit-row__details > summary {
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.loc-sit-row__details-body {
+    margin-top: 6px;
+    padding: 8px;
+    border: 1px solid #e4e7ec;
+    border-radius: var(--radius-sm);
+    background: #fcfcfd;
+    font-size: 12px;
+    color: #344054;
+    display: grid;
+    gap: 6px;
+}
+
+.loc-sit-row__details-body p {
+    margin: 0;
+}
+
+.loc-sit-table-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.loc-sit-table-source,
+.loc-sit-table-lock {
+    font-size: 12px;
+    font-weight: 600;
+    color: #667085;
+}
+
+.loc-sit-table-empty {
+    text-align: center;
+    color: #8d8d8d;
+    font-style: italic;
+}
+
+@media (max-width: 700px) {
+    .lot-group--loc-sit .lot-group-content {
+        display: grid;
+        gap: 6px;
+    }
+
+    .lot-group--loc-sit .lot-group-content-actions {
+        margin-bottom: 0;
+    }
+
+    .loc-sit-class-pill-list {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .loc-sit-class-pill {
+        height: 28px;
+        font-size: 12px;
+    }
+
+    .loc-sit-custom-editor-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .loc-sit-row__head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .loc-sit-row__actions {
+        width: 100%;
+    }
+
+    .loc-sit-row__actions .btn {
+        flex: 1;
+    }
+
+    .loc-sit-row__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .loc-sit-row__meta {
+        gap: 6px;
+    }
+}
+
 /* Modale Loc-Sit : tableaux FD P 20-651 */
 .detail-modal-fdp-tables {
     display: flex;

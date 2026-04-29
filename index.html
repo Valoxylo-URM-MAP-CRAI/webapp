@@ -4399,53 +4399,53 @@
                             <p class="detail-modal-paragraph">Préciser la localisation physique dans l'ouvrage (ex. : Hall A, façade nord, local technique, toiture, sous-face de plancher).</p>
                             <p class="detail-modal-paragraph">Attention : la classe d'emploi n'est pas seulement situationnelle. Elle est aussi contextuelle, relative à l'usage et à l'état du bâtiment. Un solivage issu d'un ouvrage en friche peut être reclassé en classe 2 voire 3 si des flaques ont pu être observées sur les sols intérieurs.</p>
 
-                            <h3 class="detail-modal-subtitle">Situation du lot</h3>
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th>Position constructive</th>
-                                        <th>Classe d'emploi indicative</th>
-                                        <th>Exemples</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Intérieur, local chauffé, sec</td>
-                                        <td>1</td>
-                                        <td>Parquet, lambris, meuble</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Sous abri, comble ventilé, sans pluie directe</td>
-                                        <td>2</td>
-                                        <td>Charpente de toiture, solivage abrité</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Façade en retrait sous débord de toiture</td>
-                                        <td>2 à 3.1</td>
-                                        <td>Bardage abrité, menuiserie en feuillure</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Extérieur, surface verticale, pleine exposition</td>
-                                        <td>3.1 à 3.2</td>
-                                        <td>Bardage exposé, menuiserie extérieure</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Extérieur, surface horizontale exposée</td>
-                                        <td>3.2 à 4</td>
-                                        <td>Platelage, pergola, solive de terrasse</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Contact direct avec le sol ou eau douce</td>
-                                        <td>4</td>
-                                        <td>Poteau, pieu, élément enterré</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Immersion en eau salée</td>
-                                        <td>5</td>
-                                        <td>Structure maritime, ponton</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                            <h3 class="detail-modal-subtitle">Situation dans la construction</h3>
+                            <p class="loc-sit-referential-meta" id="locSitReferentialMeta"></p>
+                            <div class="loc-sit-dictionary-groups">
+                                <section class="loc-sit-dictionary-group">
+                                    <h4 class="loc-sit-dictionary-group-title">Situations de base</h4>
+                                    <div class="price-preset-editor__list" id="locSitSituationBaseRows"></div>
+                                </section>
+                                <section class="loc-sit-dictionary-group">
+                                    <h4 class="loc-sit-dictionary-group-title">Situations personnalisées</h4>
+                                    <div class="price-preset-editor__list" id="locSitSituationCustomRows"></div>
+                                </section>
+                            </div>
+                            <div class="loc-sit-custom-editor">
+                                <input type="hidden" id="inputLocSitCustomEditId">
+                                <div class="loc-sit-custom-editor-grid">
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" for="inputLocSitCustomLabel">Position constructive (ajout utilisateur)</label>
+                                        <input type="text" class="lot-input" id="inputLocSitCustomLabel" placeholder="Ex: Bardage en zone ventée">
+                                    </div>
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" for="selectLocSitCustomType">Type de règle</label>
+                                        <select class="lot-input" id="selectLocSitCustomType">
+                                            <option value="fixed-1">Classe fixe 1</option>
+                                            <option value="fixed-2">Classe fixe 2</option>
+                                            <option value="fixed-3.1">Classe fixe 3.1</option>
+                                            <option value="fixed-3.2">Classe fixe 3.2</option>
+                                            <option value="fixed-4">Classe fixe 4</option>
+                                            <option value="fixed-5">Classe fixe 5</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="lot-field-block">
+                                    <label class="lot-field-label" for="inputLocSitCustomExamples">Exemples / précisions</label>
+                                    <input type="text" class="lot-input" id="inputLocSitCustomExamples" placeholder="Ex: Zone de stockage extérieure, appuis ponctuels humides">
+                                </div>
+                                <div class="loc-sit-custom-editor-grid">
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" for="inputLocSitCustomNormRef">Référence normative (optionnel)</label>
+                                        <input type="text" class="lot-input" id="inputLocSitCustomNormRef" placeholder="Ex: EN 335:2013 §4.7">
+                                    </div>
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label" for="inputLocSitCustomGuideShort">Note guide courte (optionnel)</label>
+                                        <input type="text" class="lot-input" id="inputLocSitCustomGuideShort" maxlength="180" placeholder="Conseil terrain (160-180 caractères max)">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary" id="btnLocSitCustomAdd">Enregistrer la ligne personnalisée</button>
+                            </div>
                             <p class="detail-modal-paragraph">Note : tout élément entièrement situé dans la zone protégée par un débord de toiture (hauteur H liée à la profondeur du débord D) peut être affecté en classe d'emploi 2, quelle que soit sa position constructive apparente.</p>
 
                             <h3 class="detail-modal-subtitle">Conception - Mise en œuvre</h3>
