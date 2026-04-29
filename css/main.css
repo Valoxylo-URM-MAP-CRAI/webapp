@@ -2455,6 +2455,116 @@ body.day-mode .lot-group--collapsible summary::after {
     background-color: #162e72;
 }
 
+.lot-longevite-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    align-items: end;
+    margin-top: 8px;
+}
+
+.lot-longevite-row .longevite-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    background-color: var(--bleu-crai);
+    border: none;
+    border-radius: var(--radius-base);
+    color: var(--blanc-pur, #fff);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.lot-longevite-row .longevite-info-btn:hover {
+    background-color: #162e72;
+}
+
+/* =============================================
+   Modale Longévité estimée (FD P 20-651)
+   ============================================= */
+.longevite-info-context {
+    background: var(--bleu-crai-pale, #e8ecf7);
+    border-radius: var(--radius-base);
+    padding: var(--space-12, 12px);
+    margin-bottom: var(--space-12, 12px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6, 6px);
+}
+.longevite-info-context__row {
+    display: flex;
+    gap: var(--space-8, 8px);
+    align-items: baseline;
+}
+.longevite-info-context__label {
+    font-weight: 600;
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--bleu-crai);
+    min-width: 180px;
+    flex-shrink: 0;
+}
+.longevite-info-context__value { font-size: var(--text-sm, 0.875rem); }
+.longevite-info-context__value--note { font-style: italic; color: var(--gris-fonce, #555); }
+.longevite-info-context__value--missing { color: var(--rouge-alerte, #c0392b); }
+
+.longevite-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8, 8px);
+    margin-bottom: var(--space-12, 12px);
+}
+.longevite-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-6, 6px);
+    font-size: var(--text-xs, 0.8rem);
+}
+.longevite-legend-item__badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: var(--text-xs, 0.8rem);
+    min-width: 24px;
+    text-align: center;
+}
+.longevite-legend-item--l3 .longevite-legend-item__badge { background: #d4edda; color: #155724; }
+.longevite-legend-item--l2 .longevite-legend-item__badge { background: #fff3cd; color: #856404; }
+.longevite-legend-item--l1 .longevite-legend-item__badge { background: #fde8d8; color: #b34700; }
+.longevite-legend-item--n  .longevite-legend-item__badge { background: #f8d7da; color: #721c24; }
+
+.longevite-table-scroll { overflow-x: auto; }
+.longevite-table { border-collapse: collapse; width: 100%; font-size: var(--text-xs, 0.8rem); }
+.longevite-table th,
+.longevite-table td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: center; vertical-align: middle; white-space: nowrap; }
+.longevite-table th:first-child,
+.longevite-table td:first-child { text-align: left; white-space: normal; min-width: 160px; }
+.longevite-table thead th { background: var(--bleu-crai, #1e3e88); color: #fff; font-weight: 700; }
+
+.detail-modal-fdp-tables .longevite-cell--l3 { background: #d4edda; color: #155724; font-weight: 600; }
+.detail-modal-fdp-tables .longevite-cell--l2 { background: #fff3cd; color: #856404; font-weight: 600; }
+.detail-modal-fdp-tables .longevite-cell--l1 { background: #fde8d8; color: #b34700; font-weight: 600; }
+.detail-modal-fdp-tables .longevite-cell--n  { background: #f8d7da; color: #721c24; font-weight: 600; }
+
+.longevite-table-row--active td {
+    outline: 2px solid var(--bleu-crai);
+    outline-offset: -2px;
+    background-color: var(--bleu-crai-pale, #e8ecf7) !important;
+    font-weight: 600;
+}
+
+.longevite-aubier-marker {
+    font-size: 0.7rem;
+    color: var(--gris-fonce, #777);
+    cursor: help;
+    margin-left: 2px;
+}
+
+
 .lot-group--loc-sit .lot-group-content-actions {
     display: flex;
     justify-content: flex-end;

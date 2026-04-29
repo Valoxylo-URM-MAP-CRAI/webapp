@@ -4536,6 +4536,20 @@
                     </div>
                 </div>
 
+                <div class="modal-backdrop hidden" id="longeviteInfoModalBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="longeviteInfoModalTitle">
+                        <header class="modal-header">
+                            <h2 id="longeviteInfoModalTitle" class="text-center">Longévité estimée (FD P 20-651)</h2>
+                            <button class="modal-close" type="button" id="btnCloseLongeviteInfoModal">×</button>
+                        </header>
+                        <div class="modal-body detail-modal-content" id="longeviteInfoModalBody">
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-primary btn-full" type="button" id="btnCloseLongeviteInfoModalFooter">J'ai compris</button>
+                        </footer>
+                    </div>
+                </div>
+
 <div class="modal-backdrop hidden" id="denatDetailModalBackdrop" aria-hidden="true">
                     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="denatDetailModalTitle">
                         <header class="modal-header">
@@ -5085,6 +5099,7 @@
     <script defer src="js/data/france-cantons.js"></script>
     <script defer src="js/data/climate-humidification-fd-p20-651.js"></script>
     <script defer src="js/data/climate-humidification-fd-p20-651-aliases.js"></script>
+    <script defer src="js/data/longevite-fd-p20-651.js"></script>
     <script defer src="js/data/termites-cerema.js"></script>
     <script defer src="js/data/merules-cerema.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
