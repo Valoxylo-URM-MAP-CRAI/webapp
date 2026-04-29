@@ -1052,11 +1052,29 @@
                                                     data-geo-france-role="termite-status">
                                                 <small class="accueil-geo-france-climate-hint accueil-geo-france-termite-hint" data-geo-france-role="termite-hint" hidden></small>
                                             </div>
+                                            <div class="accueil-meta-row accueil-meta-row--full accueil-geo-france-merule-field-group">
+                                                <label class="accueil-meta-label" for="inputGeoMerules">
+                                                    Vigilance mérules
+                                                    <span class="accueil-geo-france-climate-norm">(Cerema / Cartagene – 2024)</span>
+                                                </label>
+                                                <input
+                                                    id="inputGeoMerules"
+                                                    type="text"
+                                                    class="accueil-input accueil-geo-france-merule-input"
+                                                    readonly
+                                                    placeholder="Sélectionnez un département"
+                                                    data-geo-france-role="merule-status">
+                                                <small class="accueil-geo-france-climate-hint accueil-geo-france-merule-hint" data-geo-france-role="merule-hint" hidden></small>
+                                            </div>
                                             <div class="accueil-geo-france-summary" data-geo-france-role="summary" aria-live="polite"></div>
                                             <div class="accueil-geo-france-actions">
                                                 <button type="button" class="btn btn-outline accueil-geo-france-detect-btn" data-geo-france-role="detect" hidden>Détecter depuis « Adresse »</button>
-                                                <button type="button" class="btn btn-secondary accueil-geo-france-info-btn" data-geo-france-role="info">Info</button>
-                                                <button type="button" class="btn btn-secondary accueil-geo-france-reset-btn" data-geo-france-role="reset">Réinitialiser la sélection</button>
+                                                <button type="button" class="btn btn-secondary accueil-geo-france-info-btn accueil-geo-france-icon-btn" data-geo-france-role="info" title="Info" aria-label="Info">
+                                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                                                </button>
+                                                <button type="button" class="btn btn-secondary accueil-geo-france-reset-btn accueil-geo-france-icon-btn" data-geo-france-role="reset" title="Réinitialiser la sélection" aria-label="Réinitialiser la sélection">
+                                                    <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg>
+                                                </button>
                                                 <span class="accueil-geo-france-detect-status" data-geo-france-role="detect-status" aria-live="polite" hidden></span>
                                             </div>
                                         </div>
@@ -3439,27 +3457,44 @@
 
             <!-- Modale info sources cartographie géographique -->
             <div class="modal-backdrop hidden" id="geoFranceSourcesModalBackdrop" aria-hidden="true">
-                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="geoFranceSourcesModalTitle" style="max-width:640px;">
+                <div class="modal geo-france-sources-modal" role="dialog" aria-modal="true" aria-labelledby="geoFranceSourcesModalTitle">
                     <header class="modal-header">
                         <h2 id="geoFranceSourcesModalTitle" class="text-center">Sources cartographie et autosélection</h2>
                         <button class="modal-close" type="button" id="btnCloseGeoFranceSourcesModal">&times;</button>
                     </header>
-                    <div class="modal-body detail-modal-content" style="font-size:0.9rem; line-height:1.55;">
-                        <h3 class="detail-modal-subtitle" style="margin-top:0;">Origine de la carte GeoJSON</h3>
-                        <p>La carte affichée dans ce panneau est générée à partir des jeux de données GeoJSON des départements et cantons embarqués localement dans l’application (variables JavaScript globales) pour rester disponibles en mode autonome/standalone.</p>
-
-                        <h3 class="detail-modal-subtitle">Origine de l’autosélection département/canton</h3>
-                        <p>L’autosélection s’appuie sur deux API publiques françaises:</p>
+                    <div class="modal-body detail-modal-content geo-france-sources-content" style="font-size:0.9rem; line-height:1.55;">
+                        <h3 class="detail-modal-subtitle" style="margin-top:0;">Données cartographiques locales</h3>
+                        <p>La carte de ce panneau est générée à partir des jeux de données GeoJSON des départements et cantons de France métropolitaine, produits par Grégoire David à partir des sources IGN / data.gouv.fr et embarqués dans l'application (variables JavaScript globales) pour rester disponibles en mode autonome/standalone.</p>
                         <ul>
-                            <li><strong>geo.api.gouv.fr</strong> pour retrouver la commune et le département à partir du code postal et du nom de commune.</li>
-                            <li><strong>api-adresse.data.gouv.fr</strong> pour géocoder l’adresse et affiner le canton quand la commune est ambiguë.</li>
+                            <li><a class="detail-modal-link" href="https://github.com/gregoiredavid/france-geojson" target="_blank" rel="noopener noreferrer">france-geojson — G. David (GitHub, données IGN / data.gouv.fr)</a></li>
                         </ul>
-                        <p>Flux appliqué: 1) identification commune/département, 2) correspondance nominale des cantons, 3) fallback géocodé uniquement si nécessaire.</p>
 
-                        <h3 class="detail-modal-subtitle">Endpoints utilisés</h3>
+                        <h3 class="detail-modal-subtitle">Autosélection département/canton</h3>
+                        <p>L'autosélection s'appuie sur deux API publiques françaises :</p>
                         <ul>
-                            <li>https://geo.api.gouv.fr/communes?codePostal=...&fields=nom,code,codeDepartement&boost=population&limit=20</li>
-                            <li>https://api-adresse.data.gouv.fr/search/?limit=5&q=...</li>
+                            <li><strong>geo.api.gouv.fr</strong> pour identifier la commune et le département depuis le code postal et le nom de commune.</li>
+                            <li><strong>api-adresse.data.gouv.fr</strong> pour géocoder l'adresse et affiner le canton quand la commune est ambiguë.</li>
+                        </ul>
+                        <p>Flux appliqué : 1) identification commune/département, 2) correspondance nominale des cantons, 3) fallback géocodé uniquement si nécessaire.</p>
+
+                        <h3 class="detail-modal-subtitle">Endpoints publics utilisés</h3>
+                        <ul>
+                            <li><a class="detail-modal-link" href="https://geo.api.gouv.fr/communes?codePostal=...&fields=nom,code,codeDepartement&boost=population&limit=20" target="_blank" rel="noopener noreferrer">geo.api.gouv.fr/communes (recherche commune/département)</a></li>
+                            <li><a class="detail-modal-link" href="https://api-adresse.data.gouv.fr/search/?limit=5&q=..." target="_blank" rel="noopener noreferrer">api-adresse.data.gouv.fr/search (géocodage d'adresse)</a></li>
+                        </ul>
+
+                        <h3 class="detail-modal-subtitle">Sources Cerema — Termites et mérules</h3>
+                        <ul>
+                            <li><strong>Termites</strong> : couche <em>departement_termite</em> (vigilance par arrêté préfectoral), actualisation 21/03/2024.</li>
+                            <li><strong>Mérules</strong> : couche <em>GM_perimetre</em> (périmètres communaux/intercommunaux), actualisation 21/03/2024.</li>
+                            <li><a class="detail-modal-link" href="https://www.cerema.fr/fr/actualites/cartographie-nationale-termites-merules" target="_blank" rel="noopener noreferrer">Cerema — Cartographie nationale termites et mérules</a></li>
+                            <li><a class="detail-modal-link" href="https://cartagene.cerema.fr/portal/home/search.html?restrict=false&sortField=relevance&sortOrder=desc&searchTerm=owner%3A%22aurelien.andrieu%22#content" target="_blank" rel="noopener noreferrer">CartagèNE (Cerema) — jeux de données termites/mérules</a></li>
+                        </ul>
+
+                        <h3 class="detail-modal-subtitle">Référence normative — FD P 20-651</h3>
+                        <p>La qualification d'exposition et de durabilité dans l'application s'appuie sur la FD P 20-651 (<em>Durabilité des éléments et ouvrages en bois</em>), en cohérence avec les classes de la NF EN 350 utilisées dans les cartouches d'aide.</p>
+                        <ul>
+                            <li><a class="detail-modal-link" href="https://www.boutique.afnor.org/fr-fr/norme/fd-p20651/durabilite-des-elements-et-ouvrages-en-bois/fa174309/37584#AreasStoreProductsRichContentView_UPSELL" target="_blank" rel="noopener noreferrer">AFNOR — FD P 20-651 : Durabilité des éléments et ouvrages en bois</a></li>
                         </ul>
                     </div>
                     <footer class="modal-footer">
@@ -4351,6 +4386,29 @@
                     </div>
                 </div>
 
+<div class="modal-backdrop hidden" id="locSitInfoModalBackdrop" aria-hidden="true">
+                    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="locSitInfoModalTitle">
+                        <header class="modal-header">
+                            <h2 id="locSitInfoModalTitle" class="text-center">Localisation - Situation</h2>
+                            <button class="modal-close" type="button" id="btnCloseLocSitInfoModal">×</button>
+                        </header>
+                        <div class="modal-body detail-modal-content">
+                            <p>Ce bloc aide à qualifier le contexte d'usage de la pièce pour guider l'évaluation.</p>
+                            <p><strong>Bâtiment, zone, espace…</strong> : préciser où se trouve la pièce dans l'ouvrage (ex. Hall A, façade nord, local technique, toiture).</p>
+                            <p><strong>Situation du lot</strong> : caractériser la position constructive de la pièce (ex. toiture, murs, plancher, revêtement intérieur/extérieur, structure libre).</p>
+                            <p><strong>Conception - Mise en œuvre</strong> : indiquer le niveau de conception vis-à-vis de l'eau et de l'humidité :</p>
+                            <ul>
+                                <li><strong>Piégeante</strong> : configuration favorisant la rétention d'eau/humidité.</li>
+                                <li><strong>Moyenne</strong> : configuration intermédiaire.</li>
+                                <li><strong>Drainante</strong> : configuration favorisant l'écoulement et le séchage.</li>
+                            </ul>
+                        </div>
+                        <footer class="modal-footer">
+                            <button class="btn btn-primary btn-full" type="button" id="btnCloseLocSitInfoModalFooter">J'ai compris</button>
+                        </footer>
+                    </div>
+                </div>
+
 <div class="modal-backdrop hidden" id="denatDetailModalBackdrop" aria-hidden="true">
                     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="denatDetailModalTitle">
                         <header class="modal-header">
@@ -4878,6 +4936,11 @@
             </div>
         </div>
         <datalist id="liste-situations"></datalist>
+        <datalist id="liste-conception-mise-en-oeuvre">
+            <option value="Piégeante"></option>
+            <option value="Moyenne"></option>
+            <option value="Drainante"></option>
+        </datalist>
     </main>
 
     <script defer src="js/i18n/valobois-locales.js"></script>
@@ -4896,6 +4959,7 @@
     <script defer src="js/data/climate-humidification-fd-p20-651.js"></script>
     <script defer src="js/data/climate-humidification-fd-p20-651-aliases.js"></script>
     <script defer src="js/data/termites-cerema.js"></script>
+    <script defer src="js/data/merules-cerema.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
     <script defer src="js/lib/build-standalone-html.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>

@@ -1095,20 +1095,25 @@ body.day-mode .accueil-collapsible-summary:hover {
 .accueil-geo-france-actions {
     grid-column: 1 / -1;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: 10fr 1fr 1fr;
     align-items: stretch;
     gap: 8px;
 }
 
 .accueil-geo-france-actions .btn {
     width: 100%;
-    min-height: 42px;
+    min-height: 12px;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
     line-height: 1.2;
+}
+
+.accueil-geo-france-icon-btn {
+    padding: 0;
+    aspect-ratio: 1;
 }
 
 .accueil-geo-france-detect-status {
@@ -1247,6 +1252,28 @@ body.day-mode .accueil-collapsible-summary:hover {
 }
 
 .accueil-geo-france-termite-input[data-termite-statut="N"] {
+    color: #007a57;
+    background-color: #f2fbf8;
+    border-color: #009e73;
+}
+
+/* Vigilance mérules */
+.accueil-geo-france-merule-field-group {
+    grid-column: 1 / -1;
+    margin-top: var(--space-8);
+}
+
+.accueil-geo-france-merule-input[readonly] {
+    font-weight: 700;
+}
+
+.accueil-geo-france-merule-input[data-merule-statut="P"] {
+    color: #b07800;
+    background-color: #fff8eb;
+    border-color: #e69f00;
+}
+
+.accueil-geo-france-merule-input[data-merule-statut="N"] {
     color: #007a57;
     background-color: #f2fbf8;
     border-color: #009e73;
@@ -1667,11 +1694,32 @@ body.day-mode .accueil-collapsible-summary:hover {
         .detail-modal-content {
             display: grid;
             gap: 10px;
+            min-width: 0;
         }
 
         .detail-modal-content p {
             margin: 0;
             line-height: 1.55;
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .detail-modal-content ul,
+        .detail-modal-content li,
+        .detail-modal-content a {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+        }
+
+        .detail-modal-content ul {
+            margin: 0;
+            padding-left: 18px;
+        }
+
+        .detail-modal-content li + li {
+            margin-top: 6px;
         }
 
         .detail-modal-subtitle {
@@ -1714,6 +1762,40 @@ body.day-mode .accueil-collapsible-summary:hover {
             text-decoration: underline;
             text-underline-offset: 2px;
             word-break: break-all;
+        }
+
+        .geo-france-sources-content {
+            overflow-x: hidden;
+        }
+
+        .geo-france-sources-modal {
+            max-width: 640px;
+        }
+
+        @media (max-width: 640px) {
+            #geoFranceSourcesModalBackdrop {
+                padding: 12px;
+                align-items: flex-start;
+            }
+
+            .geo-france-sources-modal {
+                max-width: calc(100vw - 24px);
+                margin-top: 8px;
+            }
+
+            .geo-france-sources-content {
+                font-size: 0.88rem;
+            }
+        }
+
+        @media (max-width: 420px) {
+            #geoFranceSourcesModalBackdrop {
+                padding: 8px;
+            }
+
+            .geo-france-sources-modal {
+                max-width: calc(100vw - 16px);
+            }
         }
 
         .detail-modal-scale {
@@ -2262,7 +2344,7 @@ body.day-mode .accueil-collapsible-summary:hover {
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    margin-bottom: var(--space-2);
+    margin-bottom: 6px;
 }
 
 .lot-group {
@@ -2329,6 +2411,50 @@ body.day-mode .lot-group--collapsible summary::after {
     transform: rotate(90deg);
 }
 
+.lot-group--loc-sit > summary {
+    gap: var(--space-8);
+}
+
+.lot-group--loc-sit > summary::after {
+    content: none;
+}
+
+.lot-group--loc-sit > summary .mesures-accordion-chevron {
+    color: var(--bleu-crai);
+}
+
+.lot-group--loc-sit[open] > summary .mesures-accordion-chevron {
+    transform: rotate(90deg);
+}
+
+.lot-group--loc-sit > summary .lot-group-summary-text {
+    display: inline-flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.lot-group--loc-sit > summary .loc-sit-info-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    margin-left: auto;
+    padding: 0;
+    background-color: var(--bleu-crai);
+    border: none;
+    border-radius: var(--radius-base);
+    color: var(--blanc-pur, #fff);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.15s;
+}
+
+.lot-group--loc-sit > summary .loc-sit-info-btn:hover {
+    background-color: #162e72;
+}
+
 .lot-group--collapsible summary:hover {
     background-color: #e6e8eb;
 }
@@ -2356,7 +2482,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     border-top: none;
     border-radius: 0 0 var(--radius-sm) var(--radius-sm);
     padding: 10px;
-    margin-top: -1px;
+    margin-top: 2px;
     background-color: rgba(255, 255, 255, 0.45);
 }
 

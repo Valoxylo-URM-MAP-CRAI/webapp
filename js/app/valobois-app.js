@@ -846,6 +846,51 @@ class ValoboisApp {
         }
     }
 
+    getGeoFranceMeruleData() {
+        return window.VALOBOIS_MERULES_DATA || {};
+    }
+
+    _updateGeoFranceMeruleDisplay(widget, departementCode) {
+        if (!widget) return;
+        const input = widget.querySelector('[data-geo-france-role="merule-status"]');
+        if (!input) return;
+        const hintEl = widget.querySelector('[data-geo-france-role="merule-hint"]');
+
+        const code = String(departementCode || '').toUpperCase();
+        const entry = code && code !== '00' ? (this.getGeoFranceMeruleData()[code] || null) : null;
+
+        if (!entry) {
+            input.value = '';
+            input.removeAttribute('data-merule-statut');
+            input.placeholder = 'Sélectionnez un département';
+            input.title = '';
+            if (hintEl) { hintEl.textContent = ''; hintEl.hidden = true; }
+            return;
+        }
+
+        const labelMap = {
+            P: 'Arrêtés communaux mérules — périmètre partiel',
+            N: 'Aucun arrêté mérule recensé'
+        };
+        input.value = labelMap[entry.statut] || '';
+        input.setAttribute('data-merule-statut', entry.statut);
+        input.title = 'Source : Cerema / Cartagene – couche GM_perimetre – actualisation 21/03/2024';
+
+        if (hintEl) {
+            let hint = '';
+            if (entry.statut === 'P' && entry.nb_communes > 0) {
+                hint = `${entry.nb_communes} commune${entry.nb_communes > 1 ? 's' : ''} concernée${entry.nb_communes > 1 ? 's' : ''} — vérification nécessaire via carte communale Cerema.`;
+            }
+            if (hint) {
+                hintEl.textContent = hint;
+                hintEl.hidden = false;
+            } else {
+                hintEl.textContent = '';
+                hintEl.hidden = true;
+            }
+        }
+    }
+
     _normalizeGeoFranceWindDirectionToken(rawToken) {
         const token = String(rawToken || '')
             .normalize('NFD')
@@ -1111,11 +1156,13 @@ class ValoboisApp {
                 this._updateGeoFranceWindRose(widget, '', '');
             }
             this._updateGeoFranceTermiteDisplay(widget, code);
+            this._updateGeoFranceMeruleDisplay(widget, code);
             return;
         }
 
         this._updateGeoFranceWindRose(widget, code, '');
         this._updateGeoFranceTermiteDisplay(widget, code);
+        this._updateGeoFranceMeruleDisplay(widget, code);
     }
 
     getCantonsForDepartement(codeRaw) {
@@ -2218,6 +2265,7 @@ class ValoboisApp {
             quantite: '1',
             localisation: '',
             situation: '',
+            conception: '',
             typePiece: '',
             typeProduit: '',
             classeBois: '',
@@ -2256,6 +2304,7 @@ class ValoboisApp {
         if (target.quantite == null || target.quantite === '') target.quantite = fallbackQty;
         if (target.localisation == null) target.localisation = fallbackLocation;
         if (target.situation == null) target.situation = fallbackSituation;
+        if (target.conception == null) target.conception = '';
         if (target.typePiece == null) target.typePiece = '';
         if (target.typeProduit == null) target.typeProduit = '';
         if (target.classeBois == null) target.classeBois = '';
@@ -2352,6 +2401,7 @@ class ValoboisApp {
         if (!defaultPiece) return;
         defaultPiece.localisation = '';
         defaultPiece.situation = '';
+        defaultPiece.conception = '';
         defaultPiece.typePiece = '';
         defaultPiece.typeProduit = '';
         defaultPiece.classeBois = '';
@@ -2388,6 +2438,7 @@ class ValoboisApp {
         piece.sourceDefaultPieceId = source.id || null;
         piece.localisation = source.localisation || '';
         piece.situation = source.situation || '';
+        piece.conception = source.conception || '';
         piece.typePiece = source.typePiece || a.typePiece || '';
         piece.typeProduit = source.typeProduit || a.typeProduit || '';
         piece.classeBois = source.classeBois || a.classeBois || '';
@@ -2473,6 +2524,7 @@ class ValoboisApp {
             quantite: '1', // Nouvelle pièce avec quantité 1
             localisation: source.localisation || '',
             situation: source.situation || '',
+            conception: source.conception || '',
             typePiece: source.typePiece || '',
             typeProduit: source.typeProduit || '',
             classeBois: source.classeBois || '',
@@ -2974,6 +3026,7 @@ class ValoboisApp {
             sourceDefaultPieceId: null,
             localisation: '',
             situation: '',
+            conception: '',
             typePiece: '',
             typeProduit: '',
             classeBois: '',
@@ -14082,11 +14135,24 @@ const durabNatInfoBackdrop = document.getElementById('durabNatInfoModalBackdrop'
 const durabNatInfoClose = document.getElementById('btnCloseDurabNatInfoModal');
 const durabNatInfoCloseFooter = document.getElementById('btnCloseDurabNatInfoModalFooter');
 
+// Modale info Localisation - Situation
+const locSitInfoBackdrop = document.getElementById('locSitInfoModalBackdrop');
+const locSitInfoClose = document.getElementById('btnCloseLocSitInfoModal');
+const locSitInfoCloseFooter = document.getElementById('btnCloseLocSitInfoModalFooter');
+
 if (durabNatInfoBackdrop && durabNatInfoClose && durabNatInfoCloseFooter) {
     durabNatInfoClose.addEventListener('click', () => this.closeDurabNatInfoModal());
     durabNatInfoCloseFooter.addEventListener('click', () => this.closeDurabNatInfoModal());
     durabNatInfoBackdrop.addEventListener('click', (e) => {
         if (e.target === durabNatInfoBackdrop) this.closeDurabNatInfoModal();
+    });
+}
+
+if (locSitInfoBackdrop && locSitInfoClose && locSitInfoCloseFooter) {
+    locSitInfoClose.addEventListener('click', () => this.closeLocSitInfoModal());
+    locSitInfoCloseFooter.addEventListener('click', () => this.closeLocSitInfoModal());
+    locSitInfoBackdrop.addEventListener('click', (e) => {
+        if (e.target === locSitInfoBackdrop) this.closeLocSitInfoModal();
     });
 }
 
@@ -14099,6 +14165,17 @@ if (!this._durabNatInfoClickBound) {
         this.openDurabNatInfoModal();
     });
     this._durabNatInfoClickBound = true;
+}
+
+if (!this._locSitInfoClickBound) {
+    document.addEventListener('click', (e) => {
+        const infoBtn = e.target.closest('.loc-sit-info-btn');
+        if (!infoBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+        this.openLocSitInfoModal();
+    });
+    this._locSitInfoClickBound = true;
 }
 
 // Modale détail denat
@@ -16450,6 +16527,22 @@ closeDurabNatInfoModal() {
     }
 }
 
+openLocSitInfoModal() {
+    const backdrop = document.getElementById('locSitInfoModalBackdrop');
+    if (backdrop) {
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+}
+
+closeLocSitInfoModal() {
+    const backdrop = document.getElementById('locSitInfoModalBackdrop');
+    if (backdrop) {
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
+    }
+}
+
 
     getDenatDetailContents() {
         return this.normalizeModalContentsMap({
@@ -17576,7 +17669,7 @@ closeEvalOpModal() {
 
         if (!lots.length) {
             const emptyText = document.createElement('p');
-            emptyText.style.margin = '5px';
+            emptyText.style.margin = '0';
             emptyText.style.fontSize = '13px';
             emptyText.style.color = '#666666';
             emptyText.textContent = 'Aucun lot disponible.';
@@ -17823,7 +17916,7 @@ closeEvalOpModal() {
         `;
 
         const _locSitKeyDp = `loc-sit:${lot.id}:default:${defaultPieceId}`;
-        const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : !!(defaultPiece.localisation || defaultPiece.situation);
+        const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : !!(defaultPiece.localisation || defaultPiece.situation || defaultPiece.conception);
 
         return `
         <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
@@ -17839,16 +17932,26 @@ closeEvalOpModal() {
                 </div>
             </div>
             <div class="piece-form-grid">
-                <details class="lot-group lot-group--collapsible" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyDp}" ${_locSitOpenDp ? 'open' : ''}>
-                    <summary class="lot-group-summary"><span>Localisation - Situation</span></summary>
+                <details class="lot-group lot-group--collapsible lot-group--loc-sit" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyDp}" ${_locSitOpenDp ? 'open' : ''}>
+                    <summary class="lot-group-summary lot-group-summary--with-info">
+                        <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
+                        <span class="lot-group-summary-text">Localisation - Situation</span>
+                        <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
+                            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </button>
+                    </summary>
                     <div class="lot-group-content">
-                        <div class="lot-field-block" style="margin-bottom: 4px;">
+                        <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${viewValue(defaultPiece.localisation || '')}" placeholder="Bâtiment, zone, espace…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="localisation">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
                             <input type="text" class="lot-input" value="${viewValue(defaultPiece.situation || '')}" placeholder="Situation du lot" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label lot-field-label--hidden">Conception - Mise en œuvre</label>
+                            <input type="text" class="lot-input" value="${viewValue(defaultPiece.conception || '')}" placeholder="Conception - Mise en œuvre" data-default-piece-id="${defaultPieceId}" data-default-piece-input="conception" list="liste-conception-mise-en-oeuvre" autocomplete="off">
                         </div>
                     </div>
                 </details>
@@ -18149,7 +18252,7 @@ closeEvalOpModal() {
         const mesuresActionsP = `<div class="mesures-accordion-actions" data-piece-index="${pieceIndex}">${mesuresInfoBtnP}${mesuresResetBtnP}</div>`;
 
         const _locSitKeyP = `loc-sit:${lot.id}:piece:${pieceIndex}`;
-        const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation);
+        const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation || piece.conception);
 
         return `
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
@@ -18161,16 +18264,26 @@ closeEvalOpModal() {
                 </div>
             </div>
             <div class="piece-form-grid">
-                <details class="lot-group lot-group--collapsible" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyP}" ${_locSitOpenP ? 'open' : ''}>
-                    <summary class="lot-group-summary"><span>Localisation - Situation</span></summary>
+                <details class="lot-group lot-group--collapsible lot-group--loc-sit" style="margin-bottom: 6px;" data-acc-loc-sit="${_locSitKeyP}" ${_locSitOpenP ? 'open' : ''}>
+                    <summary class="lot-group-summary lot-group-summary--with-info">
+                        <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
+                        <span class="lot-group-summary-text">Localisation - Situation</span>
+                        <button type="button" class="loc-sit-info-btn" title="Informations sur les champs de localisation" aria-label="Informations sur les champs de localisation">
+                            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                        </button>
+                    </summary>
                     <div class="lot-group-content">
-                        <div class="lot-field-block" style="margin-bottom: 4px;">
+                        <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Bâtiment, zone, espace…</label>
                             <input type="text" class="lot-input" value="${piece.localisation || ''}" placeholder="Bâtiment, zone, espace…" data-piece-input="localisation">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
                             <input type="text" class="lot-input" value="${piece.situation || ''}" placeholder="Situation du lot" data-piece-input="situation" list="liste-situations" autocomplete="off">
+                        </div>
+                        <div class="lot-field-block">
+                            <label class="lot-field-label lot-field-label--hidden">Conception - Mise en œuvre</label>
+                            <input type="text" class="lot-input" value="${viewValue(piece.conception || '')}" placeholder="Conception - Mise en œuvre" data-piece-input="conception" list="liste-conception-mise-en-oeuvre" autocomplete="off">
                         </div>
                     </div>
                 </details>
