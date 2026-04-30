@@ -20004,13 +20004,13 @@ closeEvalOpModal() {
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                        </summary>
-                        <div class="durab-nat-body">
-                            <div class="durab-nat-body-actions">
+                            <span class="durab-nat-summary-actions">
                                 <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
                                     <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 </button>
-                            </div>
+                            </span>
+                        </summary>
+                        <div class="durab-nat-body">
                             <p class="durab-nat-source">Source : EN 350:2016 — Tableaux 1-10, annexes B.</p>
                             <div class="durab-nat-list"></div>
                         </div>
@@ -20367,13 +20367,13 @@ closeEvalOpModal() {
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                             <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                        </summary>
-                        <div class="durab-nat-body">
-                            <div class="durab-nat-body-actions">
+                            <span class="durab-nat-summary-actions">
                                 <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
                                     <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                 </button>
-                            </div>
+                            </span>
+                        </summary>
+                        <div class="durab-nat-body">
                             <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
                             <div class="durab-nat-list"></div>
                         </div>
@@ -20778,7 +20778,6 @@ closeEvalOpModal() {
                                             class="lot-input"
                                             value="${lotTypePieceDisplay}"
                                             data-lot-input="typePiece"
-                                            list="liste-termes-bois"
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="typePiece"${showTypePieceDetailsBtn ? '' : ' hidden'}>Détail des pièces</button>
@@ -20793,7 +20792,6 @@ closeEvalOpModal() {
                                             class="lot-input"
                                             value="${lotTypeProduitDisplay}"
                                             data-lot-input="typeProduit"
-                                            list="liste-types-produit"
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="typeProduit"${showTypeProduitDetailsBtn ? '' : ' hidden'}>Détail des produits</button>
@@ -20808,7 +20806,6 @@ closeEvalOpModal() {
                                             class="lot-input"
                                             value="${lotClasseBoisDisplay}"
                                             data-lot-input="classeBois"
-                                            list="liste-classes-bois"
                                             autocomplete="off">
                                     </div>
                                     <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="classeBois"${showClasseBoisDetailsBtn ? '' : ' hidden'}>Détail des classes</button>
@@ -20818,8 +20815,8 @@ closeEvalOpModal() {
                         <label class="lot-field-label lot-field-label--subsection">Essence</label>
                         <div class="lot-essence-with-detail${showEssenceDetailsBtn ? ' has-detail-btn' : ''}">
                             <div class="lot-inline-grid lot-inline-grid--lot-essence">
-                                <input type="text" class="lot-input lot-input--essence-common" value="${lotEssenceCommonDisplay}" data-lot-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
-                                <input type="text" class="lot-input lot-input--essence-scientific" value="${lotEssenceScientificDisplay}" data-lot-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
+                                <input type="text" class="lot-input lot-input--essence-common" value="${lotEssenceCommonDisplay}" data-lot-input="essenceNomCommun" autocomplete="off">
+                                <input type="text" class="lot-input lot-input--essence-scientific" value="${lotEssenceScientificDisplay}" data-lot-input="essenceNomScientifique" autocomplete="off">
                             </div>
                             <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="essence"${showEssenceDetailsBtn ? '' : ' hidden'}>Détail des essences</button>
                             ${this.renderTropixTriggerButton(lotTropixInfo, { extraAttributes: ' data-lot-tropix-btn' })}
@@ -20828,16 +20825,18 @@ closeEvalOpModal() {
                             <summary class="mesures-accordion-summary">
                                 <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
                                 <span class="mesures-accordion-title-text">Durabilité naturelle</span>
-                            </summary>
-                            <div class="durab-nat-body">
-                                <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
-                                <div class="durab-nat-body-actions">
+                                <span class="durab-nat-summary-actions">
                                     <button type="button" class="durab-nat-info-btn" title="Informations sur la durabilité naturelle" aria-label="Informations sur la durabilité naturelle">
                                         <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                                     </button>
+                                </span>
+                            </summary>
+                            <div class="durab-nat-body">
+                                <p class="durab-nat-source">Source : NF EN 350:2016 — Données indicatives</p>
+                                <div class="durab-nat-list"></div>
+                                <div class="durab-nat-body-footer">
                                     <button type="button" class="durab-nat-detail-btn" data-durab-nat-detail-btn${showDurabNatDetailsBtn ? '' : ' hidden'}>Détails</button>
                                 </div>
-                                <div class="durab-nat-list"></div>
                             </div>
                         </details>
                     </div>
@@ -20914,7 +20913,7 @@ closeEvalOpModal() {
                             <div class="lot-taux-piecetype-header">
                                 <h3 class="lot-taux-piecetype-title">Pièce type du lot</h3>
                                 <button type="button" class="lot-taux-strategy-badge" data-action="toggleSimilarityStrategy" data-display="similarityStrategyBadge" aria-label="Basculer le mode de similarité">${({ single: 'Mesure unique', multiple: 'Mesures multiples' }[this.getSimilarityStrategy(lot)] || 'Mesure unique')}</button>
-                                <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type">info</button>
+                                <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
                             </div>
                             <div class="lot-taux-piecetype-wrapper">
                                 <div class="lot-field-block lot-field-block--taux-similarite lot-field-block--piece-type-summary">
@@ -21003,7 +21002,7 @@ closeEvalOpModal() {
                                                             type="button"
                                                             class="lot-extreme-piece-info-btn"
                                                             data-lot-extreme-piece-info-btn
-                                                            aria-label="Afficher le nom de la pièce extrême">i</button>
+                                                            aria-label="Afficher le nom de la pièce extrême"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
                                                     </div>
                                                 </div>
                                                 <div class="lot-piece-type-kv">

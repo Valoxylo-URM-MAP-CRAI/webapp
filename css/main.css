@@ -3536,15 +3536,17 @@ body.day-mode .lot-group--collapsible summary:hover {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 2.3em;
-    padding: var(--space-4) var(--space-8);
+    width: 60px;
+    height: 30px;
+    padding: 0 var(--space-4);
     border-radius: var(--radius-base);
     border: 1px solid #A8B7BF;
     background-color: #EDF3F6;
     color: #33444D;
     font-size: var(--font-size-xs);
-    line-height: 1;
-    white-space: nowrap;
+    line-height: 1.2;
+    white-space: normal;
+    text-align: center;
     cursor: pointer;
     transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
 }
@@ -3558,22 +3560,17 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-taux-info-btn {
     flex-shrink: 0;
-    min-width: 36px;
-    max-width: 48px;
-    padding: var(--space-4) var(--space-8);
+    width: 30px;
+    height: 30px;
+    padding: 0;
     border-radius: var(--radius-base);
     border: 1px solid var(--bleu-crai);
     background-color: var(--bleu-crai);
     color: var(--color-white);
-    font-size: var(--font-size-xs);
-    line-height: 1;
-    min-height: 2.3em;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    white-space: nowrap;
-    text-transform: lowercase;
 }
 .lot-piece-type-summary-inline {
     margin-top: var(--space-8);
@@ -3672,20 +3669,17 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-extreme-piece-info-btn {
     flex: 0 0 auto;
-    width: 2.3em;
-    min-height: 2.3em;
+    width: 30px;
+    height: 30px;
     padding: 0;
     border-radius: var(--radius-base);
     border: 1px solid var(--bleu-crai);
     background-color: var(--bleu-crai);
     color: var(--color-white);
-    font-size: var(--font-size-xs);
-    line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    text-transform: lowercase;
 }
 .lot-piece-type-kv-sub {
     font-size: var(--font-size-xs);
@@ -13094,6 +13088,10 @@ body.day-mode .inspection-ignore-box {
     gap: 6px;
 }
 
+.durab-nat-summary-actions .durab-nat-info-btn {
+    margin: 0;
+}
+
 .durab-nat-accordion .durab-nat-detail-btn {
     display: inline-flex;
     align-items: center;
@@ -13108,6 +13106,7 @@ body.day-mode .inspection-ignore-box {
     font-weight: var(--font-weight-semibold);
     cursor: pointer;
     white-space: nowrap;
+    margin: 0;
 }
 
 .durab-nat-accordion .durab-nat-detail-btn:hover {
@@ -13148,6 +13147,12 @@ body.day-mode .inspection-ignore-box {
     display: flex;
     justify-content: flex-start;
     padding: 0 10px 4px;
+}
+
+.durab-nat-body-footer {
+    display: flex;
+    justify-content: flex-start;
+    padding: 6px 10px 2px;
 }
 
 .durab-nat-source {
