@@ -2854,6 +2854,123 @@ class ValoboisApp {
         return Array.from(groups.values());
     }
 
+    getLotEmploymentClassEntries(lot) {
+        if (!lot) return [];
+        const entries = [];
+
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece, index) => {
+            const qty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (qty <= 0) return;
+            const state = this.getLocSitEffectiveClassState(defaultPiece || {}, lot);
+            entries.push({
+                label: `Pièce par défaut ${index + 1} (${Math.round(qty)})`,
+                activeClass: state && state.activeClass ? state.activeClass : '',
+                tooltip: state && state.tooltip ? state.tooltip : ''
+            });
+        });
+
+        (lot.pieces || []).forEach((piece, index) => {
+            const state = this.getLocSitEffectiveClassState(piece || {}, lot);
+            entries.push({
+                label: `Pièce ${index + 1}`,
+                activeClass: state && state.activeClass ? state.activeClass : '',
+                tooltip: state && state.tooltip ? state.tooltip : ''
+            });
+        });
+
+        return entries;
+    }
+
+    getLotEmploymentClassSummary(lot) {
+        const entries = this.getLotEmploymentClassEntries(lot);
+        const classes = Array.from(new Set(entries.map((entry) => entry.activeClass).filter(Boolean)));
+        const missingEntries = entries.filter((entry) => !entry.activeClass);
+        const hasDivergence = classes.length > 1;
+        const hasMissing = missingEntries.length > 0 || entries.length === 0;
+
+        let display = 'Données manquantes';
+        if (classes.length === 1 && !hasMissing) {
+            display = classes[0];
+        } else if (classes.length === 1 && hasMissing) {
+            display = `${classes[0]} (partiel)`;
+        } else if (classes.length > 1) {
+            display = 'Multiples';
+        }
+
+        const detailLines = !entries.length
+            ? ['Aucune pièce détaillée active ne permet de calculer la classe d’emploi du lot.']
+            : entries.map((entry) => {
+                const cls = entry.activeClass || 'Données manquantes';
+                const reason = !entry.activeClass && entry.tooltip ? ` — ${entry.tooltip}` : '';
+                return `${entry.label}: ${cls}${reason}`;
+            });
+
+        const alertText = !entries.length
+            ? 'La section Localisation - Situation ne dispose pas de données exploitables dans le Détail du lot.'
+            : hasDivergence
+                ? 'Les classes d’emploi calculées divergent entre les formulaires de détail. Ouvrir le détail pour arbitrer.'
+                : hasMissing
+                    ? 'Des informations Localisation - Situation sont incomplètes pour une ou plusieurs pièces.'
+                    : '';
+
+        return {
+            entries,
+            classes,
+            display,
+            hasDivergence,
+            hasMissing,
+            showDetail: hasDivergence || hasMissing,
+            detailLines,
+            alertText
+        };
+    }
+
+    updateLocSitCardDisplays(cardRoot, pieceLike, lot, { isDefault = false, defaultPieceId = '', pieceIndex = -1 } = {}) {
+        if (!cardRoot || !lot) return;
+        const state = this.getLocSitEffectiveClassState(pieceLike || {}, lot);
+        const climateDisplay = state.climate && !state.climate.missing ? state.climate.value : 'Données manquantes';
+        const massDisplay = state.massivite && !state.massivite.missing ? state.massivite.value : 'Données manquantes';
+        const climateTooltip = (state.climate && state.climate.tooltip) || '';
+        const massTooltip = (state.massivite && state.massivite.tooltip) || '';
+
+        const climateSelector = isDefault
+            ? `[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="locSitClimate"]`
+            : '[data-piece-display="locSitClimate"]';
+        const massSelector = isDefault
+            ? `[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="locSitMassivite"]`
+            : '[data-piece-display="locSitMassivite"]';
+
+        const climateInput = cardRoot.querySelector(climateSelector);
+        const massInput = cardRoot.querySelector(massSelector);
+        if (climateInput) {
+            climateInput.value = climateDisplay;
+            climateInput.title = climateTooltip;
+            climateInput.classList.toggle('lot-input--missing', !!(state.climate && state.climate.missing));
+        }
+        if (massInput) {
+            massInput.value = massDisplay;
+            massInput.title = massTooltip;
+            massInput.classList.toggle('lot-input--missing', !!(state.massivite && state.massivite.missing));
+        }
+
+        const classPillList = cardRoot.querySelector('.loc-sit-class-pill-list');
+        if (classPillList) {
+            classPillList.title = state.tooltip || '';
+            classPillList.querySelectorAll('.loc-sit-class-pill').forEach((pill) => {
+                const label = (pill.textContent || '').trim();
+                const isActive = state.activeClass === label;
+                const hasActiveClass = !!state.activeClass;
+                const pillTitle = isActive
+                    ? `Classe ${label} retenue automatiquement.`
+                    : hasActiveClass
+                        ? `Classe ${label} non retenue pour les données actuelles.`
+                        : `Classe ${label} indisponible tant que le calcul est incomplet.`;
+                pill.classList.toggle('is-active', isActive);
+                pill.setAttribute('title', pillTitle);
+            });
+        }
+    }
+
     normalizeLocSitKey(value) {
         return String(value || '')
             .normalize('NFD')
@@ -9821,6 +9938,202 @@ class ValoboisApp {
         return [common, scientific].filter(Boolean).join(' - ');
     }
 
+    getTropixLinkLabel() {
+        return 'Lien vers la fiche Tropix de l\'essence';
+    }
+
+    getTropixLookupNormalizer() {
+        if (typeof normalizeTropixEssenceKey === 'function') return normalizeTropixEssenceKey;
+        if (typeof normalizeEssenceLookupKey === 'function') return normalizeEssenceLookupKey;
+        return (value) => (value == null ? '' : String(value))
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[’']/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+    }
+
+    buildTropixEssenceLookupVariants(value) {
+        const raw = (value || '').toString().trim();
+        if (!raw) return [];
+
+        const normalize = this.getTropixLookupNormalizer();
+        const variants = new Set();
+        const addVariant = (candidate) => {
+            const key = normalize(candidate);
+            if (key) variants.add(key);
+        };
+
+        addVariant(raw);
+
+        const withoutParentheses = raw.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+        if (withoutParentheses && withoutParentheses !== raw) addVariant(withoutParentheses);
+
+        raw.replace(/\(([^)]*)\)/g, (_match, inner) => {
+            addVariant(inner);
+            return _match;
+        });
+
+        return Array.from(variants);
+    }
+
+    resolveTropixEntryFromNames(commonName, scientificName) {
+        if (typeof TROPIX_ESSENCES_BY_NAME === 'undefined') {
+            return { url: '', ambiguous: false, candidateCount: 0, candidates: [] };
+        }
+
+        const detailed = this.resolveDetailedEssenceFromNames(commonName, scientificName)
+            || this.findEssenceByScientificName(scientificName)
+            || this.findEssenceByCommonName(commonName);
+        const candidateKeys = new Set();
+        const addKeys = (value) => {
+            this.buildTropixEssenceLookupVariants(value).forEach((key) => candidateKeys.add(key));
+        };
+
+        addKeys(commonName);
+        addKeys(detailed && detailed.nomUsuel);
+
+        const byUrl = new Map();
+        candidateKeys.forEach((key) => {
+            const matches = TROPIX_ESSENCES_BY_NAME.get(key) || [];
+            matches.forEach((entry) => {
+                if (!entry || !entry.url || byUrl.has(entry.url)) return;
+                byUrl.set(entry.url, entry);
+            });
+        });
+
+        const candidates = Array.from(byUrl.values());
+        if (!candidates.length) {
+            return {
+                url: '',
+                ambiguous: false,
+                candidateCount: 0,
+                candidates: [],
+                label: this.composeEssenceLabel(commonName, scientificName)
+            };
+        }
+
+        if (candidates.length > 1) {
+            return {
+                url: '',
+                ambiguous: true,
+                candidateCount: candidates.length,
+                candidates,
+                label: this.composeEssenceLabel(commonName, scientificName)
+            };
+        }
+
+        const entry = candidates[0];
+        return {
+            ...entry,
+            url: entry.url,
+            ambiguous: false,
+            candidateCount: 1,
+            candidates,
+            label: (detailed && detailed.nomUsuel) || (commonName || '').toString().trim() || entry.essence || ''
+        };
+    }
+
+    getTropixInfoForPieceLike(pieceLike, lot = null) {
+        const commonName = ((pieceLike && pieceLike.essenceNomCommun) || (lot && lot.allotissement && lot.allotissement.essenceNomCommun) || '').toString().trim();
+        const scientificName = ((pieceLike && pieceLike.essenceNomScientifique) || (lot && lot.allotissement && lot.allotissement.essenceNomScientifique) || '').toString().trim();
+        return this.resolveTropixEntryFromNames(commonName, scientificName);
+    }
+
+    getLotDistinctEssenceEntries(lot) {
+        if (!lot || !lot.allotissement) return [];
+
+        const baseCommon = (lot.allotissement.essenceNomCommun || '').toString().trim();
+        const baseScientific = (lot.allotissement.essenceNomScientifique || '').toString().trim();
+        const entries = new Map();
+        const addEntry = (commonName, scientificName) => {
+            const common = (commonName || '').toString().trim();
+            const scientific = (scientificName || '').toString().trim();
+            const label = this.composeEssenceLabel(common, scientific);
+            if (!label || entries.has(label)) return;
+            entries.set(label, {
+                commonName: common,
+                scientificName: scientific,
+                label
+            });
+        };
+
+        (lot.pieces || []).forEach((piece) => {
+            if (!piece || typeof piece !== 'object') return;
+            addEntry(piece.essenceNomCommun || baseCommon, piece.essenceNomScientifique || baseScientific);
+        });
+
+        this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
+            const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+            if (defaultQty <= 0) return;
+            addEntry(defaultPiece.essenceNomCommun || baseCommon, defaultPiece.essenceNomScientifique || baseScientific);
+        });
+
+        if (!entries.size) addEntry(baseCommon, baseScientific);
+        return Array.from(entries.values());
+    }
+
+    getLotSingleTropixInfo(lot) {
+        const entries = this.getLotDistinctEssenceEntries(lot);
+        if (entries.length !== 1) return { url: '', ambiguous: entries.length > 1, candidateCount: entries.length, candidates: [] };
+        return this.resolveTropixEntryFromNames(entries[0].commonName, entries[0].scientificName);
+    }
+
+    renderTropixTriggerButton(tropixInfo, { extraClass = '', extraAttributes = '' } = {}) {
+        const hasUrl = !!(tropixInfo && tropixInfo.url);
+        const label = (tropixInfo && tropixInfo.label) || '';
+        const classSuffix = extraClass ? ` ${extraClass}` : '';
+        return `<button type="button" class="btn lot-detail-btn tropix-link-btn${classSuffix}" data-tropix-trigger="button"${hasUrl ? ` data-tropix-link-url="${this.escapeHtml(tropixInfo.url)}" data-tropix-link-label="${this.escapeHtml(label)}"` : ''}${extraAttributes}${hasUrl ? '' : ' hidden aria-hidden="true"'}>${this.escapeHtml(this.getTropixLinkLabel())}</button>`;
+    }
+
+    renderTropixTriggerAnchor(tropixInfo) {
+        if (!tropixInfo || !tropixInfo.url) return '';
+        return `<a class="detail-modal-link tropix-detail-link" href="${this.escapeHtml(tropixInfo.url)}" data-tropix-trigger="link" data-tropix-link-url="${this.escapeHtml(tropixInfo.url)}" data-tropix-link-label="${this.escapeHtml(tropixInfo.label || '')}">${this.escapeHtml(this.getTropixLinkLabel())}</a>`;
+    }
+
+    syncTropixTrigger(root, tropixInfo) {
+        if (!root) return;
+        const triggers = [];
+        if (root.matches && root.matches('[data-tropix-trigger]')) triggers.push(root);
+        if (root.querySelectorAll) triggers.push(...root.querySelectorAll('[data-tropix-trigger]'));
+
+        triggers.forEach((trigger) => {
+            const hasUrl = !!(tropixInfo && tropixInfo.url);
+            const label = (tropixInfo && tropixInfo.label) || '';
+            trigger.hidden = !hasUrl;
+            trigger.setAttribute('aria-hidden', hasUrl ? 'false' : 'true');
+
+            if (!hasUrl) {
+                delete trigger.dataset.tropixLinkUrl;
+                delete trigger.dataset.tropixLinkLabel;
+                if (trigger.tagName === 'A') trigger.removeAttribute('href');
+                return;
+            }
+
+            trigger.dataset.tropixLinkUrl = tropixInfo.url;
+            trigger.dataset.tropixLinkLabel = label;
+            if (trigger.tagName === 'A') trigger.setAttribute('href', tropixInfo.url);
+        });
+    }
+
+    buildLotEssenceDetailModalHtml(lot) {
+        const entries = this.getLotDistinctEssenceEntries(lot);
+        if (!entries.length) {
+            return `<p>Aucune valeur renseignée dans le Détail du lot.</p>`;
+        }
+
+        const lines = entries.map((entry, index) => {
+            const tropixInfo = this.resolveTropixEntryFromNames(entry.commonName, entry.scientificName);
+            const linkHtml = tropixInfo && tropixInfo.url
+                ? `<span class="tropix-detail-separator" aria-hidden="true">&#8594;</span>${this.renderTropixTriggerAnchor(tropixInfo)}`
+                : '';
+            return `<p class="tropix-detail-line"><span class="tropix-detail-index">${index + 1}.</span> <span class="tropix-detail-text">${this.escapeHtml(entry.label)}</span>${linkHtml}</p>`;
+        }).join('');
+
+        return `<div class="tropix-detail-list">${lines}</div>`;
+    }
+
     resolveDetailedEssenceFromNames(commonName, scientificName) {
         const common = (commonName || '').toString().trim();
         const scientific = (scientificName || '').toString().trim();
@@ -11116,7 +11429,8 @@ class ValoboisApp {
 
         const {
             textAlign = 'left',
-            whiteSpace = 'normal'
+            whiteSpace = 'normal',
+            allowHtml = false
         } = options;
 
         if (titleEl) titleEl.textContent = title || 'Alerte';
@@ -11165,6 +11479,8 @@ class ValoboisApp {
                 </div>`;
         } else if (this.isStructuredModalContent(content)) {
             this.renderDetailModalContent(messageEl, content);
+        } else if (allowHtml) {
+            messageEl.innerHTML = String(content || '');
         } else {
             messageEl.textContent = String(content || '');
         }
@@ -11192,27 +11508,7 @@ class ValoboisApp {
         };
 
         if (fieldName === 'essence') {
-            const baseCommon = (lot.allotissement.essenceNomCommun || '').toString().trim();
-            const baseScientific = (lot.allotissement.essenceNomScientifique || '').toString().trim();
-            const baseEssence = this.composeEssenceLabel(baseCommon, baseScientific);
-
-            (lot.pieces || []).forEach((piece) => {
-                if (!piece || typeof piece !== 'object') return;
-                const common = (piece.essenceNomCommun || '').toString().trim() || baseCommon;
-                const scientific = (piece.essenceNomScientifique || '').toString().trim() || baseScientific;
-                addValue(this.composeEssenceLabel(common, scientific) || baseEssence);
-            });
-
-            this.ensureDefaultPiecesData(lot).forEach((defaultPiece) => {
-                const defaultQty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
-                if (defaultQty <= 0) return;
-                const common = (defaultPiece.essenceNomCommun || '').toString().trim() || baseCommon;
-                const scientific = (defaultPiece.essenceNomScientifique || '').toString().trim() || baseScientific;
-                addValue(this.composeEssenceLabel(common, scientific) || baseEssence);
-            });
-
-            if (values.size === 0) addValue(baseEssence);
-            return Array.from(values);
+            return this.getLotDistinctEssenceEntries(lot).map((entry) => entry.label);
         }
 
         const baseValue = (lot.allotissement[fieldName] || '').toString().trim();
@@ -11235,6 +11531,15 @@ class ValoboisApp {
     }
 
     openLotDetailValuesModal(lot, fieldName, title) {
+        if (fieldName === 'essence') {
+            this.openSharedAlertPiecesModal(
+                title || 'Détails',
+                this.buildLotEssenceDetailModalHtml(lot),
+                { textAlign: 'left', whiteSpace: 'normal', allowHtml: true }
+            );
+            return;
+        }
+
         const values = this.getLotDetailDistinctValues(lot, fieldName);
         const text = !values.length
             ? 'Aucune valeur renseignée dans le Détail du lot.'
@@ -11257,6 +11562,22 @@ class ValoboisApp {
 
         backdrop.classList.remove('hidden');
         backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    openLotLocSitAlertModal(messageText) {
+        const backdrop = document.getElementById('alertLocSitModalBackdrop');
+        const messageEl = document.getElementById('alertLocSitModalMessage');
+        if (!backdrop || !messageEl) return;
+        messageEl.textContent = (messageText || '').toString().trim() || 'Des informations Localisation - Situation sont à compléter.';
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    closeLotLocSitAlertModal() {
+        const backdrop = document.getElementById('alertLocSitModalBackdrop');
+        if (!backdrop) return;
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
     }
 
     closeLotLocationPiecesModal() {
@@ -12216,12 +12537,6 @@ class ValoboisApp {
         }
         if (summaryEl) {
             const detailsEl = summaryEl.closest('details');
-            // Ouvrir l'accordéon automatiquement uniquement quand les mesures deviennent
-            // nouvellement actives (l'accordéon était fermé et aucun badge ne préexistait).
-            if (detailsEl && isActive && !detailsEl.open) {
-                const hadBadge = !!(summaryEl.querySelector('.mesures-accordion-badge'));
-                if (!hadBadge) detailsEl.open = true;
-            }
             let badgeEl = summaryEl.querySelector('.mesures-accordion-badge');
             const n = isActive ? mm.sections.length : 0;
             const isIncomplete = isActive && mm.sections.some(s =>
@@ -12496,6 +12811,25 @@ class ValoboisApp {
         if (destinationAlertBtn) {
             destinationAlertBtn.dataset.alertDestination = this.hasIncompleteDestinationFields(lot) ? 'true' : 'false';
         }
+        const locSitSummary = this.getLotEmploymentClassSummary(lot);
+        const lotEmploymentClassInput = el('[data-lot-location-field="employmentClass"]');
+        if (lotEmploymentClassInput) {
+            lotEmploymentClassInput.value = locSitSummary.display;
+        }
+        const openClassesBtn = el('[data-lot-location-open-classes]');
+        if (openClassesBtn) {
+            openClassesBtn.hidden = !locSitSummary.showDetail;
+            openClassesBtn.disabled = !locSitSummary.showDetail;
+            openClassesBtn.dataset.classesList = locSitSummary.detailLines.join('\n');
+            openClassesBtn.dataset.modalTitle = locSitSummary.hasDivergence
+                ? 'Classes d\'emploi divergentes du lot'
+                : 'Classes d\'emploi du lot';
+        }
+        const locSitAlertBtn = el('[data-lot-locsit-alert-btn]');
+        if (locSitAlertBtn) {
+            locSitAlertBtn.dataset.alertLocSit = locSitSummary.hasMissing ? 'true' : 'false';
+            locSitAlertBtn.dataset.alertMessage = locSitSummary.alertText || '';
+        }
 
         const typePieceDisplay = this.getLotAggregatedTextValue(lot, 'typePiece');
         const typeProduitDisplay = this.getLotAggregatedTextValue(lot, 'typeProduit');
@@ -12506,6 +12840,7 @@ class ValoboisApp {
         const isTypeProduitMultiple = typeProduitDisplay === 'Multiples';
         const isClasseBoisMultiple = classeBoisDisplay === 'Multiples';
         const isEssenceMultiple = essenceCommonDisplay === 'Multiples' || essenceScientificDisplay === 'Multiples';
+        const lotTropixInfo = isEssenceMultiple ? { url: '' } : this.getLotSingleTropixInfo(lot);
 
         const lotTypePieceInput = el('input[data-lot-input="typePiece"]');
         if (lotTypePieceInput) {
@@ -12536,6 +12871,7 @@ class ValoboisApp {
         const classeBoisButton = el('[data-lot-details-btn="classeBois"]');
         const durabNatDetailButton = el('[data-durab-nat-detail-btn]');
         const essenceButton = el('[data-lot-details-btn="essence"]');
+        const lotTropixButton = el('[data-lot-tropix-btn]');
         if (typeButton) {
             typeButton.hidden = !isTypePieceMultiple;
             const typeWrapper = typeButton.closest('.lot-type-with-detail');
@@ -12558,6 +12894,9 @@ class ValoboisApp {
             essenceButton.hidden = !isEssenceMultiple;
             const essenceWrapper = essenceButton.closest('.lot-essence-with-detail');
             if (essenceWrapper) essenceWrapper.classList.toggle('has-detail-btn', isEssenceMultiple);
+        }
+        if (lotTropixButton) {
+            this.syncTropixTrigger(lotTropixButton, lotTropixInfo);
         }
 
         // Mise à jour des dimensions moyennes dans le formulaire lot
@@ -14635,8 +14974,37 @@ deleteLot(index) {
         this.setupInspectionIgnoreIcons();
         this.bindContexteTechniqueGeoFranceEvents();
 
+        document.addEventListener('click', (event) => {
+            const trigger = event.target.closest('[data-tropix-trigger]');
+            if (!trigger) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const url = (trigger.dataset.tropixLinkUrl || '').trim();
+            if (!url) return;
+
+            const label = (trigger.dataset.tropixLinkLabel || '').trim();
+            this.openResetConfirmModal({
+                title: 'Ouvrir la fiche Tropix',
+                message: label
+                    ? `Ouvrir une nouvelle fenêtre vers la fiche Tropix de l'essence « ${label} » ?`
+                    : 'Ouvrir une nouvelle fenêtre vers la fiche Tropix de l\'essence ?',
+                confirmLabel: 'Ouvrir la fiche',
+                onConfirm: () => {
+                    const openedWindow = window.open(url, '_blank', 'noopener,noreferrer');
+                    if (openedWindow) openedWindow.opener = null;
+                }
+            });
+        });
+
         window.addEventListener('valobois:langchange', () => {
             this.renderScatterDims();
+        });
+
+        // Replier tous les accordéons au changement d'onglet
+        window.addEventListener('valobois-editor-tab', () => {
+            this._accordionOpenStates.clear();
         });
 
         // Toggle À propos
@@ -15155,6 +15523,18 @@ deleteLot(index) {
             if (btnOkAlertContexteTechnique) btnOkAlertContexteTechnique.addEventListener('click', closeAlertContexteTechniqueModal);
             alertContexteTechniqueBackdrop.addEventListener('click', (e) => {
                 if (e.target === alertContexteTechniqueBackdrop) closeAlertContexteTechniqueModal();
+            });
+        }
+
+        // Modale alerte Localisation - Situation (lot)
+        const alertLocSitBackdrop = document.getElementById('alertLocSitModalBackdrop');
+        const btnCloseAlertLocSit = document.getElementById('btnCloseAlertLocSitModal');
+        const btnOkAlertLocSit = document.getElementById('btnOkAlertLocSitModal');
+        if (alertLocSitBackdrop) {
+            if (btnCloseAlertLocSit) btnCloseAlertLocSit.addEventListener('click', () => this.closeLotLocSitAlertModal());
+            if (btnOkAlertLocSit) btnOkAlertLocSit.addEventListener('click', () => this.closeLotLocSitAlertModal());
+            alertLocSitBackdrop.addEventListener('click', (e) => {
+                if (e.target === alertLocSitBackdrop) this.closeLotLocSitAlertModal();
             });
         }
 
@@ -19514,7 +19894,7 @@ closeEvalOpModal() {
         const hasMmDp = !!(_mmDp && _mmDp.active);
         const nMmDp = hasMmDp && Array.isArray(_mmDp.sections) ? _mmDp.sections.length : 0;
         const _accKeyDp = `default:${defaultPieceId}`;
-        const _accOpenDp = this._accordionOpenStates.has(_accKeyDp) ? this._accordionOpenStates.get(_accKeyDp) : hasMmDp;
+        const _accOpenDp = this._accordionOpenStates.has(_accKeyDp) ? this._accordionOpenStates.get(_accKeyDp) : false;
         const mesuresTitleDp = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
         const mesuresBadgeDp = `<span class="mesures-accordion-badge${hasMmDp && (_mmDp.sections || []).some(s => (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) || (s.typeSection === 'circ' && s.diametre == null) || (!s.typeSection)) ? ' mesures-accordion-badge--incomplete' : ''}">${nMmDp}</span>`;
         const mmDpDisable = hasMmDp ? (_mmDp.sections || []).filter(s =>
@@ -19534,7 +19914,7 @@ closeEvalOpModal() {
         `;
 
         const _locSitKeyDp = `loc-sit:${lot.id}:default:${defaultPieceId}`;
-        const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : !!(defaultPiece.localisation || defaultPiece.situation || defaultPiece.conception);
+        const _locSitOpenDp = this._accordionOpenStates.has(_locSitKeyDp) ? this._accordionOpenStates.get(_locSitKeyDp) : false;
         const locSitStateDp = this.getLocSitEffectiveClassState(defaultPiece, lot);
         const locSitSituationDisplayDp = this.getLocSitSituationDisplayValue(viewValue(defaultPiece.situation || ''));
         const locSitSituationTooltipDp = this.getLocSitSituationTooltip(viewValue(defaultPiece.situation || ''));
@@ -19543,6 +19923,7 @@ closeEvalOpModal() {
         const climateTooltipDp = (locSitStateDp.climate && locSitStateDp.climate.tooltip) || '';
         const massTooltipDp = (locSitStateDp.massivite && locSitStateDp.massivite.tooltip) || '';
         const longeviteDp = this.computeEstimatedLongevite(defaultPiece, lot);
+        const tropixInfoDp = showAsDisabled ? { url: '' } : this.getTropixInfoForPieceLike(defaultPiece, lot);
 
         return `
         <div class="piece-card piece-card--default${showAsDisabled ? ' piece-card--disabled' : ''}${isActive ? ' piece-card--active' : ' piece-card--passive'}" data-default-piece-id="${defaultPieceId}" data-detail-card-key="default:${defaultPieceId}">
@@ -19618,6 +19999,7 @@ closeEvalOpModal() {
                         <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                     </div>
+                    ${this.renderTropixTriggerButton(tropixInfoDp, { extraAttributes: ` data-default-piece-id="${defaultPieceId}" data-default-piece-tropix-btn` })}
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--dp-${defaultPieceId}">
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
@@ -19893,7 +20275,7 @@ closeEvalOpModal() {
         const hasMmP = !!(_mmP && _mmP.active);
         const nMmP = hasMmP && Array.isArray(_mmP.sections) ? _mmP.sections.length : 0;
         const _accKeyP = `piece:${pieceIndex}`;
-        const _accOpenP = this._accordionOpenStates.has(_accKeyP) ? this._accordionOpenStates.get(_accKeyP) : hasMmP;
+        const _accOpenP = this._accordionOpenStates.has(_accKeyP) ? this._accordionOpenStates.get(_accKeyP) : false;
         const mesuresTitleP = t('editor.mesures.multiples.inlineTitle') || 'Mesures multiples';
         const mesuresBadgeP = `<span class="mesures-accordion-badge${hasMmP && (_mmP.sections || []).some(s => (s.typeSection === 'rect' && (s.largeur == null || s.epaisseur == null)) || (s.typeSection === 'circ' && s.diametre == null) || (!s.typeSection)) ? ' mesures-accordion-badge--incomplete' : ''}">${nMmP}</span>`;
         const mmPDisable = hasMmP ? (_mmP.sections || []).filter(s =>
@@ -19905,7 +20287,7 @@ closeEvalOpModal() {
         const mesuresActionsP = `<div class="mesures-accordion-actions" data-piece-index="${pieceIndex}">${mesuresInfoBtnP}${mesuresResetBtnP}</div>`;
 
         const _locSitKeyP = `loc-sit:${lot.id}:piece:${pieceIndex}`;
-        const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : !!(piece.localisation || piece.situation || piece.conception);
+        const _locSitOpenP = this._accordionOpenStates.has(_locSitKeyP) ? this._accordionOpenStates.get(_locSitKeyP) : false;
         const locSitStateP = this.getLocSitEffectiveClassState(piece, lot);
         const locSitSituationDisplayP = this.getLocSitSituationDisplayValue(piece.situation || '');
         const locSitSituationTooltipP = this.getLocSitSituationTooltip(piece.situation || '');
@@ -19914,6 +20296,7 @@ closeEvalOpModal() {
         const climateTooltipP = (locSitStateP.climate && locSitStateP.climate.tooltip) || '';
         const massTooltipP = (locSitStateP.massivite && locSitStateP.massivite.tooltip) || '';
         const longeviteP = this.computeEstimatedLongevite(piece, lot);
+        const tropixInfoP = this.getTropixInfoForPieceLike(piece, lot);
 
         return `
         <div class="piece-card ${isActive ? 'piece-card--active' : 'piece-card--passive'}" data-piece-index="${pieceIndex}" data-detail-card-key="piece:${pieceIndex}">
@@ -19979,6 +20362,7 @@ closeEvalOpModal() {
                         <input type="text" class="lot-input lot-input--essence-common" value="${pEffEssenceCommun}" placeholder="Essence (nom commun)" data-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${pEffEssenceScientifique}" placeholder="Essence (nom scientifique)" data-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                     </div>
+                    ${this.renderTropixTriggerButton(tropixInfoP, { extraAttributes: ' data-piece-tropix-btn' })}
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--piece-${pieceIndex}">
                         <summary class="mesures-accordion-summary">
                             <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
@@ -20254,6 +20638,7 @@ closeEvalOpModal() {
         const showTypeProduitDetailsBtn = lotTypeProduitDisplay === 'Multiples';
         const showClasseBoisDetailsBtn = lotClasseBoisDisplay === 'Multiples';
         const showEssenceDetailsBtn = lotEssenceCommonDisplay === 'Multiples' || lotEssenceScientificDisplay === 'Multiples';
+        const lotTropixInfo = showEssenceDetailsBtn ? { url: '' } : this.getLotSingleTropixInfo(lot);
         const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
         const priceUnitLabel = this.getPriceMarketUnitLabel(priceUnit, lot.allotissement.prixMode);
         const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
@@ -20297,6 +20682,7 @@ closeEvalOpModal() {
         ).size;
         const localisationTitle = localisationDistinctCount > 1 ? `Localisations (${localisationDistinctCount})` : 'Localisation';
         const situationTitle = situationDistinctCount > 1 ? `Situations (${situationDistinctCount})` : 'Situation';
+        const lotEmploymentClassSummary = this.getLotEmploymentClassSummary(lot);
         const hasNotationAlert = this.hasIncompleteNotationCriteria(lot);
         const hasDestinationAlert = this.hasIncompleteDestinationFields(lot);
         const displayLongueur = hasDetailDimensions ? ((lot.allotissement._avgLongueur || 0) > 0 ? String(Math.round(lot.allotissement._avgLongueur)) : '') : lot.allotissement.longueur;
@@ -20328,6 +20714,9 @@ closeEvalOpModal() {
                     <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination">
                         <summary class="lot-group-summary">
                             <span>Localisation - Situation</span>
+                            <button type="button" class="lot-alert-btn lot-alert-btn--loc-sit" data-lot-locsit-alert-btn data-alert-loc-sit="${lotEmploymentClassSummary.hasMissing ? 'true' : 'false'}" aria-label="Alerte Localisation - Situation">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                            </button>
                         </summary>
                         <div class="lot-group-content">
                             <div class="lot-location-group-nav" data-lot-location-groups data-group-count="${locationSituationGroups.length}">
@@ -20351,6 +20740,15 @@ closeEvalOpModal() {
                                         <div class="lot-location-pieces-row">
                                             <input type="text" class="lot-input" value="" readonly data-lot-location-field="pieceNames">
                                             <button type="button" class="btn btn-secondary lot-detail-btn lot-location-open-btn" data-lot-location-open-pieces ${hasLocationGroups ? '' : 'disabled'}>Détail</button>
+                                        </div>
+                                    </div>
+                                    <div class="lot-field-block">
+                                        <label class="lot-field-label">Classe(s) d'emploi du lot</label>
+                                        <div class="lot-location-pieces-row">
+                                            <input type="text" class="lot-input" value="${this.escapeHtml(lotEmploymentClassSummary.display)}" readonly data-lot-location-field="employmentClass">
+                                            <div class="lot-location-actions">
+                                                <button type="button" class="btn btn-secondary lot-detail-btn lot-location-open-btn" data-lot-location-open-classes ${lotEmploymentClassSummary.showDetail ? '' : 'hidden'}>Détail</button>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -20402,7 +20800,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                             <div class="lot-field-block">
-                                <label class="lot-field-label">Classe du bois</label>
+                                <label class="lot-field-label">Classe déchet du bois</label>
                                 <div class="lot-type-with-detail${showClasseBoisDetailsBtn ? ' has-detail-btn' : ''}">
                                     <div class="lot-essence-picker">
                                         <input
@@ -20424,6 +20822,7 @@ closeEvalOpModal() {
                                 <input type="text" class="lot-input lot-input--essence-scientific" value="${lotEssenceScientificDisplay}" data-lot-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
                             </div>
                             <button type="button" class="btn btn-secondary lot-detail-btn" data-lot-details-btn="essence"${showEssenceDetailsBtn ? '' : ' hidden'}>Détail des essences</button>
+                            ${this.renderTropixTriggerButton(lotTropixInfo, { extraAttributes: ' data-lot-tropix-btn' })}
                         </div>
                         <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--lot-${index}">
                             <summary class="mesures-accordion-summary">
@@ -20623,7 +21022,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest" open>
+                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest">
                             <summary class="lot-group-summary">
                                 <span>Seuils de destination</span>
                             </summary>
@@ -20705,7 +21104,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </details>
-                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot" open>
+                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot">
                             <summary class="lot-group-summary">
                                 <span>Conformité du lot</span>
                             </summary>
@@ -21333,10 +21732,14 @@ closeEvalOpModal() {
             const locInput = nav.querySelector('[data-lot-location-field="localisation"]');
             const sitInput = nav.querySelector('[data-lot-location-field="situation"]');
             const piecesInput = nav.querySelector('[data-lot-location-field="pieceNames"]');
+            const employmentClassInput = nav.querySelector('[data-lot-location-field="employmentClass"]');
             const openPiecesBtn = nav.querySelector('[data-lot-location-open-pieces]');
+            const openClassesBtn = nav.querySelector('[data-lot-location-open-classes]');
+            const locSitAlertBtn = card.querySelector('[data-lot-locsit-alert-btn]');
             const localisationLabel = nav.querySelector('[data-lot-location-label="localisation"]');
             const situationLabel = nav.querySelector('[data-lot-location-label="situation"]');
             const piecesLabel = nav.querySelector('[data-lot-location-label="pieces"]');
+            const classSummary = this.getLotEmploymentClassSummary(lot);
 
             const localisationDistinctCount = new Set(
                 groups
@@ -21362,6 +21765,7 @@ closeEvalOpModal() {
                 if (locInput) locInput.value = '';
                 if (sitInput) sitInput.value = '';
                 if (piecesInput) piecesInput.value = '';
+                if (employmentClassInput) employmentClassInput.value = classSummary.display;
                 if (piecesLabel) piecesLabel.textContent = 'Pièce dans cette combinaison';
                 if (prevBtn) prevBtn.disabled = true;
                 if (nextBtn) nextBtn.disabled = true;
@@ -21369,6 +21773,16 @@ closeEvalOpModal() {
                     openPiecesBtn.disabled = true;
                     openPiecesBtn.dataset.piecesList = '';
                     openPiecesBtn.dataset.modalTitle = 'Pièces de la combinaison';
+                }
+                if (openClassesBtn) {
+                    openClassesBtn.hidden = !classSummary.showDetail;
+                    openClassesBtn.disabled = !classSummary.showDetail;
+                    openClassesBtn.dataset.classesList = classSummary.detailLines.join('\n');
+                    openClassesBtn.dataset.modalTitle = 'Classes d\'emploi du lot';
+                }
+                if (locSitAlertBtn) {
+                    locSitAlertBtn.dataset.alertLocSit = classSummary.hasMissing ? 'true' : 'false';
+                    locSitAlertBtn.dataset.alertMessage = classSummary.alertText || '';
                 }
                 return;
             }
@@ -21402,6 +21816,21 @@ closeEvalOpModal() {
                 openPiecesBtn.dataset.piecesList = labels.join('\n');
                 openPiecesBtn.dataset.modalTitle = `Pièces de la combinaison ${currentIndex + 1}/${count}`;
             }
+            if (employmentClassInput) {
+                employmentClassInput.value = classSummary.display;
+            }
+            if (openClassesBtn) {
+                openClassesBtn.hidden = !classSummary.showDetail;
+                openClassesBtn.disabled = !classSummary.showDetail;
+                openClassesBtn.dataset.classesList = classSummary.detailLines.join('\n');
+                openClassesBtn.dataset.modalTitle = classSummary.hasDivergence
+                    ? 'Classes d\'emploi divergentes du lot'
+                    : 'Classes d\'emploi du lot';
+            }
+            if (locSitAlertBtn) {
+                locSitAlertBtn.dataset.alertLocSit = classSummary.hasMissing ? 'true' : 'false';
+                locSitAlertBtn.dataset.alertMessage = classSummary.alertText || '';
+            }
         };
 
         const openPiecesBtn = card.querySelector('[data-lot-location-open-pieces]');
@@ -21411,6 +21840,26 @@ closeEvalOpModal() {
                 const title = openPiecesBtn.dataset.modalTitle || 'Pièces de la combinaison';
                 const piecesList = (openPiecesBtn.dataset.piecesList || '').trim();
                 this.openLotLocationPiecesModal(title, piecesList);
+            });
+        }
+
+        const openClassesBtn = card.querySelector('[data-lot-location-open-classes]');
+        if (openClassesBtn) {
+            openClassesBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const title = openClassesBtn.dataset.modalTitle || 'Classes d\'emploi du lot';
+                const lines = (openClassesBtn.dataset.classesList || '').trim();
+                this.openLotLocationPiecesModal(title, lines);
+            });
+        }
+
+        const locSitAlertBtn = card.querySelector('[data-lot-locsit-alert-btn]');
+        if (locSitAlertBtn) {
+            locSitAlertBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (locSitAlertBtn.dataset.alertLocSit !== 'true') return;
+                this.openLotLocSitAlertModal(locSitAlertBtn.dataset.alertMessage || 'Des informations Localisation - Situation sont à compléter.');
             });
         }
 
@@ -22024,6 +22473,11 @@ closeEvalOpModal() {
                 qLongeviteDefault.value = isDisabled ? '' : this.computeEstimatedLongevite(dp, lot).display;
                 qLongeviteDefault.title = isDisabled ? '' : (this.computeEstimatedLongevite(dp, lot).tooltip || '');
             }
+            const defaultTropixButton = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-tropix-btn]`);
+            if (defaultTropixButton) {
+                this.syncTropixTrigger(defaultTropixButton, isDisabled ? { url: '' } : this.getTropixInfoForPieceLike(dp, lot));
+            }
+            this.updateLocSitCardDisplays(defaultPieceCard, dp, lot, { isDefault: true, defaultPieceId, pieceIndex: -1 });
             this.updateActiveLotCardDisplays(lot);
             this.refreshNaturaliteAlertButton(lot);
             this.refreshStabiliteAlertButton(lot);
@@ -22485,6 +22939,11 @@ closeEvalOpModal() {
                     qLongevitePiece.value = longeviteResult.display;
                     qLongevitePiece.title = longeviteResult.tooltip || '';
                 }
+                const pieceTropixButton = pieceCard.querySelector('[data-piece-tropix-btn]');
+                if (pieceTropixButton) {
+                    this.syncTropixTrigger(pieceTropixButton, this.getTropixInfoForPieceLike(piece, lot));
+                }
+                this.updateLocSitCardDisplays(pieceCard, piece, lot, { isDefault: false, defaultPieceId: '', pieceIndex: pi });
                 // Met à jour les totaux du lot dans la carte allotissement active
                 this.updateActiveLotCardDisplays(lot);
                 this.refreshNaturaliteAlertButton(lot);

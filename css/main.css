@@ -3047,6 +3047,11 @@ body.day-mode .lot-group--collapsible summary:hover {
     margin-bottom: 6px;
 }
 
+.lot-group--location-combination > summary .lot-alert-btn--loc-sit {
+    margin-left: auto;
+    margin-right: 6px;
+}
+
 .lot-location-group-content {
     display: grid;
     gap: 8px;
@@ -3091,6 +3096,12 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-location-open-btn {
     align-self: stretch;
+}
+
+.lot-location-actions {
+    display: inline-flex;
+    align-items: stretch;
+    gap: 6px;
 }
 
 .lot-location-cycle-btn {
@@ -3209,6 +3220,26 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-type-with-detail .lot-input,
 .lot-essence-with-detail .lot-input {
     min-height: 26px;
+}
+
+.tropix-link-btn {
+    width: 100%;
+}
+
+.tropix-detail-list {
+    display: grid;
+    gap: 8px;
+}
+
+.tropix-detail-line {
+    margin: 0;
+    line-height: 1.4;
+}
+
+.tropix-detail-separator {
+    margin: 0 6px;
+    color: var(--bleu-crai);
+    font-weight: 700;
 }
 
 .lot-detail-btn:hover {
@@ -4069,6 +4100,17 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-alert-btn--destination[data-alert-destination="false"] {
+    opacity: 0.3;
+    pointer-events: none;
+}
+
+.lot-alert-btn--loc-sit[data-alert-loc-sit="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--loc-sit[data-alert-loc-sit="false"] {
     opacity: 0.3;
     pointer-events: none;
 }

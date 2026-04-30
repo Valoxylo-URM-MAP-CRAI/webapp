@@ -3455,6 +3455,22 @@
                 </div>
             </div>
 
+            <!-- Modale alerte Localisation - Situation (lot) -->
+            <div class="modal-backdrop hidden" id="alertLocSitModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertLocSitModalTitle">
+                    <header class="modal-header">
+                        <h2 id="alertLocSitModalTitle" class="text-center" data-i18n="editor.common.alert">Alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseAlertLocSitModal">&times;</button>
+                    </header>
+                    <div class="modal-body">
+                        <p id="alertLocSitModalMessage" style="text-align:center;">Des informations Localisation - Situation sont à compléter.</p>
+                    </div>
+                    <footer class="modal-footer">
+                        <button class="btn btn-primary" type="button" id="btnOkAlertLocSitModal">OK</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale info sources cartographie géographique -->
             <div class="modal-backdrop hidden" id="geoFranceSourcesModalBackdrop" aria-hidden="true">
                 <div class="modal geo-france-sources-modal" role="dialog" aria-modal="true" aria-labelledby="geoFranceSourcesModalTitle">
@@ -5089,6 +5105,7 @@
     <script defer src="js/i18n/valobois-i18n.js"></script>
     <script defer src="js/data/essences-bois.js"></script>
     <script defer src="js/data/essences-valobois.js"></script>
+    <script defer src="js/data/tropix-essences.js"></script>
     <script defer src="js/data/termes-bois.js"></script>
     <script defer src="js/data/datalist-type-batiment.js"></script>
     <script defer src="js/data/datalist-phase-intervention.js"></script>
