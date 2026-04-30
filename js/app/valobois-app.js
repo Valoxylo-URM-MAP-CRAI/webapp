@@ -1344,7 +1344,11 @@ class ValoboisApp {
         this.data.meta = this.getDefaultMeta(this.data.meta || {});
         this.data.meta.geoFrance = this.normalizeGeoFranceSelection(nextGeoFrance);
         this.saveData();
-        if (rerender) this.renderAccueilMeta();
+        if (rerender) {
+            this.renderAccueilMeta();
+            this.renderAllotissement();
+            this.renderDetailLot();
+        }
     }
 
     setGeoFranceDepartement(codeRaw, { selectionMode = 'select', rerender = true } = {}) {
@@ -1949,6 +1953,8 @@ class ValoboisApp {
             }
 
             this.renderContexteTechniqueGeoFrance();
+            this.renderAllotissement();
+            this.renderDetailLot();
 
             if (cantonFound) {
                 if (statusEl) {
@@ -9872,16 +9878,219 @@ class ValoboisApp {
         const lotAllot = (lot && lot.allotissement) || {};
         const common = ((pieceLike && pieceLike.essenceNomCommun) || lotAllot.essenceNomCommun || '').toString().trim();
         const scientific = ((pieceLike && pieceLike.essenceNomScientifique) || lotAllot.essenceNomScientifique || '').toString().trim();
+        const overrideCode = ((pieceLike && pieceLike.longeviteEssenceCodeOverride) || '').toString().trim().toUpperCase();
+        const densityInputRaw = pieceLike && pieceLike.masseVolumique != null
+            ? pieceLike.masseVolumique
+            : (lotAllot && lotAllot.masseVolumique != null ? lotAllot.masseVolumique : '');
+        const densityInput = parseFloat(this.normalizeAllotissementNumericInput(densityInputRaw));
+        const densitySuggested = this.getSuggestedMasseVolumique({
+            essenceNomCommun: common,
+            essenceNomScientifique: scientific
+        });
         return {
             common,
             scientific,
-            detailed: this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific)
+            detailed: this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific),
+            overrideCode,
+            densityInput: Number.isFinite(densityInput) ? densityInput : null,
+            densitySuggested: Number.isFinite(densitySuggested) ? densitySuggested : null
         };
+    }
+
+    normalizeLongeviteOuiNon(valueRaw) {
+        const value = (valueRaw || '').toString().trim().toLowerCase();
+        if (value === 'oui') return 'oui';
+        if (value === 'non') return 'non';
+        return '';
+    }
+
+    normalizeDurabiliteResistanceValue(valueRaw, { forTermites = false } = {}) {
+        const value = (valueRaw || '').toString().trim().toLowerCase();
+        if (!value || value === 'n/d' || value === 'n/a' || value === 'inconnu') return '';
+        if (value === 'd' || value === 'durable') return 'oui';
+        if (value === 's' || value === 'sensible') return 'non';
+        if (value === 'm' || value === 'moyenne' || value === 'moderee' || value === 'modérée') {
+            // Aligné avec les notes FD P 20-651: la résistance moyenne aux termites est traitée comme non résistante.
+            return forTermites ? 'non' : 'non';
+        }
+        return '';
+    }
+
+    parseDurabiliteClassValue(valueRaw) {
+        const value = (valueRaw || '').toString().trim().toLowerCase();
+        if (!value || value === 'n/d' || value === 'n/a' || value === 'inconnu') return null;
+        const parts = value
+            .replace(/[^0-9.-]+/g, ' ')
+            .split(/\s+/)
+            .map((part) => parseFloat(part))
+            .filter((num) => Number.isFinite(num));
+        if (!parts.length) return null;
+        return parts.reduce((sum, num) => sum + num, 0) / parts.length;
+    }
+
+    getLongeviteDetailedByCodeMap() {
+        if (this._longeviteDetailedByCode) return this._longeviteDetailedByCode;
+        this._longeviteDetailedByCode = new Map();
+        if (!Array.isArray(ESSENCES_VALOBOIS)) return this._longeviteDetailedByCode;
+        ESSENCES_VALOBOIS.forEach((essence) => {
+            const code = (essence && essence.codeEn13556 ? essence.codeEn13556 : '').toString().trim().toUpperCase();
+            if (!code || code === 'N/D' || this._longeviteDetailedByCode.has(code)) return;
+            this._longeviteDetailedByCode.set(code, essence);
+        });
+        return this._longeviteDetailedByCode;
+    }
+
+    buildLongeviteTargetProfile(essenceInfo) {
+        const detailed = essenceInfo && essenceInfo.detailed ? essenceInfo.detailed : null;
+        const densityFromDetailed = detailed && Number.isFinite(parseFloat(detailed.massevolumique))
+            ? parseFloat(detailed.massevolumique)
+            : null;
+        const density = Number.isFinite(essenceInfo && essenceInfo.densityInput)
+            ? essenceInfo.densityInput
+            : (Number.isFinite(densityFromDetailed)
+                ? densityFromDetailed
+                : (Number.isFinite(essenceInfo && essenceInfo.densitySuggested) ? essenceInfo.densitySuggested : null));
+
+        const insectsFromDetailed = detailed
+            ? this.normalizeDurabiliteResistanceValue(
+                this.normalizeDurabiliteResistanceValue(detailed.hylotrupes) === 'oui' || this.normalizeDurabiliteResistanceValue(detailed.anobium) === 'oui'
+                    ? 'oui'
+                    : (this.normalizeDurabiliteResistanceValue(detailed.hylotrupes) === 'non' && this.normalizeDurabiliteResistanceValue(detailed.anobium) === 'non' ? 'non' : ''),
+                { forTermites: false }
+            )
+            : '';
+
+        const termitesFromDetailed = detailed
+            ? this.normalizeDurabiliteResistanceValue(detailed.termites, { forTermites: true })
+            : '';
+
+        const champignonsClasse = detailed
+            ? this.parseDurabiliteClassValue(detailed.durabiliteChampignons)
+            : null;
+
+        return {
+            density,
+            insects: insectsFromDetailed,
+            termites: termitesFromDetailed,
+            champignonsClasse
+        };
+    }
+
+    computeLongeviteCandidateProfileScore(entry, targetProfile, entryDetailed, headHints = []) {
+        const scoreParts = {
+            density: 0,
+            durability: 0,
+            nameHint: 0
+        };
+        const reasons = [];
+
+        const candidateDensity = entryDetailed && Number.isFinite(parseFloat(entryDetailed.massevolumique))
+            ? parseFloat(entryDetailed.massevolumique)
+            : null;
+        const hasTargetDensity = Number.isFinite(targetProfile && targetProfile.density);
+        const hasCandidateDensity = Number.isFinite(candidateDensity);
+        let densityDelta = null;
+
+        if (hasTargetDensity && hasCandidateDensity) {
+            densityDelta = Math.abs(targetProfile.density - candidateDensity);
+            if (densityDelta <= 100) {
+                scoreParts.density = 4;
+                reasons.push(`Masse volumique proche (Δ ${Math.round(densityDelta)} kg/m3)`);
+            }
+        }
+
+        const insectsRef = this.normalizeLongeviteOuiNon(entry && entry.resistanceInsectesLarvesXylophages);
+        const termitesRef = this.normalizeLongeviteOuiNon(entry && entry.resistanceTermites);
+        let comparedDurability = 0;
+        let matchedDurability = 0;
+
+        if (targetProfile && targetProfile.insects && insectsRef) {
+            comparedDurability += 1;
+            if (targetProfile.insects === insectsRef) {
+                matchedDurability += 1;
+                scoreParts.durability += 2;
+                reasons.push('Cohérence insectes xylophages');
+            }
+        }
+
+        if (targetProfile && targetProfile.termites && termitesRef) {
+            comparedDurability += 1;
+            if (targetProfile.termites === termitesRef) {
+                matchedDurability += 1;
+                scoreParts.durability += 2;
+                reasons.push('Cohérence termites');
+            }
+        }
+
+        const candidateChampignons = entryDetailed
+            ? this.parseDurabiliteClassValue(entryDetailed.durabiliteChampignons)
+            : null;
+        if (Number.isFinite(targetProfile && targetProfile.champignonsClasse) && Number.isFinite(candidateChampignons)) {
+            comparedDurability += 1;
+            const fungiDelta = Math.abs(targetProfile.champignonsClasse - candidateChampignons);
+            if (fungiDelta <= 1) {
+                matchedDurability += 1;
+                scoreParts.durability += 2;
+                reasons.push('Classe de durabilité fongique proche');
+            } else if (fungiDelta <= 2) {
+                scoreParts.durability += 1;
+            }
+        }
+
+        if (Array.isArray(headHints) && headHints.includes((entry && entry.code ? entry.code : '').toString().trim().toUpperCase())) {
+            scoreParts.nameHint = 1;
+        }
+
+        const totalScore = scoreParts.density + scoreParts.durability + scoreParts.nameHint;
+        return {
+            totalScore,
+            densityDelta,
+            comparedDurability,
+            matchedDurability,
+            reasons
+        };
+    }
+
+    getLongeviteEssenceHeadKey(valueRaw) {
+        const normalized = normalizeEssenceLookupKey(valueRaw)
+            .replace(/[^a-z0-9\s-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!normalized) return '';
+        const token = normalized.split(/[\s-]+/).find(Boolean);
+        return token || '';
+    }
+
+    listLongeviteEntriesByHead(headKeyRaw) {
+        const headKey = (headKeyRaw || '').toString().trim();
+        if (!headKey) return [];
+        const byScientific = this._longeviteEntriesByScientificHead && this._longeviteEntriesByScientificHead.get(headKey)
+            ? this._longeviteEntriesByScientificHead.get(headKey)
+            : [];
+        const byCommon = this._longeviteEntriesByCommonHead && this._longeviteEntriesByCommonHead.get(headKey)
+            ? this._longeviteEntriesByCommonHead.get(headKey)
+            : [];
+        const merged = [];
+        const seen = new Set();
+        [...byScientific, ...byCommon].forEach((entry) => {
+            const code = (entry && entry.code ? entry.code : '').toString().trim().toUpperCase();
+            if (!code || seen.has(code)) return;
+            seen.add(code);
+            merged.push(entry);
+        });
+        return merged;
     }
 
     resolveLongeviteEntryForEssence(essenceInfo) {
         const data = this.getLongeviteReferentialData();
-        if (!data || !Array.isArray(data.entries)) return null;
+        if (!data || !Array.isArray(data.entries)) {
+            return {
+                entry: null,
+                matchedBy: '',
+                matchedByLabel: '',
+                suggestions: []
+            };
+        }
 
         if (!this._longeviteEntriesByCode) {
             this._longeviteEntriesByCode = new Map();
@@ -9895,27 +10104,158 @@ class ValoboisApp {
         if (!this._longeviteEntriesByCommon) {
             this._longeviteEntriesByCommon = new Map();
             this._longeviteEntriesByScientific = new Map();
+            this._longeviteEntriesByCommonHead = new Map();
+            this._longeviteEntriesByScientificHead = new Map();
             data.entries.forEach((entry) => {
                 const commonKey = normalizeEssenceLookupKey(entry && entry.nomStandard);
                 const scientificKey = normalizeEssenceLookupKey(entry && entry.especeBotanique);
                 if (commonKey && !this._longeviteEntriesByCommon.has(commonKey)) this._longeviteEntriesByCommon.set(commonKey, entry);
                 if (scientificKey && !this._longeviteEntriesByScientific.has(scientificKey)) this._longeviteEntriesByScientific.set(scientificKey, entry);
+
+                const commonHead = this.getLongeviteEssenceHeadKey(entry && entry.nomStandard);
+                const scientificHead = this.getLongeviteEssenceHeadKey(entry && entry.especeBotanique);
+                if (commonHead) {
+                    if (!this._longeviteEntriesByCommonHead.has(commonHead)) this._longeviteEntriesByCommonHead.set(commonHead, []);
+                    this._longeviteEntriesByCommonHead.get(commonHead).push(entry);
+                }
+                if (scientificHead) {
+                    if (!this._longeviteEntriesByScientificHead.has(scientificHead)) this._longeviteEntriesByScientificHead.set(scientificHead, []);
+                    this._longeviteEntriesByScientificHead.get(scientificHead).push(entry);
+                }
             });
+        }
+
+        const overrideCode = (essenceInfo && essenceInfo.overrideCode ? essenceInfo.overrideCode : '').toString().trim().toUpperCase();
+        if (overrideCode && this._longeviteEntriesByCode.has(overrideCode)) {
+            return {
+                entry: this._longeviteEntriesByCode.get(overrideCode),
+                matchedBy: 'manual-override',
+                matchedByLabel: 'Sélection manuelle (essence candidate)',
+                suggestions: []
+            };
         }
 
         const code = (essenceInfo && essenceInfo.detailed && essenceInfo.detailed.codeEn13556 ? essenceInfo.detailed.codeEn13556 : '')
             .toString()
             .trim()
             .toUpperCase();
-        if (code && this._longeviteEntriesByCode.has(code)) return this._longeviteEntriesByCode.get(code);
+        if (code && this._longeviteEntriesByCode.has(code)) {
+            return {
+                entry: this._longeviteEntriesByCode.get(code),
+                matchedBy: 'en13556',
+                matchedByLabel: 'Code EN 13556',
+                suggestions: []
+            };
+        }
 
         const scientificKey = normalizeEssenceLookupKey(essenceInfo && essenceInfo.scientific);
-        if (scientificKey && this._longeviteEntriesByScientific.has(scientificKey)) return this._longeviteEntriesByScientific.get(scientificKey);
+        if (scientificKey && this._longeviteEntriesByScientific.has(scientificKey)) {
+            return {
+                entry: this._longeviteEntriesByScientific.get(scientificKey),
+                matchedBy: 'scientific-exact',
+                matchedByLabel: 'Nom scientifique exact',
+                suggestions: []
+            };
+        }
 
         const commonKey = normalizeEssenceLookupKey(essenceInfo && essenceInfo.common);
-        if (commonKey && this._longeviteEntriesByCommon.has(commonKey)) return this._longeviteEntriesByCommon.get(commonKey);
+        if (commonKey && this._longeviteEntriesByCommon.has(commonKey)) {
+            return {
+                entry: this._longeviteEntriesByCommon.get(commonKey),
+                matchedBy: 'common-exact',
+                matchedByLabel: 'Nom usuel exact',
+                suggestions: []
+            };
+        }
 
-        return null;
+        const scientificHead = this.getLongeviteEssenceHeadKey(essenceInfo && essenceInfo.scientific);
+        const commonHead = this.getLongeviteEssenceHeadKey(essenceInfo && essenceInfo.common);
+        const scientificHeadMatches = this.listLongeviteEntriesByHead(scientificHead);
+        const commonHeadMatches = this.listLongeviteEntriesByHead(commonHead);
+        const headHintCodes = [];
+        [...scientificHeadMatches, ...commonHeadMatches].forEach((entry) => {
+            const codeKey = (entry && entry.code ? entry.code : '').toString().trim().toUpperCase();
+            if (!codeKey || headHintCodes.includes(codeKey)) return;
+            headHintCodes.push(codeKey);
+        });
+
+        const targetProfile = this.buildLongeviteTargetProfile(essenceInfo);
+        const detailedByCode = this.getLongeviteDetailedByCodeMap();
+        const ranked = data.entries
+            .map((entry) => {
+                const codeKey = (entry && entry.code ? entry.code : '').toString().trim().toUpperCase();
+                const entryDetailed = detailedByCode.get(codeKey) || null;
+                const score = this.computeLongeviteCandidateProfileScore(entry, targetProfile, entryDetailed, headHintCodes);
+                return {
+                    entry,
+                    ...score
+                };
+            })
+            .filter((item) => {
+                const hasTargetDensity = Number.isFinite(targetProfile && targetProfile.density);
+                const hasDensityDelta = Number.isFinite(item.densityDelta);
+                if (hasTargetDensity) {
+                    if (!hasDensityDelta || item.densityDelta > 100) return false;
+                }
+                if (item.comparedDurability > 0) {
+                    return item.matchedDurability > 0;
+                }
+                return item.totalScore > 0;
+            })
+            .sort((a, b) => {
+                if (b.totalScore !== a.totalScore) return b.totalScore - a.totalScore;
+                const aDelta = Number.isFinite(a.densityDelta) ? a.densityDelta : Number.POSITIVE_INFINITY;
+                const bDelta = Number.isFinite(b.densityDelta) ? b.densityDelta : Number.POSITIVE_INFINITY;
+                return aDelta - bDelta;
+            });
+
+        const suggestions = ranked.slice(0, 6).map((item) => item.entry);
+
+        if (suggestions.length === 1) {
+            return {
+                entry: suggestions[0],
+                matchedBy: 'profile-cross',
+                matchedByLabel: 'Approximation croisée (masse volumique ±100 kg/m3 + durabilité naturelle)',
+                suggestions
+            };
+        }
+
+        if (suggestions.length > 1) {
+            return {
+                entry: null,
+                matchedBy: '',
+                matchedByLabel: '',
+                suggestions
+            };
+        }
+
+        // Fallback de secours si le profil est incomplet: approximation par tête de nom.
+        if (scientificHeadMatches.length === 1) {
+            return {
+                entry: scientificHeadMatches[0],
+                matchedBy: 'scientific-head',
+                matchedByLabel: `Approximation sur le genre scientifique « ${scientificHead} »`,
+                suggestions: scientificHeadMatches
+            };
+        }
+        if (commonHeadMatches.length === 1) {
+            return {
+                entry: commonHeadMatches[0],
+                matchedBy: 'common-head',
+                matchedByLabel: `Approximation sur le premier terme « ${commonHead} »`,
+                suggestions: commonHeadMatches
+            };
+        }
+        return {
+            entry: null,
+            matchedBy: '',
+            matchedByLabel: '',
+            suggestions: [...scientificHeadMatches, ...commonHeadMatches].filter((entry, idx, arr) => {
+                const codeKey = (entry && entry.code ? entry.code : '').toString().trim().toUpperCase();
+                if (!codeKey) return false;
+                return arr.findIndex((item) => ((item && item.code ? item.code : '').toString().trim().toUpperCase() === codeKey)) === idx;
+            })
+        };
     }
 
     computeEstimatedLongevite(pieceLike, lot) {
@@ -9923,7 +10263,8 @@ class ValoboisApp {
         const activeClass = classState && classState.activeClass ? classState.activeClass : '';
         const classColumn = this.mapEmploymentClassToLongeviteColumn(activeClass);
         const essenceInfo = this.resolvePieceLikeEssenceForLongevite(pieceLike, lot);
-        const entry = this.resolveLongeviteEntryForEssence(essenceInfo);
+        const essenceMatch = this.resolveLongeviteEntryForEssence(essenceInfo);
+        const entry = essenceMatch && essenceMatch.entry ? essenceMatch.entry : null;
 
         const missing = [];
         if (!activeClass) missing.push('Classe d’emploi effective');
@@ -9939,6 +10280,7 @@ class ValoboisApp {
                 classColumn,
                 entry,
                 essenceInfo,
+                essenceMatch,
                 missing,
                 tooltip: missing.length ? `Calcul impossible: ${missing.join(', ')}.` : 'Calcul impossible.'
             };
@@ -9957,6 +10299,7 @@ class ValoboisApp {
                 classColumn,
                 entry,
                 essenceInfo,
+                essenceMatch,
                 missing: ['Niveau de longévité indisponible'],
                 tooltip: 'Niveau de longévité indisponible dans le référentiel FD P20-651.'
             };
@@ -9970,6 +10313,7 @@ class ValoboisApp {
             classColumn,
             entry,
             essenceInfo,
+            essenceMatch,
             missing: [],
             tooltip: ''
         };
@@ -9982,9 +10326,15 @@ class ValoboisApp {
     openLongeviteInfoModal(pieceLike, lot, title = 'Longévité estimée (FD P 20-651)') {
         const backdrop = document.getElementById('longeviteInfoModalBackdrop');
         if (!backdrop) return;
+        const initialSelectedCode = ((pieceLike && pieceLike.longeviteEssenceCodeOverride) || '').toString().trim().toUpperCase();
+        this._longeviteModalState = {
+            pieceLike: pieceLike || {},
+            lot: lot || null,
+            selectedCode: initialSelectedCode
+        };
         const titleEl = document.getElementById('longeviteInfoModalTitle');
         if (titleEl) titleEl.textContent = title;
-        this.renderLongeviteInfoTable(pieceLike, lot);
+        this.renderLongeviteInfoTable();
         backdrop.classList.remove('hidden');
         backdrop.setAttribute('aria-hidden', 'false');
     }
@@ -9995,47 +10345,138 @@ class ValoboisApp {
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
         }
+        this._longeviteModalState = null;
     }
 
-    renderLongeviteInfoTable(pieceLike, lot) {
+    renderLongeviteInfoTable(pieceLike = null, lot = null) {
         const body = document.getElementById('longeviteInfoModalBody');
         if (!body) return;
 
+        const modalState = this._longeviteModalState || {};
+        const currentPieceLike = pieceLike || modalState.pieceLike || {};
+        const currentLot = lot || modalState.lot || null;
+        if (!currentLot) return;
+
+        if (!this._longeviteModalState) {
+            this._longeviteModalState = {
+                pieceLike: currentPieceLike,
+                lot: currentLot,
+                selectedCode: ''
+            };
+        } else {
+            this._longeviteModalState.pieceLike = currentPieceLike;
+            this._longeviteModalState.lot = currentLot;
+        }
+
         const data = this.getLongeviteReferentialData();
-        const result = this.computeEstimatedLongevite(pieceLike, lot);
+        const baseResult = this.computeEstimatedLongevite(currentPieceLike, currentLot);
+        const candidateProbePieceLike = {
+            ...(currentPieceLike || {}),
+            longeviteEssenceCodeOverride: ''
+        };
+        const candidateProbeResult = this.computeEstimatedLongevite(candidateProbePieceLike, currentLot);
+        const entries = data ? (data.entries || []) : [];
+        const entriesByCode = new Map(entries.map((entry) => [String(entry && entry.code || '').toUpperCase(), entry]));
+        const rawCandidates = (candidateProbeResult.essenceMatch && Array.isArray(candidateProbeResult.essenceMatch.suggestions))
+            ? candidateProbeResult.essenceMatch.suggestions
+            : [];
+        const candidateCodes = new Set(rawCandidates
+            .map((entry) => String(entry && entry.code || '').toUpperCase())
+            .filter(Boolean));
+
+        const selectedCodeRaw = (this._longeviteModalState && this._longeviteModalState.selectedCode
+            ? this._longeviteModalState.selectedCode
+            : '')
+            .toString()
+            .trim()
+            .toUpperCase();
+
+        const selectedCode = (selectedCodeRaw && candidateCodes.has(selectedCodeRaw) && entriesByCode.has(selectedCodeRaw))
+            ? selectedCodeRaw
+            : '';
+        if (this._longeviteModalState) this._longeviteModalState.selectedCode = selectedCode;
+
+        let result = baseResult;
+        if (selectedCode && baseResult.classColumn) {
+            const selectedEntry = entriesByCode.get(selectedCode);
+            const rawLevel = (selectedEntry && selectedEntry[baseResult.classColumn] ? selectedEntry[baseResult.classColumn] : '').toString().trim().toUpperCase();
+            const level = ['L1', 'L2', 'L3', 'N'].includes(rawLevel) ? rawLevel : '';
+            const legendLabel = this.getLongeviteLegendLabel(level);
+            result = {
+                ...baseResult,
+                entry: selectedEntry,
+                level,
+                label: legendLabel,
+                display: level ? `${level} - ${legendLabel}` : 'Données manquantes',
+                missing: level ? [] : ['Niveau de longévité indisponible'],
+                tooltip: level ? '' : 'Niveau de longévité indisponible dans le référentiel FD P20-651.',
+                essenceMatch: {
+                    ...(baseResult.essenceMatch || {}),
+                    entry: selectedEntry,
+                    matchedBy: 'manual-candidate',
+                    matchedByLabel: 'Sélection manuelle d\'essence candidate',
+                    suggestions: rawCandidates
+                }
+            };
+        }
+
         const essenceLabel = this.composeEssenceLabel(result.essenceInfo.common, result.essenceInfo.scientific) || '—';
-        const activeCode = result.entry ? result.entry.code : '';
+        const activeCode = result.entry ? String(result.entry.code || '').toUpperCase() : '';
+        const selectedCodeForTable = selectedCode || (candidateCodes.has(activeCode) ? activeCode : '');
         const legend = data ? (data.legend || {}) : {};
 
-        const entries = data ? (data.entries || []) : [];
         const tableau4 = entries.filter((e) => e.tableauSource === 'Tableau 4');
         const tableau5 = entries.filter((e) => e.tableauSource === 'Tableau 5');
 
         const CE_KEYS = ['CE1', 'CE2', 'CE3a', 'CE3b', 'CE4', 'CE5'];
         const CE_LABELS = ['CE1', 'CE2', 'CE3a<br>(3.1)', 'CE3b<br>(3.2)', 'CE4', 'CE5'];
+        const BIO_LABELS = ['Insectes<br>larves xylophages', 'Termites'];
 
         const levelClass = (level) => {
             if (level === 'L3') return 'longevite-cell--l3';
             if (level === 'L2') return 'longevite-cell--l2';
             if (level === 'L1') return 'longevite-cell--l1';
+            if (level === 'L4') return 'longevite-cell--l4';
             if (level === 'N') return 'longevite-cell--n';
             return '';
         };
 
+        const bioClass = (value) => {
+            const normalized = (value || '').toString().trim().toLowerCase();
+            if (normalized === 'oui') return 'longevite-bio--yes';
+            if (normalized === 'non') return 'longevite-bio--no';
+            return 'longevite-bio--nd';
+        };
+
         const renderTable = (rows) => {
             const headCells = CE_LABELS.map((l) => `<th>${l}</th>`).join('');
+            const bioHeadCells = BIO_LABELS.map((l) => `<th>${l}</th>`).join('');
             const bodyRows = rows.map((row) => {
                 const isActive = row.code === activeCode;
-                const rowClass = isActive ? ' class="longevite-table-row--active"' : '';
+                const rowCode = String(row.code || '').toUpperCase();
+                const isCandidate = candidateCodes.has(rowCode);
+                const rowClassList = [];
+                if (isActive) rowClassList.push('longevite-table-row--active');
+                if (isCandidate) rowClassList.push('longevite-table-row--candidate');
+                const rowClass = rowClassList.length ? ` class="${rowClassList.join(' ')}"` : '';
                 const cesCells = CE_KEYS.map((ce) => {
                     const val = (row[ce] || '').toString().trim().toUpperCase();
                     const cls = levelClass(val);
-                    return `<td class="${cls}">${this.escapeHtml(val || '—')}</td>`;
+                    const ce5Marker = (ce === 'CE5' && val === 'L1') ? ' <span class="longevite-ce5-marker" title="Cas CE5: voir note *">*</span>' : '';
+                    return `<td class="${cls}">${this.escapeHtml(val || '—')}${ce5Marker}</td>`;
                 }).join('');
+                const choiceCell = isCandidate
+                    ? `<td class="longevite-table-choice"><input type="checkbox" class="longevite-candidate-checkbox" data-longevite-candidate-code="${this.escapeHtml(rowCode)}" ${selectedCodeForTable === rowCode ? 'checked' : ''} aria-label="Sélectionner ${this.escapeHtml(row.nomStandard || '')}"></td>`
+                    : '<td class="longevite-table-choice"></td>';
+                const insectes = row.resistanceInsectesLarvesXylophages || '';
+                const termites = row.resistanceTermites || '';
+                const bioCells = [insectes, termites]
+                    .map((value) => `<td class="${bioClass(value)}">${this.escapeHtml((value || 'n/d').toString().trim() || 'n/d')}</td>`)
+                    .join('');
                 const noteMarker = row.notes && row.notes.startsWith('[◆]') ? ' <span class="longevite-aubier-marker" title="' + this.escapeHtml(row.notes) + '">◆</span>' : '';
-                return `<tr${rowClass}><td>${this.escapeHtml(row.nomStandard)}${noteMarker}</td>${cesCells}</tr>`;
+                return `<tr${rowClass}>${choiceCell}<td>${this.escapeHtml(row.nomStandard)}${noteMarker}</td>${cesCells}${bioCells}</tr>`;
             }).join('');
-            return `<div class="longevite-table-scroll"><table class="longevite-table"><thead><tr><th>Essence</th>${headCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
+            return `<div class="longevite-table-scroll"><table class="longevite-table"><thead><tr><th class="longevite-table-choice">Choix</th><th>Essence</th>${headCells}${bioHeadCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
         };
 
         // Context block
@@ -10044,21 +10485,45 @@ class ValoboisApp {
             { label: 'Classe d\'emploi effective', value: result.activeClass || '—', cls: '' },
             { label: 'Longévité estimée', value: result.display, cls: result.level ? `longevite-info-context__value--${result.level.toLowerCase()}` : '' }
         ];
+        contextRows.push({
+            label: 'Filtre candidats',
+            value: 'Masse volumique ±100 kg/m3 + critères de durabilité naturelle (champignons, insectes xylophages, termites).',
+            cls: 'longevite-info-context__value--note'
+        });
+        if (result.essenceMatch && result.essenceMatch.entry && result.essenceMatch.matchedBy && !/exact|en13556/.test(result.essenceMatch.matchedBy)) {
+            contextRows.push({
+                label: 'Correspondance utilisée',
+                value: `${result.essenceMatch.matchedByLabel} -> ${result.essenceMatch.entry.nomStandard || ''} (${result.essenceMatch.entry.especeBotanique || ''})`,
+                cls: 'longevite-info-context__value--note'
+            });
+        }
+        if (result.essenceMatch && Array.isArray(result.essenceMatch.suggestions) && result.essenceMatch.suggestions.length) {
+            const suggestionLabel = result.essenceMatch.suggestions
+                .slice(0, 6)
+                .map((entry) => `${entry.nomStandard || ''} (${entry.especeBotanique || ''})`)
+                .join(' | ');
+            contextRows.push({ label: 'Essences candidates', value: suggestionLabel, cls: 'longevite-info-context__value--note' });
+        }
         if (result.entry && result.entry.notes) contextRows.push({ label: 'Note essence', value: result.entry.notes, cls: 'longevite-info-context__value--note' });
         if (result.missing && result.missing.length) contextRows.push({ label: 'Données manquantes', value: result.missing.join(', '), cls: 'longevite-info-context__value--missing' });
         const contextHtml = `<div class="longevite-info-context">${contextRows.map((r) => `<div class="longevite-info-context__row"><span class="longevite-info-context__label">${this.escapeHtml(r.label)}</span><span class="longevite-info-context__value ${r.cls}">${this.escapeHtml(r.value)}</span></div>`).join('')}</div>`;
 
         // Legend
         const legendHtml = `<div class="longevite-legend">${['L3', 'L2', 'L1', 'N'].map((lv) => `<span class="longevite-legend-item longevite-legend-item--${lv.toLowerCase()}"><span class="longevite-legend-item__badge">${this.escapeHtml(lv)}</span><span class="longevite-legend-item__label">${this.escapeHtml(legend[lv] || lv)}</span></span>`).join('')}</div>`;
+        const ce5LegendHtml = `<div class="longevite-legend longevite-legend--ce5"><span class="longevite-legend-item longevite-legend-item--ce5"><span class="longevite-legend-item__badge">*</span><span class="longevite-legend-item__label">CE5 (milieu marin) : les essences absentes du Tableau 7 reçoivent N par défaut ; les essences du Tableau 7 (Tableau 5, colonne CE5 = L1) ont une longévité L3 jusqu'en CE3b et L2 en CE4.</span></span></div>`;
+        const bioLegendHtml = `<div class="longevite-legend longevite-legend--bio"><span class="longevite-legend-item"><span class="longevite-legend-item__badge longevite-bio--yes">oui</span><span class="longevite-legend-item__label">Résistance naturelle présente</span></span><span class="longevite-legend-item"><span class="longevite-legend-item__badge longevite-bio--no">non</span><span class="longevite-legend-item__label">Résistance naturelle absente</span></span></div>`;
 
-        const t4Open = tableau4.some((e) => e.code === activeCode);
-        const t5Open = tableau5.some((e) => e.code === activeCode);
+        const t4Open = tableau4.some((e) => e.code === activeCode || candidateCodes.has(String(e.code || '').toUpperCase()));
+        const t5Open = tableau5.some((e) => e.code === activeCode || candidateCodes.has(String(e.code || '').toUpperCase()));
 
         body.innerHTML = `
             <p class="detail-modal-instruction">Le tableau ci-dessous reprend les valeurs de longévité estimée (durabilité fongique) par classe d'emploi issues de la FD P 20-651 (AFNOR, 2011), §8. La ligne correspondant à l'essence identifiée est mise en évidence.</p>
             ${contextHtml}
-            <h3 class="detail-modal-subtitle">Légende</h3>
+            <h3 class="detail-modal-subtitle">Légende longévité</h3>
             ${legendHtml}
+            ${ce5LegendHtml}
+            <h3 class="detail-modal-subtitle">Légende résistance biologique</h3>
+            ${bioLegendHtml}
             <h3 class="detail-modal-subtitle">Tableau 4 — Essences européennes</h3>
             <div class="detail-modal-fdp-tables">
                 <details${t4Open ? ' open' : ''}>
@@ -10073,16 +10538,46 @@ class ValoboisApp {
                     ${renderTable(tableau5)}
                 </details>
             </div>
+            <details class="longevite-notes" open>
+                <summary>Notes d'application</summary>
+                <ul>
+                    <li>Pour les essences non résistantes en classe 5, la norme spécifie qu'en dépit d'une marge de tolérance ces longévités sont en principe relatives exclusivement à des bois purgés d'aubier. Quelle que soit l'essence, l'aubier ne présente à l'état naturel aucune résistance vis-à-vis des agents de dégradation biologique du bois.</li>
+                    <li>Malgré que certaines essences ont une résistance « moyenne » au termite (s'en référer à la NF EN 350-2), elles sont ici considérées comme non résistantes.</li>
+                    <li>Un point de vigilance est signalé par la norme pour les essences marquées du symbole « ◆ » : l'aubier est « peu ou pas distinct du duramen à l'état sec ».</li>
+                    <li>Pour le Châtaignier (CTST) et le Chêne rouvre/pédonculé (QCXE) la norme spécifie que la longévité L1 en classe d'emploi 4 est applicable uniquement en situation hors sol (ni en contact avec le sol, ni enfouis dans le sol).</li>
+                    <li>Les essences listées en classe d'emploi 5 sont réputées résistantes aux organismes marins invertébrés (<em>Limnoria</em> spp. et <em>Teredo</em> spp.) qui creusent des tunnels et cavités dans le bois. Les essences absentes du Tableau 7 de la norme reçoivent la valeur N (par défaut) en classe d'emploi 5 (non viables en eau de mer). Inversement, les essences du Tableau 7 reçoivent une longévité L3 jusqu'en classe d'emploi 3.2 et L2 en classe d'emploi 4.</li>
+                </ul>
+            </details>
             <details class="detail-modal-references">
-                <summary>Notes et références</summary>
+                <summary>Références et ressources</summary>
                 <ul>
                     <li>AFNOR. (2011). <em>FD P 20-651 — Durabilité des éléments et ouvrages en bois</em>. AFNOR.</li>
-                    <li>AFNOR. (2017). <em>NF EN 350 — Durabilité du bois et des produits dérivés du bois</em>. AFNOR.</li>
-                    <li>Note T4-1 : Pour le Châtaignier (CTST) et le Chêne rouvre/pédonculé (QCXE), la valeur L1 en CE4 s'applique uniquement hors sol (ni en contact avec le sol, ni enfouis).</li>
-                    <li>[◆] Essences dont l'aubier est peu ou pas distinct du duramen à l'état sec.</li>
-                    <li>CE5 : seules les essences figurant au Tableau 7 (§8.3 FD P 20-651) sont réputées résistantes en milieu marin (eau de mer).</li>
+                    <li>AFNOR. (2016). <em>NF EN 350 — Durabilité du bois et des produits dérivés du bois — Méthodes d'essai et de classification de la durabilité vis-à-vis des agents biologiques du bois et des matériaux dérivés du bois</em>. AFNOR.</li>
+                    <li>Des exemples de récupérations des essences « exotiques » et de leurs longévités potentielles sont à retrouver auprès de Ashwells Reclaimed Timber Ltd. <a href="https://ashwelltimber.com/reclamation" target="_blank" rel="noopener">Reclamation</a>.</li>
                 </ul>
             </details>`;
+
+        body.querySelectorAll('input[data-longevite-candidate-code]').forEach((input) => {
+            input.addEventListener('change', (event) => {
+                const code = (event.target && event.target.dataset && event.target.dataset.longeviteCandidateCode
+                    ? event.target.dataset.longeviteCandidateCode
+                    : '')
+                    .toString()
+                    .trim()
+                    .toUpperCase();
+                if (!this._longeviteModalState) return;
+                const nextCode = event.target.checked ? code : '';
+                this._longeviteModalState.selectedCode = nextCode;
+                const targetPieceLike = this._longeviteModalState.pieceLike;
+                if (targetPieceLike && typeof targetPieceLike === 'object') {
+                    targetPieceLike.longeviteEssenceCodeOverride = nextCode;
+                }
+                this.saveData();
+                this.renderAllotissement();
+                this.renderDetailLot();
+                this.renderLongeviteInfoTable();
+            });
+        });
     }
 
     getDurabiliteNaturelleRows(essence, lang = 'fr', options = {}) {
@@ -19336,13 +19831,13 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <div class="lot-longevite-row">
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
-                            <input type="text" class="lot-input" value="${viewValue(attrValue(longeviteDp.display))}" readonly title="${viewValue(attrValue(longeviteDp.tooltip || ''))}" data-default-piece-id="${defaultPieceId}" data-default-piece-display="longeviteEstimee">
-                        </div>
+                        <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
+                        <div class="lot-longevite-input-row">
+                        <input type="text" class="lot-input" value="${viewValue(attrValue(longeviteDp.display))}" readonly title="${viewValue(attrValue(longeviteDp.tooltip || ''))}" data-default-piece-id="${defaultPieceId}" data-default-piece-display="longeviteEstimee">
                         <button type="button" class="loc-sit-info-btn longevite-info-btn" data-longevite-info="default-piece" data-default-piece-id="${defaultPieceId}" title="Informations sur la longévité estimée" aria-label="Informations sur la longévité estimée">
                             <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                         </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -19697,10 +20192,9 @@ closeEvalOpModal() {
                         </div>
                     </div>
                     <div class="lot-longevite-row">
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
-                            <input type="text" class="lot-input" value="${attrValue(longeviteP.display)}" readonly title="${attrValue(longeviteP.tooltip || '')}" data-piece-display="longeviteEstimee">
-                        </div>
+                        <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
+                        <div class="lot-longevite-input-row">
+                        <input type="text" class="lot-input" value="${attrValue(longeviteP.display)}" readonly title="${attrValue(longeviteP.tooltip || '')}" data-piece-display="longeviteEstimee">
                         <button type="button" class="loc-sit-info-btn longevite-info-btn" data-longevite-info="piece" title="Informations sur la longévité estimée" aria-label="Informations sur la longévité estimée">
                             <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                         </button>
@@ -20433,13 +20927,13 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-longevite-row">
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
-                                <input type="text" class="lot-input" value="${this.computeEstimatedLongevite(lot.allotissement, lot).display}" readonly data-display="avgLongeviteEstimee">
-                            </div>
+                            <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
+                            <div class="lot-longevite-input-row">
+                            <input type="text" class="lot-input" value="${this.computeEstimatedLongevite(lot.allotissement, lot).display}" readonly data-display="avgLongeviteEstimee">
                             <button type="button" class="loc-sit-info-btn longevite-info-btn" data-lot-longevite-info-btn title="Informations sur la longévité estimée" aria-label="Informations sur la longévité estimée">
                                 <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             </button>
+                            </div>
                         </div>
                     </div>
                     <div class="accueil-collapsible-shell accueil-collapsible-shell--with-alert">
@@ -21615,7 +22109,9 @@ closeEvalOpModal() {
                     const nextConception = this.normalizeLocSitConceptionValue(btn.dataset.defaultPieceConception);
                     if (!nextConception) return;
                     dp.conception = this.normalizeLocSitConceptionValue(dp.conception) === nextConception ? '' : nextConception;
+                    this.recalculateLotAllotissement(lot);
                     this.saveData();
+                    this.renderAllotissement();
                     this.renderDetailLot();
                 });
             });
@@ -22015,7 +22511,9 @@ closeEvalOpModal() {
                     const nextConception = this.normalizeLocSitConceptionValue(btn.dataset.pieceConception);
                     if (!nextConception) return;
                     piece.conception = this.normalizeLocSitConceptionValue(piece.conception) === nextConception ? '' : nextConception;
+                    this.recalculateLotAllotissement(lot);
                     this.saveData();
+                    this.renderAllotissement();
                     this.renderDetailLot();
                 });
             });

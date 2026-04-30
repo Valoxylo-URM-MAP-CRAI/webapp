@@ -28,23 +28,23 @@ Européen;Tableau 4;Pinus taeda (d≥0,56);Pinus taeda;PNTD;L3;L2;L1;N;N;N;non;n
 Européen;Tableau 4;Pinus radiata (d≥0,48);Pinus radiata - Monterey pine USA;PNRD;L3;L2;L1;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Européen;Tableau 4;Pinus strobus (d≥0,39);Pinus strobus - Pine yellow;PNST;L3;L2;L1;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Européen;Tableau 4;Southern yellow pine (0,66≤d≤0,69);Pinus palustris et Pinus elliottii;PNPL;L3;L3;L1;L1;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
-Tropical;Tableau 5;Angelim vermelho;Dinizia excelsa;DEEX;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Angelim vermelho;Dinizia excelsa;DEEX;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Amarante;Peltogyne spp.;PGXX;L3;L3;L3;L2;N;N;oui;oui;
 Tropical;Tableau 5;Andira (Saint Martin rouge);Andira spp.;AAXX;L3;L3;L3;L2;L1;N;oui;oui;
 Tropical;Tableau 5;Aningré;Aningeria spp.;AQXX;L3;L2;L1;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Ayous / Samba;Triplochiton scleroxylon;TRSC;L3;L2;L1;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
-Tropical;Tableau 5;Azobé;Lophira alata;LOAL;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Azobé;Lophira alata;LOAL;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Balau red (d≥0,75);Shorea section Rubroshorea;SHRB;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Bété;Mansonia altissima;MAAL;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Bangkiraï;Shorea Section Eushorea;SHBL;L3;L3;L3;L2;L1;L1;oui;oui;
-Tropical;Tableau 5;Basralocus / Angélique;Dicorynia guianensis;DIXX;L3;L3;L3;L2;L1;L1;oui;non;
+Tropical;Tableau 5;Bangkiraï;Shorea Section Eushorea;SHBL;L3;L3;L3;L3;L2;L1;oui;oui;
+Tropical;Tableau 5;Basralocus / Angélique;Dicorynia guianensis;DIXX;L3;L3;L3;L3;L2;L1;oui;non;
 Tropical;Tableau 5;Bossé;Guarea spp. Afrique;GRXX;L3;L3;L3;L2;N;N;oui;non;
 Tropical;Tableau 5;Bubinga;Guibourtia pellegriniana;GUXX;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Bilinga;Nauclea diderrichii;NADD;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Bilinga;Nauclea diderrichii;NADD;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Bintangor;Calophyllum spp.;CLXX;L3;L2;L1;N;N;N;oui;non;
 Tropical;Tableau 5;Cambara / Jaboty;Erisma uncinatum;EUIN;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Caxinguba / Figueira;Ficus spp.;FIXX;L3;L2;N;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
-Tropical;Tableau 5;Cumaru;Dipteryx spp.;DXXX;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Cumaru;Dipteryx spp.;DXXX;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Curupixa;Micropholis spp.;MPXX;L3;L2;N;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Dibétou;Lovoa spp.;LVXX;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Difou;Morus mesozygia;MRMZ;L3;L3;L3;L2;L1;N;oui;oui;
@@ -53,13 +53,13 @@ Tropical;Tableau 5;Durian;Durio spp. / Coelostegia spp. / Neesia spp.;DUXX;L3;L2
 Tropical;Tableau 5;Eucalyptus globulus;Eucalyptus globulus;EUGL;L3;L2;N;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Eucalyptus grandis;Eucalyptus grandis;EUGR;L3;L2;L1;N;N;N;oui;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Framiré;Terminalia ivorensis;TMIV;L3;L3;L3;L1;N;N;non;non;
-Tropical;Tableau 5;Garapa / Grapia;Apuleia leiocarpa;APLC;L3;L3;L2;L1;L1;L1;oui;non;
+Tropical;Tableau 5;Garapa / Grapia;Apuleia leiocarpa;APLC;L3;L3;L2;L3;L2;L1;oui;non;
 Tropical;Tableau 5;Gonçalo alves / Muiracatiara;Astronium spp.;AVXX;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Greenheart;Chlorocardium rodiei;CHRD;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Greenheart;Chlorocardium rodiei;CHRD;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Iatandza;Albizia ferruginea;AZFR;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Ipé / Ébène verte (d≥0,85);Tabebuia spp. denses et foncés;TBXX;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Ipé / Ébène verte (d≥0,85);Tabebuia spp. denses et foncés;TBXX;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Iroko;Milicia excelsa / Milicia regia;MIXX;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Itauba;Mezilaurus spp.;MZXX;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Itauba;Mezilaurus spp.;MZXX;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Jatoba;Hymenaea spp.;HYXX;L3;L3;L3;L2;L1;N;oui;non;
 Tropical;Tableau 5;Jequitiba;Cariniana spp.;CZXX;L3;L3;L2;L1;N;N;non;oui;
 Tropical;Tableau 5;Kapur;Dryobalanops spp.;DRXX;L3;L3;L3;L2;L1;N;oui;non;
@@ -72,37 +72,37 @@ Tropical;Tableau 5;Limba / Fraké;Terminalia superba;TMSP;L3;L3;N;N;N;N;non;non;
 Tropical;Tableau 5;Limbali;Gilbertiodendron spp.;GBXX;L3;L3;L3;L2;L1;N;oui;non;
 Tropical;Tableau 5;Louro vermelho / Grignon franc;Sextonia rubra;SXRB;L3;L3;L3;L2;N;N;oui;oui;
 Tropical;Tableau 5;Mandioqueïra / Gonfolo;Qualea spp. / Ruizterania albiflora;QUXX;L3;L3;L2;L1;N;N;oui;non;
-Tropical;Tableau 5;Maçaranduba;Manilkara spp. Amérique du Sud;MNXX;L3;L3;L3;L2;L1;L1;oui;oui;
-Tropical;Tableau 5;Makoré / Douka;Tieghemella spp.;TGAF;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Maçaranduba;Manilkara spp. Amérique du Sud;MNXX;L3;L3;L3;L3;L2;L1;oui;oui;
+Tropical;Tableau 5;Makoré / Douka;Tieghemella spp.;TGAF;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Marupá;Simarouba spp.;SMAM;L3;L2;N;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Mengkulang;Heritiera spp.;HEXM;L3;L2;L1;N;N;N;oui;non;
 Tropical;Tableau 5;Méranti light red (d≤0,58);Shorea section Rubroshorea;SHLR;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Méranti dark red (0,58≤d≤0,75);Shorea section Rubroshorea;SHDR;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Merbau;Intsia spp.;INXX;L3;L3;L3;L2;L1;N;oui;non;
-Tropical;Tableau 5;Moabi;Baillonella toxisperma;BLTX;L3;L3;L3;L2;L1;L1;oui;oui;
-Tropical;Tableau 5;Movingui;Distemonanthus benthamianus;DTBN;L3;L3;L2;L1;N;L1;oui;non;
-Tropical;Tableau 5;Mukulungu;Autranella congolensis;AWCO;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Moabi;Baillonella toxisperma;BLTX;L3;L3;L3;L3;L2;L1;oui;oui;
+Tropical;Tableau 5;Movingui;Distemonanthus benthamianus;DTBN;L3;L3;L3;L3;L2;L1;oui;non;
+Tropical;Tableau 5;Mukulungu;Autranella congolensis;AWCO;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Niangon;Heritiera utilis;HEXN;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Nyatoh;Palaquium spp.;PPXX;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Niové;Staudtia kamerunensis;SSST;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Okan;Cylicodiscus gabunensis;CKGB;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Okan;Cylicodiscus gabunensis;CKGB;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Okoumé;Aucoumea klaineana;AUKL;L3;L2;L1;N;N;N;oui;non;
-Tropical;Tableau 5;Padouk;Pterocarpus soyauxii / P. osun;PTXX;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Padouk;Pterocarpus soyauxii / P. osun;PTXX;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Pau amarelo;Euxylophora paraensis;EXPA;L3;L3;L3;L2;L1;N;oui;oui;
 Tropical;Tableau 5;Piquiarana;Caryocar glabrum;COGL;L3;L3;L3;L2;L1;N;non;oui;
 Tropical;Tableau 5;Pyinkado;Xylia xylocarpa;XYXX;L3;L3;L3;L2;L1;N;oui;oui;
 Tropical;Tableau 5;Sapelli;Entandrophragma cylindricum;ENCY;L3;L3;L2;L1;N;N;oui;non;
 Tropical;Tableau 5;Sipo;Entandrophragma utile;ENUT;L3;L3;L3;L1;N;N;oui;non;
 Tropical;Tableau 5;Sucupira;Diplotropis spp.;BOXX;L3;L3;L3;L2;L1;N;oui;oui;
-Tropical;Tableau 5;Tali;Erythrophleum spp. Afrique;EYXX;L3;L3;L3;L2;L1;L1;oui;oui;
-Tropical;Tableau 5;Tatajuba;Bagassa guianensis;BGGN;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Tali;Erythrophleum spp. Afrique;EYXX;L3;L3;L3;L3;L2;L1;oui;oui;
+Tropical;Tableau 5;Tatajuba;Bagassa guianensis;BGGN;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Tauari;Couratari spp.;CIXX;L3;L2;L1;N;N;N;non;non;[◆] Aubier peu ou pas distinct du duramen à l'état sec
 Tropical;Tableau 5;Tiama;Entandrophragma angolense;ENAN;L3;L3;L2;L1;N;N;oui;non;
-Tropical;Tableau 5;Teck de forêt naturelle;Tectona grandis;TEGR;L3;L3;L3;L2;L1;L1;oui;oui;
-Tropical;Tableau 5;Teck de plantation;Tectona grandis;TEGR_P;L3;L3;L3;L2;L1;L1;oui;oui;
+Tropical;Tableau 5;Teck de forêt naturelle;Tectona grandis;TEGR;L3;L3;L3;L3;L2;L1;oui;oui;
+Tropical;Tableau 5;Teck de plantation;Tectona grandis;TEGR_P;L3;L3;L3;L3;L2;L1;oui;oui;
 Tropical;Tableau 5;Tola;Gosweilerodendron balsamiferum;GOXX;L3;L3;L2;L1;N;N;non;non;
 Tropical;Tableau 5;Tornillo / Cedrorana;Cedrelinga cateniformis;CGCT;L3;L3;L2;L1;N;N;non;non;
-Tropical;Tableau 5;Wacapou;Vouacapoua spp.;VCXX;L3;L3;L3;L2;L1;N;oui;oui;
+Tropical;Tableau 5;Wacapou;Vouacapoua spp.;VCXX;L3;L3;L3;L3;L2;N;oui;oui;
 ;;;;;;;;;;;;;
 Légende des valeurs de longévité fongique au regard de la classe d’emploi (Tableaux 4, 5 et 7 - FD P 20-651);;;;;;;;;;;;;
 L3;Longévité supérieure à 100 ans;;;;;;;;;;;;
@@ -110,22 +110,13 @@ L2;Longévité entre 50 et 99 ans;;;;;;;;;;;;
 L1;Longévité entre 10 et 49 ans;;;;;;;;;;;;
 N;Longévité incertaine, inférieure à 10 ans;;;;;;;;;;;;
 ;;;;;;;;;;;;;
-Notes tableau 4 (Essences européennes);;;;;;;;;;;;;
-Note T4-1;Pour Châtaignier (CTST) et Chêne rouvre/pédonculé (QCXE) : L1 en classe d’emploi 4 applicable uniquement hors sol (ni en contact avec le sol, ni enfouis dans le sol);;;;;;;;;;;;
-Note T4-2;"Ce tableau est élaboré pour des essences de bois purgés d'aubier ; une tolérance sur la présence d'aubier peut être admise (voir DTU de l'application)";;;;;;;;;;;;
-Note T4-3;"Certaines essences ont une résistance moyenne vis-à-vis du termite (voir NF EN 350-2) ; elles ont été considérées comme non résistantes";;;;;;;;;;;;
-◆;Pour les essences marquées ◆ : l'aubier est peu ou pas distinct du duramen à l'état sec;;;;;;;;;;;;
-;;;;;;;;;;;;;
-Notes tableau 5 (Essences tropicales);;;;;;;;;;;;;
-Note T5-1;"Ce tableau est élaboré pour des essences de bois purgés d'aubier ; une tolérance sur la présence d'aubier peut être admise (voir DTU de l'application)";;;;;;;;;;;;
-Note T5-2;"Certaines essences ont une résistance moyenne vis-à-vis du termite (voir NF EN 350-2) ; elles ont été considérées comme non résistantes";;;;;;;;;;;;
-◆;Pour les essences marquées ◆ : l'aubier est peu ou pas distinct du duramen à l'état sec;;;;;;;;;;;;
-;;;;;;;;;;;;;
-Notes tableau (Essences pour eau de mer - Classe 5) ;;;;;;;;;;;;;
-Note T7;Les essences listées en classe d’emploi 5 sont réputées résistantes aux organismes marins invertébrés (Limnoria spp. et Teredo spp.) qui creusent des tunnels et cavités dans le bois;;;;;;;;;;;;
-Note T7;"Les essences du présent tableau correspondent aux essences du Tableau 7 (§8.3 de la FD P 20-651) ; toutes affichent une durabilité fongique L1 en classe d’emploi 5";;;;;;;;;;;;
-Note T7;Les essences absentes du Tableau 7 reçoivent la valeur N en colonne classe d’emploi 5 (non viables en eau de mer);;;;;;;;;;;;
-;;;;;;;;;;;;;
 Notes générales;;;;;;;;;;;;;
-Note générale;Quelle que soit l'essence, l'aubier ne présente à l'état naturel aucune résistance vis-à-vis des agents de dégradation biologique du bois. Une tolérance d'aubier ne peut être définie que dans les référentiels normatifs applicables (DTU, normes de conception, etc.);;;;;;;;;;;;
-Source;FD P 20-651 — Juin 2011 — AFNOR — Durabilité des éléments et ouvrages en bois;;;;;;;;;;;;
+;Pour les essences non résistantes en classe 5, la norme spécifie qu’en dépit d’une marge de tolérance ces longévités sont en principe relatives exclusivement à des bois purgés d’aubier. Quelle que soit l'essence, l'aubier ne présente à l'état naturel aucune résistance vis-à-vis des agents de dégradation biologique du bois.;;;;;;;;;;;;
+;Malgré que certaines essences ont une résistance « moyenne » au termite (s’en référer à la NF EN 350-2), elles sont ici considérées comme non résistantes.;;;;;;;;;;;;
+;Un point de vigilance est signalé par la norme pour les essences marquées du symbole « ◆ » l'aubier est « peu ou pas distinct du duramen à l'état sec ».;;;;;;;;;;;;
+;Pour le Châtaignier (CTST) et le Chêne rouvre/pédonculé (QCXE) la norme spécifie que la longévité L1 en classe d’emploi 4 est applicable uniquement en situation hors sol (ni en contact avec le sol, ni enfouis dans le sol).;;;;;;;;;;;;
+;Les essences listées en classe d’emploi 5 sont réputées résistantes aux organismes marins invertébrés (Limnoria spp. et Teredo spp.) qui creusent des tunnels et cavités dans le bois. Les essences absentes du Tableau 7 de la norme reçoivent la valeur N (par défaut) en classe d’emploi 5 (non viables en eau de mer). Inversement les essence du Tableau 7 reçoivent une longévité L3 jusqu’en classe d’emploi 3.2 et L2 en classe d’emploi 4.;;;;;;;;;;;;
+;;;;;;;;;;;;;
+Source;AFNOR. (2011). FD P 20-651 — Durabilité des éléments et ouvrages en bois.;;;;;;;;;;;;
+;AFNOR. (2016). NF EN 350 — Durabilité du bois et des produits dérivés du bois -Méthodes d’essai et de classification de la durabilité vis-à-vis des agents biologiques du bois et des matériaux dérivés du bois.;;;;;;;;;;;;
+;Des exemples de récupérations des essences « exotiques » et de leur longévités potentielles sont à retrouver auprès de Ashwells Reclaimed Timber Ltd. (s. d.). Reclamation. https://ashwelltimber.com/reclamation;;;;;;;;;;;;

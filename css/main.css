@@ -2456,19 +2456,30 @@ body.day-mode .lot-group--collapsible summary::after {
 }
 
 .lot-longevite-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 8px;
-    align-items: end;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
     margin-top: 8px;
+}
+
+.lot-longevite-input-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+}
+
+.lot-longevite-input-row .lot-input {
+    flex: 1;
+    min-width: 0;
 }
 
 .lot-longevite-row .longevite-info-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 40px;
-    height: 40px;
+    line-height: 1;
+    width: auto;
+    aspect-ratio: 1;
     padding: 0;
     background-color: var(--bleu-crai);
     border: none;
@@ -2481,6 +2492,12 @@ body.day-mode .lot-group--collapsible summary::after {
 
 .lot-longevite-row .longevite-info-btn:hover {
     background-color: #162e72;
+}
+
+.lot-longevite-row .longevite-info-btn svg {
+    width: 15px;
+    height: 15px;
+    display: block;
 }
 
 /* =============================================
@@ -2536,19 +2553,59 @@ body.day-mode .lot-group--collapsible summary::after {
 .longevite-legend-item--l2 .longevite-legend-item__badge { background: #fff3cd; color: #856404; }
 .longevite-legend-item--l1 .longevite-legend-item__badge { background: #fde8d8; color: #b34700; }
 .longevite-legend-item--n  .longevite-legend-item__badge { background: #f8d7da; color: #721c24; }
+.longevite-legend-item--ce5 .longevite-legend-item__badge { background: #e8ecf7; color: #1e3e88; }
+.longevite-legend--ce5,
+.longevite-legend--bio {
+    margin-top: -4px;
+    margin-bottom: var(--space-12, 12px);
+}
 
 .longevite-table-scroll { overflow-x: auto; }
 .longevite-table { border-collapse: collapse; width: 100%; font-size: var(--text-xs, 0.8rem); }
 .longevite-table th,
 .longevite-table td { border: 1px solid #dee2e6; padding: 4px 6px; text-align: center; vertical-align: middle; white-space: nowrap; }
-.longevite-table th:first-child,
-.longevite-table td:first-child { text-align: left; white-space: normal; min-width: 160px; }
+.longevite-table th.longevite-table-choice,
+.longevite-table td.longevite-table-choice {
+    width: 54px;
+    min-width: 54px;
+    text-align: center;
+}
+.longevite-table th:nth-child(2),
+.longevite-table td:nth-child(2) { text-align: left; white-space: normal; min-width: 160px; }
 .longevite-table thead th { background: var(--bleu-crai, #1e3e88); color: #fff; font-weight: 700; }
+
+.longevite-candidate-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--bleu-crai, #1e3e88);
+    cursor: pointer;
+}
 
 .detail-modal-fdp-tables .longevite-cell--l3 { background: #d4edda; color: #155724; font-weight: 600; }
 .detail-modal-fdp-tables .longevite-cell--l2 { background: #fff3cd; color: #856404; font-weight: 600; }
 .detail-modal-fdp-tables .longevite-cell--l1 { background: #fde8d8; color: #b34700; font-weight: 600; }
+.detail-modal-fdp-tables .longevite-cell--l4 { background: #e0cffc; color: #4a2480; font-weight: 600; }
 .detail-modal-fdp-tables .longevite-cell--n  { background: #f8d7da; color: #721c24; font-weight: 600; }
+
+.longevite-bio--yes {
+    background: #dff5e2;
+    color: #16592f;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.longevite-bio--no {
+    background: #f8d7da;
+    color: #721c24;
+    font-weight: 600;
+    text-transform: lowercase;
+}
+
+.longevite-bio--nd {
+    background: #f2f2f2;
+    color: #6a6a6a;
+    font-weight: 600;
+}
 
 .longevite-table-row--active td {
     outline: 2px solid var(--bleu-crai);
@@ -2557,11 +2614,37 @@ body.day-mode .lot-group--collapsible summary::after {
     font-weight: 600;
 }
 
+.longevite-table-row--candidate td {
+    outline: 2px solid var(--bleu-crai);
+    outline-offset: -2px;
+    background-color: var(--bleu-crai-pale, #e8ecf7) !important;
+}
+
 .longevite-aubier-marker {
     font-size: 0.7rem;
     color: var(--gris-fonce, #777);
     cursor: help;
     margin-left: 2px;
+}
+
+.longevite-ce5-marker {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #1e3e88;
+}
+
+.longevite-notes {
+    margin-top: var(--space-12, 12px);
+    border: 1px solid #f4cda3;
+    border-radius: var(--radius-base);
+    background: #fff9f1;
+    padding: var(--space-8, 8px);
+}
+
+.longevite-notes > summary {
+    font-weight: 700;
+    cursor: pointer;
+    color: #8c4f16;
 }
 
 
