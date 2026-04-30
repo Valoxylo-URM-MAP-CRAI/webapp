@@ -21158,41 +21158,47 @@ closeEvalOpModal() {
                         </details>
                     </div>
                     <div class="lot-group">
-                        <p class="lot-group-title">Groupe : prix</p>
-                        <div class="lot-prix-group-header">
-                            <button type="button" class="lot-alert-btn lot-prix-alert-btn" data-alert-active="${(!lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot)) ? 'true' : 'false'}" data-lot-prix-alert-btn aria-label="Alerte prix du marché manquant">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-                            </button>
-                            <button type="button" class="lot-price-unit-btn lot-prix-toggle-btn" data-lot-prix-toggle-btn aria-pressed="${lot.allotissement.prixLotDirect ? 'true' : 'false'}" aria-label="Activer/désactiver le prix">${lot.allotissement.prixLotDirect ? 'ON' : 'OFF'}</button>
-                        </div>
-                        <div class="lot-field-block" data-lot-prix-market-block${!lot.allotissement.prixLotDirect ? ' data-muted="true"' : ''}>
-                            <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                            <div class="lot-price-market-layout" data-lot-prix-market-row>
-                                <div class="lot-price-market-row lot-price-market-row--top">
-                                    <div class="lot-input-with-unit">
-                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                        <span class="lot-input-unit" data-display="prixMarcheUnit">${priceUnitLabel}</span>
-                                    </div>
-                                    <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
-                                    <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix du marché">
-                                        <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                        <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                    </div>
+                        <details class="lot-group lot-group--collapsible lot-group--economie-lot" data-ui-collapsible="economie-lot">
+                            <summary class="lot-group-summary">
+                                <span>Économie du lot</span>
+                            </summary>
+                            <div class="lot-group-content">
+                                <div class="lot-prix-group-header">
+                                    <button type="button" class="lot-alert-btn lot-prix-alert-btn" data-alert-active="${(!lot.allotissement.prixLotDirect && this.lotHasMissingPrixMarche(lot)) ? 'true' : 'false'}" data-lot-prix-alert-btn aria-label="Alerte prix du marché manquant">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                                    </button>
+                                    <button type="button" class="lot-price-unit-btn lot-prix-toggle-btn" data-lot-prix-toggle-btn aria-pressed="${lot.allotissement.prixLotDirect ? 'true' : 'false'}" aria-label="Activer/désactiver le prix">${lot.allotissement.prixLotDirect ? 'ON' : 'OFF'}</button>
                                 </div>
-                                <div class="lot-price-market-row lot-price-market-row--bottom">
-                                    <div class="lot-field-block lot-field-block--inline-price-select">
-                                        <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
-                                        <select class="lot-input lot-price-orientation-select" data-lot-price-orientation${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>
-                                            <option value="">Prix à l'orientation</option>
-                                        </select>
-                                    </div>
-                                    <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
-                                        <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                        <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                <div class="lot-field-block" data-lot-prix-market-block${!lot.allotissement.prixLotDirect ? ' data-muted="true"' : ''}>
+                                    <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
+                                    <div class="lot-price-market-layout" data-lot-prix-market-row>
+                                        <div class="lot-price-market-row lot-price-market-row--top">
+                                            <div class="lot-input-with-unit">
+                                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                                <span class="lot-input-unit" data-display="prixMarcheUnit">${priceUnitLabel}</span>
+                                            </div>
+                                            <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix">info</button>
+                                            <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix du marché">
+                                                <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                            </div>
+                                        </div>
+                                        <div class="lot-price-market-row lot-price-market-row--bottom">
+                                            <div class="lot-field-block lot-field-block--inline-price-select">
+                                                <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
+                                                <select class="lot-input lot-price-orientation-select" data-lot-price-orientation${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                                    <option value="">Prix à l'orientation</option>
+                                                </select>
+                                            </div>
+                                            <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
+                                                <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
+                        </details>
                         <div class="lot-price-summary-row">
                             <div class="lot-field-block">
                                 <label class="lot-field-label">Prix du lot</label>
@@ -21596,6 +21602,8 @@ closeEvalOpModal() {
             if (tonneToggle) tonneToggle.disabled = !isDirect;
             const orientationSelect = card.querySelector('select[data-lot-price-orientation]');
             if (orientationSelect) orientationSelect.disabled = !isDirect;
+            const prixInfoBtn = card.querySelector('[data-lot-prix-info-btn]');
+            if (prixInfoBtn) prixInfoBtn.disabled = false;
             const prixAlertBtn = card.querySelector('[data-lot-prix-alert-btn]');
             if (prixAlertBtn) {
                 const hasMissingPrixMarche = !isDirect && this.lotHasMissingPrixMarche(lot);

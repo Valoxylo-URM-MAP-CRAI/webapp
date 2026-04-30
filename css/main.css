@@ -3850,6 +3850,14 @@ body.day-mode .lot-group--collapsible summary:hover {
     right: 4px;
 }
 
+.lot-dimension-computed .lot-input-with-unit input[data-display="lineaireLot"] {
+    padding-right: 14px;
+}
+
+.lot-dimension-computed .lot-input-with-unit input[data-display="lineaireLot"] + .lot-input-unit {
+    right: 4px;
+}
+
 .lot-inline-grid--lot-col {
     display: grid;
     gap: 4px;
@@ -4758,6 +4766,11 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: none;
 }
 
+[data-lot-prix-market-block][data-muted="true"] .lot-prix-info-btn {
+    opacity: 1;
+    pointer-events: auto;
+}
+
 /* Grisage du groupe Prix dans les formulaires Pièce / Pièce par défaut en mode ON */
 [data-prix-group-disabled="true"] {
     position: relative;
@@ -4970,6 +4983,11 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-price-summary-row .lot-input {
     text-align: center;
+}
+
+.lot-price-summary-row input[data-display="integriteLot"] {
+    text-align: left;
+    padding-right: 2px;
 }
 
 .lot-price-summary-row .lot-input-with-unit .lot-input {
