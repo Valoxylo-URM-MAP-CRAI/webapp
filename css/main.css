@@ -2574,6 +2574,41 @@ body.day-mode .lot-group--collapsible summary::after {
 .longevite-table td:nth-child(2) { text-align: left; white-space: normal; min-width: 160px; }
 .longevite-table thead th { background: var(--bleu-crai, #1e3e88); color: #fff; font-weight: 700; }
 
+/* Rareté-Provenance table : toutes les cellules textuelles alignées à gauche */
+.rarete-table-meta {
+    margin: 0 0 6px;
+    font-size: 12px;
+    color: #5f5f5f;
+}
+
+.rarete-table-scroll {
+    display: block !important;
+    overflow-x: auto;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    background: #fff;
+}
+
+.rarete-table {
+    display: table !important;
+    width: 100%;
+}
+
+.rarete-table thead {
+    display: table-header-group !important;
+}
+
+.rarete-table tbody {
+    display: table-row-group !important;
+}
+
+.rarete-table tr {
+    display: table-row !important;
+}
+
+.rarete-table td:not(.longevite-table-choice) { text-align: left; }
+.rarete-table th:not(.longevite-table-choice) { text-align: left; }
+
 .longevite-candidate-checkbox {
     width: 16px;
     height: 16px;
@@ -2618,6 +2653,97 @@ body.day-mode .lot-group--collapsible summary::after {
     outline: 2px solid var(--bleu-crai);
     outline-offset: -2px;
     background-color: var(--bleu-crai-pale, #e8ecf7) !important;
+}
+
+.rarete-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: var(--text-xs, 0.8rem);
+    text-transform: none;
+}
+
+.rarete-badge--commune {
+    background: #d4edda;
+    color: #155724;
+}
+
+.rarete-badge--peu-commune {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.rarete-badge--rare {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.rarete-custom-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    background: #f3ece4;
+    color: #6d4a26;
+    text-transform: lowercase;
+}
+
+.rarete-table-row--custom td {
+    background-color: #fffdf7;
+}
+
+.rarete-custom-editor {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed #d4d9cc;
+    display: grid;
+    gap: 8px;
+}
+
+.rarete-custom-create-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: center;
+}
+
+.rarete-custom-list {
+    display: grid;
+    gap: 8px;
+}
+
+.rarete-custom-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border: 1px solid #d9ddd2;
+    border-radius: var(--radius-sm);
+    background: #fff;
+}
+
+.rarete-custom-create-grid .btn,
+.rarete-custom-row .price-preset-row__remove {
+    min-height: 34px;
+}
+
+.rarete-custom-error {
+    margin: 0;
+    min-height: 1em;
+    color: #8b1d1d;
+    font-size: 12px;
+}
+
+.rarete-custom-empty {
+    margin: 0;
+    color: #6b6b6b;
+    font-size: 12px;
 }
 
 .longevite-aubier-marker {
@@ -3176,6 +3302,31 @@ body.day-mode .lot-group--collapsible summary:hover {
 .lot-inline-grid--lot-essence {
     display: grid;
     gap: 8px;
+}
+
+.lot-rarete-row {
+    margin-top: 2px;
+}
+
+.lot-rarete-input-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.lot-rarete-input-row .lot-input {
+    min-width: 0;
+}
+
+.lot-rarete-input-row .rarete-info-btn {
+    background-color: var(--bleu-crai);
+    border-color: var(--bleu-crai);
+    color: var(--color-white);
+    padding: 0 16px;
+    min-width: 64px;
+    align-self: stretch;
+    text-transform: lowercase;
 }
 
 .lot-type-qty-grid {

@@ -1,0 +1,136 @@
+Famille;Nom français;Nom pilote (EN);Nom scientifique;Code EN 13556;Origine (EN 350);Origine (Tropix CIRAD);Origine (Guide Benoît FCBA);Rareté par défaut;Rareté (Guide Benoît);Disponibilité brute Benoît
+Résineux;Sapin pectiné;Silver Fir;Abies alba / A. excelsior;ABAL/ABEX;Europe;x;Europe;Commune;x;x
+Résineux;Sapin de Douglas;Douglas Fir;Pseudotsuga menziesii;PSME;Amérique du Nord / cultivé Europe;x;Amérique du Nord / cultivé Europe;Commune;Commune;Importante
+Résineux;Mélèze d'Europe;European Larch;Larix decidua;LADC;Europe;x;Europe / Sibérie;Commune;Peu commune;Régulière
+Résineux;Épicéa;Norway Spruce;Picea abies;PCAB;Europe;x;Europe;Commune;Commune;Importante
+Résineux;Épicéa de Sitka;Sitka Spruce;Picea sitchensis;PCST;Amérique du Nord / cultivé Europe;x;Amérique du Nord;Commune;x;x
+Résineux;Pin maritime;Maritime Pine;Pinus pinaster;PNPA;Europe (Atlantique);x;Europe (Atlantique / Méditerranée);Commune;Commune;Importante
+Résineux;Pin sylvestre;Scots Pine;Pinus sylvestris;PNSY;Europe;x;Europe / Asie tempérée;Commune;Commune;Importante
+Résineux;Pin Laricio;Corsican Pine;Pinus nigra subsp. laricio;PNNI;Europe méridionale;x;x;Commune;x;x
+Feuillu tempéré;Bouleau;European Birch;Betula pubescens / B. pendula;BTXX;Europe;x;Europe;Commune;x;x
+Feuillu tempéré;Châtaignier;Sweet Chestnut;Castanea sativa;CTST;Europe;x;Europe;Commune;Commune;Importante
+Feuillu tempéré;Hêtre;Beech;Fagus sylvatica;FASY;Europe;x;Europe;Commune;Commune;Importante
+Feuillu tempéré;Peuplier;Poplar;Populus spp.;PPSP;Europe;x;Europe;Commune;Commune;Importante
+Feuillu tempéré;Chêne pédonculé / sessile;European Oak;Quercus robur / Q. petraea;QURC/QUPE;Europe;x;Europe;Commune;Commune;Importante
+Feuillu tempéré;Chêne pubescent;Downy Oak;Quercus pubescens;QUPU;Europe méridionale;x;x;Commune;x;x
+Feuillu tempéré;Chêne vert;Holm Oak;Quercus ilex;QUIL;Europe méridionale;x;x;Commune;x;x
+Feuillu tempéré;Frêne;European Ash;Fraxinus excelsior;FXEX;Europe;x;Europe;Peu commune;Rare;Limitée
+Feuillu tempéré;Noyer;European Walnut;Juglans regia;JGRG;Europe;x;Europe / Asie Mineure;Peu commune;Rare;Limitée
+Résineux;If;Yew;Taxus baccata;TXBC;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Érable sycomore;Sycamore Maple;Acer pseudoplatanus;ACPS;Europe / Israël;x;Europe;Peu commune;Rare;Limitée
+Feuillu tempéré;Érable plane;Norway Maple;Acer platanoides;ACPL;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Aulne glutineux;Alder;Alnus glutinosa / A. incana;ALGL/ALIN;Europe;x;Europe;Peu commune;Commune;Importante
+Feuillu tempéré;Charme;Hornbeam;Carpinus betulus;CPBT;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Robinia / Acacia;Black Locust;Robinia pseudoacacia;RBPS;Europe (naturalisé);x;x;Peu commune;x;x
+Feuillu tempéré;Robinier faux-acacia;Black Locust;Robinia pseudoacacia;RBPS;Europe (naturalisé);x;x;Peu commune;x;x
+Feuillu tempéré;Saule;Willow;Salix alba;SLAL;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Tilleul;Lime;Tilia cordata / T. platyphyllos;TISP;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Orme;Elm;Ulmus minor / U. glabra / U. laevis;ULSP;Europe;x;Europe;Peu commune;Rare;Limitée
+Feuillu tempéré;Platane;Plane;Platanus acerifolia;PTAH;Europe;x;x;Peu commune;x;x
+Feuillu tempéré;Merisier;Wild Cherry;Prunus avium;PRVL;Europe;x;Europe;Peu commune;Rare;Limitée
+Feuillu tempéré;Peuplier tremble;Aspen;Populus tremula;PPTP;Europe;x;x;Peu commune;x;x
+Résineux;Cèdre rouge de l'Ouest;Western Red Cedar;Thuja plicata;THPL;Amérique du Nord / cultivé Europe;x;Amérique du Nord;Peu commune;x;x
+Feuillu tempéré;Marronnier d'Inde;European Horse-chestnut;Aesculus hippocastanum;AEHP;Europe;x;x;Peu commune;x;x
+Résineux;Sapin de Nordmann;Nordmann Fir;Abies nordmanniana;ABND;Europe (Caucase);x;x;Peu commune;x;x
+Résineux;Yellow Cedar;Yellow Cedar;Chamaecyparis nootkatensis;CHNT;Amérique du Nord;x;x;Peu commune;x;x
+Résineux;Cyprès;Cypress;Cupressus sempervirens / C. lusitanica;CPSS;Europe médit. / Afrique / Amér. centrale;x;x;Peu commune;x;x
+Résineux;Mélèze du Japon;Japanese Larch;Larix kaempferi;LAKM;Japon;x;Europe / Sibérie;Peu commune;Peu commune;Régulière
+Résineux;Mélèze de Sibérie;Siberian Larch;Larix sibirica / L. gmelinii;LASI;Sibérie / Russie;x;x;Peu commune;x;x
+Résineux;Mélèze de l'Ouest;Western Larch;Larix occidentalis;LAOC;Amérique du Nord;x;x;Peu commune;x;x
+Résineux;Pin de Weymouth;Eastern White Pine;Pinus strobus;PNST;Amérique du Nord / cultivé Europe;x;x;Peu commune;x;x
+Résineux;Séquoia côtier;Redwood;Sequoia sempervirens;SQSV;Amérique du Nord;x;x;Peu commune;x;x
+Résineux;Séquoia géant;Giant Redwood;Sequoiadendron giganteum;SQGG;Amérique du Nord;x;x;Peu commune;x;x
+Feuillu tempéré;Bouleau jaune d'Amérique;Yellow Birch;Betula alleghaniensis;BTAL;Amérique de l'Est et du Nord;x;x;Peu commune;x;x
+Feuillu tempéré;Bouleau à papier;Paper Birch;Betula papyrifera;BTPP;Amérique du Nord;x;x;Peu commune;x;x
+Feuillu tempéré;Hickory;Hickory;Carya glabra / C. ovata / C. tomentosa;CAXX;Amérique du Nord;x;x;Peu commune;x;x
+Feuillu tempéré;Eucalyptus bleu;Blue Gum;Eucalyptus globulus;EUGL;Cultivé en Europe / Galice;x;x;Peu commune;x;x
+Feuillu tempéré;Eucalyptus grandis;Flooded Gum;Eucalyptus grandis;EUGR;Espagne / Italie / Argentine;x;x;Peu commune;x;x
+Feuillu tempéré;Noyer d'Amérique;American Walnut;Juglans nigra;JGNG;Amérique du Nord;x;x;Peu commune;x;x
+Feuillu tempéré;Chêne rouge d'Amérique;Red Oak;Quercus rubra;QURU;Amérique du Nord;x;Amérique du Nord;Peu commune;Commune;Importante
+Feuillu tempéré;Chênes blancs américains;American White Oak;Quercus spp. (white group);QUWG;Amérique du Nord;x;Amérique du Nord;Peu commune;x;x
+Feuillu tempéré;Frêne d'Amérique;American Ash;Fraxinus americana / F. pennsylvanica;FXAM;Amérique du Nord;x;Amérique du Nord;Peu commune;x;x
+Feuillu tempéré;Eucalyptus (groupe européen);Eucalyptus;Eucalyptus spp.;EUXX;Cultivé en Europe / Australie;x;x;Peu commune;x;x
+Résineux;Agathis / Kauri;Kauri;Agathis damara / A. australis;AGDM/AGAS;Australie / N.-Zélande / Malaisie / PNG;Asie et Océanie;x;Rare;x;x
+Résineux;Pin de Parana;Parana Pine;Araucaria angustifolia;ARAN;Brésil;Amér. centrale et du Sud;x;Rare;x;x
+Résineux;Cèdre de l'Atlas;Atlas Cedar;Cedrus atlantica;CDAT;Afrique du Nord;x;x;Rare;x;x
+Résineux;Cèdre de l'Himalaya;Deodar Cedar;Cedrus deodara;CDDO;Asie (Himalaya);x;x;Rare;x;x
+Résineux;Cryptomeria / Sugi;Sugi;Cryptomeria japonica;CYJP;Asie de l'Est / cultivé Europe;Asie et Océanie;x;Rare;x;x
+Résineux;Genévrier africain;East African Cedar;Juniperus procera;JUPR;Afrique;x;x;Rare;x;x
+Résineux;Genévrier de Virginie;Virginian Pencil Cedar;Juniperus virginiana;JUVR;Amérique;x;x;Rare;x;x
+Résineux;Pitchpin des Caraïbes;Caribbean Pitch Pine;Pinus caribaea / P. oocarpa;PNCR/PNOO;Amérique centrale;x;x;Rare;x;x
+Résineux;Pitchpin américain;American Pitch Pine;Pinus elliottii / P. palustris / P. taeda;PNEL/PNPL/PNTD;Amérique du Nord;x;x;Rare;x;x
+Résineux;Pin de Monterey;Monterey Pine;Pinus radiata;PNRD;Amérique du Nord / cultivé Australie;x;x;Rare;x;x
+Résineux;Teck;Teak;Tectona grandis;TGGR;Asie du Sud-Est / cultivé Afrique;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tempéré;Cèdre d'Amérique;American Cedar;Cedrela spp.;CEXX;Amérique centrale et du Sud;x;x;Rare;x;x
+Feuillu tempéré;Eucalyptus saligna;Saligna Gum;Eucalyptus saligna;EUSL;Australie;x;x;Rare;x;x
+Feuillu tempéré;Jarrah;Jarrah;Eucalyptus marginata;EUMR;Australie;x;x;Rare;x;x
+Feuillu tempéré;Iroko;Iroko;Milicia excelsa / M. regia;MLEX;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Commune;Importante
+Feuillu tropical;Acajou d'Afrique;African Mahogany;Khaya ivorensis / K. anthotheca;KHAS;Afrique de l'Ouest à l'Est;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Afrormosia;Afrormosia;Pericopsis elata;PCEL;Afrique de l'Ouest;Afrique;x;Rare;Rare;Limitée
+Feuillu tropical;Ayous / Samba;Ayous;Triplochiton scleroxylon;TPSX;Afrique de l'Ouest et Centrale;Afrique;Afrique centrale et de l'Ouest;Rare;Peu commune;Régulière
+Feuillu tropical;Azobé;Azobé;Lophira alata;LPLA;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Commune;Importante
+Feuillu tropical;Bilinga;Bilinga;Nauclea diderrichii;NCDD;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;x;x
+Feuillu tropical;Bubinga;Bubinga;Guibourtia tessmannii / G. demeusei;GUTM;Afrique Centrale;Afrique;x;Rare;Rare;Limitée
+Feuillu tropical;Dibétou;Dibétou;Lovoa trichilioides;LVTR;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Doussié;Doussié;Afzelia africana / A. bipindensis;AFSP;Afrique de l'Ouest et Centrale;Afrique;Afrique de l'Ouest et Centrale;Rare;Rare;Limitée
+Feuillu tropical;Fraké / Limba;Fraké;Terminalia superba;TMSB;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Commune;Importante
+Feuillu tropical;Framiré;Framiré;Terminalia ivorensis;TMIV;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Ilomba;Ilomba;Pycnanthus angolensis;PYAN;Afrique Centrale;Afrique;Afrique Centrale;Rare;Rare;Limitée
+Feuillu tropical;Iroko;Iroko;Milicia excelsa / M. regia;MLEX;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Commune;Importante
+Feuillu tropical;Kosipo;Kosipo;Entandrophragma candollei;ETCD;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Koto;Koto;Pterygota macrocarpa / P. bequaertii;PTMC;Afrique Centrale;Afrique;Afrique Centrale;Rare;Rare;Limitée
+Feuillu tropical;Makoré;Makoré;Tieghmella heckelii;THHE;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Mansonia;Mansonia;Mansonia altissima;MNLA;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Moabi;Moabi;Baillonella toxisperma;BTOX;Afrique Centrale;Afrique;Afrique Centrale;Rare;Rare;Limitée
+Feuillu tropical;Niangon;Niangon;Heritiera utilis / H. densiflora;HETU;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Okoumé;Okoumé;Aucoumea klaineana;AUKS;Afrique Centrale (Gabon);Afrique;Afrique Centrale (Gabon);Rare;Peu commune;Régulière
+Feuillu tropical;Padouk d'Afrique;African Padauk;Pterocarpus soyauxii;PTSY;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Commune;Importante
+Feuillu tropical;Sapelli;Sapelli;Entandrophragma cylindricum;ETCY;Afrique de l'Ouest et Centrale;Afrique;Afrique de l'Ouest et Centrale;Rare;Rare;Limitée
+Feuillu tropical;Sipo;Sipo;Entandrophragma utile;ETUT;Afrique de l'Ouest;Afrique;Afrique de l'Ouest;Rare;Rare;Limitée
+Feuillu tropical;Tiama;Tiama;Entandrophragma angolense;ETAN;Afrique de l'Ouest et Centrale;Afrique;Afrique de l'Ouest et Centrale;Rare;Rare;Limitée
+Feuillu tropical;Tola;Tola;Gossweilerodendron balsamiferum;GSBL;Afrique Centrale;Afrique;Afrique Centrale;Rare;Rare;Limitée
+Feuillu tropical;Wengé;Wenge;Millettia laurentii;MILL;Afrique Centrale;Afrique;x;Rare;Rare;Limitée
+Feuillu tropical;Movingui;Movingui;Distemonanthus benthamianus;DSBT;Afrique de l'Ouest;Afrique;x;Rare;x;x
+Feuillu tropical;Bossé;Bosse;Guarea cedrata / G. thompsonii;GRCD;Afrique de l'Ouest;Afrique;x;Rare;x;x
+Feuillu tropical;Abachi / Samba (bis);Abachi;Triplochiton scleroxylon;TPSX;Afrique de l'Ouest et Centrale;Afrique;x;Rare;x;x
+Feuillu tropical;Apa / Afrormosia bis;Apa;Afrormosia laxiflora;x;Afrique de l'Ouest;Afrique;x;Rare;x;x
+Feuillu tropical;Zingana / Zebrano;Zebrawood;Microberlinia brazzavillensis;MCBR;Afrique Centrale;Afrique;x;Rare;Rare;Limitée
+Feuillu tropical;Amarante / Purpleheart;Purpleheart;Peltogyne spp.;PGSP;Amérique du Sud tropicale;Amér. centrale et du Sud;Amérique du Sud;Rare;Rare;Limitée
+Feuillu tropical;Angelim;Angelim;Hymenolobium spp.;HYSP;Brésil / Guyane / Surinam;Amér. centrale et du Sud;Brésil / Guyane / Surinam;Rare;Rare;Limitée
+Feuillu tropical;Angélique / Basralocus;Angélique;Dicorynia guianensis;DCGN;Guyane / Surinam;Amér. centrale et du Sud;x;Rare;x;x
+Feuillu tropical;Cumaru;Cumaru;Dipteryx odorata;DPOD;Amérique du Sud;Amér. centrale et du Sud;Amérique du Sud;Rare;Commune;Importante
+Feuillu tropical;Grapia;Grapia;Apuleia leiocarpa;APLE;Brésil / Argentine;Amér. centrale et du Sud;Brésil / Argentine;Rare;Rare;Limitée
+Feuillu tropical;Ipé;Ipé;Handroanthus spp.;TAUX;Amérique du Sud;Amér. centrale et du Sud;Amérique du Sud;Rare;Commune;Importante
+Feuillu tropical;Itauba;Itauba;Mezilaurus itauba;MZIT;Brésil / Pérou;Amér. centrale et du Sud;Brésil / Pérou;Rare;Rare;Limitée
+Feuillu tropical;Jaboty;Jaboty;Erisma uncinatum;ESUN;Brésil / Venezuela;Amér. centrale et du Sud;x;Rare;Commune;Importante
+Feuillu tropical;Jatoba;Jatoba;Hymenaea courbaril;HYCO;Amérique centrale et du Sud;Amér. centrale et du Sud;Amérique centrale et du Sud;Rare;Commune;Importante
+Feuillu tropical;Louro vermelho;Grignon franc;Ocotea rubra;OCRB;Guyane / Brésil / Surinam;Amér. centrale et du Sud;Guyane / Brésil / Surinam;Rare;Rare;Limitée
+Feuillu tropical;Maçaranduba;Balata rouge;Manilkara bidentata;MNBD;Amérique du Sud;Amér. centrale et du Sud;Amérique du Sud;Rare;Commune;Importante
+Feuillu tropical;Mogno / Acajou d'Amérique;Big Leaf Mahogany;Swietenia macrophylla;SWMC;Amérique centrale et du Sud;Amér. centrale et du Sud;Amérique centrale et du Sud;Rare;Rare;Limitée
+Feuillu tropical;Tatajuba;Tatajuba;Bagassa guianensis;BGGN;Guyane / Brésil / Surinam;Amér. centrale et du Sud;Guyane / Brésil / Surinam;Rare;Commune;Importante
+Feuillu tropical;Tauari;Tauari;Couratari spp.;CRSP;Brésil / Guyane;Amér. centrale et du Sud;Brésil / Guyane;Rare;Commune;Importante
+Feuillu tropical;Virola / Baboen;Virola;Virola spp.;VRSP;Amérique du Sud;Amér. centrale et du Sud;Amérique du Sud;Rare;Rare;Limitée
+Feuillu tropical;Cedro / Cèdre d'Amérique;Cedar;Cedrela odorata;CEXX;Amérique centrale et du Sud;Amér. centrale et du Sud;x;Rare;x;x
+Feuillu tropical;Courbaril;Courbaril;Hymenaea courbaril;HYCO;Amérique centrale et du Sud;Amér. centrale et du Sud;x;Rare;x;x
+Feuillu tropical;Balata gris / Gonfolo;Gonfolo;Qualea rosea;QLRS;Guyane / Brésil;Amér. centrale et du Sud;x;Rare;x;x
+Feuillu tropical;Grignon franc;Grignon franc;Sextonia rubra;x;Guyane / Brésil;Amér. centrale et du Sud;x;Rare;x;x
+Feuillu tropical;Balau / Bangkirai;Yellow Balau;Shorea laevis / S. guiso;SHLS;Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Jelutong;Jelutong;Dyera costulata;DYCO;Asie du Sud-Est;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Jongkong;Jongkong;Dactylocladus stenostachys;DCST;Asie du Sud-Est;x;x;Rare;Rare;Limitée
+Feuillu tropical;Kapur;Kapur;Dryobalanops spp.;DRSP;Asie du Sud-Est;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Kempas;Kempas;Koompassia malaccensis;KMML;Asie du Sud-Est;Asie et Océanie;Malaisie / Indonésie;Rare;Rare;Limitée
+Feuillu tropical;Keruing;Keruing;Dipterocarpus spp.;DPSP;Asie du Sud-Est;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Lauan rouge;Red Lauan;Shorea spp. (red);SHRD;Philippines / Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Lauan blanc;White Lauan;Pentacme contorta / Shorea spp.;SHWH;Philippines;x;x;Rare;Rare;Limitée
+Feuillu tropical;Mengkulang;Mengkulang;Heritiera spp.;HRSP;Asie du Sud-Est;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Merbau;Merbau;Intsia bijuga / I. palembanica;INBJ;Asie du Sud-Est / Océanie;Asie et Océanie;Asie du Sud-Est / Océanie;Rare;Rare;Limitée
+Feuillu tropical;Méranti dark red;Méranti dark red;Shorea spp. (dark red);SHDR;Asie du Sud-Est;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Méranti light red;Méranti light red;Shorea spp. (light red);SHLR;Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Padouk d'Amboina;Amboina Padauk;Pterocarpus indicus;PTIN;Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Ramin;Ramin;Gonystylus bancanus;GNBC;Asie du Sud-Est (Bornéo);Asie et Océanie;Asie du Sud-Est (Bornéo);Rare;Rare;Limitée
+Feuillu tropical;Santal blanc;White Sandalwood;Santalum album;SNAB;Asie du Sud / Australie;Asie et Océanie;x;Rare;Rare;Limitée
+Feuillu tropical;Teck birman;Burma Teak;Tectona grandis;TGGR;Myanmar / Thaïlande;Asie et Océanie;Asie du Sud-Est;Rare;Rare;Limitée
+Feuillu tropical;Bangkirai;Bangkirai;Shorea laevis;SHLS;Indonésie / Malaisie;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Meranti (groupe);Meranti;Shorea spp.;SHXX;Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Lauan (groupe);Lauan;Shorea / Pentacme spp.;LAXX;Philippines / Asie du Sud-Est;Asie et Océanie;x;Rare;x;x
+Feuillu tropical;Dipterocarpaceae (groupe);Seraya;Shorea / Hopea / Dipterocarpus spp.;SRXX;Asie du Sud-Est;Asie et Océanie;x;Rare;x;x

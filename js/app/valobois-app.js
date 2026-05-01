@@ -543,6 +543,7 @@ class ValoboisApp {
         this.storageKey = 'valobois_v1';
         this.storageBackupKey = 'valobois_v1_backup';
         this.locSitGlobalStorageKey = 'valobois_locsit_custom_global_v1';
+        this.rareteCustomGlobalStorageKey = 'valobois_rarete_custom_global_v1';
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */
         this.persistenceMode = 'guest';
         this.data = this.loadGuestDataFromLocalStorage();
@@ -2431,6 +2432,7 @@ class ValoboisApp {
             classeBois: '',
             essenceNomCommun: '',
             essenceNomScientifique: '',
+            rareteProvenanceCodeOverride: '',
             essence: '',
             longueur: '',
             largeur: '',
@@ -2470,6 +2472,7 @@ class ValoboisApp {
         if (target.classeBois == null) target.classeBois = '';
         if (target.essenceNomCommun == null) target.essenceNomCommun = '';
         if (target.essenceNomScientifique == null) target.essenceNomScientifique = '';
+        if (target.rareteProvenanceCodeOverride == null) target.rareteProvenanceCodeOverride = '';
         if (target.essence == null) target.essence = '';
         if (target.longueur == null) target.longueur = '';
         if (target.largeur == null) target.largeur = '';
@@ -2567,6 +2570,7 @@ class ValoboisApp {
         defaultPiece.classeBois = '';
         defaultPiece.essenceNomCommun = '';
         defaultPiece.essenceNomScientifique = '';
+        defaultPiece.rareteProvenanceCodeOverride = '';
         defaultPiece.essence = '';
         defaultPiece.longueur = '';
         defaultPiece.largeur = '';
@@ -2604,6 +2608,7 @@ class ValoboisApp {
         piece.classeBois = source.classeBois || a.classeBois || '';
         piece.essenceNomCommun = source.essenceNomCommun || a.essenceNomCommun || '';
         piece.essenceNomScientifique = source.essenceNomScientifique || a.essenceNomScientifique || '';
+        piece.rareteProvenanceCodeOverride = source.rareteProvenanceCodeOverride || '';
         piece.essence = [piece.essenceNomCommun, piece.essenceNomScientifique].filter(Boolean).join(' - ');
         piece.longueur = source.longueur !== '' && source.longueur != null ? source.longueur : (a.longueur || '');
         piece.largeur = source.largeur !== '' && source.largeur != null ? source.largeur : (a.largeur || '');
@@ -2690,6 +2695,7 @@ class ValoboisApp {
             classeBois: source.classeBois || '',
             essenceNomCommun: source.essenceNomCommun || '',
             essenceNomScientifique: source.essenceNomScientifique || '',
+            rareteProvenanceCodeOverride: source.rareteProvenanceCodeOverride || '',
             essence: source.essence || '',
             longueur: source.longueur || '',
             largeur: source.largeur || '',
@@ -3631,6 +3637,7 @@ class ValoboisApp {
             if (piece.conception == null) piece.conception = '';
             if (piece.typeProduit == null) piece.typeProduit = '';
             if (piece.classeBois == null) piece.classeBois = '';
+            if (piece.rareteProvenanceCodeOverride == null) piece.rareteProvenanceCodeOverride = '';
             if (piece.masseVolumiqueMesuree == null) piece.masseVolumiqueMesuree = '';
             if (piece.massePieceMesuree == null) piece.massePieceMesuree = '';
             piece.prixMode = ((piece.prixMode || '') + '').toLowerCase() === 't' ? 't' : '';
@@ -3755,6 +3762,7 @@ class ValoboisApp {
                 classeBois: '',
                 essenceNomCommun: '',
                 essenceNomScientifique: '',
+                rareteProvenanceCodeOverride: '',
                 essence: '',
                 longueur: '',
                 largeur: '',
@@ -3891,6 +3899,7 @@ class ValoboisApp {
             classeBois: '',
             essenceNomCommun: '',
             essenceNomScientifique: '',
+            rareteProvenanceCodeOverride: '',
             essence: '',
             longueur: '',
             largeur: '',
@@ -10893,6 +10902,732 @@ class ValoboisApp {
         });
     }
 
+    getRareteReferentialData() {
+        return window.VALOBOIS_RARETE_PROVENANCE && typeof window.VALOBOIS_RARETE_PROVENANCE === 'object'
+            ? window.VALOBOIS_RARETE_PROVENANCE
+            : null;
+    }
+
+    getRareteAllowedLevels() {
+        return ['Commune', 'Peu commune', 'Rare'];
+    }
+
+    normalizeRareteCustomLevel(levelRaw, fallback = '') {
+        const normalized = String(levelRaw || '').trim().toLowerCase();
+        if (normalized === 'commune') return 'Commune';
+        if (normalized === 'peu commune') return 'Peu commune';
+        if (normalized === 'rare') return 'Rare';
+        return fallback;
+    }
+
+    normalizeRareteCustomEntry(entry, index = 0) {
+        if (!entry || typeof entry !== 'object') return null;
+        const nomFrancais = String(entry.nomFrancais || '').trim();
+        const nomScientifique = String(entry.nomScientifique || '').trim();
+        const codeEn13556 = String(entry.codeEn13556 || '').trim().toUpperCase();
+        const rareteParDefaut = this.normalizeRareteCustomLevel(entry.rareteParDefaut, '');
+        const origineTropixCirad = String(entry.origineTropixCirad || '').trim();
+        if (!nomFrancais || !rareteParDefaut) return null;
+        return {
+            id: String(entry.id || `rarete-custom-${Date.now()}-${index}`),
+            famille: String(entry.famille || 'Personnalisée').trim() || 'Personnalisée',
+            nomFrancais,
+            nomPiloteEn: String(entry.nomPiloteEn || '').trim(),
+            nomScientifique,
+            codeEn13556,
+            origineEn350: String(entry.origineEn350 || '').trim(),
+            origineTropixCirad,
+            origineGuideBenoitFcba: String(entry.origineGuideBenoitFcba || '').trim(),
+            rareteParDefaut,
+            rareteGuideBenoit: String(entry.rareteGuideBenoit || '').trim(),
+            disponibiliteBruteBenoit: String(entry.disponibiliteBruteBenoit || '').trim(),
+            isCustom: true
+        };
+    }
+
+    normalizeRareteCustomEntries(rowsRaw) {
+        const rows = Array.isArray(rowsRaw) ? rowsRaw : [];
+        const normalized = [];
+        const seen = new Set();
+        rows.forEach((row, index) => {
+            const next = this.normalizeRareteCustomEntry(row, index);
+            if (!next) return;
+            const idKey = String(next.id || '').trim();
+            if (!idKey || seen.has(idKey)) return;
+            seen.add(idKey);
+            normalized.push(next);
+        });
+        return normalized;
+    }
+
+    loadGlobalRareteCustomEntries() {
+        try {
+            if (typeof localStorage === 'undefined') return [];
+            const raw = localStorage.getItem(this.rareteCustomGlobalStorageKey);
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            return this.normalizeRareteCustomEntries(parsed);
+        } catch (_) {
+            return [];
+        }
+    }
+
+    saveGlobalRareteCustomEntries(rows) {
+        try {
+            if (typeof localStorage === 'undefined') return;
+            const normalized = this.normalizeRareteCustomEntries(rows);
+            localStorage.setItem(this.rareteCustomGlobalStorageKey, JSON.stringify(normalized));
+        } catch (_) {
+            /* noop */
+        }
+    }
+
+    getRareteCustomEntries() {
+        return this.loadGlobalRareteCustomEntries();
+    }
+
+    generateRareteCustomId() {
+        const rand = Math.random().toString(36).slice(2, 8);
+        return `rarete-custom-${Date.now().toString(36)}-${rand}`;
+    }
+
+    addRareteCustomEntry(payload = {}) {
+        const entry = this.normalizeRareteCustomEntry({
+            id: this.generateRareteCustomId(),
+            nomFrancais: payload.nomFrancais,
+            nomScientifique: payload.nomScientifique,
+            codeEn13556: payload.codeEn13556,
+            rareteParDefaut: payload.rareteParDefaut,
+            origineTropixCirad: payload.origineTropixCirad,
+            famille: 'Personnalisée',
+            nomPiloteEn: '',
+            origineEn350: '',
+            origineGuideBenoitFcba: '',
+            rareteGuideBenoit: '',
+            disponibiliteBruteBenoit: ''
+        });
+        if (!entry) {
+            return { ok: false, error: 'Veuillez renseigner au minimum le Nom français et la Rareté.' };
+        }
+        const rows = this.getRareteCustomEntries();
+        rows.push(entry);
+        this.saveGlobalRareteCustomEntries(rows);
+        return { ok: true, entry };
+    }
+
+    updateRareteCustomEntry(customId, patch = {}) {
+        const id = String(customId || '').trim();
+        if (!id) return { ok: false, error: 'Entrée personnalisée introuvable.' };
+        const rows = this.getRareteCustomEntries();
+        const index = rows.findIndex((row) => row && String(row.id || '').trim() === id);
+        if (index < 0) return { ok: false, error: 'Entrée personnalisée introuvable.' };
+        const current = rows[index] || {};
+        const candidate = {
+            ...current,
+            ...patch,
+            id,
+            isCustom: true
+        };
+        const normalized = this.normalizeRareteCustomEntry(candidate, index);
+        if (!normalized) {
+            return { ok: false, error: 'Le Nom français et la Rareté sont obligatoires.' };
+        }
+        rows[index] = normalized;
+        this.saveGlobalRareteCustomEntries(rows);
+        return { ok: true, entry: normalized };
+    }
+
+    deleteRareteCustomEntry(customId) {
+        const id = String(customId || '').trim();
+        if (!id) return false;
+        const rows = this.getRareteCustomEntries();
+        const next = rows.filter((row) => row && String(row.id || '').trim() !== id);
+        if (next.length === rows.length) return false;
+        this.saveGlobalRareteCustomEntries(next);
+        return true;
+    }
+
+    getRareteEffectiveEntries() {
+        const data = this.getRareteReferentialData();
+        const baseEntries = data && Array.isArray(data.entries) ? data.entries : [];
+        const customEntries = this.getRareteCustomEntries();
+        return [...customEntries, ...baseEntries];
+    }
+
+    getRareteLegendLabel(levelRaw) {
+        const level = (levelRaw || '').toString().trim().toLowerCase();
+        if (level === 'commune') return 'Disponibilité élevée';
+        if (level === 'peu commune') return 'Disponibilité intermédiaire';
+        if (level === 'rare') return 'Disponibilité limitée';
+        return '';
+    }
+
+    resolvePieceLikeEssenceForRarete(pieceLike, lot) {
+        const lotAllot = (lot && lot.allotissement) || {};
+        const common = ((pieceLike && pieceLike.essenceNomCommun) || lotAllot.essenceNomCommun || '').toString().trim();
+        const scientific = ((pieceLike && pieceLike.essenceNomScientifique) || lotAllot.essenceNomScientifique || '').toString().trim();
+        const overrideCode = ((pieceLike && pieceLike.rareteProvenanceCodeOverride) || '').toString().trim().toUpperCase();
+        return {
+            common,
+            scientific,
+            detailed: this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific),
+            overrideCode
+        };
+    }
+
+    getRareteEssenceHeadKey(valueRaw) {
+        const normalized = normalizeEssenceLookupKey(valueRaw)
+            .replace(/[^a-z0-9\s-]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (!normalized) return '';
+        const token = normalized.split(/[\s-]+/).find(Boolean);
+        return token || '';
+    }
+
+    listRareteEntriesByHead(headKeyRaw) {
+        const headKey = (headKeyRaw || '').toString().trim();
+        if (!headKey) return [];
+        const byScientific = this._rareteEntriesByScientificHead && this._rareteEntriesByScientificHead.get(headKey)
+            ? this._rareteEntriesByScientificHead.get(headKey)
+            : [];
+        const byFrench = this._rareteEntriesByFrenchHead && this._rareteEntriesByFrenchHead.get(headKey)
+            ? this._rareteEntriesByFrenchHead.get(headKey)
+            : [];
+        const merged = [];
+        const seen = new Set();
+        [...byScientific, ...byFrench].forEach((entry) => {
+            const key = ((entry && (entry.codeEn13556 || entry.nomScientifique || entry.nomFrancais)) || '').toString().trim().toUpperCase();
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            merged.push(entry);
+        });
+        return merged;
+    }
+
+    resolveRareteEntryForEssence(essenceInfo) {
+        const entries = this.getRareteEffectiveEntries();
+        if (!Array.isArray(entries) || entries.length === 0) {
+            return {
+                entry: null,
+                matchedBy: '',
+                matchedByLabel: '',
+                suggestions: []
+            };
+        }
+
+        this._rareteEntriesByCode = new Map();
+        this._rareteEntriesByFrench = new Map();
+        this._rareteEntriesByScientific = new Map();
+        this._rareteEntriesByFrenchHead = new Map();
+        this._rareteEntriesByScientificHead = new Map();
+
+        entries.forEach((entry) => {
+            const codeRaw = (entry && entry.codeEn13556 ? entry.codeEn13556 : '').toString().trim().toUpperCase();
+            const codeTokens = codeRaw.split('/').map((token) => token.trim()).filter(Boolean);
+            codeTokens.forEach((token) => {
+                if (!this._rareteEntriesByCode.has(token)) this._rareteEntriesByCode.set(token, entry);
+            });
+
+            const frenchKey = normalizeEssenceLookupKey(entry && entry.nomFrancais);
+            const scientificKey = normalizeEssenceLookupKey(entry && entry.nomScientifique);
+            if (frenchKey && !this._rareteEntriesByFrench.has(frenchKey)) this._rareteEntriesByFrench.set(frenchKey, entry);
+            if (scientificKey && !this._rareteEntriesByScientific.has(scientificKey)) this._rareteEntriesByScientific.set(scientificKey, entry);
+
+            const frenchHead = this.getRareteEssenceHeadKey(entry && entry.nomFrancais);
+            const scientificHead = this.getRareteEssenceHeadKey(entry && entry.nomScientifique);
+            if (frenchHead) {
+                if (!this._rareteEntriesByFrenchHead.has(frenchHead)) this._rareteEntriesByFrenchHead.set(frenchHead, []);
+                this._rareteEntriesByFrenchHead.get(frenchHead).push(entry);
+            }
+            if (scientificHead) {
+                if (!this._rareteEntriesByScientificHead.has(scientificHead)) this._rareteEntriesByScientificHead.set(scientificHead, []);
+                this._rareteEntriesByScientificHead.get(scientificHead).push(entry);
+            }
+        });
+
+        const overrideCode = (essenceInfo && essenceInfo.overrideCode ? essenceInfo.overrideCode : '').toString().trim().toUpperCase();
+        if (overrideCode && this._rareteEntriesByCode.has(overrideCode)) {
+            return {
+                entry: this._rareteEntriesByCode.get(overrideCode),
+                matchedBy: 'manual-override',
+                matchedByLabel: 'Sélection manuelle (essence candidate)',
+                suggestions: []
+            };
+        }
+
+        const code = (essenceInfo && essenceInfo.detailed && essenceInfo.detailed.codeEn13556 ? essenceInfo.detailed.codeEn13556 : '')
+            .toString()
+            .trim()
+            .toUpperCase();
+        if (code && this._rareteEntriesByCode.has(code)) {
+            return {
+                entry: this._rareteEntriesByCode.get(code),
+                matchedBy: 'en13556',
+                matchedByLabel: 'Code EN 13556',
+                suggestions: []
+            };
+        }
+
+        const scientificKey = normalizeEssenceLookupKey(essenceInfo && essenceInfo.scientific);
+        if (scientificKey && this._rareteEntriesByScientific.has(scientificKey)) {
+            return {
+                entry: this._rareteEntriesByScientific.get(scientificKey),
+                matchedBy: 'scientific-exact',
+                matchedByLabel: 'Nom scientifique exact',
+                suggestions: []
+            };
+        }
+
+        const commonKey = normalizeEssenceLookupKey(essenceInfo && essenceInfo.common);
+        if (commonKey && this._rareteEntriesByFrench.has(commonKey)) {
+            return {
+                entry: this._rareteEntriesByFrench.get(commonKey),
+                matchedBy: 'common-exact',
+                matchedByLabel: 'Nom usuel exact',
+                suggestions: []
+            };
+        }
+
+        const scientificHead = this.getRareteEssenceHeadKey(essenceInfo && essenceInfo.scientific);
+        const commonHead = this.getRareteEssenceHeadKey(essenceInfo && essenceInfo.common);
+        const headCandidates = [
+            ...this.listRareteEntriesByHead(scientificHead),
+            ...this.listRareteEntriesByHead(commonHead)
+        ];
+
+        const normalizedScientific = normalizeEssenceLookupKey(essenceInfo && essenceInfo.scientific);
+        const normalizedCommon = normalizeEssenceLookupKey(essenceInfo && essenceInfo.common);
+        const ranked = entries
+            .map((entry) => {
+                const entryScientific = normalizeEssenceLookupKey(entry && entry.nomScientifique);
+                const entryFrench = normalizeEssenceLookupKey(entry && entry.nomFrancais);
+                let score = 0;
+                if (normalizedScientific && entryScientific && (entryScientific.includes(normalizedScientific) || normalizedScientific.includes(entryScientific))) score += 3;
+                if (normalizedCommon && entryFrench && (entryFrench.includes(normalizedCommon) || normalizedCommon.includes(entryFrench))) score += 3;
+                if (headCandidates.includes(entry)) score += 1;
+                return { entry, score };
+            })
+            .filter((item) => item.score > 0)
+            .sort((a, b) => b.score - a.score);
+
+        const suggestions = [];
+        const seenCodes = new Set();
+        ranked.forEach((item) => {
+            const codeKey = (item.entry && item.entry.codeEn13556 ? item.entry.codeEn13556 : '').toString().trim().toUpperCase();
+            const uniqueKey = codeKey || normalizeEssenceLookupKey(item.entry && item.entry.nomScientifique) || normalizeEssenceLookupKey(item.entry && item.entry.nomFrancais);
+            if (!uniqueKey || seenCodes.has(uniqueKey)) return;
+            seenCodes.add(uniqueKey);
+            suggestions.push(item.entry);
+        });
+
+        if (suggestions.length === 1) {
+            return {
+                entry: suggestions[0],
+                matchedBy: 'name-approximation',
+                matchedByLabel: 'Approximation sur les noms d\'essence',
+                suggestions
+            };
+        }
+
+        return {
+            entry: null,
+            matchedBy: '',
+            matchedByLabel: '',
+            suggestions: suggestions.slice(0, 8)
+        };
+    }
+
+    computeEstimatedRareteProvenance(pieceLike, lot) {
+        const essenceInfo = this.resolvePieceLikeEssenceForRarete(pieceLike, lot);
+        const essenceMatch = this.resolveRareteEntryForEssence(essenceInfo);
+        const entry = essenceMatch && essenceMatch.entry ? essenceMatch.entry : null;
+
+        const missing = [];
+        if (!essenceInfo.common && !essenceInfo.scientific) missing.push('Essence');
+        if ((essenceInfo.common || essenceInfo.scientific) && !entry) missing.push('Référence Rareté-Provenance pour l\'essence');
+
+        if (missing.length > 0 || !entry) {
+            return {
+                display: 'Données manquantes',
+                rarete: '',
+                legendLabel: '',
+                entry,
+                essenceInfo,
+                essenceMatch,
+                missing,
+                tooltip: missing.length ? `Calcul impossible: ${missing.join(', ')}.` : 'Calcul impossible.'
+            };
+        }
+
+        const rarete = (entry.rareteParDefaut || '').toString().trim();
+        const legendLabel = this.getRareteLegendLabel(rarete);
+
+        if (!rarete) {
+            return {
+                display: 'Données manquantes',
+                rarete: '',
+                legendLabel: '',
+                entry,
+                essenceInfo,
+                essenceMatch,
+                missing: ['Niveau de rareté indisponible'],
+                tooltip: 'Niveau de rareté indisponible dans le référentiel Rareté-Provenance.'
+            };
+        }
+
+        return {
+            display: rarete,
+            rarete,
+            legendLabel,
+            entry,
+            essenceInfo,
+            essenceMatch,
+            missing: [],
+            tooltip: ''
+        };
+    }
+
+    openRareteInfoModalForPieceLike(pieceLike, lot, title = 'Rareté - Provenance') {
+        this.openRareteInfoModal(pieceLike, lot, title);
+    }
+
+    openRareteInfoModal(pieceLike, lot, title = 'Rareté - Provenance') {
+        const backdrop = document.getElementById('rareteInfoModalBackdrop');
+        if (!backdrop) return;
+        const initialSelectedCode = ((pieceLike && pieceLike.rareteProvenanceCodeOverride) || '').toString().trim().toUpperCase();
+        this._rareteModalState = {
+            pieceLike: pieceLike || {},
+            lot: lot || null,
+            selectedCode: initialSelectedCode
+        };
+        const titleEl = document.getElementById('rareteInfoModalTitle');
+        if (titleEl) titleEl.textContent = title;
+        this.renderRareteInfoTable();
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    closeRareteInfoModal() {
+        const backdrop = document.getElementById('rareteInfoModalBackdrop');
+        if (backdrop) {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        }
+        this._rareteModalState = null;
+    }
+
+    renderRareteInfoTable(pieceLike = null, lot = null) {
+        const body = document.getElementById('rareteInfoModalBody');
+        if (!body) return;
+
+        const modalState = this._rareteModalState || {};
+        const currentPieceLike = pieceLike || modalState.pieceLike || {};
+        const currentLot = lot || modalState.lot || null;
+
+        if (!currentLot) {
+            body.innerHTML = '<p>Données manquantes.</p>';
+            return;
+        }
+
+        if (!this._rareteModalState) {
+            this._rareteModalState = {
+                pieceLike: currentPieceLike,
+                lot: currentLot,
+                selectedCode: ''
+            };
+        } else {
+            this._rareteModalState.pieceLike = currentPieceLike;
+            this._rareteModalState.lot = currentLot;
+        }
+
+        const referentialData = this.getRareteReferentialData();
+        const baseEntries = referentialData && Array.isArray(referentialData.entries)
+            ? referentialData.entries
+            : [];
+        const customEntries = this.getRareteCustomEntries();
+        const entries = [...customEntries, ...baseEntries];
+
+        const baseResult = this.computeEstimatedRareteProvenance(currentPieceLike, currentLot);
+        const candidateProbePieceLike = {
+            ...(currentPieceLike || {}),
+            rareteProvenanceCodeOverride: ''
+        };
+        const candidateProbeResult = this.computeEstimatedRareteProvenance(candidateProbePieceLike, currentLot);
+        const rawCandidates = (candidateProbeResult.essenceMatch && Array.isArray(candidateProbeResult.essenceMatch.suggestions))
+            ? candidateProbeResult.essenceMatch.suggestions
+            : [];
+        const candidateCodes = new Set(rawCandidates
+            .map((entry) => {
+                const codeRaw = (entry && entry.codeEn13556 ? entry.codeEn13556 : '').toString().trim().toUpperCase();
+                return codeRaw.split('/').map((token) => token.trim()).find(Boolean) || '';
+            })
+            .filter(Boolean));
+
+        const selectedCodeRaw = (this._rareteModalState && this._rareteModalState.selectedCode
+            ? this._rareteModalState.selectedCode
+            : '')
+            .toString()
+            .trim()
+            .toUpperCase();
+        const selectedCode = selectedCodeRaw && candidateCodes.has(selectedCodeRaw) ? selectedCodeRaw : '';
+        if (this._rareteModalState) this._rareteModalState.selectedCode = selectedCode;
+
+        const matchesSelected = (entry) => {
+            const codeRaw = (entry && entry.codeEn13556 ? entry.codeEn13556 : '').toString().trim().toUpperCase();
+            if (!codeRaw || !selectedCode) return false;
+            return codeRaw.split('/').map((token) => token.trim()).includes(selectedCode);
+        };
+
+        let result = baseResult;
+        if (selectedCode) {
+            const selectedEntry = entries.find((entry) => matchesSelected(entry)) || null;
+            if (selectedEntry) {
+                const rarete = (selectedEntry.rareteParDefaut || '').toString().trim();
+                result = {
+                    ...baseResult,
+                    entry: selectedEntry,
+                    rarete,
+                    display: rarete || 'Données manquantes',
+                    legendLabel: this.getRareteLegendLabel(rarete),
+                    missing: rarete ? [] : ['Niveau de rareté indisponible'],
+                    tooltip: rarete ? '' : 'Niveau de rareté indisponible dans le référentiel Rareté-Provenance.',
+                    essenceMatch: {
+                        ...(baseResult.essenceMatch || {}),
+                        entry: selectedEntry,
+                        matchedBy: 'manual-candidate',
+                        matchedByLabel: 'Sélection manuelle d\'essence candidate',
+                        suggestions: rawCandidates
+                    }
+                };
+            }
+        }
+
+        const essenceLabel = this.composeEssenceLabel(result.essenceInfo.common, result.essenceInfo.scientific) || '—';
+        const activeEntry = result.entry;
+
+        const contextRows = [
+            { label: 'Essence retenue', value: essenceLabel, cls: '' },
+            { label: 'Rareté - Provenance', value: result.display || 'Données manquantes', cls: '' }
+        ];
+        if (result.essenceMatch && result.essenceMatch.entry && result.essenceMatch.matchedBy && !/exact|en13556/.test(result.essenceMatch.matchedBy)) {
+            contextRows.push({
+                label: 'Correspondance utilisée',
+                value: `${result.essenceMatch.matchedByLabel} -> ${result.essenceMatch.entry.nomFrancais || ''} (${result.essenceMatch.entry.nomScientifique || ''})`,
+                cls: 'longevite-info-context__value--note'
+            });
+        }
+        if (result.essenceMatch && Array.isArray(result.essenceMatch.suggestions) && result.essenceMatch.suggestions.length) {
+            const suggestionLabel = result.essenceMatch.suggestions
+                .slice(0, 8)
+                .map((entry) => `${entry.nomFrancais || ''} (${entry.nomScientifique || ''})`)
+                .join(' | ');
+            contextRows.push({ label: 'Essences candidates', value: suggestionLabel, cls: 'longevite-info-context__value--note' });
+        }
+        if (result.missing && result.missing.length) contextRows.push({ label: 'Données manquantes', value: result.missing.join(', '), cls: 'longevite-info-context__value--missing' });
+
+        const contextHtml = `<div class="longevite-info-context">${contextRows.map((r) => `<div class="longevite-info-context__row"><span class="longevite-info-context__label">${this.escapeHtml(r.label)}</span><span class="longevite-info-context__value ${r.cls}">${this.escapeHtml(r.value)}</span></div>`).join('')}</div>`;
+
+        const legendHtml = `<div class="longevite-legend"><span class="longevite-legend-item"><span class="longevite-legend-item__badge rarete-badge rarete-badge--commune">Commune</span><span class="longevite-legend-item__label">Disponibilité élevée</span></span><span class="longevite-legend-item"><span class="longevite-legend-item__badge rarete-badge rarete-badge--peu-commune">Peu commune</span><span class="longevite-legend-item__label">Disponibilité intermédiaire</span></span><span class="longevite-legend-item"><span class="longevite-legend-item__badge rarete-badge rarete-badge--rare">Rare</span><span class="longevite-legend-item__label">Disponibilité limitée</span></span></div>`;
+
+        const rowsHtml = entries.map((entry) => {
+            const codeRaw = (entry && entry.codeEn13556 ? entry.codeEn13556 : '').toString().trim().toUpperCase();
+            const choiceCode = codeRaw.split('/').map((token) => token.trim()).find(Boolean) || '';
+            const isActive = !!(activeEntry && activeEntry === entry);
+            const isCandidate = choiceCode && candidateCodes.has(choiceCode);
+            const isSelected = choiceCode && selectedCode === choiceCode;
+            const rowClass = [
+                isActive ? 'longevite-table-row--active' : '',
+                isCandidate ? 'longevite-table-row--candidate' : '',
+                entry && entry.isCustom ? 'rarete-table-row--custom' : ''
+            ].filter(Boolean).join(' ');
+            const choiceCell = isCandidate
+                ? `<td class="longevite-table-choice"><input type="checkbox" class="longevite-candidate-checkbox" data-rarete-candidate-code="${this.escapeHtml(choiceCode)}" ${isSelected ? 'checked' : ''} aria-label="Sélectionner ${this.escapeHtml(entry.nomFrancais || '')}"></td>`
+                : '<td class="longevite-table-choice"></td>';
+            const rareteValue = (entry.rareteParDefaut || '').toString().trim();
+            const rareteClass = rareteValue.toLowerCase() === 'commune'
+                ? 'rarete-badge rarete-badge--commune'
+                : (rareteValue.toLowerCase() === 'peu commune'
+                    ? 'rarete-badge rarete-badge--peu-commune'
+                    : (rareteValue.toLowerCase() === 'rare' ? 'rarete-badge rarete-badge--rare' : 'rarete-badge'));
+            const sourceBadge = entry && entry.isCustom
+                ? '<span class="rarete-custom-badge">custom</span>'
+                : '';
+            return `<tr${rowClass ? ` class="${rowClass}"` : ''}>${choiceCell}<td>${this.escapeHtml(entry.nomFrancais || '—')}${sourceBadge}</td><td>${this.escapeHtml(entry.nomScientifique || '—')}</td><td>${this.escapeHtml(entry.codeEn13556 || '—')}</td><td><span class="${rareteClass}">${this.escapeHtml(rareteValue || '—')}</span></td><td>${this.escapeHtml(entry.origineEn350 || '—')}</td><td>${this.escapeHtml(entry.origineTropixCirad || '—')}</td><td>${this.escapeHtml(entry.origineGuideBenoitFcba || '—')}</td></tr>`;
+        }).join('') || '<tr><td class="longevite-table-choice">—</td><td colspan="7">Référentiel vide pour le moment.</td></tr>';
+
+        const renderRareteCustomLevelOptions = (selectedRaw) => {
+            const selected = this.normalizeRareteCustomLevel(selectedRaw, '');
+            return this.getRareteAllowedLevels()
+                .map((level) => `<option value="${this.escapeHtml(level)}"${level === selected ? ' selected' : ''}>${this.escapeHtml(level)}</option>`)
+                .join('');
+        };
+        const customRowsHtml = customEntries.map((entry) => {
+            const customId = this.escapeHtml(entry.id || '');
+            return `
+                <div class="rarete-custom-row" data-rarete-custom-id="${customId}">
+                    <input type="text" class="lot-input" value="${this.escapeHtml(entry.nomFrancais || '')}" data-rarete-custom-field="nomFrancais" placeholder="Nom français">
+                    <input type="text" class="lot-input" value="${this.escapeHtml(entry.nomScientifique || '')}" data-rarete-custom-field="nomScientifique" placeholder="Nom scientifique">
+                    <input type="text" class="lot-input" value="${this.escapeHtml(entry.codeEn13556 || '')}" data-rarete-custom-field="codeEn13556" placeholder="Code EN 13556">
+                    <select class="lot-input" data-rarete-custom-field="rareteParDefaut">
+                        ${renderRareteCustomLevelOptions(entry.rareteParDefaut)}
+                    </select>
+                    <input type="text" class="lot-input" value="${this.escapeHtml(entry.origineTropixCirad || '')}" data-rarete-custom-field="origineTropixCirad" placeholder="Origine Tropix">
+                    <button type="button" class="price-preset-row__remove" data-rarete-custom-action="remove" data-rarete-custom-id="${customId}">Supprimer</button>
+                </div>
+            `;
+        }).join('');
+
+        body.innerHTML = `
+            <p class="detail-modal-instruction">Le tableau ci-dessous reprend les critères du référentiel Rareté - Provenance. Lorsque l'identification de l'essence est ambiguë, vous pouvez choisir une essence candidate pour forcer l'attribution de la rareté.</p>
+            ${contextHtml}
+            <h3 class="detail-modal-subtitle">Légende rareté</h3>
+            ${legendHtml}
+            <h3 class="detail-modal-subtitle">Tableau de correspondance</h3>
+            <p class="rarete-table-meta">${entries.length} essence(s) affichée(s)</p>
+            <div id="rareteTableMount"></div>
+            <section class="rarete-custom-editor" id="rareteCustomEditor">
+                <h3 class="detail-modal-subtitle">Essence personnalisée</h3>
+                <p class="detail-modal-paragraph">Ajoutez une essence custom pour compléter le référentiel. Seuls le Nom français et la Rareté sont obligatoires. En cas de collision sur le code EN 13556, la ligne custom est prioritaire.</p>
+                <div class="rarete-custom-create-grid">
+                    <input type="text" class="lot-input" id="rareteCustomNewFrench" placeholder="Nom français">
+                    <input type="text" class="lot-input" id="rareteCustomNewScientific" placeholder="Nom scientifique">
+                    <input type="text" class="lot-input" id="rareteCustomNewCode" placeholder="Code EN 13556">
+                    <select class="lot-input" id="rareteCustomNewRarete">
+                        <option value="Commune">Commune</option>
+                        <option value="Peu commune">Peu commune</option>
+                        <option value="Rare">Rare</option>
+                    </select>
+                    <input type="text" class="lot-input" id="rareteCustomNewOrigineTropix" placeholder="Origine Tropix">
+                    <button type="button" class="btn btn-primary" data-rarete-custom-action="add">Ajouter</button>
+                </div>
+                <p class="rarete-custom-error" id="rareteCustomEditorError"></p>
+                <div class="rarete-custom-list">${customRowsHtml}</div>
+                ${customEntries.length ? '' : '<p class="rarete-custom-empty">Aucune essence personnalisée pour le moment.</p>'}
+            </section>
+            <details class="detail-modal-references" open>
+                <summary>Références</summary>
+                <ul>
+                    <li>AFNOR. (2016). <em>NF EN 350 — Durabilité du bois et des matériaux dérivés du bois — Méthodes d'essai et de classification de la durabilité vis-à-vis des agents biologiques</em>. AFNOR (B 50-103, Août 2016).</li>
+                    <li>Gérard, J., Guibal, D., Paradis, S., Vernay, M., Beauchêne, J., Brancheriau, L., Châlon, I., Daigremont, C., Détienne, P., Fouquet, D., Langbour, P., Lotte, S., Thévenon, M.-F., Méjean, C., &amp; Thibaut, A. (avec CIRAD). (2011). <em>Tropix 7</em> (Version 7.5.1). CIRAD. <a href="https://doi.org/10.18167/74726F706978" target="_blank" rel="noopener noreferrer">https://doi.org/10.18167/74726F706978</a></li>
+                    <li>Benoît, Y. &amp; FCBA. (2008). <em>Le Guide des Essences de Bois — 74 essences, les choisir, les reconnaître, les utiliser</em> (2e éd.). Éditions Eyrolles. ISBN 978-2-212-12086-8.</li>
+                    <li>AFNOR. (2003). <em>NF EN 13556 : Bois ronds et bois sciés – Nomenclature des bois utilisés en Europe</em>. Paris, France : AFNOR.</li>
+                </ul>
+            </details>`;
+
+        const rareteTableMount = body.querySelector('#rareteTableMount');
+        if (rareteTableMount) {
+            rareteTableMount.innerHTML = `
+                <div class="longevite-table-scroll rarete-table-scroll">
+                    <table class="longevite-table rarete-table">
+                        <thead>
+                            <tr>
+                                <th class="longevite-table-choice">Choix</th>
+                                <th>Nom français</th>
+                                <th>Nom scientifique</th>
+                                <th>Code EN 13556</th>
+                                <th>Rareté par défaut</th>
+                                <th>Origine (EN 350)</th>
+                                <th>Origine (Tropix CIRAD)</th>
+                                <th>Origine (Guide Benoît FCBA)</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        body.querySelectorAll('input[data-rarete-candidate-code]').forEach((input) => {
+            input.addEventListener('change', (event) => {
+                const code = (event.target && event.target.dataset && event.target.dataset.rareteCandidateCode
+                    ? event.target.dataset.rareteCandidateCode
+                    : '')
+                    .toString()
+                    .trim()
+                    .toUpperCase();
+                if (!this._rareteModalState) return;
+                const nextCode = event.target.checked ? code : '';
+                this._rareteModalState.selectedCode = nextCode;
+                const targetPieceLike = this._rareteModalState.pieceLike;
+                if (targetPieceLike && typeof targetPieceLike === 'object') {
+                    targetPieceLike.rareteProvenanceCodeOverride = nextCode;
+                }
+                this.saveData();
+                this.renderAllotissement();
+                this.renderDetailLot();
+                this.renderRareteInfoTable();
+            });
+        });
+
+        const customEditor = body.querySelector('#rareteCustomEditor');
+        if (!customEditor) return;
+
+        customEditor.addEventListener('click', (event) => {
+            const actionBtn = event.target.closest('[data-rarete-custom-action]');
+            if (!actionBtn) return;
+
+            const errorEl = customEditor.querySelector('#rareteCustomEditorError');
+            const action = actionBtn.dataset.rareteCustomAction;
+
+            if (action === 'add') {
+                const nomFrancaisInput = customEditor.querySelector('#rareteCustomNewFrench');
+                const nomScientifiqueInput = customEditor.querySelector('#rareteCustomNewScientific');
+                const codeInput = customEditor.querySelector('#rareteCustomNewCode');
+                const rareteInput = customEditor.querySelector('#rareteCustomNewRarete');
+                const origineTropixInput = customEditor.querySelector('#rareteCustomNewOrigineTropix');
+                const created = this.addRareteCustomEntry({
+                    nomFrancais: nomFrancaisInput ? nomFrancaisInput.value : '',
+                    nomScientifique: nomScientifiqueInput ? nomScientifiqueInput.value : '',
+                    codeEn13556: codeInput ? codeInput.value : '',
+                    rareteParDefaut: rareteInput ? rareteInput.value : '',
+                    origineTropixCirad: origineTropixInput ? origineTropixInput.value : ''
+                });
+                if (!created.ok) {
+                    if (errorEl) errorEl.textContent = created.error || 'Impossible d\'ajouter l\'essence personnalisée.';
+                    return;
+                }
+                if (errorEl) errorEl.textContent = '';
+                this.renderAllotissement();
+                this.renderDetailLot();
+                this.renderRareteInfoTable();
+                return;
+            }
+
+            if (action === 'remove') {
+                const customId = (actionBtn.dataset.rareteCustomId || '').toString();
+                if (!customId) return;
+                this.deleteRareteCustomEntry(customId);
+                if (errorEl) errorEl.textContent = '';
+                this.renderAllotissement();
+                this.renderDetailLot();
+                this.renderRareteInfoTable();
+            }
+        });
+
+        customEditor.addEventListener('change', (event) => {
+            const target = event.target;
+            if (!(target instanceof HTMLElement)) return;
+            const row = target.closest('[data-rarete-custom-id]');
+            if (!row) return;
+            const customId = (row.dataset.rareteCustomId || '').toString();
+            const field = (target.dataset.rareteCustomField || '').toString();
+            if (!customId || !field) return;
+            const patch = { [field]: target.value };
+            const updated = this.updateRareteCustomEntry(customId, patch);
+            const errorEl = customEditor.querySelector('#rareteCustomEditorError');
+            if (!updated.ok) {
+                if (errorEl) errorEl.textContent = updated.error || 'Impossible de modifier l\'essence personnalisée.';
+                this.renderRareteInfoTable();
+                return;
+            }
+            if (errorEl) errorEl.textContent = '';
+            this.renderAllotissement();
+            this.renderDetailLot();
+            this.renderRareteInfoTable();
+        });
+    }
+
     getDurabiliteNaturelleRows(essence, lang = 'fr', options = {}) {
         if (!essence) return [];
 
@@ -16030,12 +16765,23 @@ if (locSitInfoBackdrop && locSitInfoClose && locSitInfoCloseFooter) {
 const longeviteInfoBackdrop = document.getElementById('longeviteInfoModalBackdrop');
 const longeviteInfoClose = document.getElementById('btnCloseLongeviteInfoModal');
 const longeviteInfoCloseFooter = document.getElementById('btnCloseLongeviteInfoModalFooter');
+const rareteInfoBackdrop = document.getElementById('rareteInfoModalBackdrop');
+const rareteInfoClose = document.getElementById('btnCloseRareteInfoModal');
+const rareteInfoCloseFooter = document.getElementById('btnCloseRareteInfoModalFooter');
 
 if (longeviteInfoBackdrop && longeviteInfoClose && longeviteInfoCloseFooter) {
     longeviteInfoClose.addEventListener('click', () => this.closeLongeviteInfoModal());
     longeviteInfoCloseFooter.addEventListener('click', () => this.closeLongeviteInfoModal());
     longeviteInfoBackdrop.addEventListener('click', (e) => {
         if (e.target === longeviteInfoBackdrop) this.closeLongeviteInfoModal();
+    });
+}
+
+if (rareteInfoBackdrop && rareteInfoClose && rareteInfoCloseFooter) {
+    rareteInfoClose.addEventListener('click', () => this.closeRareteInfoModal());
+    rareteInfoCloseFooter.addEventListener('click', () => this.closeRareteInfoModal());
+    rareteInfoBackdrop.addEventListener('click', (e) => {
+        if (e.target === rareteInfoBackdrop) this.closeRareteInfoModal();
     });
 }
 
@@ -16162,6 +16908,34 @@ if (!this._longeviteInfoClickBound) {
         this.openLongeviteInfoModalForPieceLike(piece, lot, `Longévité estimée - ${piece.nom || `Pièce ${pieceIndex + 1}`}`);
     });
     this._longeviteInfoClickBound = true;
+}
+
+if (!this._rareteInfoClickBound) {
+    document.addEventListener('click', (e) => {
+        const infoBtn = e.target.closest('.rarete-info-btn');
+        if (!infoBtn) return;
+        e.preventDefault();
+        e.stopPropagation();
+
+        const lot = this.getCurrentLot();
+        if (!lot) return;
+
+        const pieceCard = infoBtn.closest('.piece-card');
+        if (!pieceCard) return;
+
+        const defaultPieceId = pieceCard.dataset.defaultPieceId;
+        if (defaultPieceId) {
+            const defaultPiece = this.ensureDefaultPieceData(lot, defaultPieceId);
+            this.openRareteInfoModalForPieceLike(defaultPiece, lot, 'Rareté - Provenance (Pièce par défaut)');
+            return;
+        }
+
+        const pieceIndex = parseInt(pieceCard.dataset.pieceIndex, 10);
+        const piece = Number.isFinite(pieceIndex) ? (lot.pieces || [])[pieceIndex] : null;
+        if (!piece) return;
+        this.openRareteInfoModalForPieceLike(piece, lot, `Rareté - Provenance (${piece.nom || `Pièce ${pieceIndex + 1}`})`);
+    });
+    this._rareteInfoClickBound = true;
 }
 
 // Modale détail denat
@@ -18885,8 +19659,8 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
         info: [
             `À noter : Cette notation est fonction de l'aire géographique continentale de la localisation de cette évaluation. En Europe, on peut se rapporter aux exemples des catégories cités ci-après.`,
             `Peuvent être considérées comme « rares » les essences de bois suivantes : Teck, iroko, padouk, wengé, merbau, azobé, ipé.`,
-            `Peuvent être considérées comme « peu communes » les essences de bois suivantes : Alisier, cormier, noyer, orme, tilleul, aulne, charme, robinier, érable, platane, merisier.`,
-            `Peuvent être considérées comme « communes » les essences de bois suivantes : Épicéa, pin maritime, pin sylvestre, sapin, douglas, chêne, hêtre, peuplier, bouleau, mélèze, frêne, châtaigner.`
+            `Peuvent être considérées comme « peu communes » les essences de bois suivantes : Alisier, cormier, noyer, orme, tilleul, aulne, charme, robinier, érable, platane, merisier, frêne.`,
+            `Peuvent être considérées comme « communes » les essences de bois suivantes : Épicéa, pin maritime, pin sylvestre, sapin, douglas, chêne, hêtre, peuplier, bouleau, mélèze, châtaigner.`
         ],
         references: [
             `Benoit, Y. (2018). Guide des essences de bois : 100 essences, comment les reconnaître, les choisir et les employer (4e éd.). Eyrolles.`,
@@ -19923,6 +20697,7 @@ closeEvalOpModal() {
         const climateTooltipDp = (locSitStateDp.climate && locSitStateDp.climate.tooltip) || '';
         const massTooltipDp = (locSitStateDp.massivite && locSitStateDp.massivite.tooltip) || '';
         const longeviteDp = this.computeEstimatedLongevite(defaultPiece, lot);
+        const rareteDp = this.computeEstimatedRareteProvenance(defaultPiece, lot);
         const tropixInfoDp = showAsDisabled ? { url: '' } : this.getTropixInfoForPieceLike(defaultPiece, lot);
 
         return `
@@ -19998,6 +20773,12 @@ closeEvalOpModal() {
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${viewValue(pEffEssenceCommun)}" placeholder="Essence (nom commun)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(pEffEssenceScientifique)}" placeholder="Essence (nom scientifique)" data-default-piece-id="${defaultPieceId}" data-default-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
+                    </div>
+                    <div class="lot-rarete-row">
+                        <div class="lot-rarete-input-row">
+                            <input type="text" class="lot-input lot-input--essence-scientific" value="${viewValue(rareteDp.display)}" placeholder="Rareté - Provenance" readonly title="${viewValue(rareteDp.tooltip || '')}" data-default-piece-id="${defaultPieceId}" data-default-piece-display="rareteProvenance">
+                            <button type="button" class="lot-price-unit-btn rarete-info-btn" data-rarete-info="default-piece" data-default-piece-id="${defaultPieceId}" title="Informations sur la rareté-provenance" aria-label="Informations sur la rareté-provenance">info</button>
+                        </div>
                     </div>
                     ${this.renderTropixTriggerButton(tropixInfoDp, { extraAttributes: ` data-default-piece-id="${defaultPieceId}" data-default-piece-tropix-btn` })}
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--dp-${defaultPieceId}">
@@ -20296,6 +21077,7 @@ closeEvalOpModal() {
         const climateTooltipP = (locSitStateP.climate && locSitStateP.climate.tooltip) || '';
         const massTooltipP = (locSitStateP.massivite && locSitStateP.massivite.tooltip) || '';
         const longeviteP = this.computeEstimatedLongevite(piece, lot);
+        const rareteP = this.computeEstimatedRareteProvenance(piece, lot);
         const tropixInfoP = this.getTropixInfoForPieceLike(piece, lot);
 
         return `
@@ -20361,6 +21143,12 @@ closeEvalOpModal() {
                     <div class="lot-inline-grid lot-inline-grid--lot-essence">
                         <input type="text" class="lot-input lot-input--essence-common" value="${pEffEssenceCommun}" placeholder="Essence (nom commun)" data-piece-input="essenceNomCommun" list="liste-essences-communes" autocomplete="off">
                         <input type="text" class="lot-input lot-input--essence-scientific" value="${pEffEssenceScientifique}" placeholder="Essence (nom scientifique)" data-piece-input="essenceNomScientifique" list="liste-essences-scientifiques" autocomplete="off">
+                    </div>
+                    <div class="lot-rarete-row">
+                        <div class="lot-rarete-input-row">
+                            <input type="text" class="lot-input lot-input--essence-scientific" value="${attrValue(rareteP.display)}" placeholder="Rareté - Provenance" readonly title="${attrValue(rareteP.tooltip || '')}" data-piece-display="rareteProvenance">
+                            <button type="button" class="lot-price-unit-btn rarete-info-btn" data-rarete-info="piece" title="Informations sur la rareté-provenance" aria-label="Informations sur la rareté-provenance">info</button>
+                        </div>
                     </div>
                     ${this.renderTropixTriggerButton(tropixInfoP, { extraAttributes: ' data-piece-tropix-btn' })}
                     <details class="mesures-accordion durab-nat-accordion" id="durabiliteNaturelleAccordion--piece-${pieceIndex}">
@@ -22480,6 +23268,12 @@ closeEvalOpModal() {
                 qLongeviteDefault.value = isDisabled ? '' : this.computeEstimatedLongevite(dp, lot).display;
                 qLongeviteDefault.title = isDisabled ? '' : (this.computeEstimatedLongevite(dp, lot).tooltip || '');
             }
+            const qRareteDefault = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-display="rareteProvenance"]`);
+            if (qRareteDefault) {
+                const rareteResultDefault = this.computeEstimatedRareteProvenance(dp, lot);
+                qRareteDefault.value = isDisabled ? '' : rareteResultDefault.display;
+                qRareteDefault.title = isDisabled ? '' : (rareteResultDefault.tooltip || '');
+            }
             const defaultTropixButton = pieceRail.querySelector(`[data-default-piece-id="${defaultPieceId}"][data-default-piece-tropix-btn]`);
             if (defaultTropixButton) {
                 this.syncTropixTrigger(defaultTropixButton, isDisabled ? { url: '' } : this.getTropixInfoForPieceLike(dp, lot));
@@ -22731,6 +23525,7 @@ closeEvalOpModal() {
                     }
 
                     if (field === 'essenceNomCommun') {
+                        dp.rareteProvenanceCodeOverride = '';
                         const nm = (dp.essenceNomCommun || '').toString().trim();
                         const match = this.findEssenceByCommonName(nm);
                         if (match) {
@@ -22748,6 +23543,7 @@ closeEvalOpModal() {
                     }
 
                     if (field === 'essenceNomScientifique') {
+                        dp.rareteProvenanceCodeOverride = '';
                         const nm = (dp.essenceNomScientifique || '').toString().trim();
                         const match = this.findEssenceByScientificName(nm);
                         if (match) {
@@ -22946,6 +23742,12 @@ closeEvalOpModal() {
                     qLongevitePiece.value = longeviteResult.display;
                     qLongevitePiece.title = longeviteResult.tooltip || '';
                 }
+                const qRaretePiece = pieceCard.querySelector('[data-piece-display="rareteProvenance"]');
+                if (qRaretePiece) {
+                    const rareteResult = this.computeEstimatedRareteProvenance(piece, lot);
+                    qRaretePiece.value = rareteResult.display;
+                    qRaretePiece.title = rareteResult.tooltip || '';
+                }
                 const pieceTropixButton = pieceCard.querySelector('[data-piece-tropix-btn]');
                 if (pieceTropixButton) {
                     this.syncTropixTrigger(pieceTropixButton, this.getTropixInfoForPieceLike(piece, lot));
@@ -23142,6 +23944,7 @@ closeEvalOpModal() {
 
                     // Synchronisation essence
                     if (field === 'essenceNomCommun') {
+                        piece.rareteProvenanceCodeOverride = '';
                         const nm = (piece.essenceNomCommun || '').toString().trim();
                         const match = this.findEssenceByCommonName(nm);
                         if (match) {
@@ -23159,6 +23962,7 @@ closeEvalOpModal() {
                         }
                     }
                     if (field === 'essenceNomScientifique') {
+                        piece.rareteProvenanceCodeOverride = '';
                         const nm = (piece.essenceNomScientifique || '').toString().trim();
                         const match = this.findEssenceByScientificName(nm);
                         if (match) {
