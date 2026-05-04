@@ -10157,6 +10157,82 @@ class ValoboisApp {
         return null;
     }
 
+    buildEssenceLookupVariants(value) {
+        const raw = (value || '').toString().trim();
+        if (!raw) return [];
+
+        const normalize = (candidate) => normalizeEssenceLookupKey(candidate)
+            .replace(/\./g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const variants = new Set();
+        const addVariant = (candidate) => {
+            const key = normalize(candidate);
+            if (key) variants.add(key);
+        };
+
+        const splitAndAdd = (candidate) => {
+            addVariant(candidate);
+            String(candidate || '')
+                .split(/\s*(?:\/|;|,|\bet\/ou\b|\bet\b|\bou\b)\s*/i)
+                .forEach((part) => addVariant(part));
+        };
+
+        splitAndAdd(raw);
+        const withoutParentheses = raw.replace(/\([^)]*\)/g, ' ').replace(/\s+/g, ' ').trim();
+        if (withoutParentheses && withoutParentheses !== raw) splitAndAdd(withoutParentheses);
+
+        raw.replace(/\(([^)]*)\)/g, (_match, inner) => {
+            splitAndAdd(inner);
+            return _match;
+        });
+
+        return Array.from(variants);
+    }
+
+    resolveDurabiliteNaturelleEssenceByLooseNames(commonName, scientificName) {
+        const queryKeys = new Set([
+            ...this.buildEssenceLookupVariants(commonName),
+            ...this.buildEssenceLookupVariants(scientificName)
+        ]);
+        if (!queryKeys.size || !Array.isArray(ESSENCES_VALOBOIS)) return null;
+
+        let bestEntry = null;
+        let bestScore = -1;
+
+        ESSENCES_VALOBOIS.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') return;
+            const entryKeys = [
+                ...this.buildEssenceLookupVariants(entry.nomUsuel),
+                ...this.buildEssenceLookupVariants(entry.nomScientifique)
+            ];
+            if (!entryKeys.length) return;
+
+            let score = 0;
+            queryKeys.forEach((queryKey) => {
+                if (!queryKey) return;
+                if (entryKeys.includes(queryKey)) {
+                    score = Math.max(score, 100 + queryKey.length);
+                    return;
+                }
+                entryKeys.forEach((entryKey) => {
+                    if (!entryKey || queryKey.length < 4) return;
+                    if (entryKey.includes(queryKey) || queryKey.includes(entryKey)) {
+                        score = Math.max(score, 60 + Math.min(queryKey.length, entryKey.length));
+                    }
+                });
+            });
+
+            if (score > bestScore) {
+                bestScore = score;
+                bestEntry = entry;
+            }
+        });
+
+        return bestScore >= 60 ? bestEntry : null;
+    }
+
     resolveDurabiliteNaturelleEssenceFromNames(commonName, scientificName) {
         const common = (commonName || '').toString().trim();
         const scientific = (scientificName || '').toString().trim();
@@ -10168,6 +10244,10 @@ class ValoboisApp {
             const byScientific = ESSENCES_VALOBOIS_BY_SCIENTIFIC.get(normalizeEssenceLookupKey(scientific));
             if (byScientific) return byScientific;
         }
+
+        const byLooseMatch = this.resolveDurabiliteNaturelleEssenceByLooseNames(common, scientific);
+        if (byLooseMatch) return byLooseMatch;
+
         return null;
     }
 
@@ -10200,7 +10280,6 @@ class ValoboisApp {
         const lotAllot = (lot && lot.allotissement) || {};
         const common = ((pieceLike && pieceLike.essenceNomCommun) || lotAllot.essenceNomCommun || '').toString().trim();
         const scientific = ((pieceLike && pieceLike.essenceNomScientifique) || lotAllot.essenceNomScientifique || '').toString().trim();
-        const overrideCode = ((pieceLike && pieceLike.longeviteEssenceCodeOverride) || '').toString().trim().toUpperCase();
         const densityInputRaw = pieceLike && pieceLike.masseVolumique != null
             ? pieceLike.masseVolumique
             : (lotAllot && lotAllot.masseVolumique != null ? lotAllot.masseVolumique : '');
@@ -10213,7 +10292,7 @@ class ValoboisApp {
             common,
             scientific,
             detailed: this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific),
-            overrideCode,
+            overrideCode: '',
             densityInput: Number.isFinite(densityInput) ? densityInput : null,
             densitySuggested: Number.isFinite(densitySuggested) ? densitySuggested : null
         };
@@ -10490,6 +10569,59 @@ class ValoboisApp {
             };
         }
 
+        // Priorité aux similarités de nom (inclusions/variantes) avant l'approximation par profil.
+        const queryKeys = new Set([
+            ...this.buildEssenceLookupVariants(essenceInfo && essenceInfo.common),
+            ...this.buildEssenceLookupVariants(essenceInfo && essenceInfo.scientific)
+        ].filter((key) => key && key.length >= 4));
+
+        if (queryKeys.size) {
+            const rankedByName = data.entries
+                .map((entry) => {
+                    const entryKeys = [
+                        ...this.buildEssenceLookupVariants(entry && entry.nomStandard),
+                        ...this.buildEssenceLookupVariants(entry && entry.especeBotanique)
+                    ].filter(Boolean);
+
+                    if (!entryKeys.length) return { entry, score: 0 };
+
+                    let score = 0;
+                    queryKeys.forEach((queryKey) => {
+                        entryKeys.forEach((entryKey) => {
+                            if (queryKey === entryKey) {
+                                score = Math.max(score, 120 + queryKey.length);
+                                return;
+                            }
+                            if (entryKey.includes(queryKey) || queryKey.includes(entryKey)) {
+                                score = Math.max(score, 80 + Math.min(queryKey.length, entryKey.length));
+                            }
+                        });
+                    });
+
+                    return { entry, score };
+                })
+                .filter((item) => item.score > 0)
+                .sort((a, b) => b.score - a.score);
+
+            if (rankedByName.length === 1) {
+                return {
+                    entry: rankedByName[0].entry,
+                    matchedBy: 'name-similarity',
+                    matchedByLabel: 'Similarité de nom (usuel/scientifique)',
+                    suggestions: []
+                };
+            }
+
+            if (rankedByName.length > 1 && rankedByName[0].score > rankedByName[1].score) {
+                return {
+                    entry: rankedByName[0].entry,
+                    matchedBy: 'name-similarity',
+                    matchedByLabel: 'Similarité de nom (usuel/scientifique)',
+                    suggestions: rankedByName.slice(0, 6).map((item) => item.entry)
+                };
+            }
+        }
+
         const scientificHead = this.getLongeviteEssenceHeadKey(essenceInfo && essenceInfo.scientific);
         const commonHead = this.getLongeviteEssenceHeadKey(essenceInfo && essenceInfo.common);
         const scientificHeadMatches = this.listLongeviteEntriesByHead(scientificHead);
@@ -10581,21 +10713,58 @@ class ValoboisApp {
     }
 
     computeEstimatedLongevite(pieceLike, lot) {
+        const isLotSummary = !!(lot && pieceLike === lot.allotissement);
         const classState = this.getLocSitEffectiveClassState(pieceLike || {}, lot);
-        const activeClass = classState && classState.activeClass ? classState.activeClass : '';
+        let activeClass = classState && classState.activeClass ? classState.activeClass : '';
+        const lotClassSummary = isLotSummary ? this.getLotEmploymentClassSummary(lot) : null;
+        if (!activeClass && lotClassSummary && Array.isArray(lotClassSummary.classes) && lotClassSummary.classes.length === 1) {
+            activeClass = lotClassSummary.classes[0];
+        }
         const classColumn = this.mapEmploymentClassToLongeviteColumn(activeClass);
-        const essenceInfo = this.resolvePieceLikeEssenceForLongevite(pieceLike, lot);
+        let essenceInfo = this.resolvePieceLikeEssenceForLongevite(pieceLike, lot);
+        if (isLotSummary && !essenceInfo.common && !essenceInfo.scientific) {
+            const aggregatedCommon = this.getLotAggregatedTextValue(lot, 'essenceNomCommun');
+            const aggregatedScientific = this.getLotAggregatedTextValue(lot, 'essenceNomScientifique');
+            const fallbackCommon = aggregatedCommon !== 'Multiples' ? aggregatedCommon : '';
+            const fallbackScientific = aggregatedScientific !== 'Multiples' ? aggregatedScientific : '';
+            if (fallbackCommon || fallbackScientific) {
+                essenceInfo = this.resolvePieceLikeEssenceForLongevite({
+                    ...(pieceLike || {}),
+                    essenceNomCommun: fallbackCommon,
+                    essenceNomScientifique: fallbackScientific
+                }, lot);
+            }
+        }
         const essenceMatch = this.resolveLongeviteEntryForEssence(essenceInfo);
         const entry = essenceMatch && essenceMatch.entry ? essenceMatch.entry : null;
 
         const missing = [];
-        if (!activeClass) missing.push('Classe d’emploi effective');
-        if (!essenceInfo.common && !essenceInfo.scientific) missing.push('Essence');
+        if (!activeClass) {
+            if (lotClassSummary && Array.isArray(lotClassSummary.classes) && lotClassSummary.classes.length > 1) {
+                missing.push('Classes d’emploi multiples du lot');
+            } else {
+                missing.push('Classe d’emploi effective');
+            }
+        }
+        if (!essenceInfo.common && !essenceInfo.scientific) {
+            const aggregatedCommon = isLotSummary ? this.getLotAggregatedTextValue(lot, 'essenceNomCommun') : '';
+            const aggregatedScientific = isLotSummary ? this.getLotAggregatedTextValue(lot, 'essenceNomScientifique') : '';
+            if (aggregatedCommon === 'Multiples' || aggregatedScientific === 'Multiples') {
+                missing.push('Essences multiples du lot');
+            } else {
+                missing.push('Essence');
+            }
+        }
         if ((essenceInfo.common || essenceInfo.scientific) && !entry) missing.push('Référence FD P20-651 pour l’essence');
 
         if (missing.length > 0 || !classColumn || !entry) {
+            const hasMultipleLongeviteContext = missing.includes('Classes d’emploi multiples du lot')
+                || missing.includes('Essences multiples du lot');
+            const onlyEmploymentClassMissing = missing.length === 1 && missing[0] === 'Classe d’emploi effective';
             return {
-                display: 'Données manquantes',
+                display: hasMultipleLongeviteContext
+                    ? 'Longévités estimées multiples'
+                    : (onlyEmploymentClassMissing ? 'Classe d’emploi manquante' : 'Données manquantes'),
                 level: '',
                 label: '',
                 activeClass,
@@ -10648,11 +10817,9 @@ class ValoboisApp {
     openLongeviteInfoModal(pieceLike, lot, title = 'Longévité estimée (FD P 20-651)') {
         const backdrop = document.getElementById('longeviteInfoModalBackdrop');
         if (!backdrop) return;
-        const initialSelectedCode = ((pieceLike && pieceLike.longeviteEssenceCodeOverride) || '').toString().trim().toUpperCase();
         this._longeviteModalState = {
             pieceLike: pieceLike || {},
-            lot: lot || null,
-            selectedCode: initialSelectedCode
+            lot: lot || null
         };
         const titleEl = document.getElementById('longeviteInfoModalTitle');
         if (titleEl) titleEl.textContent = title;
@@ -10682,8 +10849,7 @@ class ValoboisApp {
         if (!this._longeviteModalState) {
             this._longeviteModalState = {
                 pieceLike: currentPieceLike,
-                lot: currentLot,
-                selectedCode: ''
+                lot: currentLot
             };
         } else {
             this._longeviteModalState.pieceLike = currentPieceLike;
@@ -10691,6 +10857,7 @@ class ValoboisApp {
         }
 
         const data = this.getLongeviteReferentialData();
+        const isLotSummary = !!(currentLot && currentPieceLike === currentLot.allotissement);
         const baseResult = this.computeEstimatedLongevite(currentPieceLike, currentLot);
         const candidateProbePieceLike = {
             ...(currentPieceLike || {}),
@@ -10698,53 +10865,26 @@ class ValoboisApp {
         };
         const candidateProbeResult = this.computeEstimatedLongevite(candidateProbePieceLike, currentLot);
         const entries = data ? (data.entries || []) : [];
-        const entriesByCode = new Map(entries.map((entry) => [String(entry && entry.code || '').toUpperCase(), entry]));
         const rawCandidates = (candidateProbeResult.essenceMatch && Array.isArray(candidateProbeResult.essenceMatch.suggestions))
             ? candidateProbeResult.essenceMatch.suggestions
             : [];
-        const candidateCodes = new Set(rawCandidates
-            .map((entry) => String(entry && entry.code || '').toUpperCase())
-            .filter(Boolean));
+        const candidateCodes = isLotSummary
+            ? new Set()
+            : new Set(rawCandidates
+                .map((entry) => String(entry && entry.code || '').toUpperCase())
+                .filter(Boolean));
+        const result = baseResult;
 
-        const selectedCodeRaw = (this._longeviteModalState && this._longeviteModalState.selectedCode
-            ? this._longeviteModalState.selectedCode
-            : '')
-            .toString()
-            .trim()
-            .toUpperCase();
-
-        const selectedCode = (selectedCodeRaw && candidateCodes.has(selectedCodeRaw) && entriesByCode.has(selectedCodeRaw))
-            ? selectedCodeRaw
-            : '';
-        if (this._longeviteModalState) this._longeviteModalState.selectedCode = selectedCode;
-
-        let result = baseResult;
-        if (selectedCode && baseResult.classColumn) {
-            const selectedEntry = entriesByCode.get(selectedCode);
-            const rawLevel = (selectedEntry && selectedEntry[baseResult.classColumn] ? selectedEntry[baseResult.classColumn] : '').toString().trim().toUpperCase();
-            const level = ['L1', 'L2', 'L3', 'N'].includes(rawLevel) ? rawLevel : '';
-            const legendLabel = this.getLongeviteLegendLabel(level);
-            result = {
-                ...baseResult,
-                entry: selectedEntry,
-                level,
-                label: legendLabel,
-                display: level ? `${level} - ${legendLabel}` : 'Données manquantes',
-                missing: level ? [] : ['Niveau de longévité indisponible'],
-                tooltip: level ? '' : 'Niveau de longévité indisponible dans le référentiel FD P20-651.',
-                essenceMatch: {
-                    ...(baseResult.essenceMatch || {}),
-                    entry: selectedEntry,
-                    matchedBy: 'manual-candidate',
-                    matchedByLabel: 'Sélection manuelle d\'essence candidate',
-                    suggestions: rawCandidates
-                }
-            };
-        }
-
-        const essenceLabel = this.composeEssenceLabel(result.essenceInfo.common, result.essenceInfo.scientific) || '—';
+        const lotEssenceEntries = isLotSummary ? this.getLotDistinctEssenceEntries(currentLot) : [];
+        const lotEssenceCodes = isLotSummary
+            ? new Set(lotEssenceEntries
+                .map((e) => {
+                    const m = this.resolveLongeviteEntryForEssence({ common: e.commonName, scientific: e.scientificName, overrideCode: '', detailed: null });
+                    return m && m.entry ? String(m.entry.code || '').toUpperCase() : '';
+                })
+                .filter(Boolean))
+            : new Set();
         const activeCode = result.entry ? String(result.entry.code || '').toUpperCase() : '';
-        const selectedCodeForTable = selectedCode || (candidateCodes.has(activeCode) ? activeCode : '');
         const legend = data ? (data.legend || {}) : {};
 
         const tableau4 = entries.filter((e) => e.tableauSource === 'Tableau 4');
@@ -10777,9 +10917,11 @@ class ValoboisApp {
                 const isActive = row.code === activeCode;
                 const rowCode = String(row.code || '').toUpperCase();
                 const isCandidate = candidateCodes.has(rowCode);
+                const isLotEssence = !isActive && lotEssenceCodes.has(rowCode);
                 const rowClassList = [];
                 if (isActive) rowClassList.push('longevite-table-row--active');
                 if (isCandidate) rowClassList.push('longevite-table-row--candidate');
+                if (isLotEssence) rowClassList.push('longevite-table-row--lot-essence');
                 const rowClass = rowClassList.length ? ` class="${rowClassList.join(' ')}"` : '';
                 const cesCells = CE_KEYS.map((ce) => {
                     const val = (row[ce] || '').toString().trim().toUpperCase();
@@ -10787,59 +10929,181 @@ class ValoboisApp {
                     const ce5Marker = (ce === 'CE5' && val === 'L1') ? ' <span class="longevite-ce5-marker" title="Cas CE5: voir note *">*</span>' : '';
                     return `<td class="${cls}">${this.escapeHtml(val || '—')}${ce5Marker}</td>`;
                 }).join('');
-                const choiceCell = isCandidate
-                    ? `<td class="longevite-table-choice"><input type="checkbox" class="longevite-candidate-checkbox" data-longevite-candidate-code="${this.escapeHtml(rowCode)}" ${selectedCodeForTable === rowCode ? 'checked' : ''} aria-label="Sélectionner ${this.escapeHtml(row.nomStandard || '')}"></td>`
-                    : '<td class="longevite-table-choice"></td>';
                 const insectes = row.resistanceInsectesLarvesXylophages || '';
                 const termites = row.resistanceTermites || '';
                 const bioCells = [insectes, termites]
                     .map((value) => `<td class="${bioClass(value)}">${this.escapeHtml((value || 'n/d').toString().trim() || 'n/d')}</td>`)
                     .join('');
                 const noteMarker = row.notes && row.notes.startsWith('[◆]') ? ' <span class="longevite-aubier-marker" title="' + this.escapeHtml(row.notes) + '">◆</span>' : '';
-                return `<tr${rowClass}>${choiceCell}<td>${this.escapeHtml(row.nomStandard)}${noteMarker}</td>${cesCells}${bioCells}</tr>`;
+                return `<tr${rowClass}><td>${this.escapeHtml(row.nomStandard)}${noteMarker}</td>${cesCells}${bioCells}</tr>`;
             }).join('');
-            return `<div class="longevite-table-scroll"><table class="longevite-table"><thead><tr><th class="longevite-table-choice">Choix</th><th>Essence</th>${headCells}${bioHeadCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
+            return `<div class="longevite-table-scroll"><table class="longevite-table"><thead><tr><th>Essence</th>${headCells}${bioHeadCells}</tr></thead><tbody>${bodyRows}</tbody></table></div>`;
         };
 
         // Context block
-        const contextRows = [
-            { label: 'Essence retenue', value: essenceLabel, cls: '' },
-            { label: 'Classe d\'emploi effective', value: result.activeClass || '—', cls: '' },
-            { label: 'Longévité estimée', value: result.display, cls: result.level ? `longevite-info-context__value--${result.level.toLowerCase()}` : '' }
-        ];
-        contextRows.push({
-            label: 'Filtre candidats',
-            value: 'Masse volumique ±100 kg/m3 + critères de durabilité naturelle (champignons, insectes xylophages, termites).',
-            cls: 'longevite-info-context__value--note'
-        });
-        if (result.essenceMatch && result.essenceMatch.entry && result.essenceMatch.matchedBy && !/exact|en13556/.test(result.essenceMatch.matchedBy)) {
+        let lotPieceRows = [];
+        if (isLotSummary) {
+            const lotAllot = currentLot.allotissement || {};
+            const baseCommon = (lotAllot.essenceNomCommun || '').toString().trim();
+            const baseScientific = (lotAllot.essenceNomScientifique || '').toString().trim();
+
+            this.ensureDefaultPiecesData(currentLot).forEach((defaultPiece, index) => {
+                const qty = Math.max(0, parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0);
+                if (qty <= 0) return;
+                const classState = this.getLocSitEffectiveClassState(defaultPiece || {}, currentLot);
+                const common = ((defaultPiece && defaultPiece.essenceNomCommun) || baseCommon || '').toString().trim();
+                const scientific = ((defaultPiece && defaultPiece.essenceNomScientifique) || baseScientific || '').toString().trim();
+                lotPieceRows.push({
+                    label: `Pièce par défaut ${index + 1} (${Math.round(qty)})`,
+                    essence: this.composeEssenceLabel(common, scientific) || '—',
+                    activeClass: classState && classState.activeClass ? classState.activeClass : '',
+                    longevite: this.computeEstimatedLongevite(defaultPiece || {}, currentLot)
+                });
+            });
+
+            (currentLot.pieces || []).forEach((piece, index) => {
+                if (!piece || typeof piece !== 'object') return;
+                const classState = this.getLocSitEffectiveClassState(piece, currentLot);
+                const common = ((piece.essenceNomCommun) || baseCommon || '').toString().trim();
+                const scientific = ((piece.essenceNomScientifique) || baseScientific || '').toString().trim();
+                lotPieceRows.push({
+                    label: `Pièce ${index + 1}`,
+                    essence: this.composeEssenceLabel(common, scientific) || '—',
+                    activeClass: classState && classState.activeClass ? classState.activeClass : '',
+                    longevite: this.computeEstimatedLongevite(piece, currentLot)
+                });
+            });
+        }
+
+        let lotSummaryTableHtml = '';
+        if (isLotSummary && lotPieceRows.length) {
+            const groupedByInfoProfile = new Map();
+            lotPieceRows.forEach((row) => {
+                const essenceLabel = (row.essence || '—').toString().trim() || '—';
+                const classLabel = (row.activeClass || '—').toString().trim() || '—';
+                const longeviteLabel = ((row.longevite && row.longevite.display) ? row.longevite.display : 'Données manquantes').toString().trim() || 'Données manquantes';
+                const missingSignature = (row.longevite && Array.isArray(row.longevite.missing) && row.longevite.missing.length)
+                    ? row.longevite.missing.map((m) => (m || '').toString().trim()).join('|')
+                    : '';
+                const levelLabel = (row.longevite && row.longevite.level ? row.longevite.level : '').toString().trim();
+                const key = [
+                    essenceLabel.toLowerCase(),
+                    classLabel,
+                    longeviteLabel,
+                    missingSignature,
+                    levelLabel
+                ].join('||');
+                if (!groupedByInfoProfile.has(key)) {
+                    groupedByInfoProfile.set(key, {
+                        essence: essenceLabel,
+                        pieces: [],
+                        classes: [classLabel],
+                        longevites: [longeviteLabel],
+                        levels: [levelLabel]
+                    });
+                }
+                const bucket = groupedByInfoProfile.get(key);
+                bucket.pieces.push(row.label || '—');
+            });
+
+            const groups = Array.from(groupedByInfoProfile.values());
+            const uniq = (arr) => Array.from(new Set(arr.filter((v) => (v || '').toString().trim())));
+            const joinInline = (arr) => arr.join(', ');
+            const renderStatusValues = (values, options = {}) => {
+                const list = values && values.length ? values : ['—'];
+                return list.map((value) => {
+                    const raw = (value || '').toString().trim();
+                    const text = raw || '—';
+                    const missing = options.isMissing ? options.isMissing(text) : (text === '—');
+                    const extraClass = options.getClass ? options.getClass(text) : '';
+                    const cls = `longevite-lot-summary-table__value ${missing ? 'longevite-lot-summary-table__value--missing' : 'longevite-lot-summary-table__value--ok'}${extraClass ? ` ${extraClass}` : ''}`;
+                    return `<span class="${cls}">${this.escapeHtml(text)}</span>`;
+                }).join(', ');
+            };
+
+            const columnsHead = groups
+                .map((group) => `<th class="longevite-lot-summary-table__colhead">${this.escapeHtml(joinInline(uniq(group.pieces)))}</th>`)
+                .join('');
+            const essenceCells = groups
+                .map((group) => {
+                    const essences = uniq([group.essence]);
+                    return `<td>${renderStatusValues(essences, { isMissing: (value) => value === '—' })}</td>`;
+                })
+                .join('');
+            const classCells = groups
+                .map((group) => {
+                    const classes = uniq(group.classes);
+                    return `<td>${renderStatusValues(classes, { isMissing: (value) => value === '—' })}</td>`;
+                })
+                .join('');
+            const longeviteCells = groups
+                .map((group) => {
+                    const longevites = uniq(group.longevites);
+                    const levels = uniq(group.levels);
+                    const levelCss = levels.length === 1 ? levelClass(levels[0]) : '';
+                    const valuesHtml = renderStatusValues(longevites, {
+                        isMissing: (value) => /manquant|donn[eé]es manquantes/i.test(value),
+                        getClass: (value) => (/^N\b/.test(value) ? 'longevite-lot-summary-table__value--warning' : '')
+                    });
+                    return `<td class="${levelCss}">${valuesHtml}</td>`;
+                })
+                .join('');
+
+            lotSummaryTableHtml = `<table class="longevite-lot-summary-table longevite-lot-summary-table--transposed"><thead><tr><th class="longevite-lot-summary-table__rowhead">Élément</th>${columnsHead}</tr></thead><tbody><tr><th class="longevite-lot-summary-table__rowhead">Essence</th>${essenceCells}</tr><tr><th class="longevite-lot-summary-table__rowhead">Classe d'emploi</th>${classCells}</tr><tr><th class="longevite-lot-summary-table__rowhead">Longévité estimée</th>${longeviteCells}</tr></tbody></table>`;
+        }
+
+        const contextRows = [];
+        if (isLotSummary && lotSummaryTableHtml) {
+            contextRows.push({ label: '', value: '', cls: '', html: lotSummaryTableHtml, fullWidth: true });
+        } else {
+            const essenceLabel = this.composeEssenceLabel(result.essenceInfo.common, result.essenceInfo.scientific) || '—';
+            contextRows.push({ label: 'Essence retenue', value: essenceLabel, cls: '' });
+            contextRows.push({ label: 'Classe d\'emploi', value: result.activeClass || '—', cls: '' });
+            contextRows.push({ label: 'Longévité estimée', value: result.display, cls: result.level ? `longevite-info-context__value--${result.level.toLowerCase()}` : '' });
+        }
+        if (!isLotSummary) {
+            contextRows.push({
+                label: 'Filtre candidats',
+                value: 'Masse volumique ±100 kg/m3 + critères de durabilité naturelle (champignons, insectes xylophages, termites).',
+                cls: 'longevite-info-context__value--note'
+            });
+        }
+        if (!isLotSummary && result.essenceMatch && result.essenceMatch.entry && result.essenceMatch.matchedBy && !/exact|en13556/.test(result.essenceMatch.matchedBy)) {
             contextRows.push({
                 label: 'Correspondance utilisée',
                 value: `${result.essenceMatch.matchedByLabel} -> ${result.essenceMatch.entry.nomStandard || ''} (${result.essenceMatch.entry.especeBotanique || ''})`,
                 cls: 'longevite-info-context__value--note'
             });
         }
-        if (result.essenceMatch && Array.isArray(result.essenceMatch.suggestions) && result.essenceMatch.suggestions.length) {
+        if (!isLotSummary && result.essenceMatch && Array.isArray(result.essenceMatch.suggestions) && result.essenceMatch.suggestions.length) {
             const suggestionLabel = result.essenceMatch.suggestions
                 .slice(0, 6)
                 .map((entry) => `${entry.nomStandard || ''} (${entry.especeBotanique || ''})`)
                 .join(' | ');
             contextRows.push({ label: 'Essences candidates', value: suggestionLabel, cls: 'longevite-info-context__value--note' });
         }
-        if (result.entry && result.entry.notes) contextRows.push({ label: 'Note essence', value: result.entry.notes, cls: 'longevite-info-context__value--note' });
-        if (result.missing && result.missing.length) contextRows.push({ label: 'Données manquantes', value: result.missing.join(', '), cls: 'longevite-info-context__value--missing' });
-        const contextHtml = `<div class="longevite-info-context">${contextRows.map((r) => `<div class="longevite-info-context__row"><span class="longevite-info-context__label">${this.escapeHtml(r.label)}</span><span class="longevite-info-context__value ${r.cls}">${this.escapeHtml(r.value)}</span></div>`).join('')}</div>`;
+        if (!isLotSummary && result.entry && result.entry.notes) contextRows.push({ label: 'Note essence', value: result.entry.notes, cls: 'longevite-info-context__value--note' });
+        if (!isLotSummary && result.missing && result.missing.length) {
+            contextRows.push({ label: 'Données manquantes', value: result.missing.join(', '), cls: 'longevite-info-context__value--missing' });
+        }
+        const contextHtml = `<div class="longevite-info-context">${contextRows.map((r) => {
+            if (r.fullWidth) return `<div class="longevite-info-context__row longevite-info-context__row--full">${r.html}</div>`;
+            return `<div class="longevite-info-context__row"><span class="longevite-info-context__label">${this.escapeHtml(r.label)}</span><span class="longevite-info-context__value ${r.cls}">${r.html != null ? r.html : this.escapeHtml(r.value)}</span></div>`;
+        }).join('')}</div>`;
 
         // Legend
         const legendHtml = `<div class="longevite-legend">${['L3', 'L2', 'L1', 'N'].map((lv) => `<span class="longevite-legend-item longevite-legend-item--${lv.toLowerCase()}"><span class="longevite-legend-item__badge">${this.escapeHtml(lv)}</span><span class="longevite-legend-item__label">${this.escapeHtml(legend[lv] || lv)}</span></span>`).join('')}</div>`;
         const ce5LegendHtml = `<div class="longevite-legend longevite-legend--ce5"><span class="longevite-legend-item longevite-legend-item--ce5"><span class="longevite-legend-item__badge">*</span><span class="longevite-legend-item__label">CE5 (milieu marin) : les essences absentes du Tableau 7 reçoivent N par défaut ; les essences du Tableau 7 (Tableau 5, colonne CE5 = L1) ont une longévité L3 jusqu'en CE3b et L2 en CE4.</span></span></div>`;
         const bioLegendHtml = `<div class="longevite-legend longevite-legend--bio"><span class="longevite-legend-item"><span class="longevite-legend-item__badge longevite-bio--yes">oui</span><span class="longevite-legend-item__label">Résistance naturelle présente</span></span><span class="longevite-legend-item"><span class="longevite-legend-item__badge longevite-bio--no">non</span><span class="longevite-legend-item__label">Résistance naturelle absente</span></span></div>`;
 
-        const t4Open = tableau4.some((e) => e.code === activeCode || candidateCodes.has(String(e.code || '').toUpperCase()));
-        const t5Open = tableau5.some((e) => e.code === activeCode || candidateCodes.has(String(e.code || '').toUpperCase()));
+        const t4Open = tableau4.some((e) => { const c = String(e.code || '').toUpperCase(); return c === activeCode || candidateCodes.has(c) || lotEssenceCodes.has(c); });
+        const t5Open = tableau5.some((e) => { const c = String(e.code || '').toUpperCase(); return c === activeCode || candidateCodes.has(c) || lotEssenceCodes.has(c); });
 
         body.innerHTML = `
-            <p class="detail-modal-instruction">Le tableau ci-dessous reprend les valeurs de longévité estimée (durabilité fongique) par classe d'emploi issues de la FD P 20-651 (AFNOR, 2011), §8. La ligne correspondant à l'essence identifiée est mise en évidence.</p>
+            <p class="detail-modal-instruction">${isLotSummary
+                ? 'Le tableau ci-dessous reprend les valeurs de longévité estimée (durabilité fongique) par classe d\'emploi issues de la FD P 20-651 (AFNOR, 2011), §8. Les essences présentes dans le lot y sont reportées pour information.'
+                : 'Le tableau ci-dessous reprend les valeurs de longévité estimée (durabilité fongique) par classe d\'emploi issues de la FD P 20-651 (AFNOR, 2011), §8. La ligne correspondant à l\'essence identifiée est mise en évidence, et les essences candidates éventuelles sont uniquement signalées pour information.'
+            }</p>
             ${contextHtml}
             <h3 class="detail-modal-subtitle">Légende longévité</h3>
             ${legendHtml}
@@ -10878,28 +11142,6 @@ class ValoboisApp {
                     <li>Des exemples de récupérations des essences « exotiques » et de leurs longévités potentielles sont à retrouver auprès de Ashwells Reclaimed Timber Ltd. <a href="https://ashwelltimber.com/reclamation" target="_blank" rel="noopener">Reclamation</a>.</li>
                 </ul>
             </details>`;
-
-        body.querySelectorAll('input[data-longevite-candidate-code]').forEach((input) => {
-            input.addEventListener('change', (event) => {
-                const code = (event.target && event.target.dataset && event.target.dataset.longeviteCandidateCode
-                    ? event.target.dataset.longeviteCandidateCode
-                    : '')
-                    .toString()
-                    .trim()
-                    .toUpperCase();
-                if (!this._longeviteModalState) return;
-                const nextCode = event.target.checked ? code : '';
-                this._longeviteModalState.selectedCode = nextCode;
-                const targetPieceLike = this._longeviteModalState.pieceLike;
-                if (targetPieceLike && typeof targetPieceLike === 'object') {
-                    targetPieceLike.longeviteEssenceCodeOverride = nextCode;
-                }
-                this.saveData();
-                this.renderAllotissement();
-                this.renderDetailLot();
-                this.renderLongeviteInfoTable();
-            });
-        });
     }
 
     getRareteReferentialData() {
@@ -13523,7 +13765,11 @@ class ValoboisApp {
         const avgAmortEl2 = el('[data-display="avgAmortissementBiologique"]');
         if (avgAmortEl2) avgAmortEl2.value = this.computeAmortissementBiologique(lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '', lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '');
         const avgLongeviteEl2 = el('[data-display="avgLongeviteEstimee"]');
-        if (avgLongeviteEl2) avgLongeviteEl2.value = this.computeEstimatedLongevite(lot.allotissement, lot).display;
+        if (avgLongeviteEl2) {
+            const longeviteResult = this.computeEstimatedLongevite(lot.allotissement, lot);
+            avgLongeviteEl2.value = longeviteResult.display;
+            avgLongeviteEl2.title = longeviteResult.tooltip || '';
+        }
 
         // Mise à jour badge pièces et bouton alerte
         const nbPieces = (lot.pieces || []).length;
@@ -21373,6 +21619,7 @@ closeEvalOpModal() {
                     </div>
                 </div>
             </div>
+        </div>
         </div>`;
     }
 
@@ -22121,7 +22368,7 @@ closeEvalOpModal() {
                         <div class="lot-longevite-row">
                             <label class="lot-field-label">Longévité estimée (FD P 20-651)</label>
                             <div class="lot-longevite-input-row">
-                            <input type="text" class="lot-input" value="${this.computeEstimatedLongevite(lot.allotissement, lot).display}" readonly data-display="avgLongeviteEstimee">
+                            <input type="text" class="lot-input" value="${this.computeEstimatedLongevite(lot.allotissement, lot).display}" readonly title="${String(this.computeEstimatedLongevite(lot.allotissement, lot).tooltip || '').replace(/\"/g, '&quot;')}" data-display="avgLongeviteEstimee">
                             <button type="button" class="loc-sit-info-btn longevite-info-btn" data-lot-longevite-info-btn title="Informations sur la longévité estimée" aria-label="Informations sur la longévité estimée">
                                 <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
                             </button>
@@ -22228,7 +22475,11 @@ closeEvalOpModal() {
             const avgAmortEl = card.querySelector('[data-display="avgAmortissementBiologique"]');
             if (avgAmortEl) avgAmortEl.value = this.computeAmortissementBiologique(lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '', lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : '');
             const avgLongeviteEl = card.querySelector('[data-display="avgLongeviteEstimee"]');
-            if (avgLongeviteEl) avgLongeviteEl.value = this.computeEstimatedLongevite(lot.allotissement, lot).display;
+            if (avgLongeviteEl) {
+                const longeviteResult = this.computeEstimatedLongevite(lot.allotissement, lot);
+                avgLongeviteEl.value = longeviteResult.display;
+                avgLongeviteEl.title = longeviteResult.tooltip || '';
+            }
 
             // Mise à jour badge pièces et bouton alerte
             const nbPieces = (lot.pieces || []).length;
@@ -22938,6 +23189,7 @@ closeEvalOpModal() {
                 }
 
                 if (field === 'essenceNomCommun') {
+                    lot.allotissement.longeviteEssenceCodeOverride = '';
                     const nomCommun = (lot.allotissement.essenceNomCommun || '').toString().trim();
                     const match = this.findEssenceByCommonName(nomCommun);
                     if (match) {
@@ -22956,6 +23208,7 @@ closeEvalOpModal() {
                 }
 
                 if (field === 'essenceNomScientifique') {
+                    lot.allotissement.longeviteEssenceCodeOverride = '';
                     const nomScientifique = (lot.allotissement.essenceNomScientifique || '').toString().trim();
                     const match = this.findEssenceByScientificName(nomScientifique);
                     if (match) {
@@ -23526,6 +23779,7 @@ closeEvalOpModal() {
 
                     if (field === 'essenceNomCommun') {
                         dp.rareteProvenanceCodeOverride = '';
+                        dp.longeviteEssenceCodeOverride = '';
                         const nm = (dp.essenceNomCommun || '').toString().trim();
                         const match = this.findEssenceByCommonName(nm);
                         if (match) {
@@ -23544,6 +23798,7 @@ closeEvalOpModal() {
 
                     if (field === 'essenceNomScientifique') {
                         dp.rareteProvenanceCodeOverride = '';
+                        dp.longeviteEssenceCodeOverride = '';
                         const nm = (dp.essenceNomScientifique || '').toString().trim();
                         const match = this.findEssenceByScientificName(nm);
                         if (match) {
@@ -23945,6 +24200,7 @@ closeEvalOpModal() {
                     // Synchronisation essence
                     if (field === 'essenceNomCommun') {
                         piece.rareteProvenanceCodeOverride = '';
+                        piece.longeviteEssenceCodeOverride = '';
                         const nm = (piece.essenceNomCommun || '').toString().trim();
                         const match = this.findEssenceByCommonName(nm);
                         if (match) {
@@ -23963,6 +24219,7 @@ closeEvalOpModal() {
                     }
                     if (field === 'essenceNomScientifique') {
                         piece.rareteProvenanceCodeOverride = '';
+                        piece.longeviteEssenceCodeOverride = '';
                         const nm = (piece.essenceNomScientifique || '').toString().trim();
                         const match = this.findEssenceByScientificName(nm);
                         if (match) {
@@ -34335,21 +34592,7 @@ renderRadar() {
         const list = accordion.querySelector('.durab-nat-list');
         if (!list) return;
 
-        // Normalisation pour lookup (même logique que normalizeEssenceLookupKey)
-        const normalizeKey = (s) => (s == null ? '' : String(s))
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/['']/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        const listData = typeof ESSENCES_VALOBOIS !== 'undefined' ? ESSENCES_VALOBOIS : [];
-        let essence = listData.find(e => normalizeKey(e.nomUsuel) === normalizeKey(essenceNomUsuel));
-        // Fallback par nom scientifique si non trouvé par nom commun
-        if (!essence && essenceNomScientifique) {
-            essence = listData.find(e => normalizeKey(e.nomScientifique) === normalizeKey(essenceNomScientifique));
-        }
+        const essence = this.resolveDurabiliteNaturelleEssenceFromNames(essenceNomUsuel, essenceNomScientifique);
 
         list.innerHTML = '';
 
