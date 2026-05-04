@@ -5008,6 +5008,29 @@ body.day-mode .lot-group--collapsible summary:hover {
     pointer-events: auto;
 }
 
+.lot-alert-btn--bio-exposition[data-alert-exposition-bio-state="strong"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #D55E00;
+}
+
+.lot-alert-btn--bio-exposition[data-alert-exposition-bio-state="medium"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #E69F00;
+}
+
+.lot-alert-btn--bio-exposition[data-alert-exposition-bio-state="low"] {
+    opacity: 1;
+    pointer-events: auto;
+    color: #009E73;
+}
+
+.lot-alert-btn--bio-exposition[data-alert-exposition-bio-state="none"] {
+    opacity: 0.3;
+    pointer-events: auto;
+}
+
 .lot-alert-btn--confidence[data-alert-confidence-state="strong"] {
     opacity: 1;
     pointer-events: auto;

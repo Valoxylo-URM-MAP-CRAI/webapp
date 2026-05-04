@@ -6086,6 +6086,23 @@ class ValoboisApp {
         }
     }
 
+    openBioExpositionAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('bioDetailModalBackdrop');
+        const titleEl = document.getElementById('bioDetailModalTitle');
+        const contentEl = document.getElementById('bioDetailModalContent');
+
+        const details = this.collectBioExpositionAlertContributors(lot);
+        const message = this.buildBioExpositionAlertModalMessage(alertState, details, lot);
+
+        if (titleEl) titleEl.textContent = 'Alerte Exposition biologique';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
     openMechIntegriteAlertModal(alertState) {
         const backdrop  = document.getElementById('mechDetailModalBackdrop');
         const titleEl   = document.getElementById('mechDetailModalTitle');
@@ -6637,6 +6654,129 @@ class ValoboisApp {
         if (details.density > 750) return 'strong';
         if (details.density >= 450) return 'medium';
         return 'low';
+    }
+
+    getEmploymentClassOrderValue(classRaw) {
+        const value = String(classRaw || '').trim();
+        if (value === '1') return 1;
+        if (value === '2') return 2;
+        if (value === '3.1') return 3.1;
+        if (value === '3.2') return 3.2;
+        if (value === '4') return 4;
+        if (value === '5') return 5;
+        return null;
+    }
+
+    collectBioExpositionAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) {
+            return {
+                entries: [],
+                winner: null,
+                hasData: false,
+                lotLabel: 'Lot courant'
+            };
+        }
+
+        const groupsByClass = new Map();
+        const getOrCreateGroup = (activeClass) => {
+            if (!groupsByClass.has(activeClass)) {
+                groupsByClass.set(activeClass, {
+                    activeClass,
+                    classOrder: this.getEmploymentClassOrderValue(activeClass),
+                    volume: 0,
+                    references: []
+                });
+            }
+            return groupsByClass.get(activeClass);
+        };
+
+        const pushReference = (group, label, qty = null) => {
+            if (!group) return;
+            const cleanLabel = String(label || '').trim();
+            if (!cleanLabel) return;
+            const suffix = Number.isFinite(qty) && qty > 1 ? ` x ${qty}` : '';
+            const full = `${cleanLabel}${suffix}`;
+            if (!group.references.includes(full)) group.references.push(full);
+        };
+
+        (Array.isArray(targetLot.pieces) ? targetLot.pieces : []).forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            const preview = { ...piece };
+            this.recalculatePiece(preview, targetLot);
+
+            const classState = this.getLocSitEffectiveClassState(piece, targetLot);
+            const activeClass = String((classState && classState.activeClass) || '').trim();
+            const classOrder = this.getEmploymentClassOrderValue(activeClass);
+            if (!activeClass || classOrder == null) return;
+
+            const volume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            if (volume <= 0) return;
+
+            const group = getOrCreateGroup(activeClass);
+            group.volume += volume;
+            const pieceName = (piece.nom || '').toString().trim() || `Pièce ${index + 1}`;
+            pushReference(group, pieceName);
+        });
+
+        this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false }).forEach((defaultPiece, index) => {
+            if (!defaultPiece || typeof defaultPiece !== 'object') return;
+            const qty = Math.max(0, parseFloat(defaultPiece.quantite) || 0);
+            if (qty <= 0) return;
+
+            const preview = this.buildPieceFromDefault(targetLot, -1, defaultPiece.id);
+            this.recalculatePiece(preview, targetLot);
+
+            const classState = this.getLocSitEffectiveClassState(defaultPiece, targetLot);
+            const activeClass = String((classState && classState.activeClass) || '').trim();
+            const classOrder = this.getEmploymentClassOrderValue(activeClass);
+            if (!activeClass || classOrder == null) return;
+
+            const unitVolume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            const volume = unitVolume * qty;
+            if (volume <= 0) return;
+
+            const group = getOrCreateGroup(activeClass);
+            group.volume += volume;
+            const defaultName = (defaultPiece.nom || '').toString().trim() || `Pièce par défaut ${index + 1}`;
+            pushReference(group, defaultName, qty);
+        });
+
+        const entries = Array.from(groupsByClass.values())
+            .map((entry) => ({
+                ...entry,
+                volume: Math.max(0, entry.volume)
+            }))
+            .filter((entry) => entry.classOrder != null && entry.volume > 0)
+            .sort((a, b) => {
+                const volumeDelta = b.volume - a.volume;
+                if (Math.abs(volumeDelta) > 1e-9) return volumeDelta;
+                const classDelta = (b.classOrder || 0) - (a.classOrder || 0);
+                if (Math.abs(classDelta) > 1e-9) return classDelta;
+                return String(a.activeClass || '').localeCompare(String(b.activeClass || ''), 'fr', { sensitivity: 'base' });
+            });
+
+        const winner = entries.length ? entries[0] : null;
+        const lotIndex = (this.data.lots || []).indexOf(targetLot);
+        const lotLabel = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant';
+
+        return {
+            entries,
+            winner,
+            hasData: !!winner,
+            lotLabel
+        };
+    }
+
+    getBioExpositionAlertState(lot) {
+        const details = this.collectBioExpositionAlertContributors(lot);
+        if (!details.hasData || !details.winner) return 'none';
+
+        const activeClass = String(details.winner.activeClass || '').trim();
+        if (activeClass === '5' || activeClass === '4' || activeClass === '3.2') return 'strong';
+        if (activeClass === '3.1') return 'medium';
+        if (activeClass === '2' || activeClass === '1') return 'low';
+        return 'none';
     }
 
     collectRareteEcoEssenceAlertContributors(lot) {
@@ -8033,6 +8173,69 @@ class ValoboisApp {
         return lines.join('\n');
     }
 
+    buildBioExpositionAlertModalMessage(alertState, details, lot = null) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible de proposer une orientation d\'exposition biologique.',
+                '',
+                'Renseigner des pièces avec une classe d\'emploi effective calculable et un volume exploitable.'
+            ].join('\n');
+        }
+
+        const entries = Array.isArray(details.entries) ? details.entries : [];
+        const winner = details.winner || null;
+        const formatVolume = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 3,
+        }) + ' m3';
+        const classToLevel = (activeClass) => {
+            const cls = String(activeClass || '').trim();
+            if (cls === '5' || cls === '4' || cls === '3.2') return 'Forte';
+            if (cls === '3.1') return 'Moyenne';
+            if (cls === '2' || cls === '1') return 'Faible';
+            return '';
+        };
+
+        const proposedLevel = winner ? classToLevel(winner.activeClass) : '';
+        const currentLot = lot || this.getCurrentLot();
+        const currentLevel = String(currentLot?.bio?.exposition?.niveau || '').trim();
+
+        const lines = [
+            `Une orientation d'exposition biologique « ${proposedLevel || 'Indéterminée'} » est proposée pour le lot.`,
+            '',
+            'Proposition basée sur les classes d\'emploi effectives des pièces :',
+            '- priorité 1 : classe d\'emploi la plus élevée',
+            '- priorité 2 : à classe égale, volume cumulé le plus élevé',
+            '',
+            'Données utilisées.',
+            `Lot analysé : ${details.lotLabel || 'Lot courant'}`,
+            `Nombre de classes contributrices : ${entries.length}`,
+        ];
+
+        if (winner) {
+            lines.push(`Classe d'emploi retenue : ${winner.activeClass}`);
+            lines.push(`Volume cumulé retenu : ${formatVolume(winner.volume)}`);
+        }
+        lines.push(`Niveau actuellement noté (critère Exposition biologique) : ${currentLevel || 'Non renseigné'}`);
+
+        lines.push('');
+        lines.push('Classes contributrices du lot (ordre de décision: classe puis volume).');
+        entries.forEach((entry, index) => {
+            const refs = Array.isArray(entry.references) && entry.references.length
+                ? ` [${entry.references.join(', ')}]`
+                : '';
+            lines.push(`- ${index + 1}. Classe ${entry.activeClass} | Niveau conseillé: ${classToLevel(entry.activeClass) || 'Indéterminé'} | Volume: ${formatVolume(entry.volume)}${refs}`);
+        });
+
+        lines.push('');
+        lines.push('Logique de couleur de l\'alerte Exposition biologique.');
+        lines.push('- Rouge : proposition Forte (classe 3.2 à 5)');
+        lines.push('- Orange : proposition Moyenne (classe 3.1)');
+        lines.push('- Verte : proposition Faible (classe 1 à 2)');
+
+        return lines.join('\n');
+    }
+
     buildMasseVolEssenceAlertModalMessage(alertState, details) {
         if (alertState === 'none' || !details || !details.hasData) {
             return [
@@ -9178,6 +9381,19 @@ class ValoboisApp {
         if (!alertBtn) return;
 
         alertBtn.dataset.alertIntegriteBioState = this.getIntegriteBioAlertState(targetLot);
+    }
+
+    refreshBioExpositionAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.bio-row[data-bio-field="exposition"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-bio-exposition-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertExpositionBioState = this.getBioExpositionAlertState(targetLot);
     }
 
     refreshIntegriteMechAlertButton(lot) {
@@ -19380,13 +19596,15 @@ Witomski, P., Olek, W. & Bonarski, J. T. (2016). inputs in strength of Scots pin
 
 Noter le niveau d’exposition biologique historique des bois évalués au regard de leur classe d’emploi.
 
-Une exposition biologique « forte » vaut pour les classes 5, 4 et 3.2 (ex : terrasse) [-3].
-Une exposition biologique « moyenne » vaut pour la classe 3.1 (ex: bardage) [+1].
-Une exposition biologique « faible » vaut pour les classes 2 et 1 (ex: charpente en toiture; solivage) [+3].
+Une exposition biologique « forte » vaut pour des bois soumis à une humidification fréquente ou durable, favorable au développement d’agents biologiques, avec risque élevé de dégradation en service. Des bois de classe d’emploi 3.2, 4 et 5, voir 3.1 en situations aggravées (stagnation d’eau, ventilation insuffisante, défaut de drainage). Pour exemples l’on pourra prendre les éléments suivants : terrasse, platelage, pied d’ouvrage en zone humide, éléments en contact sol/eau douce, ambiance marine [-3].
+
+Une exposition biologique « moyenne » vaut pour des bois exposés à des humidifications intermittentes, avec phases de ressuyage réelles mais non systématiques, impliquant un risque biologique modéré. Des bois de classe d’emploi 3.1, ou classe 2 avec contextes dégradés (condensation répétée, fuites ponctuelles, local peu ventilé). Pour exemples l’on pourra prendre les éléments suivants : bardage vertical, menuiserie extérieure protégée partiellement, charpente sous couverture avec épisodes de condensation [+1].
+
+Une exposition biologique « faible » vaut pour des bois maintenus majoritairement sec en service, sans humidification persistante ni conditions favorables à l’installation durable d’agents biologiques. Des bois des classes 1 et 2 en contexte maîtrisé. Pour exemples l’on pourra prendre les éléments suivants : charpente intérieure saine, solivage en volume sec, menuiseries intérieures hors locaux humides [+3].
 
 Se rapporter à la norme NF-EN-335.
 
-Attention, l’estimation de la classe n’est pas que situationnelle (localisation dans le bâtiment) mais aussi contextuelle relative à l’usage du bâtiment. Exemple : un solivage d’un ouvrage en friche peut ainsi être réévalué en classe 2 voir 3 si des flaques peuvent être observées sur les sols intérieurs.`,
+Attention, l’estimation de la classe n’est pas que situationnelle (localisation dans le bâtiment) mais aussi contextuelle relative à l’usage du bâtiment. Exemple : un solivage d’un ouvrage en friche peut ainsi être réévalué en classe 2 voir 3.1 à 3.2 si des flaques peuvent être observées sur les sols intérieurs.`,
             confianceBio: `Confiance.
 
 Noter le niveau de confiance dans l’identification des dégradations biologiques des bois évalués.
@@ -19490,12 +19708,14 @@ Voir : Forest Wood Products Australia. (2025). FWPA standard G01.`,
 
 Noter le niveau d’exposition mécanique historique des bois évalués au regard du couplage mécano-sportif.
 
-Une exposition mécanique « forte » vaut pour des pièces situées en classes d’emploi 5, 4, 3.2 et 3.1 et classe 2 en cas de sous-dimensionnement manifeste de la charpente [-3].
-Une exposition mécanique « moyenne » vaut pour des pièces : soumises à leur seul « poids propre » en classes 3.2 et 3.1 ou situées en classe 2 combinée à de fortes sollicitations dynamiques et statiques (ex : territoires venteux, neigeux, passage d’engin, lieu de stockage) [+1].
-Une exposition mécanique « faible » vaut pour les classes 1 à 2 combinée à des faibles sollicitations dynamiques et statiques [+3].
+Une exposition mécanique « forte » vaut pour des bois soumis à des sollicitations mécaniques importantes (charges, variations, chocs, fatigue), avec forte probabilité d’effets sur le couplage mécano-sportif. Ces bois appartiennent aux classes d’emploi 3.1 à 5, voir classe 2 dans la cas d’un sous-dimensionnement manifeste, de charges dynamiques marquées, et/ou d’un environnement d’usage contraignant. Sont concernés : les éléments porteurs en zone ventée/neigeuse, pièces sollicitées en flexion avec surcharge, supports en zone de passage/stockage [-3].
+
+Une exposition mécanique « moyenne » vaut pour des bois soumis à des sollicitations courantes, et appartenant aux classes 3.2 à 1, sans signe de sous-dimensionnement ni de sur-dimensionnement, mais pouvant présenter des déformations relatives à la nature du bois et/ou des marques d’usures (abrasion, désolidarisation…). Sont concernés : les éléments de façade correctement dimensionnés, pièces secondaires porteuses, charpente courante avec contraintes usuelles ou encore les revêtements de sol extérieurs comme intérieurs [+1].
+
+Une exposition mécanique « faible » vaut pour des bois peu sollicités mécaniquement, principalement appartenant aux classes 1 à 2 en contexte de faibles charges statiques et dynamiques. Pour exemples l’on pourra prendre les éléments suivants : habillage, cloisonnement bois non porteur, éléments intérieurs peu chargés et ne présentant peu ou pas de signes d’usures et de déformations [+3].
 
 Attention, l’estimation de la classe n’est pas que situationnelle (localisation dans le bâtiment) mais aussi contextuelle relative à l’usage du bâtiment. 
-Exemple : un solivage d’un ouvrage en friche peut ainsi être réévalué en classe 2 voir 3 si des flaques peuvent être observées sur les sols intérieurs.
+Exemple : un solivage d’un ouvrage en friche peut ainsi être réévalué en classe 2 voir 3.1 à 3.2 si des flaques peuvent être observées sur les sols intérieurs.
 Évaluer la sollicitation de la pièce sur sa durée d’usage pour statuer sur la qualité de son dimensionnement et son influence.
 
 Pour les équivalences se rapporter aux classes d’emploi NF-EN-335.
@@ -22834,6 +23054,7 @@ closeEvalOpModal() {
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
+            this.refreshBioExpositionAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -23759,6 +23980,7 @@ closeEvalOpModal() {
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
+            this.refreshBioExpositionAlertButton(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -24236,6 +24458,7 @@ closeEvalOpModal() {
                 this.refreshDurabiliteNaturelleUsageAlertButton(lot);
                 this.refreshMasseVolEssenceAlertButton(lot);
                 this.refreshRareteEcoEssenceAlertButton(lot);
+                this.refreshBioExpositionAlertButton(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -24997,6 +25220,7 @@ updateBioRow(row, key, lot) {
     const integriteBioAlertBtn = key === 'integriteBio' ? row.querySelector('[data-bio-integrite-alert-btn]') : null;
     const purgeBioAlertBtn = key === 'purge' ? row.querySelector('[data-bio-purge-alert-btn]') : null;
     const expansionAlertBtn = key === 'expansion' ? row.querySelector('[data-bio-expansion-alert-btn]') : null;
+    const expositionBioAlertBtn = key === 'exposition' ? row.querySelector('[data-bio-exposition-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-confiance-title]');
 
     const levelToLabel = { 1: 'Forte', 2: 'Moyenne', 3: 'Faible' };
@@ -25057,6 +25281,9 @@ updateBioRow(row, key, lot) {
             if (key === 'exposition' || key === 'integriteBio') {
                 this.refreshVieillissementAlertButton(lot);
             }
+            if (key === 'exposition') {
+                this.refreshBioExpositionAlertButton(lot);
+            }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
                 this.refreshPurgeBioAlertButton(lot);
@@ -25108,6 +25335,9 @@ updateBioRow(row, key, lot) {
             }
             if (key === 'exposition' || key === 'integriteBio') {
                 this.refreshVieillissementAlertButton(lot);
+            }
+            if (key === 'exposition') {
+                this.refreshBioExpositionAlertButton(lot);
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
@@ -25162,6 +25392,16 @@ updateBioRow(row, key, lot) {
         expansionAlertBtn.onclick = (e) => {
             e.stopPropagation();
             this.openBioExpansionAlertModal();
+        };
+    }
+
+    if (expositionBioAlertBtn) {
+        this.refreshBioExpositionAlertButton(lot);
+        expositionBioAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshBioExpositionAlertButton(lot);
+            const alertState = expositionBioAlertBtn.dataset.alertExpositionBioState || 'none';
+            this.openBioExpositionAlertModal(alertState, lot);
         };
     }
 
