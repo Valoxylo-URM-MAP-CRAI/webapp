@@ -6639,6 +6639,130 @@ class ValoboisApp {
         return 'low';
     }
 
+    collectRareteEcoEssenceAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) {
+            return {
+                entries: [],
+                winner: null,
+                hasData: false,
+                lotLabel: 'Lot courant'
+            };
+        }
+
+        const groupsByKey = new Map();
+        const getOrCreateGroup = (pieceLike, fallbackLabel, sourceType) => {
+            const rareteResult = this.computeEstimatedRareteProvenance(pieceLike, targetLot);
+            const essenceInfo = rareteResult && rareteResult.essenceInfo ? rareteResult.essenceInfo : {};
+            const common = (essenceInfo.common || '').toString().trim();
+            const scientific = (essenceInfo.scientific || '').toString().trim();
+            const entry = rareteResult && rareteResult.entry ? rareteResult.entry : null;
+
+            const codeKeyRaw = (entry && entry.codeEn13556 ? entry.codeEn13556 : '').toString().trim().toUpperCase();
+            const codeKey = codeKeyRaw.split('/').map((token) => token.trim()).find(Boolean) || '';
+            const normalizedCommon = normalizeEssenceLookupKey(common);
+            const normalizedScientific = normalizeEssenceLookupKey(scientific);
+            const groupKey = codeKey || `${normalizedCommon}__${normalizedScientific}` || normalizeEssenceLookupKey(fallbackLabel);
+
+            if (!groupsByKey.has(groupKey)) {
+                groupsByKey.set(groupKey, {
+                    key: groupKey,
+                    label: this.composeEssenceLabel(common, scientific) || fallbackLabel || 'Essence non renseignée',
+                    rarete: (rareteResult && rareteResult.rarete ? rareteResult.rarete : '').toString().trim(),
+                    sourceType,
+                    volume: 0,
+                    price: 0,
+                    references: []
+                });
+            }
+            return groupsByKey.get(groupKey);
+        };
+
+        const pushReference = (group, label, qty = null) => {
+            if (!group) return;
+            const cleanLabel = String(label || '').trim();
+            if (!cleanLabel) return;
+            const suffix = Number.isFinite(qty) && qty > 1 ? ` x ${qty}` : '';
+            const full = `${cleanLabel}${suffix}`;
+            if (!group.references.includes(full)) group.references.push(full);
+        };
+
+        (Array.isArray(targetLot.pieces) ? targetLot.pieces : []).forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            const preview = { ...piece };
+            this.recalculatePiece(preview, targetLot);
+
+            const volume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            const price = Math.max(0, parseFloat(preview.prixPiece) || 0);
+            if (volume <= 0 && price <= 0) return;
+
+            const group = getOrCreateGroup(piece, `Essence ${index + 1}`, 'piece');
+            group.volume += volume;
+            group.price += price;
+            const pieceName = (piece.nom || '').toString().trim() || `Pièce ${index + 1}`;
+            pushReference(group, pieceName);
+        });
+
+        this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false }).forEach((defaultPiece, index) => {
+            if (!defaultPiece || typeof defaultPiece !== 'object') return;
+            const qty = Math.max(0, parseFloat(defaultPiece.quantite) || 0);
+            if (qty <= 0) return;
+
+            const preview = this.buildPieceFromDefault(targetLot, -1, defaultPiece.id);
+            this.recalculatePiece(preview, targetLot);
+
+            const unitVolume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            const unitPrice = Math.max(0, parseFloat(preview.prixPiece) || 0);
+            const volume = unitVolume * qty;
+            const price = unitPrice * qty;
+            if (volume <= 0 && price <= 0) return;
+
+            const group = getOrCreateGroup(defaultPiece, `Essence par défaut ${index + 1}`, 'default-piece');
+            group.volume += volume;
+            group.price += price;
+            const defaultName = (defaultPiece.nom || '').toString().trim() || `Pièce par défaut ${index + 1}`;
+            pushReference(group, defaultName, qty);
+        });
+
+        const entries = Array.from(groupsByKey.values())
+            .map((entry) => ({
+                ...entry,
+                rarete: this.normalizeRareteCustomLevel(entry.rarete, ''),
+                volume: Math.max(0, entry.volume),
+                price: Math.max(0, entry.price)
+            }))
+            .filter((entry) => entry.volume > 0 || entry.price > 0)
+            .sort((a, b) => {
+                const volumeDelta = b.volume - a.volume;
+                if (Math.abs(volumeDelta) > 1e-9) return volumeDelta;
+                const priceDelta = b.price - a.price;
+                if (Math.abs(priceDelta) > 1e-6) return priceDelta;
+                return String(a.label || '').localeCompare(String(b.label || ''), 'fr', { sensitivity: 'base' });
+            });
+
+        const winner = entries.length ? entries[0] : null;
+        const lotIndex = (this.data.lots || []).indexOf(targetLot);
+        const lotLabel = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant';
+
+        return {
+            entries,
+            winner,
+            hasData: !!winner,
+            lotLabel
+        };
+    }
+
+    getRareteEcoEssenceAlertState(lot) {
+        const details = this.collectRareteEcoEssenceAlertContributors(lot);
+        if (!details.hasData || !details.winner) return 'none';
+
+        const level = this.normalizeRareteCustomLevel(details.winner.rarete, '');
+        if (level === 'Commune') return 'strong';
+        if (level === 'Peu commune') return 'medium';
+        if (level === 'Rare') return 'low';
+        return 'none';
+    }
+
     getLotNumericDetailSummary(lot, fieldName, fallbackValue) {
         const formatNumeric = (numValue) => this.formatAllotissementNumericDisplay(String(numValue));
         if (!lot || !lot.allotissement) {
@@ -6882,6 +7006,23 @@ class ValoboisApp {
         const message = this.buildHumiditeUsageAlertModalMessage(alertState, details);
 
         if (titleEl) titleEl.textContent = 'Alerte Humidité';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
+    openEssenceRareteEcoAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('essenceDetailModalBackdrop');
+        const titleEl = document.getElementById('essenceDetailModalTitle');
+        const contentEl = document.getElementById('essenceDetailModalContent');
+
+        const details = this.collectRareteEcoEssenceAlertContributors(lot);
+        const message = this.buildRareteEcoEssenceAlertModalMessage(alertState, details);
+
+        if (titleEl) titleEl.textContent = 'Alerte Rareté';
         this.renderDetailModalContent(contentEl, message);
 
         if (backdrop) {
@@ -7830,6 +7971,64 @@ class ValoboisApp {
         lines.push('- Forte : moyenne des humidités ≥ 22 %');
         lines.push('- Moyenne : moyenne des humidités strictement comprise entre 8 % et 22 %');
         lines.push('- Faible : moyenne des humidités ≤ 8 %');
+
+        return lines.join('\n');
+    }
+
+    buildRareteEcoEssenceAlertModalMessage(alertState, details) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible d\'évaluer la rareté écologique du lot.',
+                '',
+                'Renseigner des volumes et/ou prix de pièces avec une essence reconnue dans le référentiel Rareté - Provenance.'
+            ].join('\n');
+        }
+
+        const entries = Array.isArray(details.entries) ? details.entries : [];
+        const winner = details.winner || null;
+        const levelLabel = alertState === 'strong' ? 'Commune' : alertState === 'medium' ? 'Peu commune' : 'Rare';
+        const formatVolume = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }) + ' m3';
+        const formatPrice = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }) + ' €';
+
+        const lines = [
+            `Une alerte rareté « ${levelLabel} » est détectée pour le lot.`,
+            '',
+            'Proposition basée sur l\'essence dominante du lot :',
+            '- priorité 1 : volume cumulé le plus élevé',
+            '- priorité 2 : à volume égal, prix cumulé le plus élevé',
+            '',
+            'Données utilisées.',
+            `Lot analysé : ${details.lotLabel || 'Lot courant'}`,
+            `Nombre d'essences contributrices : ${entries.length}`,
+        ];
+
+        if (winner) {
+            lines.push(`Essence retenue : ${winner.label}`);
+            lines.push(`Rareté retenue : ${winner.rarete || 'Données manquantes'}`);
+            lines.push(`Volume cumulé retenu : ${formatVolume(winner.volume)}`);
+            lines.push(`Prix cumulé retenu : ${formatPrice(winner.price)}`);
+        }
+
+        lines.push('');
+        lines.push('Liste des essences du lot (ordre de décision: volume puis prix cumulé).');
+        entries.forEach((entry, index) => {
+            const refs = Array.isArray(entry.references) && entry.references.length
+                ? ` [${entry.references.join(', ')}]`
+                : '';
+            lines.push(`- ${index + 1}. ${entry.label} | Rareté: ${entry.rarete || 'Données manquantes'} | Volume: ${formatVolume(entry.volume)} | Prix: ${formatPrice(entry.price)}${refs}`);
+        });
+
+        lines.push('');
+        lines.push('Logique de couleur de l\'alerte Rareté.');
+        lines.push('- Verte : essence dominante classée Commune');
+        lines.push('- Orange : essence dominante classée Peu commune');
+        lines.push('- Rouge : essence dominante classée Rare');
 
         return lines.join('\n');
     }
@@ -9220,6 +9419,19 @@ class ValoboisApp {
 
         const state = this.getMasseVolEssenceAlertState(targetLot);
         alertBtn.dataset.alertMassevolState = state;
+    }
+
+    refreshRareteEcoEssenceAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) return;
+
+        const row = document.querySelector('.essence-row[data-essence-field="rareteEcoEssence"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-essence-rarete-eco-alert-btn]');
+        if (!alertBtn) return;
+
+        const state = this.getRareteEcoEssenceAlertState(targetLot);
+        alertBtn.dataset.alertRareteEcoState = state;
     }
 
     formatMasseDisplay(valueKgRaw) {
@@ -22619,6 +22831,7 @@ closeEvalOpModal() {
             this.refreshHumiditeUsageAlertButton(lot);
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
+            this.refreshRareteEcoEssenceAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -23543,6 +23756,7 @@ closeEvalOpModal() {
             this.refreshHumiditeUsageAlertButton(lot);
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
+            this.refreshRareteEcoEssenceAlertButton(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -24019,6 +24233,7 @@ closeEvalOpModal() {
                 this.refreshHumiditeUsageAlertButton(lot);
                 this.refreshDurabiliteNaturelleUsageAlertButton(lot);
                 this.refreshMasseVolEssenceAlertButton(lot);
+                this.refreshRareteEcoEssenceAlertButton(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -26275,6 +26490,7 @@ updateEssenceRow(row, key, lot) {
     const resetBtn = row.querySelector('.essence-reset-btn');
     const infoBtn = row.querySelector('.essence-info-small-btn');
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
+    const rareteEcoAlertBtn = key === 'rareteEcoEssence' ? row.querySelector('[data-essence-rarete-eco-alert-btn]') : null;
     const masseVolAlertBtn = key === 'masseVolEssence' ? row.querySelector('[data-essence-massevol-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-essence-confiance-title]');
 
@@ -26333,6 +26549,9 @@ updateEssenceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'rareteEcoEssence') {
+                this.refreshRareteEcoEssenceAlertButton(lot);
+            }
             if (key === 'masseVolEssence') {
                 this.refreshMasseVolEssenceAlertButton(lot);
             }
@@ -26381,6 +26600,9 @@ updateEssenceRow(row, key, lot) {
                 this.computeOrientation(activeLot);
             }
             this.refreshConfidenceAlertButton(row, key, lot);
+            if (key === 'rareteEcoEssence') {
+                this.refreshRareteEcoEssenceAlertButton(lot);
+            }
             if (key === 'masseVolEssence') {
                 this.refreshMasseVolEssenceAlertButton(lot);
             }
@@ -26401,6 +26623,16 @@ updateEssenceRow(row, key, lot) {
             e.stopPropagation();
             this.refreshConfidenceAlertButton(row, key, lot);
             this.openConfidenceAlertModal(key, lot);
+        };
+    }
+
+    if (rareteEcoAlertBtn) {
+        this.refreshRareteEcoEssenceAlertButton(lot);
+        rareteEcoAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshRareteEcoEssenceAlertButton(lot);
+            const alertState = rareteEcoAlertBtn.dataset.alertRareteEcoState || 'none';
+            this.openEssenceRareteEcoAlertModal(alertState, lot);
         };
     }
 
