@@ -11912,7 +11912,8 @@ class ValoboisApp {
 
         const renderRareteCustomLevelOptions = (selectedRaw) => {
             const selected = this.normalizeRareteCustomLevel(selectedRaw, '');
-            return this.getRareteAllowedLevels()
+            const placeholder = `<option value="" disabled${selected ? '' : ' selected'}>Sélectionner un niveau de rareté</option>`;
+            return placeholder + this.getRareteAllowedLevels()
                 .map((level) => `<option value="${this.escapeHtml(level)}"${level === selected ? ' selected' : ''}>${this.escapeHtml(level)}</option>`)
                 .join('');
         };
@@ -11927,7 +11928,7 @@ class ValoboisApp {
                         ${renderRareteCustomLevelOptions(entry.rareteParDefaut)}
                     </select>
                     <input type="text" class="lot-input" value="${this.escapeHtml(entry.origineTropixCirad || '')}" data-rarete-custom-field="origineTropixCirad" placeholder="Origine Tropix">
-                    <button type="button" class="price-preset-row__remove" data-rarete-custom-action="remove" data-rarete-custom-id="${customId}">Supprimer</button>
+                    <button type="button" class="btn btn-primary rarete-custom-remove-btn" data-rarete-custom-action="remove" data-rarete-custom-id="${customId}">Supprimer</button>
                 </div>
             `;
         }).join('');
@@ -11948,12 +11949,13 @@ class ValoboisApp {
                     <input type="text" class="lot-input" id="rareteCustomNewScientific" placeholder="Nom scientifique">
                     <input type="text" class="lot-input" id="rareteCustomNewCode" placeholder="Code EN 13556">
                     <select class="lot-input" id="rareteCustomNewRarete">
+                        <option value="" disabled selected>Sélectionner un niveau de rareté</option>
                         <option value="Commune">Commune</option>
                         <option value="Peu commune">Peu commune</option>
                         <option value="Rare">Rare</option>
                     </select>
                     <input type="text" class="lot-input" id="rareteCustomNewOrigineTropix" placeholder="Origine Tropix">
-                    <button type="button" class="btn btn-primary" data-rarete-custom-action="add">Ajouter</button>
+                    <button type="button" class="btn btn-primary" data-rarete-custom-action="add">+ Ajouter</button>
                 </div>
                 <p class="rarete-custom-error" id="rareteCustomEditorError"></p>
                 <div class="rarete-custom-list">${customRowsHtml}</div>
