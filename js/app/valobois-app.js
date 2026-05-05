@@ -9605,6 +9605,11 @@ class ValoboisApp {
         alertBtn.dataset.alertExpositionBioState = this.getBioExpositionAlertState(targetLot);
     }
 
+    refreshExpositionHistoricalAlerts(lot) {
+        this.refreshBioExpositionAlertButton(lot);
+        this.refreshMechExpositionLongeviteAlertButton(lot);
+    }
+
     refreshMechExpositionLongeviteAlertButton(lot) {
         const targetLot = lot || this.getCurrentLot();
         const currentLot = this.getCurrentLot();
@@ -23276,8 +23281,7 @@ closeEvalOpModal() {
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
-            this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+            this.refreshExpositionHistoricalAlerts(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -24203,8 +24207,7 @@ closeEvalOpModal() {
             this.refreshDurabiliteNaturelleUsageAlertButton(lot);
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
-            this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+            this.refreshExpositionHistoricalAlerts(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -24682,8 +24685,7 @@ closeEvalOpModal() {
                 this.refreshDurabiliteNaturelleUsageAlertButton(lot);
                 this.refreshMasseVolEssenceAlertButton(lot);
                 this.refreshRareteEcoEssenceAlertButton(lot);
-                this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+                this.refreshExpositionHistoricalAlerts(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -25507,8 +25509,7 @@ updateBioRow(row, key, lot) {
                 this.refreshVieillissementAlertButton(lot);
             }
             if (key === 'exposition') {
-                this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+                this.refreshExpositionHistoricalAlerts(lot);
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
@@ -25563,8 +25564,7 @@ updateBioRow(row, key, lot) {
                 this.refreshVieillissementAlertButton(lot);
             }
             if (key === 'exposition') {
-                this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+                this.refreshExpositionHistoricalAlerts(lot);
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
@@ -25623,12 +25623,10 @@ updateBioRow(row, key, lot) {
     }
 
     if (expositionBioAlertBtn) {
-        this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+        this.refreshExpositionHistoricalAlerts(lot);
         expositionBioAlertBtn.onclick = (e) => {
             e.stopPropagation();
-            this.refreshBioExpositionAlertButton(lot);
-            this.refreshMechExpositionLongeviteAlertButton(lot);
+            this.refreshExpositionHistoricalAlerts(lot);
             const alertState = expositionBioAlertBtn.dataset.alertExpositionBioState || 'none';
             this.openBioExpositionAlertModal(alertState, lot);
         };
