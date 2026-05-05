@@ -349,20 +349,20 @@ const CEEB_PRICE_PRESET_IMPORT_BASE = {
 const NOTATION_MODE_CONFIG = {
     fort: null,
     moyen: {
-        bio: ['purge', 'expansion', 'integriteBio'],
-        mech: ['purgeMech', 'feuMech', 'integriteMech'],
+        bio: ['purge', 'expansion', 'integriteBio', 'expositionBio'],
+        mech: ['purgeMech', 'feuMech', 'integriteMech', 'expositionMech'],
         usage: ['humiditeUsage', 'classementUsage', 'aspectUsage'],
         denat: ['contaminationDenat', 'durabiliteConfDenat', 'naturaliteDenat'],
         debit: ['regulariteDebit', 'volumetrieDebit', 'stabiliteDebit', 'artisanaliteDebit'],
-        geo: ['massiviteGeo', 'industrialiteGeo', 'inclusiviteGeo'],
+        geo: ['massiviteGeo', 'industrialiteGeo', 'inclusiviteGeo', 'deformationGeo'],
         essence: ['masseVolEssence'],
-        ancien: ['amortissementAncien', 'vieillissementAncien'],
+        ancien: ['amortissementAncien', 'vieillissementAncien', 'demontabiliteAncien'],
         traces: ['alterationTraces', 'documentationTraces'],
         provenance: ['macroProv'],
     },
     faible: {
-        bio: ['purge', 'expansion', 'integriteBio', 'expositionBio'],
-        mech: ['purgeMech', 'integriteMech', 'expositionMech'],
+        bio: ['purge', 'expansion', 'integriteBio'],
+        mech: ['purgeMech', 'integriteMech'],
         usage: ['classementUsage', 'humiditeUsage'],
         denat: ['contaminationDenat'],
         geo: ['deformationGeo'],
@@ -384,6 +384,59 @@ const NOTATION_MODE_SECTION_SELECTORS = [
     { section: 'traces', rowSelector: '.traces-row', fieldAttr: 'data-traces-field' },
     { section: 'provenance', rowSelector: '.provenance-row', fieldAttr: 'data-provenance-field' }
 ];
+
+const NOTATION_CRITERION_SCORE_STEPS = {
+    purge: [-3, 1, 3],
+    expansion: [-10, -3, 3],
+    integriteBio: [3, 1, -10],
+    exposition: [-3, 1, 3],
+    confianceBio: [3, 2, 1],
+    purgeMech: [-3, 1, 3],
+    feuMech: [3, 2, 1],
+    integriteMech: [3, -3, -10],
+    expositionMech: [-3, 1, 3],
+    confianceMech: [3, 2, 1],
+    confianceUsage: [3, 2, 1],
+    durabiliteUsage: [3, 2, 1],
+    classementUsage: [3, 2, 1],
+    humiditeUsage: [-3, 3, 1],
+    aspectUsage: [3, 2, 1],
+    depollutionDenat: [-3, 1, 3],
+    contaminationDenat: [-10, 1, 3],
+    durabiliteConfDenat: [1, 2, 3],
+    confianceDenat: [3, 2, 1],
+    naturaliteDenat: [3, 2, 1],
+    regulariteDebit: [3, 2, 1],
+    volumetrieDebit: [3, 2, 1],
+    stabiliteDebit: [3, 2, 1],
+    artisanaliteDebit: [3, 2, 1],
+    rusticiteDebit: [3, 2, 1],
+    adaptabiliteGeo: [3, 2, 1],
+    massiviteGeo: [3, 2, 1],
+    deformationGeo: [-3, 1, 3],
+    industrialiteGeo: [3, 2, 1],
+    inclusiviteGeo: [3, 2, 1],
+    confianceEssence: [3, 2, 1],
+    rareteEcoEssence: [3, 2, 1],
+    masseVolEssence: [3, 2, 1],
+    rareteHistEssence: [3, 2, 1],
+    singulariteEssence: [3, 2, 1],
+    confianceAncien: [3, 2, 1],
+    amortissementAncien: [3, 1, -3],
+    vieillissementAncien: [-3, 1, 3],
+    microhistoireAncien: [3, 2, 1],
+    demontabiliteAncien: [3, 2, -3],
+    confianceTraces: [3, 2, 1],
+    etiquetageTraces: [3, 2, 1],
+    alterationTraces: [-10, 1, 3],
+    documentationTraces: [3, 1, -3],
+    singularitesTraces: [3, 2, 1],
+    confianceProv: [3, 2, 1],
+    transportProv: [-3, 1, 3],
+    reputationProv: [3, 2, 1],
+    macroProv: [3, 2, 1],
+    territorialiteProv: [3, 2, 1]
+};
 
 const LOC_SIT_FD_TABLES = {
     partielle: {
@@ -3939,6 +3992,7 @@ class ValoboisApp {
             ui: this.getDefaultUi(),
             notationMode: null,
             notationModeCustomConfig: null,
+            notationModeOrientationThresholds: null,
             lots: [this.createEmptyLot(0), this.createEmptyLot(1)]
         };
     }
@@ -5125,6 +5179,7 @@ class ValoboisApp {
         data.ui = this.getDefaultUi(data.ui || {});
         data.notationMode = this.normalizeNotationMode(data.notationMode);
         data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(data.notationModeCustomConfig);
+        data.notationModeOrientationThresholds = this.normalizeNotationModeOrientationThresholds(data.notationModeOrientationThresholds);
         this.normalizePriceCategoryPresets(data.ui);
         this.normalizeLocSitCustomSituationRows(data.ui);
         data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
@@ -5199,6 +5254,49 @@ class ValoboisApp {
 
         const defaults = this.getDefaultNotationModeCustomConfig();
         this.data.notationModeCustomConfig = defaults;
+        return defaults;
+    }
+
+    getDefaultNotationModeOrientationThresholds() {
+        return {
+            recyclage:    { fort: 9,  moyen: 9,  faible: 9  },
+            reutilisation: { fort: 15, moyen: 15, faible: 15 },
+            reemploi:     { fort: 21, moyen: 21, faible: 21 }
+        };
+    }
+
+    normalizeNotationModeOrientationThresholds(raw) {
+        if (!raw || typeof raw !== 'object') return null;
+        const defaults = this.getDefaultNotationModeOrientationThresholds();
+        const keys = Object.keys(defaults);
+        const modes = ['fort', 'moyen', 'faible'];
+        const normalized = {};
+        let hasAny = false;
+        keys.forEach((key) => {
+            const modeObj = raw[key];
+            if (!modeObj || typeof modeObj !== 'object') return;
+            const normalizedModes = {};
+            modes.forEach((mode) => {
+                const v = parseInt(modeObj[mode], 10);
+                normalizedModes[mode] = Number.isFinite(v) && v >= 0 && v <= 30 ? v : defaults[key][mode];
+            });
+            normalized[key] = normalizedModes;
+            hasAny = true;
+        });
+        if (!hasAny) return null;
+        // ensure all keys present
+        keys.forEach((key) => { if (!normalized[key]) normalized[key] = { ...defaults[key] }; });
+        return normalized;
+    }
+
+    ensureNotationModeOrientationThresholds() {
+        const normalized = this.normalizeNotationModeOrientationThresholds(this.data?.notationModeOrientationThresholds);
+        if (normalized) {
+            this.data.notationModeOrientationThresholds = normalized;
+            return normalized;
+        }
+        const defaults = this.getDefaultNotationModeOrientationThresholds();
+        this.data.notationModeOrientationThresholds = defaults;
         return defaults;
     }
 
@@ -19508,6 +19606,59 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         return sectionFields.includes(field);
     }
 
+    isNotationModeCriterionCustomAdded(section, field, mode) {
+        if (!['moyen', 'faible'].includes(mode) || !section || !field) return false;
+        const defaultConfig = NOTATION_MODE_CONFIG[mode];
+        if (!defaultConfig || typeof defaultConfig !== 'object') return false;
+
+        const defaultFields = Array.isArray(defaultConfig[section])
+            ? defaultConfig[section].map((entry) => this.getNotationModeNormalizedField(section, entry))
+            : [];
+        const isDefaultEnabled = defaultFields.includes(field);
+        const isCurrentEnabled = this.isNotationModeCriterionEnabled(section, field, mode);
+
+        return isCurrentEnabled && !isDefaultEnabled;
+    }
+
+    updateNotationModeMatrixCheckboxCell(input) {
+        if (!(input instanceof HTMLInputElement)) return;
+
+        const cell = input.closest('.detail-modal-matrix-check-cell');
+        if (!cell) return;
+
+        const mode = (input.dataset.matrixMode || '').trim();
+        const section = (input.dataset.matrixSection || '').trim();
+        const field = this.getNotationModeNormalizedField(section, (input.dataset.matrixField || '').trim());
+        const isCustomActive = !!input.checked && this.isNotationModeCriterionCustomAdded(section, field, mode);
+
+        cell.classList.toggle('is-active', !!input.checked);
+        cell.classList.toggle('is-inactive', !input.checked);
+        cell.classList.toggle('is-custom-active', isCustomActive);
+    }
+
+    refreshNotationModeSummary(contentEl = null) {
+        const root = contentEl || document.getElementById('inspectionDetailModalContent');
+        if (!root) return;
+        const summaryRoot = root.querySelector('.detail-modal-mode-summary-root');
+        if (!summaryRoot) return;
+        summaryRoot.innerHTML = this.buildNotationModeSummaryHtml();
+    }
+
+    getNotationModeCriterionScoreBounds(field) {
+        const steps = NOTATION_CRITERION_SCORE_STEPS[field];
+        if (!Array.isArray(steps) || !steps.length) return { min: 1, max: 3 };
+
+        const values = steps
+            .map((value) => (typeof value === 'number' ? value : parseFloat(String(value).replace(',', '.'))))
+            .filter((value) => Number.isFinite(value));
+
+        if (!values.length) return { min: 1, max: 3 };
+        return {
+            min: Math.min(...values),
+            max: Math.max(...values)
+        };
+    }
+
     onNotationModeMatrixCheckboxChange(event) {
         const input = event?.target;
         if (!(input instanceof HTMLInputElement)) return;
@@ -19534,12 +19685,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         this.data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(customConfig);
         this.applyNotationMode(this.getCurrentLot());
         this.saveData();
-
-        const cell = input.closest('.detail-modal-matrix-check-cell');
-        if (cell) {
-            cell.classList.toggle('is-active', input.checked);
-            cell.classList.toggle('is-inactive', !input.checked);
-        }
+        this.updateNotationModeMatrixCheckboxCell(input);
+        this.refreshNotationModeSummary();
     }
 
     resetNotationModeMatrixConfig() {
@@ -19588,6 +19735,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 const fortActive = true;
                 const moyenActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'moyen');
                 const faibleActive = this.isNotationModeCriterionEnabled(sectionData.section, entry.field, 'faible');
+                const moyenCustomActive = moyenActive && this.isNotationModeCriterionCustomAdded(sectionData.section, entry.field, 'moyen');
+                const faibleCustomActive = faibleActive && this.isNotationModeCriterionCustomAdded(sectionData.section, entry.field, 'faible');
                 const displayValue = (entry.valueLabel && valueAbbrev[entry.valueLabel]) || entry.valueLabel || '—';
                 return `<tr class="detail-modal-matrix-row">
                     <th scope="row">${entry.label}</th>
@@ -19595,10 +19744,10 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     <td class="detail-modal-matrix-check-cell ${fortActive ? 'is-active' : 'is-inactive'}">
                         <input class="detail-modal-matrix-checkbox" type="checkbox" checked disabled aria-label="${entry.label} actif en mode Fort" />
                     </td>
-                    <td class="detail-modal-matrix-check-cell ${moyenActive ? 'is-active' : 'is-inactive'}">
+                    <td class="detail-modal-matrix-check-cell ${moyenActive ? 'is-active' : 'is-inactive'} ${moyenCustomActive ? 'is-custom-active' : ''}">
                         <input class="detail-modal-matrix-checkbox" type="checkbox" ${moyenActive ? 'checked' : ''} data-matrix-mode="moyen" data-matrix-section="${sectionData.section}" data-matrix-field="${entry.field}" aria-label="${entry.label} actif en mode Moyen" />
                     </td>
-                    <td class="detail-modal-matrix-check-cell ${faibleActive ? 'is-active' : 'is-inactive'}">
+                    <td class="detail-modal-matrix-check-cell ${faibleActive ? 'is-active' : 'is-inactive'} ${faibleCustomActive ? 'is-custom-active' : ''}">
                         <input class="detail-modal-matrix-checkbox" type="checkbox" ${faibleActive ? 'checked' : ''} data-matrix-mode="faible" data-matrix-section="${sectionData.section}" data-matrix-field="${entry.field}" aria-label="${entry.label} actif en mode Faible" />
                     </td>
                 </tr>`;
@@ -19631,15 +19780,146 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         </div>`;
     }
 
+    buildNotationModeSummaryHtml() {
+        const modeStats = {
+            fort: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] },
+            moyen: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] },
+            faible: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] }
+        };
+
+        NOTATION_MODE_SECTION_SELECTORS.forEach(({ section, rowSelector, fieldAttr }) => {
+            document.querySelectorAll(rowSelector).forEach((row) => {
+                const rawField = (row.getAttribute(fieldAttr) || '').trim();
+                if (!rawField) return;
+
+                const field = this.getNotationModeNormalizedField(section, rawField);
+                const label = this.getNotationModeLabelFromRow(row, rawField);
+                const bounds = this.getNotationModeCriterionScoreBounds(field);
+
+                ['fort', 'moyen', 'faible'].forEach((mode) => {
+                    const enabled = mode === 'fort'
+                        ? true
+                        : this.isNotationModeCriterionEnabled(section, field, mode);
+                    if (!enabled) return;
+
+                    modeStats[mode].count += 1;
+                    modeStats[mode].min += bounds.min;
+                    modeStats[mode].max += bounds.max;
+
+                    if (bounds.min <= -10) {
+                        modeStats[mode].criticalCount += 1;
+                        modeStats[mode].criticalLabels.push(label);
+                    }
+                });
+            });
+        });
+
+        const criticalPreview = (labels) => {
+            if (!Array.isArray(labels) || !labels.length) return 'Aucun';
+            const unique = Array.from(new Set(labels));
+            const head = unique.slice(0, 4);
+            const suffix = unique.length > 4 ? `, +${unique.length - 4} autre(s)` : '';
+            return `${head.join(', ')}${suffix}`;
+        };
+
+        const thresholds = this.ensureNotationModeOrientationThresholds();
+
+        const seuilRows = [
+            { key: 'recyclage',    label: 'Recyclage',     percent: '≥30 %', color: '#E69F00' },
+            { key: 'reutilisation', label: 'Réutilisation', percent: '≥50 %', color: '#56B4E9' },
+            { key: 'reemploi',     label: 'Réemploi',      percent: '≥70 %', color: '#009E73' }
+        ];
+
+        const seuilInput = (key, mode) => {
+            const defaults = this.getDefaultNotationModeOrientationThresholds();
+            const val = thresholds[key]?.[mode] ?? defaults[key][mode];
+            return `<input type="number" class="notation-mode-seuil-input" data-orientation="${key}" data-mode="${mode}" value="${val}" min="0" max="30" aria-label="Seuil ${key} ${mode}"><span class="notation-mode-seuil-denom">/30</span>`;
+        };
+
+        const seuilBodyRows = seuilRows.map(({ key, label, percent, color }) =>
+            `<tr class="detail-modal-matrix-seuil-row">
+                <th scope="row"><span class="detail-modal-seuil-dot" style="background:${color}"></span>${label}</th>
+                <td class="detail-modal-matrix-value-cell">${percent}</td>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'fort')}</td>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'moyen')}</td>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'faible')}</td>
+            </tr>`
+        ).join('');
+
+        return `<section class="detail-modal-matrix-section">
+            <h3 class="detail-modal-subtitle">Récapitulatif</h3>
+            <div class="detail-modal-matrix-scroll">
+                <table class="detail-modal-matrix-table">
+                    <thead>
+                        <tr>
+                            <th scope="col"></th>
+                            <th scope="col"></th>
+                            <th scope="col">Fort</th>
+                            <th scope="col">Moyen</th>
+                            <th scope="col">Faible</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <th scope="row">Critères actifs</th>
+                            <td class="detail-modal-matrix-value-cell">—</td>
+                            <td class="detail-modal-matrix-check-cell">${modeStats.fort.count}</td>
+                            <td class="detail-modal-matrix-check-cell">${modeStats.moyen.count}</td>
+                            <td class="detail-modal-matrix-check-cell">${modeStats.faible.count}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Note min</th>
+                            <td class="detail-modal-matrix-value-cell">—</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.fort.min > 0 ? '+' : ''}${modeStats.fort.min}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.moyen.min > 0 ? '+' : ''}${modeStats.moyen.min}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.faible.min > 0 ? '+' : ''}${modeStats.faible.min}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Note max</th>
+                            <td class="detail-modal-matrix-value-cell">—</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-max">+${modeStats.fort.max}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-max">+${modeStats.moyen.max}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-max">+${modeStats.faible.max}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Critères critiques (−10)</th>
+                            <td class="detail-modal-matrix-value-cell">Nombre</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-critical-count">${modeStats.fort.criticalCount}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-critical-count">${modeStats.moyen.criticalCount}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-critical-count">${modeStats.faible.criticalCount}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Critères critiques actifs</th>
+                            <td class="detail-modal-matrix-value-cell">Repères</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${criticalPreview(modeStats.fort.criticalLabels)}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${criticalPreview(modeStats.moyen.criticalLabels)}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${criticalPreview(modeStats.faible.criticalLabels)}</td>
+                        </tr>
+                        <tr class="detail-modal-matrix-seuil-header-row">
+                            <th scope="col" colspan="5">Seuils par axe d’orientation</th>
+                        </tr>
+                        ${seuilBodyRows}
+                        <tr class="detail-modal-matrix-combustion-row">
+                            <th scope="row">Logique combustion</th>
+                            <td class="detail-modal-matrix-value-cell">Repère métier</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score" colspan="3">Combustion (ou valorisation énergétique) à considérer prioritairement si un axe est ≤ 0 / 30, et tout particulièrement en cas de contamination forte (classe C / assimilée).</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>`;
+    }
+
     renderNotationModeDetailModal(contentEl) {
         if (!contentEl) return;
 
         const introHtml = `<div class="detail-modal-instruction"><p>Sélectionner le mode de notation pour l'évaluation.</p></div>
             <div class="detail-modal-paragraph"><p>La matrice suivante indique les critères activables selon le mode choisi (Fort, Moyen, Faible).</p></div>`;
         const matrixHtml = this.buildNotationModeMatrixHtml();
-        const referencesHtml = '<details class="detail-modal-references"><summary>References et ressources</summary><p class="detail-modal-references-empty">Aucune référence renseignée pour ce critère.</p></details>';
+        const summaryHtml = `<div class="detail-modal-mode-summary-root">${this.buildNotationModeSummaryHtml()}</div>`;
+        const referencesHtml = '<details class="detail-modal-references"><summary>Références et ressources</summary><p class="detail-modal-references-empty">Aucune référence renseignée pour ce critère.</p></details>';
 
-        contentEl.innerHTML = `${introHtml}${matrixHtml}${referencesHtml}`;
+        contentEl.innerHTML = `${introHtml}${matrixHtml}${summaryHtml}${referencesHtml}`;
 
         const matrixRoot = contentEl.querySelector('.detail-modal-matrix');
         if (matrixRoot) {
@@ -19651,6 +19931,27 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 this.resetNotationModeMatrixConfig();
             });
         }
+
+        contentEl.addEventListener('change', (event) => {
+            const input = event.target?.closest?.('.notation-mode-seuil-input');
+            if (!input) return;
+            const orientation = input.dataset.orientation;
+            const mode = input.dataset.mode;
+            if (!orientation || !mode) return;
+            const val = parseInt(input.value, 10);
+            const clamped = Number.isFinite(val) && val >= 0 && val <= 30 ? val : null;
+            if (clamped === null) {
+                // restore previous value
+                const thresholds = this.ensureNotationModeOrientationThresholds();
+                input.value = thresholds[orientation]?.[mode] ?? this.getDefaultNotationModeOrientationThresholds()[orientation][mode];
+                return;
+            }
+            const thresholds = this.ensureNotationModeOrientationThresholds();
+            if (!thresholds[orientation]) thresholds[orientation] = {};
+            thresholds[orientation][mode] = clamped;
+            this.data.notationModeOrientationThresholds = thresholds;
+            this.saveData();
+        });
     }
 
     openInspectionDetailModal(fieldKey) {

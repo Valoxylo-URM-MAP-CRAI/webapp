@@ -2102,6 +2102,11 @@ body.day-mode .accueil-collapsible-summary:hover {
             background-color: #E8F5EC;
         }
 
+        .detail-modal-matrix-table .is-custom-active {
+            color: #8A4B08;
+            background-color: #FFF0E0;
+        }
+
         .detail-modal-matrix-table .is-inactive {
             color: #6C757D;
             background-color: #F5F6F7;
@@ -2118,6 +2123,10 @@ body.day-mode .accueil-collapsible-summary:hover {
             cursor: pointer;
         }
 
+        .detail-modal-matrix-check-cell.is-custom-active .detail-modal-matrix-checkbox {
+            accent-color: #D97706;
+        }
+
         .detail-modal-matrix-checkbox:disabled {
             cursor: default;
             opacity: 0.8;
@@ -2125,6 +2134,85 @@ body.day-mode .accueil-collapsible-summary:hover {
 
         .detail-modal-matrix-note {
             margin-top: 2px;
+        }
+
+        .detail-modal-matrix-summary-max {
+            font-weight: var(--font-weight-semibold);
+            color: #2E5E43;
+        }
+
+        .detail-modal-matrix-summary-min {
+            font-weight: var(--font-weight-semibold);
+            color: #7A2E2E;
+        }
+
+        .detail-modal-matrix-critical-count {
+            font-weight: var(--font-weight-semibold);
+            color: #8A4B08;
+        }
+
+        .detail-modal-matrix-info-cell {
+            font-size: 11px;
+            line-height: 1.35;
+        }
+
+        .detail-modal-matrix-seuil-header-row th {
+            background-color: #F2F4F6;
+            font-size: 11px;
+            font-weight: var(--font-weight-semibold);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-text-secondary);
+            padding-top: 8px;
+            padding-bottom: 8px;
+        }
+
+        .detail-modal-matrix-seuil-row th {
+            font-weight: var(--font-weight-medium);
+        }
+
+        .detail-modal-matrix-seuil-score {
+            font-weight: var(--font-weight-semibold);
+            text-align: center;
+        }
+
+        .detail-modal-matrix-combustion-row th,
+        .detail-modal-matrix-combustion-row td {
+            background-color: #FFF8EE;
+        }
+
+        .detail-modal-seuil-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            vertical-align: middle;
+            flex-shrink: 0;
+        }
+
+        .notation-mode-seuil-input {
+            width: 2.8rem;
+            padding: 2px 4px;
+            text-align: center;
+            border: 1px solid var(--color-border, #ccc);
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-family: inherit;
+            background: var(--color-surface, #fff);
+            color: inherit;
+            -moz-appearance: textfield;
+        }
+        .notation-mode-seuil-input::-webkit-outer-spin-button,
+        .notation-mode-seuil-input::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .notation-mode-seuil-denom {
+            font-size: 0.8em;
+            color: var(--color-muted, #888);
+            margin-left: 2px;
+            white-space: nowrap;
         }
 
         @media (max-width: 720px) {
