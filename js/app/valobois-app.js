@@ -6103,6 +6103,23 @@ class ValoboisApp {
         }
     }
 
+    openMechExpositionLongeviteAlertModal(alertState, lot = null) {
+        const backdrop = document.getElementById('mechDetailModalBackdrop');
+        const titleEl = document.getElementById('mechDetailModalTitle');
+        const contentEl = document.getElementById('mechDetailModalContent');
+
+        const details = this.collectMechExpositionLongeviteAlertContributors(lot);
+        const message = this.buildMechExpositionLongeviteAlertModalMessage(alertState, details, lot);
+
+        if (titleEl) titleEl.textContent = 'Alerte Exposition mécanique';
+        this.renderDetailModalContent(contentEl, message);
+
+        if (backdrop) {
+            backdrop.classList.remove('hidden');
+            backdrop.setAttribute('aria-hidden', 'false');
+        }
+    }
+
     openMechIntegriteAlertModal(alertState) {
         const backdrop  = document.getElementById('mechDetailModalBackdrop');
         const titleEl   = document.getElementById('mechDetailModalTitle');
@@ -6776,6 +6793,130 @@ class ValoboisApp {
         if (activeClass === '5' || activeClass === '4' || activeClass === '3.2') return 'strong';
         if (activeClass === '3.1') return 'medium';
         if (activeClass === '2' || activeClass === '1') return 'low';
+        return 'none';
+    }
+
+    collectMechExpositionLongeviteAlertContributors(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        if (!targetLot) {
+            return {
+                entries: [],
+                winner: null,
+                hasData: false,
+                lotLabel: 'Lot courant'
+            };
+        }
+
+        const levelOrder = {
+            N: 0,
+            L1: 1,
+            L2: 2,
+            L3: 3
+        };
+
+        const levelToRecommendation = {
+            N: 'Forte',
+            L1: 'Forte',
+            L2: 'Moyenne',
+            L3: 'Faible'
+        };
+
+        const groupsByLevel = new Map();
+        const getOrCreateGroup = (level) => {
+            if (!groupsByLevel.has(level)) {
+                groupsByLevel.set(level, {
+                    longeviteLevel: level,
+                    recommendation: levelToRecommendation[level] || '',
+                    severityOrder: levelOrder[level],
+                    volume: 0,
+                    references: []
+                });
+            }
+            return groupsByLevel.get(level);
+        };
+
+        const pushReference = (group, label, qty = null) => {
+            if (!group) return;
+            const cleanLabel = String(label || '').trim();
+            if (!cleanLabel) return;
+            const suffix = Number.isFinite(qty) && qty > 1 ? ` x ${qty}` : '';
+            const full = `${cleanLabel}${suffix}`;
+            if (!group.references.includes(full)) group.references.push(full);
+        };
+
+        (Array.isArray(targetLot.pieces) ? targetLot.pieces : []).forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            const preview = { ...piece };
+            this.recalculatePiece(preview, targetLot);
+
+            const volume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            if (volume <= 0) return;
+
+            const longevite = this.computeEstimatedLongevite(piece, targetLot);
+            const level = String((longevite && longevite.level) || '').trim().toUpperCase();
+            if (!(level in levelOrder)) return;
+
+            const group = getOrCreateGroup(level);
+            group.volume += volume;
+            const pieceName = (piece.nom || '').toString().trim() || `Pièce ${index + 1}`;
+            pushReference(group, pieceName);
+        });
+
+        this.ensureDefaultPiecesData(targetLot, { createIfEmpty: false }).forEach((defaultPiece, index) => {
+            if (!defaultPiece || typeof defaultPiece !== 'object') return;
+            const qty = Math.max(0, parseFloat(defaultPiece.quantite) || 0);
+            if (qty <= 0) return;
+
+            const preview = this.buildPieceFromDefault(targetLot, -1, defaultPiece.id);
+            this.recalculatePiece(preview, targetLot);
+
+            const unitVolume = Math.max(0, parseFloat(preview.volumePiece) || 0);
+            const volume = unitVolume * qty;
+            if (volume <= 0) return;
+
+            const longevite = this.computeEstimatedLongevite(defaultPiece, targetLot);
+            const level = String((longevite && longevite.level) || '').trim().toUpperCase();
+            if (!(level in levelOrder)) return;
+
+            const group = getOrCreateGroup(level);
+            group.volume += volume;
+            const defaultName = (defaultPiece.nom || '').toString().trim() || `Pièce par défaut ${index + 1}`;
+            pushReference(group, defaultName, qty);
+        });
+
+        const entries = Array.from(groupsByLevel.values())
+            .map((entry) => ({
+                ...entry,
+                volume: Math.max(0, entry.volume)
+            }))
+            .filter((entry) => entry.severityOrder != null && entry.volume > 0)
+            .sort((a, b) => {
+                const volumeDelta = b.volume - a.volume;
+                if (Math.abs(volumeDelta) > 1e-9) return volumeDelta;
+                // A volume égal, prioriser la longévité la plus défavorable.
+                return (a.severityOrder || 0) - (b.severityOrder || 0);
+            });
+
+        const winner = entries.length ? entries[0] : null;
+        const lotIndex = (this.data.lots || []).indexOf(targetLot);
+        const lotLabel = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant';
+
+        return {
+            entries,
+            winner,
+            hasData: !!winner,
+            lotLabel
+        };
+    }
+
+    getMechExpositionLongeviteAlertState(lot) {
+        const details = this.collectMechExpositionLongeviteAlertContributors(lot);
+        if (!details.hasData || !details.winner) return 'none';
+
+        const recommendation = String(details.winner.recommendation || '').trim();
+        if (recommendation === 'Forte') return 'strong';
+        if (recommendation === 'Moyenne') return 'medium';
+        if (recommendation === 'Faible') return 'low';
         return 'none';
     }
 
@@ -8236,6 +8377,74 @@ class ValoboisApp {
         return lines.join('\n');
     }
 
+    buildMechExpositionLongeviteAlertModalMessage(alertState, details, lot = null) {
+        if (alertState === 'none' || !details || !details.hasData) {
+            return [
+                'Impossible de proposer une orientation d\'exposition mécanique.',
+                '',
+                'Renseigner des pièces avec une longévité estimée calculable et un volume exploitable.'
+            ].join('\n');
+        }
+
+        const entries = Array.isArray(details.entries) ? details.entries : [];
+        const winner = details.winner || null;
+        const formatVolume = (value) => Math.round(Number(value || 0)).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }) + ' m3';
+        const levelToRecommendation = {
+            N: 'Forte',
+            L1: 'Forte',
+            L2: 'Moyenne',
+            L3: 'Faible'
+        };
+
+        const proposedLevel = winner ? (winner.recommendation || '') : '';
+        const currentLot = lot || this.getCurrentLot();
+        const currentLevel = String(currentLot?.mech?.expositionMech?.niveau || '').trim();
+
+        const lines = [
+            `Une orientation d'exposition mécanique « ${proposedLevel || 'Indéterminée'} » est proposée pour le lot.`,
+            '',
+            'Proposition basée sur la longévité estimée des éléments du lot :',
+            '- priorité 1 : volume cumulé le plus élevé par niveau de longévité',
+            '- priorité 2 : à volume égal, longévité la plus défavorable',
+            '',
+            'Données utilisées.',
+            `Lot analysé : ${details.lotLabel || 'Lot courant'}`,
+            `Nombre de niveaux de longévité contributeurs : ${entries.length}`,
+        ];
+
+        if (winner) {
+            lines.push(`Longévité estimée retenue : ${winner.longeviteLevel}`);
+            lines.push(`Volume cumulé retenu : ${formatVolume(winner.volume)}`);
+        }
+        lines.push(`Niveau actuellement noté (critère Exposition mécanique) : ${currentLevel || 'Non renseigné'}`);
+
+        lines.push('');
+        lines.push('Niveaux de longévité contributeurs (ordre de décision: volume puis défavorabilité).');
+        entries.forEach((entry, index) => {
+            const refs = Array.isArray(entry.references) && entry.references.length
+                ? ` [${entry.references.join(', ')}]`
+                : '';
+            lines.push(`- ${index + 1}. Longévité ${entry.longeviteLevel} | Niveau conseillé: ${entry.recommendation || levelToRecommendation[entry.longeviteLevel] || 'Indéterminé'} | Volume: ${formatVolume(entry.volume)}${refs}`);
+        });
+
+        lines.push('');
+        lines.push('Règle de correspondance longévité -> exposition mécanique conseillée.');
+        lines.push('- N -> Forte');
+        lines.push('- L1 -> Forte');
+        lines.push('- L2 -> Moyenne');
+        lines.push('- L3 -> Faible');
+        lines.push('');
+        lines.push('Logique de couleur de l\'alerte Exposition mécanique.');
+        lines.push('- Rouge : proposition Forte');
+        lines.push('- Orange : proposition Moyenne');
+        lines.push('- Verte : proposition Faible');
+
+        return lines.join('\n');
+    }
+
     buildMasseVolEssenceAlertModalMessage(alertState, details) {
         if (alertState === 'none' || !details || !details.hasData) {
             return [
@@ -9394,6 +9603,19 @@ class ValoboisApp {
         if (!alertBtn) return;
 
         alertBtn.dataset.alertExpositionBioState = this.getBioExpositionAlertState(targetLot);
+    }
+
+    refreshMechExpositionLongeviteAlertButton(lot) {
+        const targetLot = lot || this.getCurrentLot();
+        const currentLot = this.getCurrentLot();
+        if (!targetLot || targetLot !== currentLot) return;
+
+        const row = document.querySelector('.mech-row[data-mech-field="expositionMech"]');
+        if (!row) return;
+        const alertBtn = row.querySelector('[data-mech-exposition-longevite-alert-btn]');
+        if (!alertBtn) return;
+
+        alertBtn.dataset.alertExpositionMechLongeviteState = this.getMechExpositionLongeviteAlertState(targetLot);
     }
 
     refreshIntegriteMechAlertButton(lot) {
@@ -23055,6 +23277,7 @@ closeEvalOpModal() {
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
             this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
             this.renderEvalOp(); // Met à jour la synthèse en temps réel
         };
 
@@ -23981,6 +24204,7 @@ closeEvalOpModal() {
             this.refreshMasseVolEssenceAlertButton(lot);
             this.refreshRareteEcoEssenceAlertButton(lot);
             this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
         };
 
         pieceRail.querySelectorAll('.piece-card[data-default-piece-id]').forEach((defaultPieceCard) => {
@@ -24459,6 +24683,7 @@ closeEvalOpModal() {
                 this.refreshMasseVolEssenceAlertButton(lot);
                 this.refreshRareteEcoEssenceAlertButton(lot);
                 this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
             };
 
             // Widget inline Mesures multiples (pièce détaillée)
@@ -25283,6 +25508,7 @@ updateBioRow(row, key, lot) {
             }
             if (key === 'exposition') {
                 this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
@@ -25338,6 +25564,7 @@ updateBioRow(row, key, lot) {
             }
             if (key === 'exposition') {
                 this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
             }
             if (key === 'integriteBio') {
                 this.refreshIntegriteBioAlertButton(lot);
@@ -25397,9 +25624,11 @@ updateBioRow(row, key, lot) {
 
     if (expositionBioAlertBtn) {
         this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
         expositionBioAlertBtn.onclick = (e) => {
             e.stopPropagation();
             this.refreshBioExpositionAlertButton(lot);
+            this.refreshMechExpositionLongeviteAlertButton(lot);
             const alertState = expositionBioAlertBtn.dataset.alertExpositionBioState || 'none';
             this.openBioExpositionAlertModal(alertState, lot);
         };
@@ -25471,6 +25700,7 @@ updateMechRow(row, key, lot) {
     const confidenceAlertBtn = row.querySelector('[data-confidence-alert-btn]');
     const feuAlertBtn = key === 'feuMech' ? row.querySelector('[data-mech-feu-alert-btn]') : null;
     const integriteMechAlertBtn = key === 'integriteMech' ? row.querySelector('[data-mech-integrite-alert-btn]') : null;
+    const expositionMechLongeviteAlertBtn = key === 'expositionMech' ? row.querySelector('[data-mech-exposition-longevite-alert-btn]') : null;
     const purgeMechAlertBtn = key === 'purgeMech' ? row.querySelector('[data-mech-purge-alert-btn]') : null;
     const confianceTitle = row.querySelector('[data-mech-confiance-title]');
 
@@ -25512,6 +25742,7 @@ updateMechRow(row, key, lot) {
             if (activeLot) this.computeOrientation(activeLot);
             if (key === 'expositionMech') {
                 this.refreshVieillissementAlertButton(lot);
+                this.refreshMechExpositionLongeviteAlertButton(lot);
             }
             if (key === 'integriteMech') {
                 this.refreshIntegriteMechAlertButton(lot);
@@ -25562,6 +25793,7 @@ updateMechRow(row, key, lot) {
             }
             if (key === 'expositionMech') {
                 this.refreshVieillissementAlertButton(lot);
+                this.refreshMechExpositionLongeviteAlertButton(lot);
             }
             if (key === 'integriteMech') {
                 this.refreshIntegriteMechAlertButton(lot);
@@ -25601,6 +25833,16 @@ updateMechRow(row, key, lot) {
             e.stopPropagation();
             this.refreshIntegriteMechAlertButton(lot);
             this.openMechIntegriteAlertModal(integriteMechAlertBtn.dataset.alertIntegriteMechState || 'none');
+        };
+    }
+
+    if (expositionMechLongeviteAlertBtn) {
+        this.refreshMechExpositionLongeviteAlertButton(lot);
+        expositionMechLongeviteAlertBtn.onclick = (e) => {
+            e.stopPropagation();
+            this.refreshMechExpositionLongeviteAlertButton(lot);
+            const alertState = expositionMechLongeviteAlertBtn.dataset.alertExpositionMechLongeviteState || 'none';
+            this.openMechExpositionLongeviteAlertModal(alertState, lot);
         };
     }
 
