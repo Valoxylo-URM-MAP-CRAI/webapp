@@ -19780,11 +19780,76 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         </div>`;
     }
 
+    buildOrientationLogicMatrixHtml() {
+        const badge = (type, label) => `<span class="orientation-logic-badge orientation-logic-badge--${type}">${label}</span>`;
+
+        const rows = [
+            {
+                label: 'Combustion',
+                color: '#D55E00',
+                faible: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' },
+                moyen: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' },
+                fort: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' }
+            },
+            {
+                label: 'Recyclage',
+                color: '#E69F00',
+                faible: { type: 'default', label: 'Défaut', text: 'Orientation par défaut si aucun gate.' },
+                moyen: { type: 'gate', label: 'Gate', text: 'Gate si contaminé ou durabilité conférée non dépollué.' },
+                fort: { type: 'gate', label: 'Gate', text: 'Gate si contaminé ou durabilité conférée non dépollué.' }
+            },
+            {
+                label: 'Réutilisation',
+                color: '#56B4E9',
+                faible: { type: 'seuil', label: 'Seuil', text: 'Seuil unique ≥ seuil Recyclage (filière circulaire).' },
+                moyen: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réutilisation.' },
+                fort: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réutilisation.' }
+            },
+            {
+                label: 'Réemploi',
+                color: '#009E73',
+                faible: { type: 'unavailable', label: '—', text: 'Non disponible.' },
+                moyen: { type: 'indicative', label: 'Indicatif', text: 'Indicatif, confirmation mode Fort requise.' },
+                fort: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réemploi.' }
+            }
+        ];
+
+        const cell = (entry) => `${badge(entry.type, entry.label)}<span class="orientation-logic-text">${entry.text}</span>`;
+        const bodyRows = rows.map((row) => `
+            <tr>
+                <th scope="row"><span class="detail-modal-seuil-dot" style="background:${row.color}"></span>${row.label}</th>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${cell(row.faible)}</td>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${cell(row.moyen)}</td>
+                <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${cell(row.fort)}</td>
+            </tr>
+        `).join('');
+
+        return `<section class="detail-modal-matrix-section">
+            <h3 class="detail-modal-subtitle">Logique d'orientation par mode</h3>
+            <div class="detail-modal-matrix-scroll">
+                <table class="detail-modal-matrix-table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Orientation</th>
+                            <th scope="col">Mode Faible</th>
+                            <th scope="col">Mode Moyen</th>
+                            <th scope="col">Mode Fort</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${bodyRows}
+                    </tbody>
+                </table>
+            </div>
+            <p class="detail-modal-paragraph orientation-logic-note">Cette matrice décrit la logique d'orientation cible. <strong>Gates</strong> : critères disqualifiants indépendants du score (actifs dans tous les modes). <strong>Seuils</strong> : score minimum à atteindre pour accéder à l'orientation. <strong>Indicatif</strong> : orientation provisoire, à confirmer par une évaluation en mode Fort.</p>
+        </section>`;
+    }
+
     buildNotationModeSummaryHtml() {
         const modeStats = {
-            fort: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] },
-            moyen: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] },
-            faible: { count: 0, min: 0, max: 0, criticalCount: 0, criticalLabels: [] }
+            fort: { count: 0, min: 0, max: 0, minSansCritique: 0, criticalCount: 0, criticalLabels: [] },
+            moyen: { count: 0, min: 0, max: 0, minSansCritique: 0, criticalCount: 0, criticalLabels: [] },
+            faible: { count: 0, min: 0, max: 0, minSansCritique: 0, criticalCount: 0, criticalLabels: [] }
         };
 
         NOTATION_MODE_SECTION_SELECTORS.forEach(({ section, rowSelector, fieldAttr }) => {
@@ -19809,6 +19874,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     if (bounds.min <= -10) {
                         modeStats[mode].criticalCount += 1;
                         modeStats[mode].criticalLabels.push(label);
+                    } else {
+                        modeStats[mode].minSansCritique += bounds.min;
                     }
                 });
             });
@@ -19875,6 +19942,13 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                             <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.faible.min > 0 ? '+' : ''}${modeStats.faible.min}</td>
                         </tr>
                         <tr>
+                            <th scope="row">Note min hors −10</th>
+                            <td class="detail-modal-matrix-value-cell">Hors critiques</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.fort.minSansCritique > 0 ? '+' : ''}${modeStats.fort.minSansCritique}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.moyen.minSansCritique > 0 ? '+' : ''}${modeStats.moyen.minSansCritique}</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-min">${modeStats.faible.minSansCritique > 0 ? '+' : ''}${modeStats.faible.minSansCritique}</td>
+                        </tr>
+                        <tr>
                             <th scope="row">Note max</th>
                             <td class="detail-modal-matrix-value-cell">—</td>
                             <td class="detail-modal-matrix-check-cell detail-modal-matrix-summary-max">+${modeStats.fort.max}</td>
@@ -19916,10 +19990,11 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const introHtml = `<div class="detail-modal-instruction"><p>Sélectionner le mode de notation pour l'évaluation.</p></div>
             <div class="detail-modal-paragraph"><p>La matrice suivante indique les critères activables selon le mode choisi (Fort, Moyen, Faible).</p></div>`;
         const matrixHtml = this.buildNotationModeMatrixHtml();
+        const orientationLogicHtml = this.buildOrientationLogicMatrixHtml();
         const summaryHtml = `<div class="detail-modal-mode-summary-root">${this.buildNotationModeSummaryHtml()}</div>`;
         const referencesHtml = '<details class="detail-modal-references"><summary>Références et ressources</summary><p class="detail-modal-references-empty">Aucune référence renseignée pour ce critère.</p></details>';
 
-        contentEl.innerHTML = `${introHtml}${matrixHtml}${summaryHtml}${referencesHtml}`;
+        contentEl.innerHTML = `${introHtml}${matrixHtml}${orientationLogicHtml}${summaryHtml}${referencesHtml}`;
 
         const matrixRoot = contentEl.querySelector('.detail-modal-matrix');
         if (matrixRoot) {
@@ -20977,7 +21052,7 @@ Un amortissement biologique « faible » vaut pour un rapport inférieur ou éga
 
     Noter en s'appuyant sur les informations renvoyées par le bouton alerte. Soit le rapport entre l’âge estimé de l’arbre lors de son abattage et la durée qui sépare cette date ou période d’abattage de la récupération du bois, qu’on nommera durée d’usage par simplification.
 
-    Nécessite d’estimer l’âge de l’arbre par comptage des cernes visibles et de prendre en compte le type de débit de la section. Une estimation peut aussi être réalisée via l’historique de l’ouvrage, afin de déterminer les dates de mise en service et de récupération de la pièce.
+    Nécessite d’estimer l’âge de l’arbre par comptage des cernes visibles et de prendre en compte le type de débit de la section. Une estimation peut aussi être réalisée via l’historique de l’ouvrage, afin de déterminer les dates de mise en service et de récupération de la pièce. Le recyclage de pièces de bois qui n'ont pas atteint un amortissement supérieur ou égal à 1 n'est pas recommandé.
 
 Eugénie Cateau; Laurent Larrieu; Daniel Vallauri; Jean-Marie Savoie; Julien Touroult; Hervé Brustel. Ancienneté et maturité : deux qualités complémentaires d’un écosystème forestier. Comptes Rendus. Biologies, Volume 338 (2015) no. 1, pp. 58-73. doi: 10.1016/j.crvi.2014.10.004
 

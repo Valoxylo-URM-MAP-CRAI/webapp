@@ -1,0 +1,52 @@
+;;;;Échelle de notation;;;;;Vecteurs d’orientation;;;;Facteurs de rejet;;;;
+Rang;Section;Critère;Valeur;Fort;Moyen;Faible;Amplitude;Criticité;Combustion;Recyclage;Réutilisation;Réemploi;Combustion;Recyclage;Réutilisation;Réemploi;Logique d’alerte
+1;Dégradation biologique;Expansion;Écologique;-10;-3;3;13;Oui;Forte;Faible;Moyenne à faible;Moyenne à faible;Aucun;Forte à moyenne;Forte;Forte;Oui
+2;Dégradation biologique;Intégrité biologique;Mécanique;3;1;-10;13;Oui;Faible;;Forte à moyenne;;;;;Faible;Oui
+3;Dégradation mécanique;Intégrité mécanique;Mécanique;3;-3;-10;13;Oui;Aucun;Faible;;;;;;Faible;Oui
+4;Dénaturation;Contamination;Mécanique;-10;-3;3;13;Oui;Forte;;;;;;;;Oui
+5;Traces;Altération;Mécanique;-10;1;3;13;Non;Aucun;Forte;;;;;;;Oui
+6;Dénaturation;Durabilité conférée;Historique;-3;1;3;6;Oui;Aucun;;;;;Forte;;;Oui
+7;Dégradation biologique;Exposition biologique;Historique;-3;1;3;6;Non;Aucun;;;;;;;;Oui
+8;Dégradation mécanique;Exposition mécanique;Historique;-3;1;3;6;Non;Aucun;;;;;;;;Oui
+9;Usage;Humidité;Historique;-3;3;1;6;Non;Aucun;;;;;;;;Oui
+10;Dénaturation;Dépollution;Écologique;-3;1;3;6;Non;Aucun;;;;;;;;Oui
+11;Débit;Stabilité;Historique;3;1;-3;6;Non;Aucun;;;;;;;;Oui
+12;Géométrie;Déformation;Historique;-3;1;3;6;Non;Aucun;;;;;;;;Oui
+13;Ancienneté;Amortissement;Écologique;3;1;-3;6;Non;Aucun;;;;;;;;
+14;Ancienneté;Vieillissement;Mécanique;-3;1;3;6;Non;Aucun;;;;;;;;
+15;Ancienneté;Démontabilité;Esthétique;3;2;-3;6;Non;Aucun;;;;;;;;
+16;Traces;Documentation;Historique;3;1;-3;6;Non;Aucun;;;;;;;;
+17;Provenance;Transport;Écologique;-3;1;3;6;Non;Aucun;;;;;;;;
+18;Dégradation biologique;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+19;Dégradation mécanique;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+20;Dégradation mécanique;Feu;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+21;Usage;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+22;Usage;Durabilité naturelle;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+23;Usage;Classement;Mécanique;3;2;1;2;Non;Aucun;;;;;;;;
+24;Usage;Aspect;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+25;Dénaturation;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+26;Dénaturation;Naturalité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+27;Débit;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+28;Débit;Régularité;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+29;Débit;Volumétrie;Mécanique;3;2;1;2;Non;Aucun;;;;;;;;
+30;Débit;Artisanalité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+31;Débit;Rusticité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+32;Géométrie;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+33;Géométrie;Adaptabilité;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+34;Géométrie;Massivité;Mécanique;3;2;1;2;Non;Aucun;;;;;;;;
+35;Géométrie;Industrialité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+36;Géométrie;Inclusivité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+37;Essence;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+38;Essence;Rareté écologique;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+39;Essence;Masse volumique;Mécanique;3;2;1;2;Non;Aucun;;;;;;;;
+40;Essence;Rareté historique;Historique;3;2;1;2;Non;Aucun;;;;;;;;
+41;Essence;Singularité essence;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+42;Ancienneté;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+43;Ancienneté;Micro-histoire;Historique;3;2;1;2;Non;Aucun;;;;;;;;
+44;Traces;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+45;Traces;Étiquetage;Écologique;3;2;1;2;Non;Aucun;;;;;;;;
+46;Traces;Singularités traces;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
+47;Provenance;Confiance;Économique;3;2;1;2;Non;Aucun;;;;;;;;
+48;Provenance;Réputation;Mécanique;3;2;1;2;Non;Aucun;;;;;;;;
+49;Provenance;Macro-histoire;Historique;3;2;1;2;Non;Aucun;;;;;;;;
+50;Provenance;Territorialité;Esthétique;3;2;1;2;Non;Aucun;;;;;;;;
