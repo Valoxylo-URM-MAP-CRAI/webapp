@@ -13855,3 +13855,291 @@ body.day-mode .inspection-ignore-box {
    /Durabilité naturelle EN 350 — Accordéon
    ============================================================ */
 
+/* ============================================================
+   Onglet Matrice Valoxylo
+   ============================================================ */
+.valobois-matrix-card {
+    display: grid;
+    gap: 12px;
+    padding: 14px;
+}
+
+.valobois-matrix-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.valobois-matrix-subtitle {
+    margin: 4px 0 0;
+    color: #4b5565;
+    font-size: 13px;
+}
+
+.valobois-matrix-custom-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #e8f0ff;
+    color: #1d3d96;
+    border: 1px solid #c4d4ff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.valobois-matrix-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: end;
+}
+
+.valobois-matrix-control-field {
+    display: grid;
+    gap: 4px;
+    font-size: 12px;
+    color: #495362;
+}
+
+.valobois-matrix-control-field select,
+.valobois-matrix-control-field input[type="search"] {
+    min-height: 32px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+.valobois-matrix-control-field--search {
+    min-width: 230px;
+}
+
+.valobois-matrix-control-check {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #344054;
+    min-height: 32px;
+}
+
+.valobois-matrix-mode-switch {
+    display: inline-flex;
+    border: 1px solid #d6dcf0;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.valobois-matrix-mode-btn {
+    border: 0;
+    background: #fff;
+    color: #344054;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.valobois-matrix-mode-btn.is-active {
+    background: var(--bleu-crai, #1d3d96);
+    color: #fff;
+}
+
+.valobois-matrix-threshold-card {
+    border: 1px solid #dfe3ef;
+    border-radius: 12px;
+    padding: 10px;
+    background: #fafcff;
+}
+
+.valobois-matrix-threshold-card h3 {
+    margin: 0 0 4px;
+    font-size: 14px;
+}
+
+.valobois-matrix-threshold-card p {
+    margin: 0 0 8px;
+    font-size: 12px;
+    color: #475467;
+}
+
+.valobois-matrix-threshold-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.valobois-matrix-threshold-table th,
+.valobois-matrix-threshold-table td {
+    border: 1px solid #e2e6f0;
+    padding: 6px;
+}
+
+.valobois-matrix-threshold-table th {
+    background: #eef2ff;
+    text-align: left;
+}
+
+.valobois-matrix-threshold-table input[type="number"] {
+    width: 56px;
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    padding: 3px 6px;
+}
+
+.valobois-matrix-threshold-percent {
+    color: #667085;
+    font-size: 11px;
+}
+
+.valobois-matrix-threshold-error {
+    margin-top: 8px;
+    color: #b42318;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.valobois-matrix-table-wrap {
+    overflow-x: auto;
+}
+
+.valobois-matrix-results {
+    margin-bottom: 6px;
+    font-size: 12px;
+    color: #667085;
+}
+
+.valobois-matrix-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 1080px;
+}
+
+.valobois-matrix-table th,
+.valobois-matrix-table td {
+    border: 1px solid #e2e8f0;
+    padding: 6px;
+    vertical-align: top;
+}
+
+.valobois-matrix-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--bleu-crai, #1d3d96);
+    color: #fff;
+}
+
+.valobois-matrix-table tr.is-family-start td {
+    border-top-width: 2px;
+    border-top-color: #a6b4de;
+}
+
+.valobois-matrix-rank {
+    display: inline-flex;
+    justify-content: center;
+    min-width: 22px;
+    padding: 2px 6px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: #1d3d96;
+    font-weight: 700;
+    margin-right: 6px;
+}
+
+.valobois-matrix-badges {
+    margin-top: 4px;
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.valobois-matrix-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.valobois-matrix-badge--gate {
+    background: #fce7e6;
+    color: #b42318;
+}
+
+.valobois-matrix-badge--alert {
+    background: #fff1d6;
+    color: #9a6700;
+}
+
+.valobois-matrix-badge--edited {
+    background: #e5f3ff;
+    color: #1e5ea8;
+}
+
+.valobois-matrix-axis-dot,
+.valobois-matrix-orientation-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 6px;
+}
+
+.valobois-matrix-axis-dot--economique { background: #d4a017; }
+.valobois-matrix-axis-dot--ecologique { background: #2e7d32; }
+.valobois-matrix-axis-dot--mecanique { background: #1f4f8b; }
+.valobois-matrix-axis-dot--historique { background: #7b4b9c; }
+.valobois-matrix-axis-dot--esthetique { background: #8d5a3c; }
+
+.valobois-matrix-col-score {
+    font-weight: 700;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.valobois-matrix-col-score.is-gate {
+    background: #fde2e2;
+    color: #b42318;
+}
+
+.valobois-matrix-col-score.is-negative {
+    background: #fff1d6;
+    color: #9a6700;
+}
+
+.valobois-matrix-col-score.is-neutral {
+    background: #edf2f7;
+    color: #344054;
+}
+
+.valobois-matrix-col-score.is-positive {
+    background: #e8f5ee;
+    color: #166534;
+}
+
+.valobois-matrix-reject-cell {
+    background: #fff8f8;
+}
+
+.valobois-matrix-cell-empty,
+.valobois-matrix-empty {
+    color: #98a2b3;
+}
+
+@media (max-width: 900px) {
+    .valobois-matrix-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .valobois-matrix-control-field--search {
+        min-width: 0;
+        grid-column: 1 / -1;
+    }
+}
+

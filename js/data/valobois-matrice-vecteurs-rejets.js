@@ -1,0 +1,72 @@
+(function () {
+    "use strict";
+
+    const RAW_CSV = ";;;;Échelle chiffrée;;;Échelle lettrée;;;Criticité;Alerte;Vecteurs d’orientation;;;;;;;;;;;;;;;;;;;;Facteurs de rejet d’orientation;;;;;;;;;;;;;;;;;;;\n;;;;;;;;;;;;Combustion;;;Recyclage;;;Réutilisation;;;;;;;Réemploi;;;;;;;Combustion;;;;;;;Recyclage;;;;;Réutilisation;;;Réemploi;;;;\nRang;Familles de critères;Critères;Valeurs;Note Fort;Note Moyen;Note Faible;Note Fort;Note Moyen;Note Faible;;;Termes;Score min;Score min;Termes;Score min;Score min;Termes;Score max;Score med;Score min;Score max;Score med;Score min;Termes;Score max;Score med;Score min;Score max;Score med;Score min;Termes;Score max;Score med;Score min;Score max;Score med;Score min;Termes;Score max;Score min;Score max;Score min;Termes;Score min;Score min;Termes;Score max;Score min;Score max;Score min\n1;Dénaturation;Contamination;Mécanique;-10;1;3;E;C;A;Oui;Oui;Forte;-10;E;Aucun;-;-;Moyenne à faible;3;-;-3;A;-;D;Moyenne à faible;3;-;-3;A;-;D;Aucun;-;-;-;-;-;-;Forte;-;-10;-;E;Forte;-10;E;Forte;-;-10;-;E\n2;Dégradation biologique;Expansion;Écologique;-10;-3;3;E;D;A;Oui;Oui;Forte;-10;E;Aucun;-;-;Moyenne à faible;3;-;-3;A;-;D;Moyenne à faible;3;-;-3;A;-;D;Aucun;-;-;-;-;-;-;Forte;-;-10;-;E;Forte;-10;E;Forte;-;-10;-;E\n3;Dégradation biologique;Intégrité biologique;Mécanique;3;1;-10;A;C;E;Oui;Oui;Aucun;-;-;Aucun;-;-;Forte à moyenne;3;-;1;A;-;C;Forte;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Faible;-;-10;-;E;Aucun;-;-;Faible;-;-10;-;E\n4;Dégradation mécanique;Intégrité mécanique;Mécanique;3;-3;-10;A;D;E;Oui;Oui;Aucun;-;-;Faible;-10;E;Forte à moyenne;3;-;-3;A;-;D;Forte à moyenne;3;-;-3;A;-;D;Forte à moyenne;3;-;1;A;-;C;Forte à moyenne;3;1;A;C;Faible;-10;E;Faible;-;-10;-;E\n5;Traces;Altération;Mécanique;-10;1;3;D;C;A;Oui;Oui;Aucun;-;-;Forte;-10;E;Moyenne à faible;3;-;1;A;-;C;Moyenne à faible;3;-;-3;A;-;D;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte;-;-10;-;E\n6;Dégradation biologique;Exposition biologique;Historique;-3;1;3;D;C;A;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Moyenne à faible;3;-;1;A;-;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte;-;-3;-;D\n7;Dégradation biologique;Purge biologique;Économique;-3;1;3;D;C;A;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Faible;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte à moyenne;1;-3;C;D\n8;Dégradation mécanique;Exposition mécanique;Historique;-3;1;3;D;C;A;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Moyenne à faible;3;-;1;A;-;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte;-;-3;-;D\n9;Dégradation mécanique;Purge mécanique;Économique;-3;1;3;D;C;A;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Faible;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte à moyenne;1;-3;C;D\n10;Usage;Humidité;Historique;-3;3;1;D;A;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte ou faible;1;-;-3;C;-;D;Moyenne;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte ou faible;1;-3;C;D\n11;Dénaturation;Dépollution;Écologique;-3;1;3;D;C;A;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Moyenne à faible;3;-;1;A;-;C;Aucun;-;-;-;-;-;-;Forte à moyenne;3;1;A;C;Aucun;-;-;Forte;-;-3;-;D\n12;Ancienneté;Vieillissement;Mécanique;-3;1;3;D;C;A;Non;Oui;Aucun;-;-;Aucun;-;-;Fort à faible;3;1;-3;A;C;D;Fort à faible;3;1;-3;A;C;D;Fort à faible;3;1;-3;A;C;D;Fort;-;-3;-;D;Aucun;-;-;Aucun;-;-;-;-\n13;Ancienneté;Amortissement;Écologique;3;1;-3;A;C;D;Non;Oui;Aucun;-;-;Aucun;-;-;Fort à faible;3;1;-3;A;C;D;Fort à faible;3;1;-3;A;C;D;Moyen à faible;1;-;-3;C;-;D;Moyen à faible;1;-3;C;D;Aucun;-;-;Aucun;-;-;-;-\n14;Dénaturation;Durabilité conférée;Historique;1;2;3;C;B;A;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Forte;-;1;-;C;Aucun;-;-;Aucun;-;-;-;-\n15;Géométrie;Déformation;Historique;-3;1;3;D;C;A;Non;Non;Aucun;-;-;Aucun;-;-;Forte à moyenne;1;-;-3;C;-;D;Faible;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Forte;-;-3;-;D\n16;Ancienneté;Démontabilité;Esthétique;3;2;-3;A;B;D;Non;Non;Aucun;-;-;Faible;-3;D;Forte à moyenne;3;-;2;A;-;B;Forte à moyenne;3;-;2;A;-;B;Fort à faible;3;2;-3;A;B;D;Forte à moyenne;3;2;A;B;Faible;-3;D;Faible;-;-3;-;D\n17;Traces;Documentation;Historique;3;1;-3;A;C;D;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;1;-3;A;C;D;Forte à faible;3;1;-3;A;C;D;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n18;Provenance;Transport;Écologique;-3;1;3;D;C;A;Non;Non;Aucun;-;-;Aucun;-;-;Fort à faible;3;1;-3;A;C;D;Faible;3;-;-;A;-;-;Fort ou Faible;3;-;-3;A;-;D;Fort ;-;-3;-;D;Aucun;-;-;Aucun;-;-;-;-\n19;Dégradation mécanique;Feu;Écologique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Faible;-;1;-;C\n20;Usage;Durabilité naturelle;Écologique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à moyenne;3;-;2;A;-;B;Fort à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n21;Usage;Classement estimé;Mécanique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Fort à faible;3;2;1;A;B;C;Fort à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Faible;-;1;-;C\n22;Usage;Aspect;Esthétique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Fort à faible;3;2;1;A;B;C;Fort à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Faible;-;1;-;C\n23;Dénaturation;Naturalité;Esthétique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à moyenne;3;-;2;A;-;B;Forte à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Faible;-;1;-;C;Aucun;-;-;Aucun;-;-;-;-\n24;Débit;Régularité;Écologique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n25;Débit;Volumétrie;Mécanique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à moyenne;3;-;2;A;-;B;Forte;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n26;Débit;Artisanalité;Esthétique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n27;Débit;Rusticité;Esthétique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n28;Géométrie;Adaptabilité;Écologique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Faible;-;1;-;C\n29;Géométrie;Massivité;Mécanique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte;3;-;-;A;-;-;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n30;Géométrie;Industrialité;Esthétique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n31;Géométrie;Inclusivité;Esthétique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Faible;-;1;-;C\n32;Essence;Rareté écologique;Écologique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n33;Essence;Masse volumique;Mécanique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n34;Essence;Rareté historique;Historique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n35;Essence;Singularité essence;Esthétique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n36;Ancienneté;Micro-histoire;Historique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Forte à moyenne;3;-;2;A;-;C;Forte à moyenne;3;2;A;B;Aucun;-;-;Aucun;-;-;-;-\n37;Traces;Étiquetage;Écologique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Fort à faible;3;2;1;A;B;C;Fort à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n38;Traces;Singularités traces;Esthétique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n39;Provenance;Réputation;Mécanique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n40;Provenance;Macro-histoire;Historique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n41;Provenance;Territorialité;Esthétique;3;2;1;A;B;C;Non;Non;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à faible;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n42;Débit;Stabilité;Historique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Forte à faible;3;2;1;A;B;C;Forte à moyenne;3;-;2;A;-;B;Aucun;-;-;-;-;-;-;Forte à moyenne;3;2;A;B;Aucun;-;-;Faible;-;1;-;C\n43;Dégradation biologique;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n44;Dégradation mécanique;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n45;Dénaturation;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n46;Essence;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n47;Usage;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n48;Ancienneté;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n49;Provenance;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n50;Traces;Confiance;Économique;3;2;1;A;B;C;Non;Oui;Aucun;-;-;Aucun;-;-;Aucun;3;2;1;A;B;C;Aucun;3;2;1;A;B;C;Aucun;-;-;-;-;-;-;Aucun;-;-;-;-;Aucun;-;-;Aucun;-;-;-;-\n;Seuils;;;;;;;;;;;;;;;;;;122;53;-10;;;;;126;31;14;;;;;16;3;-9;;;;;16;-29;;;;-33;;;3;-68;;\n;Confiance;;;;;;;;;;;;;;;;;;24;16;8;;;;;24;16;8;;;;;;;;;;;;;;;;;;;;;;;\n;Correspondance;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n;3;A;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n;2;B;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n;1;C;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n;-3;D;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;\n;-10;E;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;";
+    const toText = (value) => (value == null ? "" : String(value)).trim();
+    const toNumber = (value) => {
+        const normalized = toText(value).replace(",", ".");
+        if (!normalized || normalized === "-") return null;
+        const num = Number(normalized);
+        return Number.isFinite(num) ? num : null;
+    };
+    const normalizeKey = (value) => toText(value).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    const buildRangeLabel = (letters, scores) => {
+        const letterValues = letters.filter(Boolean);
+        if (letterValues.length >= 2) return letterValues[0] + " -> " + letterValues[letterValues.length - 1];
+        if (letterValues.length === 1) return letterValues[0];
+        const numericValues = scores.filter((value) => Number.isFinite(value));
+        if (numericValues.length >= 2) return String(numericValues[0]) + " -> " + String(numericValues[numericValues.length - 1]);
+        if (numericValues.length === 1) return String(numericValues[0]);
+        return "—";
+    };
+    const parseGroup = (cols, indexRange) => {
+        const terms = toText(cols[indexRange[0]]);
+        if (!terms || terms.toLowerCase() === "aucun") return { terms: "Aucun", scores: [], letters: [], rangeLabel: "—" };
+        const scores = [];
+        const letters = [];
+        for (let i = indexRange[1]; i <= indexRange[2]; i++) {
+            const value = toText(cols[i]);
+            if (!value || value === "-") continue;
+            const asNumber = toNumber(value);
+            if (Number.isFinite(asNumber)) scores.push(asNumber);
+            else if (/^[A-E]$/i.test(value)) letters.push(value.toUpperCase());
+        }
+        return { terms, scores, letters, rangeLabel: buildRangeLabel(letters, scores) };
+    };
+    const lines = RAW_CSV.split(/\n/).filter((line) => line && line.trim());
+    const entries = lines.slice(3).map((line) => line.split(";")).filter((cols) => Number.isFinite(toNumber(cols[0]))).map((cols) => {
+        const rang = toNumber(cols[0]);
+        const famille = toText(cols[1]);
+        const critere = toText(cols[2]);
+        const axe = toText(cols[3]);
+        return {
+            rang,
+            famille,
+            familleKey: normalizeKey(famille),
+            critere,
+            critereKey: normalizeKey(critere),
+            axe,
+            axeKey: normalizeKey(axe),
+            criticite: /^oui$/i.test(toText(cols[10])),
+            alerte: /^oui$/i.test(toText(cols[11])),
+            scores: {
+                fort: { value: toNumber(cols[4]), letter: toText(cols[7]).toUpperCase() || "" },
+                moyen: { value: toNumber(cols[5]), letter: toText(cols[8]).toUpperCase() || "" },
+                faible: { value: toNumber(cols[6]), letter: toText(cols[9]).toUpperCase() || "" }
+            },
+            vectors: {
+                combustion: parseGroup(cols, [12, 13, 14]),
+                recyclage: parseGroup(cols, [15, 16, 17]),
+                reutilisation: parseGroup(cols, [18, 19, 24]),
+                reemploi: parseGroup(cols, [25, 26, 31])
+            },
+            rejects: {
+                combustion: parseGroup(cols, [32, 33, 38]),
+                recyclage: parseGroup(cols, [39, 40, 43]),
+                reutilisation: parseGroup(cols, [44, 45, 46]),
+                reemploi: parseGroup(cols, [47, 48, 51])
+            }
+        };
+    });
+    window.VALOBOIS_MATRICE_VECTEURS_REJETS = { source: "valoxylo_matrice_vecteurs_rejets.csv", entries };
+})();

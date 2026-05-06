@@ -451,6 +451,7 @@
                 <button type="button" class="editor-tab" id="editor-tab-notation" role="tab" aria-selected="false" aria-controls="editor-tabpanel-notation" data-tab-id="notation" tabindex="-1" data-i18n="editor.tabs.notation">Notation</button>
                 <button type="button" class="editor-tab" id="editor-tab-analyse" role="tab" aria-selected="false" aria-controls="editor-tabpanel-analyse" data-tab-id="analyse" tabindex="-1" data-i18n="editor.tabs.analyse">Analyse</button>
                 <button type="button" class="editor-tab" id="editor-tab-synthese" role="tab" aria-selected="false" aria-controls="editor-tabpanel-synthese" data-tab-id="synthese" tabindex="-1" data-i18n="editor.tabs.synthese">Synthèse</button>
+                <button type="button" class="editor-tab" id="editor-tab-matrice" role="tab" aria-selected="false" aria-controls="editor-tabpanel-matrice" data-tab-id="matrice" tabindex="-1" data-i18n="editor.tabs.matrice">Matrice</button>
             </nav>
             <div id="editor-tab-panels" class="editor-tab-panels">
             <div class="editor-tab-panel" role="tabpanel" id="editor-tabpanel-general" aria-labelledby="editor-tab-general">
@@ -3433,6 +3434,24 @@
         
 
             </div>
+
+            <div class="editor-tab-panel" role="tabpanel" id="editor-tabpanel-matrice" hidden aria-labelledby="editor-tab-matrice">
+        <section class="card mt-16 valobois-matrix-card" id="valoboisMatrixSection">
+            <header class="valobois-matrix-header">
+                <div>
+                    <h2 class="card-title" data-i18n="editor.matrix.title">Matrice Valoxylo</h2>
+                    <p class="valobois-matrix-subtitle" data-i18n="editor.matrix.subtitle">Transparence des critères, vecteurs d’orientation et rejets par filière.</p>
+                </div>
+                <div class="valobois-matrix-header-actions">
+                    <span class="valobois-matrix-custom-badge hidden" id="valoboisMatrixCustomBadge" data-i18n="editor.matrix.customActive">Configuration personnalisée active</span>
+                </div>
+            </header>
+
+            <div class="valobois-matrix-controls" id="valoboisMatrixControls"></div>
+            <div class="valobois-matrix-thresholds" id="valoboisMatrixThresholds"></div>
+            <div class="valobois-matrix-table-wrap" id="valoboisMatrixTableWrap"></div>
+        </section>
+            </div>
             </div>
 
             <div id="editor-modals-root" class="editor-modals-root">
@@ -5163,6 +5182,7 @@
     <script defer src="js/data/rarete-provenance.js"></script>
     <script defer src="js/data/termites-cerema.js"></script>
     <script defer src="js/data/merules-cerema.js"></script>
+    <script defer src="js/data/valobois-matrice-vecteurs-rejets.js"></script>
     <script defer src="js/lib/datalist-populate.js"></script>
     <script defer src="js/lib/build-standalone-html.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/11.6.0/firebase-app-compat.js"></script>
@@ -5178,6 +5198,7 @@
     <script defer src="js/app/editor-tab-notation.js"></script>
     <script defer src="js/app/editor-tab-analyse.js"></script>
     <script defer src="js/app/editor-tab-synthese.js"></script>
+    <script defer src="js/app/editor-tab-matrice.js"></script>
     <script defer src="js/app/editor-tabs.js"></script>
     <script defer src="js/lib/build-glb.js"></script>
     <script defer src="js/lib/build-dae.js"></script>

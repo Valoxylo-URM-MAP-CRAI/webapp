@@ -2,7 +2,7 @@
     'use strict';
 
     var STORAGE_KEY = 'valoboisEditorTab';
-    var ORDER = ['general', 'lots', 'notation', 'analyse', 'synthese'];
+    var ORDER = ['general', 'lots', 'notation', 'analyse', 'synthese', 'matrice'];
 
     function tabButton(id) {
         return document.getElementById('editor-tab-' + id);

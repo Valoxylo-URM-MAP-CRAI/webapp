@@ -210,6 +210,12 @@
                 notation: 'Notation',
                 analyse: 'Analyse',
                 synthese: 'Synthèse',
+                matrice: 'Matrice',
+            },
+            matrix: {
+                title: 'Matrice Valoxylo',
+                subtitle: 'Transparence des critères, vecteurs d’orientation et rejets par filière.',
+                customActive: 'Configuration personnalisée active',
             },
             lot: {
                 numbered: 'Lot {n}',
@@ -590,6 +596,12 @@
                 notation: 'Scoring',
                 analyse: 'Analysis',
                 synthese: 'Summary',
+                matrice: 'Matrix',
+            },
+            matrix: {
+                title: 'Valoxylo Matrix',
+                subtitle: 'Transparency for criteria, orientation vectors and rejection factors.',
+                customActive: 'Custom configuration active',
             },
             lot: { numbered: 'Lot {n}', newLot: 'New lot', generic: 'Lot' },
             piece: { numbered: 'Piece {n}' },

@@ -595,6 +595,7 @@ class ValoboisApp {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
         this.storageKey = 'valobois_v1';
         this.storageBackupKey = 'valobois_v1_backup';
+        this.matrixConfigStorageKey = 'valobois_matrix_config';
         this.locSitGlobalStorageKey = 'valobois_locsit_custom_global_v1';
         this.rareteCustomGlobalStorageKey = 'valobois_rarete_custom_global_v1';
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */
@@ -631,6 +632,10 @@ class ValoboisApp {
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this._locSitInfoDictionaryBound = false;
+        this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
+        this._valoboisMatrixLastThresholdError = '';
+        this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
+        this.applyValoboisMatrixConfigToData();
         this.ensureTermesBoisDatalist();
         this.ensureEssencesBoisDatalist();
         this.ensureTypeProduitDatalist();
@@ -5300,6 +5305,164 @@ class ValoboisApp {
         return defaults;
     }
 
+    getDefaultValoboisMatrixConfig() {
+        const defaults = this.getDefaultNotationModeOrientationThresholds();
+        return {
+            version: '1.0',
+            thresholds: {
+                fort: {
+                    recyclage: defaults.recyclage.fort,
+                    reutilisation: defaults.reutilisation.fort,
+                    reemploi: defaults.reemploi.fort
+                },
+                moyen: {
+                    recyclage: defaults.recyclage.moyen,
+                    reutilisation: defaults.reutilisation.moyen,
+                    reemploi: defaults.reemploi.moyen
+                },
+                faible: {
+                    recyclage: defaults.recyclage.faible,
+                    reutilisation: defaults.reutilisation.faible,
+                    reemploi: defaults.reemploi.faible
+                }
+            },
+            gates: {
+                disabled: [],
+                added: []
+            },
+            weights: {}
+        };
+    }
+
+    normalizeValoboisMatrixConfig(raw) {
+        const defaults = this.getDefaultValoboisMatrixConfig();
+        if (!raw || typeof raw !== 'object') return defaults;
+
+        const out = {
+            version: '1.0',
+            thresholds: {
+                fort: { ...defaults.thresholds.fort },
+                moyen: { ...defaults.thresholds.moyen },
+                faible: { ...defaults.thresholds.faible }
+            },
+            gates: {
+                disabled: [],
+                added: []
+            },
+            weights: {}
+        };
+
+        ['fort', 'moyen', 'faible'].forEach((mode) => {
+            const block = raw.thresholds && raw.thresholds[mode];
+            if (!block || typeof block !== 'object') return;
+            ['recyclage', 'reutilisation', 'reemploi'].forEach((orientation) => {
+                const value = parseInt(block[orientation], 10);
+                if (Number.isFinite(value) && value >= 0 && value <= 30) {
+                    out.thresholds[mode][orientation] = value;
+                }
+            });
+        });
+
+        if (raw.gates && typeof raw.gates === 'object') {
+            out.gates.disabled = Array.isArray(raw.gates.disabled)
+                ? raw.gates.disabled.map((v) => (v == null ? '' : String(v).trim())).filter(Boolean)
+                : [];
+            out.gates.added = Array.isArray(raw.gates.added)
+                ? raw.gates.added
+                    .map((entry) => ({
+                        critere: entry && entry.critere != null ? String(entry.critere).trim() : '',
+                        scoreThreshold: entry ? Number(entry.scoreThreshold) : null
+                    }))
+                    .filter((entry) => entry.critere && Number.isFinite(entry.scoreThreshold))
+                : [];
+        }
+
+        if (raw.weights && typeof raw.weights === 'object') {
+            Object.entries(raw.weights).forEach(([criterionKey, block]) => {
+                if (!criterionKey || !block || typeof block !== 'object') return;
+                const next = {};
+                ['fort', 'moyen', 'faible'].forEach((mode) => {
+                    const value = Number(block[mode]);
+                    if (Number.isFinite(value)) next[mode] = value;
+                });
+                if (Object.keys(next).length) out.weights[criterionKey] = next;
+            });
+        }
+
+        return out;
+    }
+
+    loadValoboisMatrixConfig() {
+        try {
+            const raw = localStorage.getItem(this.matrixConfigStorageKey);
+            if (!raw) return this.getDefaultValoboisMatrixConfig();
+            const parsed = JSON.parse(raw);
+            return this.normalizeValoboisMatrixConfig(parsed);
+        } catch (error) {
+            console.warn('Impossible de charger valobois_matrix_config.', error);
+            return this.getDefaultValoboisMatrixConfig();
+        }
+    }
+
+    saveValoboisMatrixConfig() {
+        try {
+            this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+            localStorage.setItem(this.matrixConfigStorageKey, JSON.stringify(this.valoboisMatrixConfig));
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+    convertMatrixThresholdsToNotationThresholds(thresholdsByMode) {
+        const defaults = this.getDefaultNotationModeOrientationThresholds();
+        const source = thresholdsByMode && typeof thresholdsByMode === 'object'
+            ? thresholdsByMode
+            : this.getDefaultValoboisMatrixConfig().thresholds;
+
+        const read = (mode, orientation) => {
+            const raw = source[mode] && source[mode][orientation];
+            const value = parseInt(raw, 10);
+            if (Number.isFinite(value) && value >= 0 && value <= 30) return value;
+            return defaults[orientation][mode];
+        };
+
+        return {
+            recyclage: {
+                fort: read('fort', 'recyclage'),
+                moyen: read('moyen', 'recyclage'),
+                faible: read('faible', 'recyclage')
+            },
+            reutilisation: {
+                fort: read('fort', 'reutilisation'),
+                moyen: read('moyen', 'reutilisation'),
+                faible: read('faible', 'reutilisation')
+            },
+            reemploi: {
+                fort: read('fort', 'reemploi'),
+                moyen: read('moyen', 'reemploi'),
+                faible: read('faible', 'reemploi')
+            }
+        };
+    }
+
+    applyValoboisMatrixConfigToData() {
+        this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        this.data.notationModeOrientationThresholds = this.convertMatrixThresholdsToNotationThresholds(this.valoboisMatrixConfig.thresholds);
+    }
+
+    hasValoboisMatrixCustomConfig() {
+        const defaults = this.getDefaultValoboisMatrixConfig();
+        const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        if (JSON.stringify(defaults.thresholds) !== JSON.stringify(current.thresholds)) return true;
+        if (Array.isArray(current.gates.disabled) && current.gates.disabled.length) return true;
+        if (Array.isArray(current.gates.added) && current.gates.added.length) return true;
+        return Object.keys(current.weights || {}).length > 0;
+    }
+
+    getValoboisActiveMatrixMode() {
+        return this.normalizeNotationMode(this.data?.notationMode) || 'fort';
+    }
+
     getEffectiveNotationModeConfig(mode) {
         if (mode === 'fort') return null;
         const customConfig = this.normalizeNotationModeCustomConfig(this.data?.notationModeCustomConfig);
@@ -6004,8 +6167,8 @@ class ValoboisApp {
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const expansion = normalize(lot?.bio?.expansion?.niveau ?? '');
         const contamination = normalize(lot?.denat?.contaminationDenat?.niveau ?? '');
-        if (expansion === 'forte') return { locked: true, reason: 'expansion-forte' };
-        if (contamination === 'forte') return { locked: true, reason: 'contamination-forte' };
+        if (this.isValoboisDefaultGateEnabled('expansion') && expansion === 'forte') return { locked: true, reason: 'expansion-forte' };
+        if (this.isValoboisDefaultGateEnabled('contamination') && contamination === 'forte') return { locked: true, reason: 'contamination-forte' };
         return { locked: false, reason: null };
     }
 
@@ -6086,7 +6249,7 @@ class ValoboisApp {
         const normalize = v => String(v || '').toLowerCase()
             .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         const alteration = normalize(lot?.traces?.alterationTraces?.niveau ?? '');
-        if (alteration === 'forte') return { locked: true, reason: 'alteration-forte' };
+        if (this.isValoboisDefaultGateEnabled('alteration') && alteration === 'forte') return { locked: true, reason: 'alteration-forte' };
         return { locked: false, reason: null };
     }
 
@@ -21792,6 +21955,7 @@ closeEvalOpModal() {
         this.renderScatterDims();
         this.renderOrientation();
         this.renderEvalOp();
+        this.renderMatrice();
         this.setupNotationResetConfirmations();
         this.refreshGlobalLockState(this.getCurrentLot());
         this.refreshAlterationLockState(this.getCurrentLot());
@@ -28005,83 +28169,107 @@ renderProvenance() {
 
     /* ---- Calculs valeurs + Seuils ---- */
 
+getValoboisScoreMappings() {
+    if (Array.isArray(this._valoboisScoreMappings) && this._valoboisScoreMappings.length) {
+        return this._valoboisScoreMappings;
+    }
+
+    this._valoboisScoreMappings = [
+        { section: 'bio', field: 'purge', category: 'economique', rang: 7 },
+        { section: 'bio', field: 'expansion', category: 'ecologique', rang: 2, gateKey: 'expansion' },
+        { section: 'bio', field: 'integriteBio', category: 'mecanique', rang: 3, gateKey: 'integrite_biologique' },
+        { section: 'bio', field: 'exposition', category: 'historique', rang: 6 },
+        { section: 'bio', field: 'confianceBio', category: 'esthetique', rang: 43 },
+
+        { section: 'mech', field: 'purgeMech', category: 'economique', rang: 9 },
+        { section: 'mech', field: 'feuMech', category: 'ecologique', rang: 19 },
+        { section: 'mech', field: 'integriteMech', category: 'mecanique', rang: 4, gateKey: 'integrite_mecanique' },
+        { section: 'mech', field: 'expositionMech', category: 'historique', rang: 8 },
+        { section: 'mech', field: 'confianceMech', category: 'esthetique', rang: 44 },
+
+        { section: 'usage', field: 'confianceUsage', category: 'economique', rang: 47 },
+        { section: 'usage', field: 'durabiliteUsage', category: 'ecologique', rang: 20 },
+        { section: 'usage', field: 'classementUsage', category: 'mecanique', rang: 21 },
+        { section: 'usage', field: 'humiditeUsage', category: 'historique', rang: 10 },
+        { section: 'usage', field: 'aspectUsage', category: 'esthetique', rang: 22 },
+
+        { section: 'denat', field: 'depollutionDenat', category: 'economique', rang: 11 },
+        { section: 'denat', field: 'contaminationDenat', category: 'ecologique', rang: 1, gateKey: 'contamination' },
+        { section: 'denat', field: 'durabiliteConfDenat', category: 'mecanique', rang: 14 },
+        { section: 'denat', field: 'confianceDenat', category: 'historique', rang: 45 },
+        { section: 'denat', field: 'naturaliteDenat', category: 'esthetique', rang: 23 },
+
+        { section: 'debit', field: 'regulariteDebit', category: 'economique', rang: 24 },
+        { section: 'debit', field: 'volumetrieDebit', category: 'ecologique', rang: 25 },
+        { section: 'debit', field: 'stabiliteDebit', category: 'mecanique', rang: 42 },
+        { section: 'debit', field: 'artisanaliteDebit', category: 'historique', rang: 26 },
+        { section: 'debit', field: 'rusticiteDebit', category: 'esthetique', rang: 27 },
+
+        { section: 'geo', field: 'adaptabiliteGeo', category: 'economique', rang: 28 },
+        { section: 'geo', field: 'massiviteGeo', category: 'ecologique', rang: 29 },
+        { section: 'geo', field: 'deformationGeo', category: 'mecanique', rang: 15 },
+        { section: 'geo', field: 'industrialiteGeo', category: 'historique', rang: 30 },
+        { section: 'geo', field: 'inclusiviteGeo', category: 'esthetique', rang: 31 },
+
+        { section: 'essence', field: 'confianceEssence', category: 'economique', rang: 46 },
+        { section: 'essence', field: 'rareteEcoEssence', category: 'ecologique', rang: 32 },
+        { section: 'essence', field: 'masseVolEssence', category: 'mecanique', rang: 33 },
+        { section: 'essence', field: 'rareteHistEssence', category: 'historique', rang: 34 },
+        { section: 'essence', field: 'singulariteEssence', category: 'esthetique', rang: 35 },
+
+        { section: 'ancien', field: 'confianceAncien', category: 'economique', rang: 48 },
+        { section: 'ancien', field: 'amortissementAncien', category: 'ecologique', rang: 13 },
+        { section: 'ancien', field: 'vieillissementAncien', category: 'mecanique', rang: 12 },
+        { section: 'ancien', field: 'microhistoireAncien', category: 'historique', rang: 36 },
+        { section: 'ancien', field: 'demontabiliteAncien', category: 'esthetique', rang: 16 },
+
+        { section: 'traces', field: 'confianceTraces', category: 'economique', rang: 50 },
+        { section: 'traces', field: 'etiquetageTraces', category: 'ecologique', rang: 37 },
+        { section: 'traces', field: 'alterationTraces', category: 'mecanique', rang: 5, gateKey: 'alteration' },
+        { section: 'traces', field: 'documentationTraces', category: 'historique', rang: 17 },
+        { section: 'traces', field: 'singularitesTraces', category: 'esthetique', rang: 38 },
+
+        { section: 'provenance', field: 'confianceProv', category: 'economique', rang: 49 },
+        { section: 'provenance', field: 'transportProv', category: 'ecologique', rang: 18 },
+        { section: 'provenance', field: 'reputationProv', category: 'mecanique', rang: 39 },
+        { section: 'provenance', field: 'macroProv', category: 'historique', rang: 40 },
+        { section: 'provenance', field: 'territorialiteProv', category: 'esthetique', rang: 41 }
+    ];
+
+    return this._valoboisScoreMappings;
+}
+
+getValoboisMatrixWeightKeyFromMapping(mapping) {
+    return mapping && Number.isFinite(Number(mapping.rang)) ? `r${Number(mapping.rang)}` : '';
+}
+
+getValoboisRawCriterionValue(entry) {
+    if (!entry) return 0;
+    if (typeof entry === 'number') return entry;
+    if (typeof entry === 'object') return parseFloat(entry.valeur) || 0;
+    return 0;
+}
+
+getValoboisEffectiveCriterionScore(lot, mapping, mode = null) {
+    const sectionData = lot && lot[mapping.section];
+    const baseValue = this.getValoboisRawCriterionValue(sectionData && sectionData[mapping.field]);
+    const activeMode = mode || this.getValoboisActiveMatrixMode();
+    const weightKey = this.getValoboisMatrixWeightKeyFromMapping(mapping);
+    const custom = this.valoboisMatrixConfig && this.valoboisMatrixConfig.weights
+        ? (this.valoboisMatrixConfig.weights[weightKey] || this.valoboisMatrixConfig.weights[mapping.field])
+        : null;
+
+    if (!custom || typeof custom !== 'object') return baseValue;
+    const override = Number(custom[activeMode]);
+    return Number.isFinite(override) ? override : baseValue;
+}
+
 getRawValueScoresForLot(lot) {
     const totals = { economique: 0, ecologique: 0, mecanique: 0, historique: 0, esthetique: 0 };
     if (!lot) return totals;
 
-    const getVal = (entry) => {
-        if (!entry) return 0;
-        if (typeof entry === 'number') return entry;
-        if (typeof entry === 'object') return parseFloat(entry.valeur) || 0;
-        return 0;
-    };
-
-    const mapping = [
-        ['bio',        'purge',               'economique'],
-        ['bio',        'expansion',           'ecologique'],
-        ['bio',        'integriteBio',        'mecanique'],
-        ['bio',        'exposition',          'historique'],
-        ['bio',        'confianceBio',        'esthetique'],
-
-        ['mech',       'purgeMech',           'economique'],
-        ['mech',       'feuMech',             'ecologique'],
-        ['mech',       'integriteMech',       'mecanique'],
-        ['mech',       'expositionMech',      'historique'],
-        ['mech',       'confianceMech',       'esthetique'],
-
-        ['usage',      'confianceUsage',      'economique'],
-        ['usage',      'durabiliteUsage',     'ecologique'],
-        ['usage',      'classementUsage',     'mecanique'],
-        ['usage',      'humiditeUsage',       'historique'],
-        ['usage',      'aspectUsage',         'esthetique'],
-
-        ['denat',      'depollutionDenat',    'economique'],
-        ['denat',      'contaminationDenat',  'ecologique'],
-        ['denat',      'durabiliteConfDenat', 'mecanique'],
-        ['denat',      'confianceDenat',      'historique'],
-        ['denat',      'naturaliteDenat',     'esthetique'],
-
-        ['debit',      'regulariteDebit',     'economique'],
-        ['debit',      'volumetrieDebit',     'ecologique'],
-        ['debit',      'stabiliteDebit',      'mecanique'],
-        ['debit',      'artisanaliteDebit',   'historique'],
-        ['debit',      'rusticiteDebit',      'esthetique'],
-
-        ['geo',        'adaptabiliteGeo',     'economique'],
-        ['geo',        'massiviteGeo',        'ecologique'],
-        ['geo',        'deformationGeo',      'mecanique'],
-        ['geo',        'industrialiteGeo',    'historique'],
-        ['geo',        'inclusiviteGeo',      'esthetique'],
-
-        ['essence',    'confianceEssence',    'economique'],
-        ['essence',    'rareteEcoEssence',    'ecologique'],
-        ['essence',    'masseVolEssence',     'mecanique'],
-        ['essence',    'rareteHistEssence',   'historique'],
-        ['essence',    'singulariteEssence',  'esthetique'],
-
-        ['ancien',     'confianceAncien',     'economique'],
-        ['ancien',     'amortissementAncien', 'ecologique'],
-        ['ancien',     'vieillissementAncien','mecanique'],
-        ['ancien',     'microhistoireAncien', 'historique'],
-        ['ancien',     'demontabiliteAncien', 'esthetique'],
-
-        ['traces',     'confianceTraces',     'economique'],
-        ['traces',     'etiquetageTraces',    'ecologique'],
-        ['traces',     'alterationTraces',    'mecanique'],
-        ['traces',     'documentationTraces', 'historique'],
-        ['traces',     'singularitesTraces',  'esthetique'],
-
-        ['provenance', 'confianceProv',       'economique'],
-        ['provenance', 'transportProv',       'ecologique'],
-        ['provenance', 'reputationProv',      'mecanique'],
-        ['provenance', 'macroProv',           'historique'],
-        ['provenance', 'territorialiteProv',  'esthetique']
-    ];
-
-    mapping.forEach(([section, field, category]) => {
-        const sectionData = lot[section];
-        if (!sectionData) return;
-        totals[category] += getVal(sectionData[field]);
+    this.getValoboisScoreMappings().forEach((mapping) => {
+        totals[mapping.category] += this.getValoboisEffectiveCriterionScore(lot, mapping);
     });
 
     // Compatibilité avec un ancien format basé sur lot.criteres
@@ -28107,6 +28295,14 @@ getValueScoresForLot(lot) {
 }  
 
 getOrientationThresholdConfig() {
+    const thresholdsByOrientation = this.ensureNotationModeOrientationThresholds();
+    const mode = this.getValoboisActiveMatrixMode();
+    const minPercent = (orientationKey) => {
+        const value = thresholdsByOrientation[orientationKey] && thresholdsByOrientation[orientationKey][mode];
+        const safeValue = Number.isFinite(Number(value)) ? Number(value) : 0;
+        return Math.round((safeValue / 30) * 100);
+    };
+
     const translate = (key, fallback) => {
         if (typeof t === 'function') {
             const translated = t(key);
@@ -28119,24 +28315,24 @@ getOrientationThresholdConfig() {
         {
             code: 'recyclage',
             orientationLabel: 'Recyclage',
-            minPercent: 30,
-            radarValue: 30,
+            minPercent: minPercent('recyclage'),
+            radarValue: minPercent('recyclage'),
             radarLabel: translate('editor.radar.thresholdRecyclable', 'Recyclable'),
             color: '#E69F00'
         },
         {
             code: 'reutilisation',
             orientationLabel: 'Réutilisation',
-            minPercent: 50,
-            radarValue: 50,
+            minPercent: minPercent('reutilisation'),
+            radarValue: minPercent('reutilisation'),
             radarLabel: translate('editor.radar.thresholdReutilisable', 'Réutilisable'),
             color: '#56B4E9'
         },
         {
             code: 'reemploi',
             orientationLabel: 'Réemploi',
-            minPercent: 70,
-            radarValue: 70,
+            minPercent: minPercent('reemploi'),
+            radarValue: minPercent('reemploi'),
             radarLabel: translate('editor.radar.thresholdReemployable', 'Réemployable'),
             color: '#009E73'
         }
@@ -28160,72 +28356,10 @@ getOrientationThresholdForPercent(percent) {
 hasAnyNotationForLot(lot) {
     if (!lot) return false;
 
-    const mapping = [
-        ['bio',        'purge'],
-        ['bio',        'expansion'],
-        ['bio',        'integriteBio'],
-        ['bio',        'exposition'],
-        ['bio',        'confianceBio'],
-
-        ['mech',       'purgeMech'],
-        ['mech',       'feuMech'],
-        ['mech',       'integriteMech'],
-        ['mech',       'expositionMech'],
-        ['mech',       'confianceMech'],
-
-        ['usage',      'confianceUsage'],
-        ['usage',      'durabiliteUsage'],
-        ['usage',      'classementUsage'],
-        ['usage',      'humiditeUsage'],
-        ['usage',      'aspectUsage'],
-
-        ['denat',      'depollutionDenat'],
-        ['denat',      'contaminationDenat'],
-        ['denat',      'durabiliteConfDenat'],
-        ['denat',      'confianceDenat'],
-        ['denat',      'naturaliteDenat'],
-
-        ['debit',      'regulariteDebit'],
-        ['debit',      'volumetrieDebit'],
-        ['debit',      'stabiliteDebit'],
-        ['debit',      'artisanaliteDebit'],
-        ['debit',      'rusticiteDebit'],
-
-        ['geo',        'adaptabiliteGeo'],
-        ['geo',        'massiviteGeo'],
-        ['geo',        'deformationGeo'],
-        ['geo',        'industrialiteGeo'],
-        ['geo',        'inclusiviteGeo'],
-
-        ['essence',    'confianceEssence'],
-        ['essence',    'rareteEcoEssence'],
-        ['essence',    'masseVolEssence'],
-        ['essence',    'rareteHistEssence'],
-        ['essence',    'singulariteEssence'],
-
-        ['ancien',     'confianceAncien'],
-        ['ancien',     'amortissementAncien'],
-        ['ancien',     'vieillissementAncien'],
-        ['ancien',     'microhistoireAncien'],
-        ['ancien',     'demontabiliteAncien'],
-
-        ['traces',     'confianceTraces'],
-        ['traces',     'etiquetageTraces'],
-        ['traces',     'alterationTraces'],
-        ['traces',     'documentationTraces'],
-        ['traces',     'singularitesTraces'],
-
-        ['provenance', 'confianceProv'],
-        ['provenance', 'transportProv'],
-        ['provenance', 'reputationProv'],
-        ['provenance', 'macroProv'],
-        ['provenance', 'territorialiteProv']
-    ];
-
-    for (const [section, field] of mapping) {
-        const sectionData = lot[section];
+    for (const mapping of this.getValoboisScoreMappings()) {
+        const sectionData = lot[mapping.section];
         if (!sectionData) continue;
-        const entry = sectionData[field];
+        const entry = sectionData[mapping.field];
         if (!entry) continue;
 
         if (typeof entry === 'number') return true;
@@ -28239,71 +28373,9 @@ hasAnyNotationForLot(lot) {
 hasNotationForCategory(lot, category) {
     if (!lot) return false;
 
-    const mapping = [
-        ['bio',        'purge',               'economique'],
-        ['bio',        'expansion',           'ecologique'],
-        ['bio',        'integriteBio',        'mecanique'],
-        ['bio',        'exposition',          'historique'],
-        ['bio',        'confianceBio',        'esthetique'],
-
-        ['mech',       'purgeMech',           'economique'],
-        ['mech',       'feuMech',             'ecologique'],
-        ['mech',       'integriteMech',       'mecanique'],
-        ['mech',       'expositionMech',      'historique'],
-        ['mech',       'confianceMech',       'esthetique'],
-
-        ['usage',      'confianceUsage',      'economique'],
-        ['usage',      'durabiliteUsage',     'ecologique'],
-        ['usage',      'classementUsage',     'mecanique'],
-        ['usage',      'humiditeUsage',       'historique'],
-        ['usage',      'aspectUsage',         'esthetique'],
-
-        ['denat',      'depollutionDenat',    'economique'],
-        ['denat',      'contaminationDenat',  'ecologique'],
-        ['denat',      'durabiliteConfDenat', 'mecanique'],
-        ['denat',      'confianceDenat',      'historique'],
-        ['denat',      'naturaliteDenat',     'esthetique'],
-
-        ['debit',      'regulariteDebit',     'economique'],
-        ['debit',      'volumetrieDebit',     'ecologique'],
-        ['debit',      'stabiliteDebit',      'mecanique'],
-        ['debit',      'artisanaliteDebit',   'historique'],
-        ['debit',      'rusticiteDebit',      'esthetique'],
-
-        ['geo',        'adaptabiliteGeo',     'economique'],
-        ['geo',        'massiviteGeo',        'ecologique'],
-        ['geo',        'deformationGeo',      'mecanique'],
-        ['geo',        'industrialiteGeo',    'historique'],
-        ['geo',        'inclusiviteGeo',      'esthetique'],
-
-        ['essence',    'confianceEssence',    'economique'],
-        ['essence',    'rareteEcoEssence',    'ecologique'],
-        ['essence',    'masseVolEssence',     'mecanique'],
-        ['essence',    'rareteHistEssence',   'historique'],
-        ['essence',    'singulariteEssence',  'esthetique'],
-
-        ['ancien',     'confianceAncien',     'economique'],
-        ['ancien',     'amortissementAncien', 'ecologique'],
-        ['ancien',     'vieillissementAncien','mecanique'],
-        ['ancien',     'microhistoireAncien', 'historique'],
-        ['ancien',     'demontabiliteAncien', 'esthetique'],
-
-        ['traces',     'confianceTraces',     'economique'],
-        ['traces',     'etiquetageTraces',    'ecologique'],
-        ['traces',     'alterationTraces',    'mecanique'],
-        ['traces',     'documentationTraces', 'historique'],
-        ['traces',     'singularitesTraces',  'esthetique'],
-
-        ['provenance', 'confianceProv',       'economique'],
-        ['provenance', 'transportProv',       'ecologique'],
-        ['provenance', 'reputationProv',      'mecanique'],
-        ['provenance', 'macroProv',           'historique'],
-        ['provenance', 'territorialiteProv',  'esthetique']
-    ];
-
-    for (const [section, field, mappedCategory] of mapping) {
-        if (mappedCategory !== category) continue;
-        const entry = lot[section] && lot[section][field];
+    for (const mapping of this.getValoboisScoreMappings()) {
+        if (mapping.category !== category) continue;
+        const entry = lot[mapping.section] && lot[mapping.section][mapping.field];
         if (!entry) continue;
         if (typeof entry === 'number') return true;
         if (typeof entry === 'object' && entry.valeur != null) return true;
@@ -28319,6 +28391,719 @@ hasNotationForCategory(lot, category) {
     }
 
     return false;
+}
+
+getValoboisMatrixDataset() {
+    const payload = window.VALOBOIS_MATRICE_VECTEURS_REJETS;
+    if (!payload || !Array.isArray(payload.entries)) return [];
+    return payload.entries;
+}
+
+normalizeValoboisGateId(value) {
+    return String(value || '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+getValoboisDefaultGateDefinitions() {
+    return [
+        { id: 'contamination', label: 'Contamination', rang: 1 },
+        { id: 'expansion', label: 'Expansion', rang: 2 },
+        { id: 'integrite_biologique', label: 'Intégrité biologique', rang: 3 },
+        { id: 'integrite_mecanique', label: 'Intégrité mécanique', rang: 4 },
+        { id: 'alteration', label: 'Altération', rang: 5 }
+    ];
+}
+
+resolveValoboisGateCriterionToMapping(rawCriterion) {
+    const value = String(rawCriterion || '').trim();
+    if (!value) return null;
+    const mappings = this.getValoboisScoreMappings();
+
+    if (/^r\d+$/i.test(value)) {
+        const rang = parseInt(value.slice(1), 10);
+        return mappings.find((item) => item.rang === rang) || null;
+    }
+
+    const normalized = this.normalizeValoboisGateId(value);
+    const byField = mappings.find((item) => this.normalizeValoboisGateId(item.field) === normalized);
+    if (byField) return byField;
+
+    const byGateKey = mappings.find((item) => item.gateKey && this.normalizeValoboisGateId(item.gateKey) === normalized);
+    if (byGateKey) return byGateKey;
+
+    const byLabel = this.getValoboisMatrixDataset().find((entry) => this.normalizeValoboisGateId(entry.critere) === normalized);
+    if (byLabel && Number.isFinite(Number(byLabel.rang))) {
+        const rang = Number(byLabel.rang);
+        return mappings.find((item) => item.rang === rang) || null;
+    }
+
+    return null;
+}
+
+isValoboisDefaultGateEnabled(gateId) {
+    const target = this.normalizeValoboisGateId(gateId);
+    const disabled = (this.valoboisMatrixConfig && this.valoboisMatrixConfig.gates && Array.isArray(this.valoboisMatrixConfig.gates.disabled))
+        ? this.valoboisMatrixConfig.gates.disabled
+        : [];
+    const aliases = {
+        contamination: ['contamination', 'contaminationdenat', 'r1'],
+        expansion: ['expansion', 'r2'],
+        integrite_biologique: ['integrite_biologique', 'integritebio', 'integrite_bio', 'r3'],
+        integrite_mecanique: ['integrite_mecanique', 'integritemech', 'integrite_mech', 'r4'],
+        alteration: ['alteration', 'alterationtraces', 'r5']
+    };
+    const targetAliases = aliases[target] || [target];
+    const disabledSet = new Set(disabled.map((entry) => this.normalizeValoboisGateId(entry)));
+    return !targetAliases.some((alias) => disabledSet.has(alias));
+}
+
+setValoboisDefaultGateEnabled(gateId, enabled) {
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const normalized = this.normalizeValoboisGateId(gateId);
+    const disabled = new Set((config.gates.disabled || []).map((entry) => this.normalizeValoboisGateId(entry)));
+
+    if (enabled) disabled.delete(normalized);
+    else disabled.add(normalized);
+
+    config.gates.disabled = Array.from(disabled);
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+setValoboisMatrixWeightValue(entry, mode, rawValue) {
+    if (!entry || !mode) return;
+    const nextValue = Number(rawValue);
+    if (!Number.isFinite(nextValue)) return;
+
+    let targetEntry = entry;
+    if (typeof entry === 'string') {
+        const match = /^r(\d+)$/i.exec(entry.trim());
+        const rank = match ? Number(match[1]) : NaN;
+        targetEntry = this.getValoboisMatrixDataset().find((item) => Number(item.rang) === rank) || null;
+    }
+    if (!targetEntry || typeof targetEntry !== 'object') return;
+
+    const isDefaultGate = Number(targetEntry.rang) >= 1 && Number(targetEntry.rang) <= 5;
+    const allowedValues = isDefaultGate ? new Set([-10, -3, 1, 2, 3]) : new Set([-3, 1, 2, 3]);
+    if (!allowedValues.has(nextValue)) return;
+
+    const key = `r${targetEntry.rang}`;
+    const defaultScore = targetEntry.scores && targetEntry.scores[mode] ? Number(targetEntry.scores[mode].value) : null;
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const current = { ...(config.weights[key] || {}) };
+
+    if (Number.isFinite(defaultScore) && nextValue === defaultScore) {
+        delete current[mode];
+    } else {
+        current[mode] = nextValue;
+    }
+
+    if (Object.keys(current).length) config.weights[key] = current;
+    else delete config.weights[key];
+
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+resetValoboisMatrixConfig() {
+    this.valoboisMatrixConfig = this.getDefaultValoboisMatrixConfig();
+    this.applyValoboisMatrixConfigToData();
+    this.saveValoboisMatrixConfig();
+    this.saveData();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+addValoboisCustomGate(criterionRef, scoreThreshold) {
+    const mapping = this.resolveValoboisGateCriterionToMapping(criterionRef);
+    const threshold = Number(scoreThreshold);
+    if (!mapping || !Number.isFinite(threshold)) return;
+
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const criterionKey = `r${mapping.rang}`;
+    const alreadyExists = config.gates.added.some((entry) => String(entry.critere) === criterionKey && Number(entry.scoreThreshold) === threshold);
+    if (alreadyExists) return;
+
+    config.gates.added.push({ critere: criterionKey, scoreThreshold: threshold });
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+removeValoboisCustomGate(index) {
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    if (!Array.isArray(config.gates.added) || index < 0 || index >= config.gates.added.length) return;
+    config.gates.added.splice(index, 1);
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+getValoboisGateTriggerInfo(lot) {
+    const mode = this.getValoboisActiveMatrixMode();
+    const defaultTriggered = [];
+    const customTriggered = [];
+
+    this.getValoboisDefaultGateDefinitions().forEach((gate) => {
+        if (!this.isValoboisDefaultGateEnabled(gate.id)) return;
+        const mapping = this.getValoboisScoreMappings().find((entry) => entry.rang === gate.rang);
+        if (!mapping) return;
+        const score = this.getValoboisEffectiveCriterionScore(lot, mapping, mode);
+        if (Number(score) <= -10) {
+            defaultTriggered.push({ ...gate, score });
+        }
+    });
+
+    const added = this.valoboisMatrixConfig && this.valoboisMatrixConfig.gates && Array.isArray(this.valoboisMatrixConfig.gates.added)
+        ? this.valoboisMatrixConfig.gates.added
+        : [];
+    added.forEach((gate) => {
+        const mapping = this.resolveValoboisGateCriterionToMapping(gate.critere);
+        if (!mapping) return;
+        const score = this.getValoboisEffectiveCriterionScore(lot, mapping, mode);
+        const threshold = Number(gate.scoreThreshold);
+        if (Number.isFinite(threshold) && Number(score) <= threshold) {
+            customTriggered.push({ mapping, score, threshold });
+        }
+    });
+
+    return {
+        triggered: defaultTriggered.length > 0 || customTriggered.length > 0,
+        defaultTriggered,
+        customTriggered
+    };
+}
+
+isValoboisMatrixThresholdOrderValid(thresholdsByMode) {
+    const modes = ['fort', 'moyen', 'faible'];
+    for (const mode of modes) {
+        const block = thresholdsByMode && thresholdsByMode[mode];
+        if (!block) continue;
+        const recyclage = Number(block.recyclage);
+        const reutilisation = Number(block.reutilisation);
+        const reemploi = Number(block.reemploi);
+        if (!(reemploi >= reutilisation && reutilisation >= recyclage)) {
+            return {
+                valid: false,
+                message: `Contrainte invalide (${mode}) : Réemploi ≥ Réutilisation ≥ Recyclage.`
+            };
+        }
+    }
+    return { valid: true, message: '' };
+}
+
+setValoboisMatrixThresholdValue(mode, orientation, nextValue) {
+    const parsed = parseInt(nextValue, 10);
+    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 30) return;
+
+    const nextConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    if (!nextConfig.thresholds[mode]) return;
+    nextConfig.thresholds[mode][orientation] = parsed;
+
+    const check = this.isValoboisMatrixThresholdOrderValid(nextConfig.thresholds);
+    if (!check.valid) {
+        this._valoboisMatrixLastThresholdError = check.message;
+        this.renderMatrice();
+        return;
+    }
+
+    this._valoboisMatrixLastThresholdError = '';
+    this.valoboisMatrixConfig = nextConfig;
+    this.applyValoboisMatrixConfigToData();
+    this.saveValoboisMatrixConfig();
+    this.saveData();
+    this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+buildValoboisMatrixConfigExportDiff() {
+    const defaults = this.getDefaultValoboisMatrixConfig();
+    const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const payload = {
+        version: '1.0',
+        exportDate: new Date().toISOString(),
+        source: 'Valoxylo'
+    };
+
+    const thresholds = {};
+    ['fort', 'moyen', 'faible'].forEach((mode) => {
+        ['recyclage', 'reutilisation', 'reemploi'].forEach((orientation) => {
+            const currentValue = current.thresholds[mode][orientation];
+            const defaultValue = defaults.thresholds[mode][orientation];
+            if (currentValue !== defaultValue) {
+                if (!thresholds[mode]) thresholds[mode] = {};
+                thresholds[mode][orientation] = currentValue;
+            }
+        });
+    });
+    if (Object.keys(thresholds).length) payload.thresholds = thresholds;
+
+    const gates = { disabled: [], added: [] };
+    if (current.gates.disabled.length) gates.disabled = [...current.gates.disabled];
+    if (current.gates.added.length) gates.added = [...current.gates.added];
+    if (gates.disabled.length || gates.added.length) payload.gates = gates;
+
+    const weights = {};
+    Object.entries(current.weights).forEach(([criterionKey, values]) => {
+        const defaultValues = defaults.weights[criterionKey] || {};
+        const nextValues = {};
+        ['fort', 'moyen', 'faible'].forEach((mode) => {
+            if (values[mode] !== undefined && values[mode] !== defaultValues[mode]) {
+                nextValues[mode] = values[mode];
+            }
+        });
+        if (Object.keys(nextValues).length) weights[criterionKey] = nextValues;
+    });
+    if (Object.keys(weights).length) payload.weights = weights;
+
+    return payload;
+}
+
+handleValoboisMatrixConfigImport(file) {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+        try {
+            const parsed = JSON.parse(String(reader.result || '{}'));
+            if (!parsed || typeof parsed !== 'object') throw new Error('Format JSON invalide.');
+            if (parsed.version && String(parsed.version) !== '1.0') {
+                throw new Error('Version de configuration non supportée.');
+            }
+
+            const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+            const merged = this.normalizeValoboisMatrixConfig({
+                ...current,
+                thresholds: {
+                    ...current.thresholds,
+                    ...(parsed.thresholds || {})
+                },
+                gates: parsed.gates ? { ...current.gates, ...parsed.gates } : current.gates,
+                weights: parsed.weights ? { ...current.weights, ...parsed.weights } : current.weights
+            });
+
+            const check = this.isValoboisMatrixThresholdOrderValid(merged.thresholds);
+            if (!check.valid) throw new Error(check.message);
+
+            const changes = [];
+            if (parsed.thresholds) changes.push('seuils');
+            if (parsed.gates) changes.push('gates');
+            if (parsed.weights) changes.push('pondérations');
+            const summary = changes.length ? changes.join(', ') : 'aucune différence détectée';
+
+            const confirmed = window.confirm(`Appliquer la configuration importée (${summary}) ?`);
+            if (!confirmed) return;
+
+            this._valoboisMatrixLastThresholdError = '';
+            this.valoboisMatrixConfig = merged;
+            this.applyValoboisMatrixConfigToData();
+            this.saveValoboisMatrixConfig();
+            this.saveData();
+            this.computeOrientation(this.getCurrentLot());
+            this.renderMatrice();
+        } catch (error) {
+            this._valoboisMatrixLastThresholdError = error && error.message ? error.message : 'Import impossible.';
+            this.renderMatrice();
+        }
+    };
+    reader.readAsText(file);
+}
+
+renderMatrice() {
+    const section = document.getElementById('valoboisMatrixSection');
+    const controlsEl = document.getElementById('valoboisMatrixControls');
+    const thresholdsEl = document.getElementById('valoboisMatrixThresholds');
+    const tableWrapEl = document.getElementById('valoboisMatrixTableWrap');
+    const customBadgeEl = document.getElementById('valoboisMatrixCustomBadge');
+    if (!section || !controlsEl || !thresholdsEl || !tableWrapEl) return;
+
+    if (customBadgeEl) {
+        customBadgeEl.classList.toggle('hidden', !this.hasValoboisMatrixCustomConfig());
+    }
+
+    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
+    const entries = this.getValoboisMatrixDataset();
+    const thresholdConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const addedGateSet = new Set((thresholdConfig.gates?.added || []).map((item) => {
+        const mapping = this.resolveValoboisGateCriterionToMapping(item && item.critere);
+        return mapping ? `r${mapping.rang}` : '';
+    }).filter(Boolean));
+
+    if (!entries.length) {
+        controlsEl.innerHTML = '';
+        thresholdsEl.innerHTML = '';
+        tableWrapEl.innerHTML = '<p class="valobois-matrix-empty">Matrice indisponible : aucune donnée embarquée.</p>';
+        return;
+    }
+
+    const families = Array.from(new Set(entries.map((entry) => entry.famille))).sort((a, b) => a.localeCompare(b));
+    const axisLabels = {
+        economique: 'Économique',
+        ecologique: 'Écologique',
+        mecanique: 'Mécanique',
+        historique: 'Historique',
+        esthetique: 'Esthétique'
+    };
+
+    const query = (ui.query || '').toLowerCase().trim();
+    const filtered = entries.filter((entry) => {
+        if (ui.axis !== 'all' && entry.axeKey !== ui.axis) return false;
+        if (ui.family !== 'all' && entry.famille !== ui.family) return false;
+        if (ui.gatesOnly && !(entry.criticite || addedGateSet.has(`r${entry.rang}`))) return false;
+        if (query && !entry.critere.toLowerCase().includes(query)) return false;
+        return true;
+    });
+
+    controlsEl.innerHTML = `
+        <div class="valobois-matrix-mode-switch" role="group" aria-label="Mode de notation">
+            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'fort' ? 'is-active' : ''}" data-valobois-matrix-mode="fort">Fort</button>
+            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'moyen' ? 'is-active' : ''}" data-valobois-matrix-mode="moyen">Moyen</button>
+            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'faible' ? 'is-active' : ''}" data-valobois-matrix-mode="faible">Faible</button>
+        </div>
+        <label class="valobois-matrix-control-field">Axe
+            <select id="valoboisMatrixAxisFilter">
+                <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Tous</option>
+                <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
+                <option value="ecologique" ${ui.axis === 'ecologique' ? 'selected' : ''}>Écologique</option>
+                <option value="mecanique" ${ui.axis === 'mecanique' ? 'selected' : ''}>Mécanique</option>
+                <option value="historique" ${ui.axis === 'historique' ? 'selected' : ''}>Historique</option>
+                <option value="esthetique" ${ui.axis === 'esthetique' ? 'selected' : ''}>Esthétique</option>
+            </select>
+        </label>
+        <label class="valobois-matrix-control-field">Famille
+            <select id="valoboisMatrixFamilyFilter">
+                <option value="all">Toutes</option>
+                ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
+            </select>
+        </label>
+        <label class="valobois-matrix-control-check">
+            <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Gates uniquement
+        </label>
+        <label class="valobois-matrix-control-check">
+            <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
+        </label>
+        <label class="valobois-matrix-control-check">
+            <input type="checkbox" id="valoboisMatrixShowRejects" ${ui.showRejects ? 'checked' : ''}> Rejets
+        </label>
+        <label class="valobois-matrix-control-field valobois-matrix-control-field--search">Recherche
+            <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Nom du critère">
+        </label>
+        <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
+        <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
+        ${ui.editMode ? '<button type="button" class="btn" id="valoboisMatrixResetConfig">Réinitialiser la configuration</button>' : ''}
+        <button type="button" class="btn" id="valoboisMatrixExportConfig">Exporter la configuration</button>
+        <button type="button" class="btn" id="valoboisMatrixImportConfig">Importer une configuration</button>
+        <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden>
+    `;
+
+    const thresholdInput = (mode, orientation) => `
+        <input type="number" min="0" max="30" value="${thresholdConfig.thresholds[mode][orientation]}" data-valobois-matrix-threshold-mode="${mode}" data-valobois-matrix-threshold-orientation="${orientation}">
+        <span>/30</span>
+        <span class="valobois-matrix-threshold-percent">(${Math.round((thresholdConfig.thresholds[mode][orientation] / 30) * 100)}%)</span>
+    `;
+    const defaultGateLabels = {
+        expansion: 'Expansion biologique forte',
+        contamination: 'Contamination forte',
+        alteration: 'Altération des traces forte',
+        integrite_biologique: 'Intégrité biologique faible',
+        integrite_mecanique: 'Intégrité mécanique faible'
+    };
+    const defaultGates = this.getValoboisDefaultGateDefinitions();
+    const customGates = thresholdConfig.gates?.added || [];
+
+    thresholdsEl.innerHTML = `
+        <div class="valobois-matrix-threshold-card">
+            <h3>Seuils actifs</h3>
+            <p>Recyclage et Combustion restent des filières par défaut (déclassement), pas des priorités positives.</p>
+            <table class="valobois-matrix-threshold-table">
+                <thead>
+                    <tr>
+                        <th>Filière</th>
+                        <th>Fort</th>
+                        <th>Moyen</th>
+                        <th>Faible</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>Recyclage</th>
+                        <td>${thresholdInput('fort', 'recyclage')}</td>
+                        <td>${thresholdInput('moyen', 'recyclage')}</td>
+                        <td>${thresholdInput('faible', 'recyclage')}</td>
+                    </tr>
+                    <tr>
+                        <th>Réutilisation</th>
+                        <td>${thresholdInput('fort', 'reutilisation')}</td>
+                        <td>${thresholdInput('moyen', 'reutilisation')}</td>
+                        <td>${thresholdInput('faible', 'reutilisation')}</td>
+                    </tr>
+                    <tr>
+                        <th>Réemploi</th>
+                        <td>${thresholdInput('fort', 'reemploi')}</td>
+                        <td>${thresholdInput('moyen', 'reemploi')}</td>
+                        <td>${thresholdInput('faible', 'reemploi')}</td>
+                    </tr>
+                </tbody>
+            </table>
+            ${ui.editMode ? `
+                <div class="valobois-matrix-gates-editor">
+                    <h4>Gates par défaut</h4>
+                    <div class="valobois-matrix-gates-list">
+                        ${defaultGates.map((gate) => `
+                            <label class="valobois-matrix-control-check">
+                                <input type="checkbox" data-valobois-default-gate-toggle="${gate.type}" ${gate.enabled ? 'checked' : ''}>
+                                ${defaultGateLabels[gate.type] || gate.type}
+                            </label>
+                        `).join('')}
+                    </div>
+                    <h4>Gates personnalisés</h4>
+                    <div class="valobois-matrix-gates-list">
+                        ${customGates.length ? customGates.map((gate, index) => `
+                            <div class="valobois-matrix-gate-row">
+                                <span>${gate.critere || 'Critère inconnu'} ≤ ${gate.scoreThreshold}</span>
+                                <button type="button" class="btn" data-valobois-added-gate-remove="${index}">Supprimer</button>
+                            </div>
+                        `).join('') : '<p class="valobois-matrix-empty">Aucun gate personnalisé.</p>'}
+                    </div>
+                    <div class="valobois-matrix-gate-add">
+                        <input type="text" id="valoboisMatrixGateCriterion" placeholder="Critère (ex: r8, contamination)">
+                        <input type="number" id="valoboisMatrixGateThreshold" min="-30" max="30" step="1" value="-10" placeholder="Seuil score">
+                        <button type="button" class="btn" id="valoboisMatrixAddGate">Ajouter un gate</button>
+                    </div>
+                </div>
+            ` : ''}
+            ${this._valoboisMatrixLastThresholdError ? `<p class="valobois-matrix-threshold-error">${this._valoboisMatrixLastThresholdError}</p>` : ''}
+        </div>
+    `;
+
+    const orientationMeta = {
+        reemploi: { label: 'Réemploi', color: '#009E73' },
+        reutilisation: { label: 'Réutilisation', color: '#56B4E9' },
+        recyclage: { label: 'Recyclage', color: '#E69F00' },
+        combustion: { label: 'Combustion', color: '#D55E00' }
+    };
+
+    const renderFlowCell = (flow) => {
+        if (!flow || flow.rangeLabel === '—') return '<span class="valobois-matrix-cell-empty">—</span>';
+        return `${flow.terms} · ${flow.rangeLabel}`;
+    };
+
+    let previousFamily = '';
+    const rowsHtml = filtered.map((entry) => {
+        const scoreBlock = entry.scores[ui.mode] || { value: null, letter: '' };
+        const weightKey = `r${entry.rang}`;
+        const overridden = this.valoboisMatrixConfig.weights && (this.valoboisMatrixConfig.weights[weightKey] || this.valoboisMatrixConfig.weights[entry.critereKey]);
+        const overrideValue = overridden && Number.isFinite(Number(overridden[ui.mode])) ? Number(overridden[ui.mode]) : null;
+        const scoreValue = Number.isFinite(overrideValue) ? overrideValue : scoreBlock.value;
+        const scoreClass = scoreValue <= -10 ? 'is-gate' : scoreValue < 0 ? 'is-negative' : scoreValue >= 2 ? 'is-positive' : 'is-neutral';
+        const familyMark = previousFamily !== entry.famille ? 'is-family-start' : '';
+        const defaultGateEnabled = !entry.defaultGateType || this.isValoboisDefaultGateEnabled(entry.defaultGateType);
+        const hasAddedGate = addedGateSet.has(`r${entry.rang}`);
+        previousFamily = entry.famille;
+
+        return `
+            <tr class="${familyMark}">
+                <td class="valobois-matrix-col-family"><span class="valobois-matrix-rank">${entry.rang}</span> ${entry.famille}</td>
+                <td class="valobois-matrix-col-criterion">
+                    <div class="valobois-matrix-criterion-name">${entry.critere}</div>
+                    <div class="valobois-matrix-badges">
+                        ${entry.criticite ? `<span class="valobois-matrix-badge valobois-matrix-badge--gate">${defaultGateEnabled ? 'Gate' : 'Gate désactivé'}</span>` : ''}
+                        ${hasAddedGate ? '<span class="valobois-matrix-badge valobois-matrix-badge--gate">Gate perso</span>' : ''}
+                        ${entry.alerte ? '<span class="valobois-matrix-badge valobois-matrix-badge--alert">Alerte</span>' : ''}
+                        ${overridden ? '<span class="valobois-matrix-badge valobois-matrix-badge--edited">Modifié</span>' : ''}
+                    </div>
+                </td>
+                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
+                <td class="valobois-matrix-col-score ${scoreClass}">
+                    ${ui.editMode
+                        ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${ui.mode}">`
+                        : `${scoreValue > 0 ? '+' : ''}${scoreValue} / ${scoreBlock.letter || '—'}`}
+                </td>
+                ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td><span class="valobois-matrix-orientation-dot" style="background:${orientationMeta[key].color}"></span>${renderFlowCell(entry.vectors[key])}</td>`).join('') : ''}
+                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-reject-cell"><span class="valobois-matrix-orientation-dot" style="background:${orientationMeta[key].color}"></span>${renderFlowCell(entry.rejects[key])}</td>`).join('') : ''}
+            </tr>
+        `;
+    }).join('');
+
+    tableWrapEl.innerHTML = `
+        <div class="valobois-matrix-results">${filtered.length} / ${entries.length} critères affichés</div>
+        <table class="valobois-matrix-table">
+            <thead>
+                <tr>
+                    <th>Rang · Famille</th>
+                    <th>Critère</th>
+                    <th>Axe</th>
+                    <th>Score ${ui.mode}</th>
+                    ${ui.showVectors ? '<th>Vect. Réemploi</th><th>Vect. Réutilisation</th><th>Vect. Recyclage</th><th>Vect. Combustion</th>' : ''}
+                    ${ui.showRejects ? '<th>Rejet Réemploi</th><th>Rejet Réutilisation</th><th>Rejet Recyclage</th><th>Rejet Combustion</th>' : ''}
+                </tr>
+            </thead>
+            <tbody>
+                ${rowsHtml || '<tr><td colspan="20" class="valobois-matrix-empty">Aucun critère ne correspond aux filtres.</td></tr>'}
+            </tbody>
+        </table>
+    `;
+
+    controlsEl.querySelectorAll('[data-valobois-matrix-mode]').forEach((button) => {
+        button.addEventListener('click', () => {
+            ui.mode = button.getAttribute('data-valobois-matrix-mode') || 'fort';
+            this.renderMatrice();
+        });
+    });
+
+    const axisFilter = document.getElementById('valoboisMatrixAxisFilter');
+    if (axisFilter) {
+        axisFilter.addEventListener('change', () => {
+            ui.axis = axisFilter.value || 'all';
+            this.renderMatrice();
+        });
+    }
+
+    const familyFilter = document.getElementById('valoboisMatrixFamilyFilter');
+    if (familyFilter) {
+        familyFilter.addEventListener('change', () => {
+            ui.family = familyFilter.value || 'all';
+            this.renderMatrice();
+        });
+    }
+
+    const gatesOnly = document.getElementById('valoboisMatrixGatesOnly');
+    if (gatesOnly) {
+        gatesOnly.addEventListener('change', () => {
+            ui.gatesOnly = !!gatesOnly.checked;
+            this.renderMatrice();
+        });
+    }
+
+    const showVectors = document.getElementById('valoboisMatrixShowVectors');
+    if (showVectors) {
+        showVectors.addEventListener('change', () => {
+            ui.showVectors = !!showVectors.checked;
+            this.renderMatrice();
+        });
+    }
+
+    const showRejects = document.getElementById('valoboisMatrixShowRejects');
+    if (showRejects) {
+        showRejects.addEventListener('change', () => {
+            ui.showRejects = !!showRejects.checked;
+            this.renderMatrice();
+        });
+    }
+
+    const searchInput = document.getElementById('valoboisMatrixSearch');
+    if (searchInput) {
+        searchInput.addEventListener('input', () => {
+            ui.query = searchInput.value || '';
+            this.renderMatrice();
+        });
+    }
+
+    const resetFiltersBtn = document.getElementById('valoboisMatrixResetFilters');
+    if (resetFiltersBtn) {
+        resetFiltersBtn.addEventListener('click', () => {
+            this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode };
+            this.renderMatrice();
+        });
+    }
+
+    const toggleEditBtn = document.getElementById('valoboisMatrixToggleEdit');
+    if (toggleEditBtn) {
+        toggleEditBtn.addEventListener('click', () => {
+            ui.editMode = !ui.editMode;
+            this.renderMatrice();
+        });
+    }
+
+    const resetConfigBtn = document.getElementById('valoboisMatrixResetConfig');
+    if (resetConfigBtn) {
+        resetConfigBtn.addEventListener('click', () => {
+            this.resetValoboisMatrixConfig();
+            this.renderMatrice();
+        });
+    }
+
+    thresholdsEl.querySelectorAll('[data-valobois-matrix-threshold-mode]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const mode = input.getAttribute('data-valobois-matrix-threshold-mode');
+            const orientation = input.getAttribute('data-valobois-matrix-threshold-orientation');
+            if (!mode || !orientation) return;
+            this.setValoboisMatrixThresholdValue(mode, orientation, input.value);
+        });
+    });
+
+    thresholdsEl.querySelectorAll('[data-valobois-default-gate-toggle]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const gateType = input.getAttribute('data-valobois-default-gate-toggle');
+            if (!gateType) return;
+            this.setValoboisDefaultGateEnabled(gateType, !!input.checked);
+        });
+    });
+
+    thresholdsEl.querySelectorAll('[data-valobois-added-gate-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const index = Number(button.getAttribute('data-valobois-added-gate-remove'));
+            if (!Number.isFinite(index)) return;
+            this.removeValoboisCustomGate(index);
+        });
+    });
+
+    const addGateBtn = document.getElementById('valoboisMatrixAddGate');
+    const addGateCriterion = document.getElementById('valoboisMatrixGateCriterion');
+    const addGateThreshold = document.getElementById('valoboisMatrixGateThreshold');
+    if (addGateBtn && addGateCriterion && addGateThreshold) {
+        addGateBtn.addEventListener('click', () => {
+            const criterionRef = String(addGateCriterion.value || '').trim();
+            const scoreThreshold = Number(addGateThreshold.value);
+            if (!criterionRef || !Number.isFinite(scoreThreshold)) return;
+            this.addValoboisCustomGate(criterionRef, scoreThreshold);
+        });
+    }
+
+    tableWrapEl.querySelectorAll('[data-valobois-score-edit-key]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const key = input.getAttribute('data-valobois-score-edit-key');
+            const mode = input.getAttribute('data-valobois-score-edit-mode');
+            if (!key || !mode) return;
+            this.setValoboisMatrixWeightValue(key, mode, input.value);
+        });
+    });
+
+    const exportBtn = document.getElementById('valoboisMatrixExportConfig');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', () => {
+            const payload = this.buildValoboisMatrixConfigExportDiff();
+            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `valobois-matrice-config-${Date.now()}.json`;
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            URL.revokeObjectURL(url);
+        });
+    }
+
+    const importBtn = document.getElementById('valoboisMatrixImportConfig');
+    const importInput = document.getElementById('valoboisMatrixImportInput');
+    if (importBtn && importInput) {
+        importBtn.addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', () => {
+            const file = importInput.files && importInput.files[0];
+            this.handleValoboisMatrixConfigImport(file);
+            importInput.value = '';
+        });
+    }
 }
 
 renderSeuils() {
@@ -30705,6 +31490,7 @@ renderRadar() {
         const scores = this.getValueScoresForLot(lot);
         const avg = (scores.economique + scores.ecologique + scores.mecanique + scores.historique + scores.esthetique) / 5;
         const percentage = (avg / 30) * 100;
+        const gateState = this.getValoboisGateTriggerInfo(lot);
 
         let label = "…";
         let code = "none";
@@ -30713,6 +31499,11 @@ renderRadar() {
             const threshold = this.getOrientationThresholdForPercent(percentage);
             label = threshold.orientationLabel;
             code = threshold.code;
+        }
+
+        if (gateState.triggered) {
+            label = 'Combustion';
+            code = 'combustion';
         }
 
         // Plafonnement : integriteBio Faible → orientation max = Réutilisation
@@ -30741,15 +31532,18 @@ renderRadar() {
         }
         // Forçage : expansion Forte ou contamination Forte → Combustion (sauf si ignoré)
         if (!this.isLockIgnored(lot)) {
-            if (_normInteg(lot?.bio?.expansion?.niveau) === 'forte') {
+            if (this.isValoboisDefaultGateEnabled('expansion') && _normInteg(lot?.bio?.expansion?.niveau) === 'forte') {
                 label = 'Combustion'; code = 'combustion';
-            } else if (_normInteg(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
+            } else if (this.isValoboisDefaultGateEnabled('contamination') && _normInteg(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
                 label = 'Combustion'; code = 'combustion';
             }
         }
 
         // Forçage combustion non ignorable : intégrité biologique ET mécanique faibles
         if (
+            this.isValoboisDefaultGateEnabled('integrite_biologique')
+            && this.isValoboisDefaultGateEnabled('integrite_mecanique')
+            &&
             _normInteg(lot?.bio?.integriteBio?.niveau) === 'faible'
             && _normInteg(lot?.mech?.integriteMech?.niveau) === 'faible'
         ) {
