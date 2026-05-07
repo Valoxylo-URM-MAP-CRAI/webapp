@@ -14050,6 +14050,21 @@ body.day-mode .inspection-ignore-box {
     margin-right: 6px;
 }
 
+.valobois-matrix-col-rank {
+    text-align: center;
+    white-space: nowrap;
+}
+
+.valobois-matrix-col-rank .valobois-matrix-rank {
+    margin-right: 0;
+}
+
+.valobois-matrix-col-gate,
+.valobois-matrix-col-alert {
+    text-align: center;
+    white-space: nowrap;
+}
+
 .valobois-matrix-badges {
     margin-top: 4px;
     display: flex;
@@ -14062,8 +14077,20 @@ body.day-mode .inspection-ignore-box {
     align-items: center;
     padding: 1px 6px;
     border-radius: 999px;
+    border: 0;
     font-size: 10px;
     font-weight: 700;
+}
+
+.valobois-matrix-badge--interactive {
+    cursor: pointer;
+    font: inherit;
+    line-height: 1.2;
+}
+
+.valobois-matrix-badge--interactive:focus-visible {
+    outline: 2px solid #1d4ed8;
+    outline-offset: 2px;
 }
 
 .valobois-matrix-badge--gate {

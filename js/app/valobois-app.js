@@ -28444,6 +28444,915 @@ resolveValoboisGateCriterionToMapping(rawCriterion) {
     return null;
 }
 
+getValoboisScoreMappingByRank(rank) {
+    const numericRank = Number(rank);
+    if (!Number.isFinite(numericRank)) return null;
+    return this.getValoboisScoreMappings().find((entry) => Number(entry.rang) === numericRank) || null;
+}
+
+getValoboisMatrixEntryByRank(rank) {
+    const numericRank = Number(rank);
+    if (!Number.isFinite(numericRank)) return null;
+    return this.getValoboisMatrixDataset().find((entry) => Number(entry.rang) === numericRank) || null;
+}
+
+getValoboisNotationRowForMapping(mapping) {
+    if (!mapping || !mapping.section || !mapping.field) return null;
+    const sectionMeta = NOTATION_MODE_SECTION_SELECTORS.find((entry) => entry.section === mapping.section);
+    if (!sectionMeta) return null;
+    return document.querySelector(`${sectionMeta.rowSelector}[${sectionMeta.fieldAttr}="${mapping.field}"]`);
+}
+
+ensureValoboisMatrixDetailModalBindings() {
+    if (this._valoboisMatrixDetailModalBindingsReady) return;
+
+    const backdrop = document.getElementById('valoboisMatrixDetailModalBackdrop');
+    const closeBtn = document.getElementById('btnCloseValoboisMatrixDetailModal');
+    const closeFooterBtn = document.getElementById('btnCloseValoboisMatrixDetailModalFooter');
+    if (!backdrop || !closeBtn || !closeFooterBtn) return;
+
+    const close = () => this.closeValoboisMatrixDetailModal();
+    closeBtn.addEventListener('click', close);
+    closeFooterBtn.addEventListener('click', close);
+    backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) close();
+    });
+
+    this._valoboisMatrixDetailModalBindingsReady = true;
+}
+
+openValoboisMatrixDetailModal(title, message) {
+    this.ensureValoboisMatrixDetailModalBindings();
+
+    const backdrop = document.getElementById('valoboisMatrixDetailModalBackdrop');
+    const titleEl = document.getElementById('valoboisMatrixDetailModalTitle');
+    const contentEl = document.getElementById('valoboisMatrixDetailModalContent');
+    if (!backdrop || !titleEl || !contentEl) return false;
+
+    titleEl.textContent = title || 'Détail Matrice';
+    this.renderDetailModalContent(contentEl, message || 'Aucune information disponible.');
+    backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden', 'false');
+    return true;
+}
+
+closeValoboisMatrixDetailModal() {
+    const backdrop = document.getElementById('valoboisMatrixDetailModalBackdrop');
+    if (!backdrop) return;
+    backdrop.classList.add('hidden');
+    backdrop.setAttribute('aria-hidden', 'true');
+}
+
+getValoboisAddedGateThresholdsForRank(rank) {
+    const numericRank = Number(rank);
+    if (!Number.isFinite(numericRank)) return [];
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    return (config.gates?.added || [])
+        .filter((gate) => {
+            const mapping = this.resolveValoboisGateCriterionToMapping(gate && gate.critere);
+            return mapping && Number(mapping.rang) === numericRank;
+        })
+        .map((gate) => Number(gate.scoreThreshold))
+        .filter((value) => Number.isFinite(value));
+}
+
+buildValoboisMatrixGenericIntegriteBioAlertModalMessage() {
+    return [
+        'Alerte Intégrité biologique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dégradation biologique ;',
+        '- champ Intégrité biologique (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle de déclenchement du cartouche :',
+        '- le cartouche s’active uniquement si Intégrité biologique = Faible ;',
+        '- avec une valeur Moyenne ou Forte, il reste inactif.',
+        '',
+        'Effet sur l’orientation :',
+        '- si Intégrité biologique = Faible, le Réemploi est plafonné à Réutilisation ;',
+        '- si Intégrité mécanique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les gates par défaut sont actifs).',
+        '',
+        'Exemple de lecture :',
+        '- score global orienté Réemploi mais Intégrité biologique = Faible -> orientation finale Réutilisation ;',
+        '- Intégrité biologique = Faible et Intégrité mécanique = Faible -> orientation finale Combustion.',
+        '',
+        'Limite importante :',
+        'cette alerte sert de garde-fou de tri ; la décision de filière doit aussi tenir compte des constats sanitaires, des possibilités de purge et des exigences des repreneurs.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericIntegriteMechAlertModalMessage() {
+    return [
+        'Alerte Intégrité mécanique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dégradation mécanique ;',
+        '- champ Intégrité mécanique (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle de déclenchement du cartouche :',
+        '- le cartouche s’active uniquement si Intégrité mécanique = Faible ;',
+        '- avec une valeur Moyenne ou Forte, il reste inactif.',
+        '',
+        'Effet sur l’orientation :',
+        '- si Intégrité mécanique = Faible, le Réemploi est plafonné à Réutilisation ;',
+        '- si Intégrité biologique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les gates par défaut sont actifs).',
+        '',
+        'Exemple de lecture :',
+        '- score global orienté Réemploi mais Intégrité mécanique = Faible -> orientation finale Réutilisation ;',
+        '- Intégrité mécanique = Faible et Intégrité biologique = Faible -> orientation finale Combustion.',
+        '',
+        'Limite importante :',
+        'cette alerte sert de garde-fou de tri ; la décision de filière doit aussi tenir compte des diagnostics structurels, des possibilités de purge/réparation et des exigences des repreneurs.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericPurgeBioModalMessage() {
+    return [
+        'Alerte Purge biologique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dégradation biologique ;',
+        '- champ Intégrité biologique (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle de déclenchement du cartouche :',
+        '- le cartouche Purge biologique s’active si Intégrité biologique = Faible ;',
+        '- avec une valeur Moyenne ou Forte, il reste inactif.',
+        '',
+        'Lecture métier :',
+        '- l’alerte indique qu’une purge forte est requise pour isoler les sections dégradées ;',
+        '- elle n’est pas un gate autonome : elle signale un besoin de tri/assainissement avant valorisation.',
+        '',
+        'Effet sur l’orientation :',
+        '- la purge elle-même ne force pas directement une orientation ;',
+        '- le même signal source (Intégrité biologique faible) peut toutefois plafonner le Réemploi à Réutilisation, voire contribuer à une Combustion si l’intégrité mécanique est aussi faible.',
+        '',
+        'Exemple de lecture :',
+        '- Intégrité biologique = Faible et intégrité mécanique non faible -> purge requise, orientation plafonnée à Réutilisation ;',
+        '- Intégrité biologique = Faible et intégrité mécanique = Faible -> la logique de double intégrité faible conduit à Combustion.',
+        '',
+        'Limite importante :',
+        'cette alerte ne valide pas à elle seule la faisabilité technique de la purge ; la décision finale dépend de l’expertise terrain, des contraintes de section résiduelle et des exigences filière.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericPurgeMechModalMessage() {
+    return [
+        'Alerte Purge mécanique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dégradation mécanique (critère Purge mécanique) ;',
+        '- et, dans la logique d’alerte actuelle, via le champ Intégrité biologique (section Dégradation biologique).',
+        '',
+        'Règle de déclenchement du cartouche (implémentation actuelle) :',
+        '- le cartouche Purge mécanique s’active si Intégrité biologique = Faible ;',
+        '- avec une valeur Moyenne ou Forte, il reste inactif.',
+        '',
+        'Lecture métier :',
+        '- l’alerte signale un besoin de purge/coupe des zones dégradées pour sécuriser la valorisation mécanique ;',
+        '- elle est un signal d’aide au tri, pas un gate autonome.',
+        '',
+        'Effet sur l’orientation :',
+        '- la purge mécanique elle-même ne force pas directement une orientation ;',
+        '- le signal source (Intégrité biologique faible) peut plafonner le Réemploi à Réutilisation, et la combinaison avec Intégrité mécanique faible peut conduire à Combustion.',
+        '',
+        'Exemple de lecture :',
+        '- Intégrité biologique = Faible, intégrité mécanique non faible -> alerte active et orientation plafonnée à Réutilisation ;',
+        '- Intégrité biologique = Faible et intégrité mécanique = Faible -> orientation finale Combustion.',
+        '',
+        'Limite importante :',
+        'cette alerte décrit le comportement actuel du moteur ; la stratégie de purge effective reste à confirmer par expertise de terrain (géométrie résiduelle, défauts, contraintes d’usage).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericBioExpositionAlertModalMessage() {
+    return [
+        'Alerte Exposition biologique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où les données sont prises dans l’interface :',
+        '- classes d’emploi effectives des pièces détaillées ;',
+        '- classes d’emploi effectives des pièces par défaut actives (quantité > 0).',
+        '',
+        'Pré-traitement appliqué :',
+        '- seules les classes reconnues (1, 2, 3.1, 3.2, 4, 5) avec volume exploitable sont retenues ;',
+        '- les volumes sont cumulés par classe d’emploi.',
+        '',
+        'Règle de sélection pour la classe retenue :',
+        '- priorité 1 : classe avec le volume cumulé le plus élevé ;',
+        '- priorité 2 : en cas d’égalité de volume, classe d’emploi la plus élevée.',
+        '',
+        'Conversion en niveau d’alerte :',
+        '- Forte : classe retenue 3.2, 4 ou 5 ;',
+        '- Moyenne : classe retenue 3.1 ;',
+        '- Faible : classe retenue 1 ou 2 ;',
+        '- aucune alerte exploitable si aucune classe/volume valide n’est disponible.',
+        '',
+        'Exemple de lecture :',
+        '- classe 2 = 4,1 m3 ; classe 3.1 = 4,1 m3 ; classe 1 = 1,2 m3 ;',
+        '- volumes à égalité entre 2 et 3.1 -> la classe la plus élevée est retenue ;',
+        '- résultat : alerte Moyenne.',
+        '',
+        'Limite importante :',
+        'cette alerte repose sur les classes d’emploi et les volumes saisis ; elle ne remplace pas une expertise sanitaire in situ (humidité réelle, attaques biologiques observées, conditions d’exposition futures).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericMechExpositionAlertModalMessage() {
+    return [
+        'Alerte Exposition mécanique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où les données sont prises dans l’interface :',
+        '- longévité estimée des pièces détaillées ;',
+        '- longévité estimée des pièces par défaut actives (quantité > 0).',
+        '',
+        'Pré-traitement appliqué :',
+        '- seules les pièces avec volume exploitable sont retenues ;',
+        '- les contributions sont regroupées par niveau de longévité estimée (N, L1, L2, L3) ;',
+        '- les volumes sont cumulés pour chaque niveau.',
+        '',
+        'Règle de sélection du niveau retenu :',
+        '- priorité 1 : niveau avec le volume cumulé le plus élevé ;',
+        '- priorité 2 : en cas d’égalité de volume, niveau le plus défavorable (N puis L1 puis L2 puis L3).',
+        '',
+        'Conversion en niveau d’alerte :',
+        '- Forte : longévité retenue N ou L1 ;',
+        '- Moyenne : longévité retenue L2 ;',
+        '- Faible : longévité retenue L3 ;',
+        '- aucune alerte exploitable si aucun niveau/volume valide n’est disponible.',
+        '',
+        'Exemple de lecture :',
+        '- L2 = 5,0 m3 ; L3 = 5,0 m3 ; L1 = 1,2 m3 ;',
+        '- volumes à égalité entre L2 et L3 -> le niveau le plus défavorable est retenu ;',
+        '- résultat : alerte Moyenne (L2).',
+        '',
+        'Limite importante :',
+        'cette alerte dépend de la qualité des données de longévité et de volume ; elle ne remplace pas une vérification structurelle (état réel, sollicitations, destination future, contraintes d’usage).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericHumidityAlertModalMessage() {
+    return [
+        'Humidité d\'usage.',
+        '',
+        'Cette alerte évalue le niveau d\'humidité moyen du bois dans le lot, à partir des valeurs renseignées pièce par pièce. L\'humidité conditionne la durabilité mécanique et biologique du bois ainsi que sa compatibilité avec les classes d\'emploi attendues.',
+        '',
+        'Source des données.',
+        'Le calcul utilise le champ « Humidité » des formulaires de pièces détaillées et de pièces par défaut. Lorsqu\'une pièce ne renseigne pas d\'humidité propre, la valeur portée par la pièce par défaut correspondante est utilisée. Si aucune valeur n\'est disponible, l\'alerte reste non exploitable.',
+        '',
+        'Calcul.',
+        'Moyenne arithmétique simple de toutes les humidités renseignées sur le lot (pièces détaillées + pièces par défaut actives). Chaque formulaire contribue à parts égales, indépendamment de la quantité ou du volume de la pièce.',
+        '',
+        'Seuils.',
+        '- Forte (rouge) : moyenne ≥ 22 % — bois fortement humide, risque élevé de déformation, de moisissures ou d\'incompatibilité avec la mise en œuvre.',
+        '- Moyenne (orange) : moyenne comprise entre 8 % et 22 % (exclusif) — humidité intermédiaire, à mettre en regard avec la classe d\'emploi et les conditions d\'utilisation prévues.',
+        '- Faible (vert) : moyenne ≤ 8 % — bois très sec, optimal pour la plupart des usages en intérieur sec ; à surveiller si l\'environnement final est plus humide.',
+        '',
+        'Effet sur l\'orientation.',
+        'Une humidité Forte pénalise l\'orientation (le bois humide présente un risque accru). Une humidité Moyenne est considérée comme la plage optimale et contribue positivement à l\'orientation. Une humidité Faible est intermédiaire entre les deux extrêmes.',
+        '',
+        'Exemple.',
+        'Lot avec 3 pièces à 15 %, 20 % et 25 % → moyenne = 20 % → alerte Moyenne.',
+        'Lot avec 2 pièces à 25 % et 26 % → moyenne = 25,5 % → alerte Forte.',
+        '',
+        'Limite.',
+        'La moyenne arithmétique ne pondère pas par le volume ou la quantité de chaque pièce. Un lot majoritairement constitué de petites pièces très humides peut masquer des pièces volumineuses mieux séchées, et inversement. Croiser avec le détail des valeurs individuelles pour une lecture fine.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericVieillissementModalMessage() {
+    return [
+        "Vieillissement.",
+        "",
+        "Cette alerte évalue le degré de vieillissement du bois en combinant la durée d'usage effective avec cinq indicateurs : déformation géométrique, exposition biologique, exposition mécanique, intégrité biologique et humidité d'usage. Le résultat conditionne directement l'orientation du lot.",
+        "",
+        "Source des données.",
+        "- Durée d'usage : différence entre l'année d'évaluation (métadonnées du bilan) et l'année de mise en service moyenne des pièces.",
+        "- Déformation géométrique : notation dans l'onglet Déformation (Géométrie).",
+        "- Exposition biologique : notation dans l'onglet Biologie.",
+        "- Exposition mécanique : notation dans l'onglet Mécanique.",
+        "- Intégrité biologique : notation dans l'onglet Biologie.",
+        "- Humidité d'usage : notation dans l'onglet Usage.",
+        "",
+        "Règle prioritaire — Intégrité biologique faible.",
+        "Si l'intégrité biologique est notée Faible, le vieillissement est automatiquement classé Forte, quel que soit le score agrégé des autres critères. Cette règle traduit une dégradation biologique avancée jugée rédhibitoire.",
+        "",
+        "Calcul du score (hors règle prioritaire).",
+        "Chaque critère contribue au score selon une notation naturelle (plus le lot est en bon état, plus le score est élevé) :",
+        "- Durée d'usage : > 150 ans = 0 pt, 51 à 150 ans = +1 pt, ≤ 50 ans = +2 pts.",
+        "- Déformation géométrique : Forte = 0 pt, Moyenne = +1 pt, Faible = +2 pts.",
+        "- Exposition biologique : Forte = 0 pt, Moyenne = +1 pt, Faible = +2 pts.",
+        "- Exposition mécanique : Forte = 0 pt, Moyenne = +1 pt, Faible = +2 pts.",
+        "- Intégrité biologique : Forte = +2 pts, Moyenne = +1 pt, Faible = 0 pt (rédhibitoire, voir règle prioritaire).",
+        "- Humidité d'usage : Forte = 0 pt, Moyenne = +2 pts, Faible = +1 pt.",
+        "",
+        "Seuils.",
+        "Score maximum possible : 12 pts (toutes conditions optimales, durée ≤ 50 ans).",
+        "- Faible (vert) : score ≥ 9 — faible vieillissement, lot bien conservé.",
+        "- Moyen (orange) : score ≥ 5 — vieillissement modéré, vigilance recommandée.",
+        "- Fort (rouge) : score < 5 — vieillissement marqué, lot fortement dégradé.",
+        "",
+        "Effet sur l'orientation.",
+        "Un vieillissement Faible contribue très positivement à l'orientation du lot (+3). Un vieillissement Moyen a un effet légèrement positif (+1). Un vieillissement Fort pénalise très fortement l'orientation (-3).",
+        "",
+        "Exemple.",
+        "Lot mis en service en 1980, évalué en 2025 (45 ans) : +2 pts durée. Déformation Moyenne : +1 pt. Exposition bio Faible : +2 pts. Exposition méca Moyenne : +1 pt. Intégrité bio Forte : +2 pts. Humidité Moyenne : +2 pts. Score = 10 → Vieillissement Faible.",
+        "",
+        "Limite.",
+        "La donnée de durée dépend de la qualité de saisie des dates de mise en service. Sans date de mise en service, la durée reste indéterminée et l'alerte n'est pas exploitable si moins de 2 autres critères sont disponibles."
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericRareteEcoAlertModalMessage() {
+    return [
+        'Rareté écologique.',
+        '',
+        'Cette alerte est basée sur l’essence dominante du lot.',
+        '',
+        'Logique générique :',
+        '- priorité 1 : essence avec le volume cumulé le plus élevé,',
+        '- priorité 2 : à volume égal, essence avec le prix cumulé le plus élevé.',
+        '',
+        'Couleur de l’alerte :',
+        '- Verte : essence dominante classée Commune',
+        '- Orange : essence dominante classée Peu commune',
+        '- Rouge : essence dominante classée Rare'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericDurabiliteNaturelleModalMessage() {
+    const usageDetails = this.getUsageDetailContents();
+    const message = usageDetails && usageDetails.durabiliteUsage;
+    if (typeof message === 'string' && message.trim()) {
+        return message;
+    }
+
+    return [
+        'Durabilité naturelle.',
+        '',
+        'Noter la durabilité naturelle de l’essence identifiée.',
+        '',
+        'Seuils génériques :',
+        '- Forte : classes 1 ou 2 vis-à-vis des champignons, avec niveaux favorables pour les autres agents biologiques.',
+        '- Moyenne : classe 3, ou profils intermédiaires sans critère rédhibitoire.',
+        '- Faible : classes 4 ou 5, ou présence d’un critère défavorable majeur (ex. DC S).',
+        '',
+        'Règles d’application : retenir la valeur la plus défavorable en cas de plage, considérer les limites de données (n/d) selon la classe d’emploi et appliquer la prudence réglementaire (NF EN 350 / NF EN 335).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericNaturaliteModalMessage() {
+    return [
+        'Alerte Naturalité.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Données réellement utilisées par l’alerte :',
+        '- le type de produit retenu pour le lot,',
+        '- la présence d’un diamètre renseigné au niveau lot, pièce détaillée ou pièce par défaut.',
+        '',
+        'Règle de déclenchement :',
+        '- alerte forte si le type de produit est BBS, BNT ou BENS et qu’un diamètre est renseigné ;',
+        '- alerte moyenne si le type de produit est BRS, CC, BLC, CLT, BO, BF, BMA ou BMR ;',
+        '- aucune alerte exploitable dans les autres cas.',
+        '',
+        'Lecture métier de cette alerte :',
+        '- elle sert d’indice rapide sur un potentiel de naturalité à partir de la morphologie et du niveau de transformation du produit ;',
+        '- elle ne vérifie pas à elle seule l’absence de finition, de peinture, de vernis ou de traitement ;',
+        '- elle ne remplace donc pas la notation du critère Naturalité, qui reste plus complète et plus exigeante.',
+        '',
+        'Limite importante :',
+        'une alerte forte ne signifie pas automatiquement que la notation Naturalité doit être forte ; elle indique seulement qu’un profil compatible avec une forte naturalité est plausible et mérite vérification.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericRegulariteModalMessage() {
+    return [
+        'Alerte Régularité.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Données réellement utilisées par l’alerte :',
+        '- la présence d’un diamètre renseigné sur au moins une pièce détaillée ;',
+        '- la présence d’un diamètre renseigné sur au moins une pièce par défaut ;',
+        '- la cohérence entre le périmètre saisi d’une section rectangulaire et son périmètre théorique 2 x (L + E).',
+        '',
+        'Règle de déclenchement :',
+        '- l’alerte s’active dès qu’au moins une de ces conditions est vraie ;',
+        '- elle ne produit pas de niveau fort/moyen/faible : son état est binaire (alerte présente ou non).',
+        '',
+        'Tolérance géométrique appliquée :',
+        '- une section rectangulaire est considérée incohérente si |P mesuré - 2 x (L + E)| dépasse ±10 mm.',
+        '',
+        'Lecture métier de cette alerte :',
+        '- elle signale un besoin de vérification sur la forme réelle de la pièce ou sur la qualité de la saisie ;',
+        '- un diamètre renseigné peut indiquer une pièce ronde ou assimilée ;',
+        '- une incohérence de périmètre peut signaler un problème de mesure, une forme non strictement rectangulaire, ou un mélange de conventions de saisie.',
+        '',
+        'Limite importante :',
+        'cette alerte n’attribue pas à elle seule une note de régularité ; elle sert uniquement à attirer l’attention sur des indices géométriques nécessitant un contrôle.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericVolumetrieModalMessage() {
+    return [
+        'Alerte Volumétrie.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Donnée réellement utilisée par l’alerte :',
+        '- le volume unitaire du lot (m3), tel que calculé ou renseigné dans le Détail du lot.',
+        '',
+        'Règle de déclenchement :',
+        '- Forte si le volume unitaire est strictement supérieur à 0,1 m3 ;',
+        '- Moyenne si le volume unitaire est compris entre 0,05 et 0,1 m3 ;',
+        '- Faible si le volume unitaire est strictement inférieur à 0,05 m3 ;',
+        '- Aucune alerte exploitable si la valeur est absente, nulle ou invalide.',
+        '',
+        'Lecture métier de cette alerte :',
+        '- elle donne une indication de gabarit moyen des pièces composant le lot ;',
+        '- des volumes élevés orientent généralement vers des potentiels de valorisation différents de ceux de pièces très petites.',
+        '',
+        'Limite importante :',
+        'la volumétrie seule ne suffit pas à déterminer l’orientation finale : elle doit être lue avec les autres alertes (contamination, intégrité, exposition, etc.) et les règles de gate.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericStabiliteModalMessage() {
+    return [
+        'Alerte Stabilité.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où les données sont prises dans l’interface :',
+        '- dans le lot ouvert, à partir des dimensions affichées dans le Détail du lot ;',
+        '- si des moyennes sont disponibles (issues des formulaires de pièces), ce sont elles qui sont utilisées en priorité ;',
+        '- sinon, l’alerte utilise les dimensions saisies directement au niveau du lot (Longueur, Largeur, Épaisseur) ;',
+        '- si un Diamètre est renseigné, il est pris en compte pour le calcul.',
+        '',
+        'Règles de préparation avant calcul :',
+        '- si un diamètre valide est présent, il remplace Largeur et Épaisseur (section assimilée circulaire) ;',
+        '- E est ensuite forcée comme la plus grande des deux dimensions transversales pour stabiliser le calcul des ratios ;',
+        '- si Longueur ou dimensions transversales manquent, l’alerte est non exploitable.',
+        '',
+        'Calculs appliqués :',
+        '- ratio L/E (élancement longitudinal) ;',
+        '- ratio l/E (proportion transversale).',
+        '',
+        'Seuils de décision :',
+        '- Forte : L/E ≤ 18 et l/E ≥ 0,4 ;',
+        '- Moyenne : combinaisons intermédiaires (ex. L/E ≤ 18 avec l/E entre 0,25 et 0,4, ou 18 < L/E ≤ 28 avec l/E ≥ 0,25) ;',
+        '- Faible : L/E > 28 ou l/E < 0,25.',
+        '',
+        'Exemple chiffré :',
+        '- données retenues : L = 4200 mm, l = 120 mm, E = 80 mm ;',
+        '- normalisation transverse : E = 120 mm et l = 80 mm (E prend la plus grande valeur) ;',
+        '- calculs : L/E = 4200/120 = 35 ; l/E = 80/120 = 0,67 ;',
+        '- résultat : alerte Faible (car L/E > 28, malgré un l/E correct).',
+        '',
+        'Lecture métier de cette alerte :',
+        '- elle signale un risque de comportement défavorable lié à la géométrie de la pièce (élancement et section) ;',
+        '- plus la pièce est élancée et/ou mince, plus la stabilité potentielle est sensible.',
+        '',
+        'Limite importante :',
+        'cette alerte ne remplace pas une vérification mécanique complète : les conditions d’appui, les assemblages, l’état sanitaire du bois et les actions réelles restent déterminants pour la performance en service.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericMacroHistoireModalMessage() {
+    return [
+        'Alerte Macro-histoire.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où les données sont prises dans l’interface :',
+        '- dans le lot ouvert, à partir des niveaux notés dans les sections Ancien usage, Provenance et Essence ;',
+        '- contributeurs utilisés : Amortissement, Réputation, Micro-histoire et Rareté commerciale.',
+        '',
+        'Pondérations appliquées à chaque contributeur renseigné :',
+        '- Fort(e) = +2',
+        '- Moyen(ne) = +1',
+        '- Faible = +0',
+        '',
+        'Règle d’état du cartouche :',
+        '- aucune alerte exploitable si moins de 2 contributeurs sont disponibles ;',
+        '- alerte forte si score agrégé ≥ 6 et au moins 3 contributeurs disponibles ;',
+        '- alerte moyenne si score agrégé ≥ 2 ;',
+        '- alerte faible sinon.',
+        '',
+        'Exemple chiffré :',
+        '- Amortissement = Moyen (+1), Réputation = Forte (+2), Micro-histoire = Faible (+0), Rareté commerciale = Moyenne (+1) ;',
+        '- score agrégé = 1 + 2 + 0 + 1 = 4 ;',
+        '- résultat : alerte Moyenne (score ≥ 2 mais < 6).',
+        '',
+        'Lecture métier de cette alerte :',
+        '- elle signale la solidité narrative et patrimoniale potentielle du lot à partir d’indices convergents ;',
+        '- plus les contributeurs historiques sont nombreux et favorables, plus l’alerte monte.',
+        '',
+        'Limite importante :',
+        'cette alerte ne constitue pas une preuve documentaire à elle seule ; la décision finale doit rester cohérente avec les pièces justificatives disponibles (archives, traçabilité, contexte d’usage).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericContaminationModalMessage() {
+    return [
+        'Alerte Contamination.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dénaturation ;',
+        '- champ Contamination (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle d’alerte et de gate :',
+        '- le signal critique est la valeur Forte ;',
+        '- en logique par défaut, Contamination Forte active un gate disqualifiant ;',
+        '- ce gate force l’orientation vers Combustion (sauf désactivation explicite du gate dans la matrice).',
+        '',
+        'Effet sur l’orientation :',
+        '- si le gate contamination est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
+        '- si le gate est désactivé dans la personnalisation matrice, la contamination reste visible comme alerte mais ne force plus automatiquement la Combustion.',
+        '',
+        'Exemple de lecture :',
+        '- Contamination = Forte, gate contamination activé -> orientation forcée Combustion ;',
+        '- Contamination = Forte, gate contamination désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
+        '',
+        'Limite importante :',
+        'cette alerte est un mécanisme de prudence pour le tri d’orientation ; la recevabilité finale en filière dépend toujours des exigences du repreneur et des justificatifs disponibles (analyses, traçabilité, conformité réglementaire).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericExpansionModalMessage() {
+    return [
+        'Alerte Expansion biologique.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Dégradation biologique ;',
+        '- champ Expansion (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle d’alerte et de gate :',
+        '- le signal critique est la valeur Forte ;',
+        '- en logique par défaut, Expansion Forte active un gate disqualifiant ;',
+        '- ce gate force l’orientation vers Combustion (sauf désactivation explicite du gate dans la matrice, ou forçage ignoré dans la notation).',
+        '',
+        'Effet sur l’orientation :',
+        '- si le gate expansion est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
+        '- si le gate est désactivé dans la personnalisation matrice, l’expansion reste visible comme alerte mais ne force plus automatiquement la Combustion.',
+        '',
+        'Exemple de lecture :',
+        '- Expansion = Forte, gate expansion activé -> orientation forcée Combustion ;',
+        '- Expansion = Forte, gate expansion désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
+        '',
+        'Limite importante :',
+        'cette alerte est un mécanisme de prudence pour le tri d’orientation ; la décision finale dépend aussi des constats d’expertise, de l’état sanitaire réel des pièces et des exigences des filières.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericDurabiliteConferreeModalMessage() {
+    return [
+        'Alerte Durabilité conférée.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où les données sont prises dans l’interface :',
+        '- dans le lot ouvert, section Dénaturation : champs Durabilité conférée et Dépollution ;',
+        '- et, pour les cas de neutralisation, dans les sections Dégradation biologique, Dégradation mécanique et Dénaturation (Expansion, Contamination, Intégrités bio/mécanique).',
+        '',
+        'Règle de déclenchement du cartouche :',
+        '- le cartouche devient actif si Durabilité conférée est à Forte ET que Dépollution n’est pas à Forte ;',
+        '- sinon le cartouche reste inactif.',
+        '',
+        'Cas où l’alerte est neutralisée même si la condition principale est vraie :',
+        '- si un forçage Combustion est déjà actif (ex. Expansion forte ou Contamination forte non ignorée) ;',
+        '- si les deux intégrités (biologique et mécanique) sont simultanément à Faible.',
+        '',
+        'Effet sur l’orientation (quand non neutralisée) :',
+        '- la règle propose Réutilisation par défaut ;',
+        '- si aucune logique de Combustion n’est active, l’orientation est positionnée sur Réutilisation.',
+        '',
+        'Exemple de lecture :',
+        '- Durabilité conférée = Forte, Dépollution = Moyenne, pas de gate Combustion actif -> alerte active et orientation proposée Réutilisation ;',
+        '- mêmes valeurs, mais Contamination = Forte -> la logique Combustion prend le dessus et neutralise cette alerte.',
+        '',
+        'Limite importante :',
+        'cette alerte exprime une logique de priorisation dans l’outil ; la filière finale dépend aussi des preuves de traitement/dépollution et des critères d’acceptation des opérateurs.'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericAlterationModalMessage() {
+    return [
+        'Alerte Altération.',
+        '',
+        'Cette modale décrit la logique du cartouche d’alerte, et non la définition complète du critère de notation.',
+        '',
+        'Où la donnée est prise dans l’interface :',
+        '- dans le lot ouvert, section Traces ;',
+        '- champ Altération (niveau Forte / Moyenne / Faible).',
+        '',
+        'Règle de déclenchement :',
+        '- le cartouche s’active si Altération = Forte ;',
+        '- la logique de verrouillage associée (soft-lock) ne s’applique que si le gate Altération est actif dans la matrice.',
+        '',
+        'Effet métier principal :',
+        '- en cas d’Altération forte avec gate actif, la notation est gelée (hors critères d’exception) tant que le verrou n’est pas levé ;',
+        '- ce mécanisme vise à éviter de conserver des notes potentiellement obsolètes après constat d’altération majeure.',
+        '',
+        'Issue possible de la levée du verrou :',
+        '- Ignorer : dégel sans réinitialiser les notes ;',
+        '- Révision : réinitialisation ciblée des groupes de critères et possibilité de fixer une orientation forcée.',
+        '',
+        'Exemple de lecture :',
+        '- Altération = Forte, gate actif -> cartouche actif et verrouillage de la notation ;',
+        '- après révision avec orientation forcée, cette orientation est prioritaire dans le calcul final.',
+        '',
+        'Limite importante :',
+        'dans la matrice, cette modale est informative et générique : elle n’exécute aucune action sur le lot courant (pas de dégel, pas de révision).'
+    ].join('\n');
+}
+
+buildValoboisMatrixGenericConfidenceAlertModalMessage(label) {
+    return [
+        `Confiance ${label || ''}`.trim(),
+        '',
+        'Cette alerte dépend du statut de l’étude et du niveau de confiance noté pour le critère.',
+        '',
+        'Règle appliquée :',
+        '- Pré-diagnostic / En cours : Forte = vert, Moyenne ou Faible = orange, pas de note = rouge.',
+        '- Finalisé / Révision / Cloturé : Forte = vert, toute autre situation = rouge.'
+    ].join('\n');
+}
+
+getValoboisMatrixGenericModalSpec(mapping, badgeType = 'alert') {
+    if (!mapping) return null;
+
+    const rank = Number(mapping.rang);
+    const entry = this.getValoboisMatrixEntryByRank(rank);
+    const customGateThresholds = this.getValoboisAddedGateThresholdsForRank(rank);
+    const key = `${mapping.section}.${mapping.field}`;
+
+    if (badgeType === 'gate' && customGateThresholds.length && !mapping.gateKey) {
+        return {
+            title: `Gate personnalisé — ${entry?.critere || 'Critère'}`,
+            message: [
+                `Le critère « ${entry?.critere || 'Critère'} » porte un gate personnalisé dans la matrice.`,
+                '',
+                'Logique appliquée :',
+                `- si le score effectif du critère descend à un seuil de gate configuré (${customGateThresholds.join(', ')}), l’orientation est forcée vers Combustion.`,
+                '- cette règle est une personnalisation de matrice, indépendante du lot courant affiché.',
+                '',
+                'Cette modale expose la règle générique du gate, pas les contributeurs d’un lot particulier.'
+            ].join('\n')
+        };
+    }
+
+    const specs = {
+        'bio.purge': {
+            title: 'Alerte Purge nécessaire',
+            message: this.buildValoboisMatrixGenericPurgeBioModalMessage()
+        },
+        'bio.expansion': {
+            title: 'Alerte Expansion biologique',
+            message: this.buildValoboisMatrixGenericExpansionModalMessage()
+        },
+        'bio.integriteBio': {
+            title: 'Alerte Intégrité biologique',
+            message: this.buildValoboisMatrixGenericIntegriteBioAlertModalMessage()
+        },
+        'bio.exposition': {
+            title: 'Alerte Exposition biologique',
+            message: this.buildValoboisMatrixGenericBioExpositionAlertModalMessage()
+        },
+        'bio.confianceBio': {
+            title: 'Alerte Confiance biologique',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('biologique')
+        },
+        'mech.purgeMech': {
+            title: 'Alerte Purge nécessaire',
+            message: this.buildValoboisMatrixGenericPurgeMechModalMessage()
+        },
+        'mech.feuMech': {
+            title: 'Alerte Feu',
+            message: [
+                'Feu.',
+                '',
+                'Cette alerte repose sur un score agrégé à partir de cinq contributeurs : Volumétrie, Humidité, Massivité, Masse volumique et Expansion biologique.',
+                '',
+                'Pondérations :',
+                '- Volumétrie : Forte +2, Moyenne +1, Faible -2',
+                '- Humidité : Forte +0, Moyenne +2, Faible -2',
+                '- Massivité : Forte +2, Moyenne +1, Faible -2',
+                '- Masse volumique : Forte +2, Moyenne +1, Faible -1',
+                '- Expansion biologique : Forte -3, Moyenne 0, Faible +2',
+                '',
+                'Règle d’état :',
+                '- forte si au moins 4 critères sont disponibles et score ≥ 6 sans signal critique,',
+                '- moyenne si score ≥ 2,',
+                '- faible sinon.',
+                'Des signaux critiques peuvent aussi dégrader le résultat (expansion forte, faible volumétrie combinée à une faible massivité, humidité faible avec facteur aggravant).'
+            ].join('\n')
+        },
+        'mech.integriteMech': {
+            title: 'Alerte Intégrité mécanique',
+            message: this.buildValoboisMatrixGenericIntegriteMechAlertModalMessage()
+        },
+        'mech.expositionMech': {
+            title: 'Alerte Exposition mécanique',
+            message: this.buildValoboisMatrixGenericMechExpositionAlertModalMessage()
+        },
+        'mech.confianceMech': {
+            title: 'Alerte Confiance mécanique',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('mécanique')
+        },
+        'usage.confianceUsage': {
+            title: 'Alerte Confiance usage',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('usage')
+        },
+        'usage.humiditeUsage': {
+            title: 'Alerte Humidité',
+            message: this.buildValoboisMatrixGenericHumidityAlertModalMessage()
+        },
+        'usage.durabiliteUsage': {
+            title: 'Alerte — Durabilité naturelle',
+            message: this.buildValoboisMatrixGenericDurabiliteNaturelleModalMessage()
+        },
+        'denat.contaminationDenat': {
+            title: 'Alerte Contamination',
+            message: this.buildValoboisMatrixGenericContaminationModalMessage()
+        },
+        'denat.durabiliteConfDenat': {
+            title: 'Alerte Durabilité conférée',
+            message: this.buildValoboisMatrixGenericDurabiliteConferreeModalMessage()
+        },
+        'denat.confianceDenat': {
+            title: 'Alerte Confiance dénaturation',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('dénaturation')
+        },
+        'denat.naturaliteDenat': {
+            title: 'Alerte — Naturalité',
+            message: this.buildValoboisMatrixGenericNaturaliteModalMessage()
+        },
+        'debit.regulariteDebit': {
+            title: 'Alerte Régularité',
+            message: this.buildValoboisMatrixGenericRegulariteModalMessage()
+        },
+        'debit.volumetrieDebit': {
+            title: 'Alerte Volumétrie',
+            message: this.buildValoboisMatrixGenericVolumetrieModalMessage()
+        },
+        'debit.stabiliteDebit': {
+            title: 'Alerte Stabilité',
+            message: this.buildValoboisMatrixGenericStabiliteModalMessage()
+        },
+        'debit.artisanaliteDebit': {
+            title: 'Alerte Artisanalité',
+            message: [
+                'Artisanalité.',
+                '',
+                'Cette alerte dépend du type de produit.',
+                '',
+                'Catégories fortes : BLC, CLT, BMA, BMR, CC, BF',
+                'Catégories moyennes : BRS, BO',
+                'Catégories faibles : BBS, BNT, BA, BENS'
+            ].join('\n')
+        },
+        'geo.massiviteGeo': {
+            title: 'Alerte Massivité',
+            message: [
+                'Massivité.',
+                '',
+                'Cette alerte dépend principalement de l’épaisseur de la pièce et, pour certains produits, de la nature du produit.',
+                '',
+                'Seuils génériques :',
+                '- Forte : forte épaisseur ou chant très massif selon le type de produit',
+                '- Moyenne : épaisseur intermédiaire',
+                '- Faible : faible épaisseur',
+                '',
+                'La catégorisation est alignée sur la FD P20-651.'
+            ].join('\n')
+        },
+        'geo.industrialiteGeo': {
+            title: 'Alerte Industrialité',
+            message: [
+                'Industrialité.',
+                '',
+                'Cette alerte dépend du type de produit.',
+                '',
+                'Catégories fortes : BLC, BMA, CC, CLT, BO, BF, BMR',
+                'Catégories moyennes : BRS, BBS, BA',
+                'Catégories faibles : BNT, BENS'
+            ].join('\n')
+        },
+        'geo.inclusiviteGeo': {
+            title: 'Alerte Inclusivité',
+            message: [
+                'Inclusivité.',
+                '',
+                'Cette alerte combine Régularité, Rusticité, Déformation et le score de la pièce type.',
+                '',
+                'Logique générique :',
+                '- forte si régularité forte, rusticité faible, déformation faible et score de pièce type ≥ 66 %',
+                '- moyenne pour les combinaisons intermédiaires',
+                '- faible si la régularité est faible, ou la rusticité forte, ou la déformation forte, avec un score insuffisant.'
+            ].join('\n')
+        },
+        'essence.confianceEssence': {
+            title: 'Alerte Confiance essence',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('essence')
+        },
+        'essence.rareteEcoEssence': {
+            title: 'Alerte Rareté',
+            message: this.buildValoboisMatrixGenericRareteEcoAlertModalMessage()
+        },
+        'essence.masseVolEssence': {
+            title: 'Alerte Masse volumique',
+            message: [
+                'Masse volumique.',
+                '',
+                'Cette alerte dépend de la masse volumique calculée ou mesurée retenue pour le lot.',
+                '',
+                'Seuils appliqués :',
+                '- Forte : masse volumique > 750 kg/m3',
+                '- Moyenne : masse volumique comprise entre 450 et 750 kg/m3',
+                '- Faible : masse volumique < 450 kg/m3'
+            ].join('\n')
+        },
+        'ancien.confianceAncien': {
+            title: 'Alerte Confiance ancien usage',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('ancien usage')
+        },
+        'ancien.amortissementAncien': {
+            title: 'Alerte Amortissement',
+            message: [
+                'Amortissement biologique.',
+                '',
+                'Cette alerte est calculée à partir de l’âge de l’arbre, de l’année de mise en service et de l’année d’évaluation.',
+                '',
+                'Formule :',
+                '- Amortissement = (année d’évaluation - année de mise en service) / âge de l’arbre',
+                '',
+                'Seuils appliqués :',
+                '- Fort : ≥ 1',
+                '- Moyen : > 0,5 et < 1',
+                '- Faible : ≤ 0,5'
+            ].join('\n')
+        },
+        'ancien.vieillissementAncien': {
+            title: 'Alerte Vieillissement',
+            message: this.buildValoboisMatrixGenericVieillissementModalMessage()
+        },
+        'traces.confianceTraces': {
+            title: 'Alerte Confiance traces',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('traces')
+        },
+        'traces.alterationTraces': {
+            title: 'Alerte Altération forte',
+            message: this.buildValoboisMatrixGenericAlterationModalMessage()
+        },
+        'provenance.confianceProv': {
+            title: 'Alerte Confiance provenance',
+            message: this.buildValoboisMatrixGenericConfidenceAlertModalMessage('provenance')
+        },
+        'provenance.macroProv': {
+            title: 'Alerte Macro-histoire',
+            message: this.buildValoboisMatrixGenericMacroHistoireModalMessage()
+        }
+    };
+
+    const spec = specs[key];
+    if (spec) return spec;
+
+    return {
+        title: `${badgeType === 'gate' ? 'Gate' : 'Alerte'} — ${entry?.critere || 'Critère'}`,
+        message: [
+            `Le critère « ${entry?.critere || 'Critère'} » porte une logique de ${badgeType === 'gate' ? 'gate' : 'signal d’alerte'} dans la matrice.`,
+            '',
+            'Cette modale est volontairement générique : elle expose la fonction métier du cartouche sans se baser sur le lot courant.',
+            '',
+            'Pour une lecture lot-spécifique détaillée, la logique complète reste disponible dans l’onglet Notation.'
+        ].join('\n')
+    };
+}
+
+openValoboisMatrixCriterionModal(rank, badgeType = 'alert') {
+    const mapping = this.getValoboisScoreMappingByRank(rank);
+    if (!mapping) return false;
+    const spec = this.getValoboisMatrixGenericModalSpec(mapping, badgeType);
+    if (!spec) return false;
+    return this.openValoboisMatrixDetailModal(spec.title, spec.message);
+}
+
 isValoboisDefaultGateEnabled(gateId) {
     const target = this.normalizeValoboisGateId(gateId);
     const disabled = (this.valoboisMatrixConfig && this.valoboisMatrixConfig.gates && Array.isArray(this.valoboisMatrixConfig.gates.disabled))
@@ -28769,7 +29678,7 @@ renderMatrice() {
             <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'moyen' ? 'is-active' : ''}" data-valobois-matrix-mode="moyen">Moyen</button>
             <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'faible' ? 'is-active' : ''}" data-valobois-matrix-mode="faible">Faible</button>
         </div>
-        <label class="valobois-matrix-control-field">Axe
+        <label class="valobois-matrix-control-field">Valeurs
             <select id="valoboisMatrixAxisFilter">
                 <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Tous</option>
                 <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
@@ -28860,8 +29769,8 @@ renderMatrice() {
                     <div class="valobois-matrix-gates-list">
                         ${defaultGates.map((gate) => `
                             <label class="valobois-matrix-control-check">
-                                <input type="checkbox" data-valobois-default-gate-toggle="${gate.type}" ${gate.enabled ? 'checked' : ''}>
-                                ${defaultGateLabels[gate.type] || gate.type}
+                                <input type="checkbox" data-valobois-default-gate-toggle="${gate.id}" ${this.isValoboisDefaultGateEnabled(gate.id) ? 'checked' : ''}>
+                                ${defaultGateLabels[gate.id] || gate.label || gate.id}
                             </label>
                         `).join('')}
                     </div>
@@ -28898,6 +29807,7 @@ renderMatrice() {
     };
 
     let previousFamily = '';
+    const totalColumns = 7 + (ui.showVectors ? 4 : 0) + (ui.showRejects ? 4 : 0);
     const rowsHtml = filtered.map((entry) => {
         const scoreBlock = entry.scores[ui.mode] || { value: null, letter: '' };
         const weightKey = `r${entry.rang}`;
@@ -28912,17 +29822,25 @@ renderMatrice() {
 
         return `
             <tr class="${familyMark}">
-                <td class="valobois-matrix-col-family"><span class="valobois-matrix-rank">${entry.rang}</span> ${entry.famille}</td>
+                <td class="valobois-matrix-col-rank"><span class="valobois-matrix-rank">${entry.rang}</span></td>
+                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
+                <td class="valobois-matrix-col-family">${entry.famille}</td>
                 <td class="valobois-matrix-col-criterion">
                     <div class="valobois-matrix-criterion-name">${entry.critere}</div>
                     <div class="valobois-matrix-badges">
-                        ${entry.criticite ? `<span class="valobois-matrix-badge valobois-matrix-badge--gate">${defaultGateEnabled ? 'Gate' : 'Gate désactivé'}</span>` : ''}
-                        ${hasAddedGate ? '<span class="valobois-matrix-badge valobois-matrix-badge--gate">Gate perso</span>' : ''}
-                        ${entry.alerte ? '<span class="valobois-matrix-badge valobois-matrix-badge--alert">Alerte</span>' : ''}
                         ${overridden ? '<span class="valobois-matrix-badge valobois-matrix-badge--edited">Modifié</span>' : ''}
                     </div>
                 </td>
-                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
+                <td class="valobois-matrix-col-gate">
+                    ${entry.criticite
+                        ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail gate">${defaultGateEnabled ? 'Gate' : 'Gate désactivé'}</button>`
+                        : (hasAddedGate ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail gate personnalisé">Gate perso</button>` : '<span class="valobois-matrix-cell-empty">—</span>')}
+                </td>
+                <td class="valobois-matrix-col-alert">
+                    ${entry.alerte
+                        ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--alert valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="alert" aria-label="Ouvrir le détail alerte">Alerte</button>`
+                        : '<span class="valobois-matrix-cell-empty">—</span>'}
+                </td>
                 <td class="valobois-matrix-col-score ${scoreClass}">
                     ${ui.editMode
                         ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${ui.mode}">`
@@ -28939,19 +29857,30 @@ renderMatrice() {
         <table class="valobois-matrix-table">
             <thead>
                 <tr>
-                    <th>Rang · Famille</th>
+                    <th>Classement</th>
+                    <th>Valeurs</th>
+                    <th>Catégorie</th>
                     <th>Critère</th>
-                    <th>Axe</th>
+                    <th>Gate</th>
+                    <th>Alerte</th>
                     <th>Score ${ui.mode}</th>
                     ${ui.showVectors ? '<th>Vect. Réemploi</th><th>Vect. Réutilisation</th><th>Vect. Recyclage</th><th>Vect. Combustion</th>' : ''}
                     ${ui.showRejects ? '<th>Rejet Réemploi</th><th>Rejet Réutilisation</th><th>Rejet Recyclage</th><th>Rejet Combustion</th>' : ''}
                 </tr>
             </thead>
             <tbody>
-                ${rowsHtml || '<tr><td colspan="20" class="valobois-matrix-empty">Aucun critère ne correspond aux filtres.</td></tr>'}
+                ${rowsHtml || `<tr><td colspan="${totalColumns}" class="valobois-matrix-empty">Aucun critère ne correspond aux filtres.</td></tr>`}
             </tbody>
         </table>
     `;
+
+    tableWrapEl.querySelectorAll('[data-valobois-matrix-modal-rang]').forEach((button) => {
+        button.addEventListener('click', () => {
+            const rank = Number(button.getAttribute('data-valobois-matrix-modal-rang'));
+            const badgeType = button.getAttribute('data-valobois-matrix-modal-type') || 'alert';
+            this.openValoboisMatrixCriterionModal(rank, badgeType);
+        });
+    });
 
     controlsEl.querySelectorAll('[data-valobois-matrix-mode]').forEach((button) => {
         button.addEventListener('click', () => {
