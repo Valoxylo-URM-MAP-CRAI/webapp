@@ -632,7 +632,7 @@ class ValoboisApp {
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this._locSitInfoDictionaryBound = false;
-        this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
+        this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
         this._valoboisMatrixLastThresholdError = '';
         this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
         this.applyValoboisMatrixConfigToData();
@@ -5330,7 +5330,8 @@ class ValoboisApp {
                 disabled: [],
                 added: []
             },
-            weights: {}
+            weights: {},
+            flowOverrides: {}
         };
     }
 
@@ -5349,7 +5350,8 @@ class ValoboisApp {
                 disabled: [],
                 added: []
             },
-            weights: {}
+            weights: {},
+            flowOverrides: {}
         };
 
         ['fort', 'moyen', 'faible'].forEach((mode) => {
@@ -5386,6 +5388,31 @@ class ValoboisApp {
                     if (Number.isFinite(value)) next[mode] = value;
                 });
                 if (Object.keys(next).length) out.weights[criterionKey] = next;
+            });
+        }
+
+        if (raw.flowOverrides && typeof raw.flowOverrides === 'object') {
+            Object.entries(raw.flowOverrides).forEach(([criterionKey, criterionBlock]) => {
+                if (!criterionKey || !criterionBlock || typeof criterionBlock !== 'object') return;
+                const nextCriterion = {};
+                ['vectors', 'rejects'].forEach((flowKind) => {
+                    const kindBlock = criterionBlock[flowKind];
+                    if (!kindBlock || typeof kindBlock !== 'object') return;
+                    const nextKind = {};
+                    ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+                        const orientationBlock = kindBlock[orientationKey];
+                        if (!orientationBlock || typeof orientationBlock !== 'object') return;
+                        const nextOrientation = {};
+                        ['fort', 'moyen', 'faible'].forEach((levelKey) => {
+                            if (typeof orientationBlock[levelKey] === 'boolean') {
+                                nextOrientation[levelKey] = orientationBlock[levelKey];
+                            }
+                        });
+                        if (Object.keys(nextOrientation).length) nextKind[orientationKey] = nextOrientation;
+                    });
+                    if (Object.keys(nextKind).length) nextCriterion[flowKind] = nextKind;
+                });
+                if (Object.keys(nextCriterion).length) out.flowOverrides[criterionKey] = nextCriterion;
             });
         }
 
@@ -5456,6 +5483,7 @@ class ValoboisApp {
         if (JSON.stringify(defaults.thresholds) !== JSON.stringify(current.thresholds)) return true;
         if (Array.isArray(current.gates.disabled) && current.gates.disabled.length) return true;
         if (Array.isArray(current.gates.added) && current.gates.added.length) return true;
+        if (Object.keys(current.flowOverrides || {}).length > 0) return true;
         return Object.keys(current.weights || {}).length > 0;
     }
 
@@ -19950,16 +19978,16 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             {
                 label: 'Combustion',
                 color: '#D55E00',
-                faible: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' },
-                moyen: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' },
-                fort: { type: 'gate', label: 'Gate', text: 'Gates uniquement.' }
+                faible: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' },
+                moyen: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' },
+                fort: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' }
             },
             {
                 label: 'Recyclage',
                 color: '#E69F00',
-                faible: { type: 'default', label: 'Défaut', text: 'Orientation par défaut si aucun gate.' },
-                moyen: { type: 'gate', label: 'Gate', text: 'Gate si contaminé ou durabilité conférée non dépollué.' },
-                fort: { type: 'gate', label: 'Gate', text: 'Gate si contaminé ou durabilité conférée non dépollué.' }
+                faible: { type: 'default', label: 'Défaut', text: 'Orientation par défaut si aucun verrou.' },
+                moyen: { type: 'gate', label: 'Verrou', text: 'Verrou si contaminé ou durabilité conférée non dépollué.' },
+                fort: { type: 'gate', label: 'Verrou', text: 'Verrou si contaminé ou durabilité conférée non dépollué.' }
             },
             {
                 label: 'Réutilisation',
@@ -20004,7 +20032,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     </tbody>
                 </table>
             </div>
-            <p class="detail-modal-paragraph orientation-logic-note">Cette matrice décrit la logique d'orientation cible. <strong>Gates</strong> : critères disqualifiants indépendants du score (actifs dans tous les modes). <strong>Seuils</strong> : score minimum à atteindre pour accéder à l'orientation. <strong>Indicatif</strong> : orientation provisoire, à confirmer par une évaluation en mode Fort.</p>
+            <p class="detail-modal-paragraph orientation-logic-note">Cette matrice décrit la logique d'orientation cible. <strong>Verrous</strong> : critères disqualifiants indépendants du score (actifs dans tous les modes). <strong>Seuils</strong> : score minimum à atteindre pour accéder à l'orientation. <strong>Indicatif</strong> : orientation provisoire, à confirmer par une évaluation en mode Fort.</p>
         </section>`;
     }
 
@@ -28535,7 +28563,7 @@ buildValoboisMatrixGenericIntegriteBioAlertModalMessage() {
         'Effet sur l’orientation.',
         '',
         '- si Intégrité biologique = Faible, le Réemploi est plafonné à Réutilisation ;',
-        '- si Intégrité mécanique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les gates par défaut sont actifs).',
+        '- si Intégrité mécanique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les verrous par défaut sont actifs).',
         '',
         'Exemple.',
         '',
@@ -28567,7 +28595,7 @@ buildValoboisMatrixGenericIntegriteMechAlertModalMessage() {
         'Effet sur l’orientation.',
         '',
         '- si Intégrité mécanique = Faible, le Réemploi est plafonné à Réutilisation ;',
-        '- si Intégrité biologique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les gates par défaut sont actifs).',
+        '- si Intégrité biologique = Faible en même temps, l’orientation est forcée vers Combustion (forçage non ignorable quand les verrous par défaut sont actifs).',
         '',
         'Exemple.',
         '',
@@ -28597,7 +28625,7 @@ buildValoboisMatrixGenericPurgeBioModalMessage() {
         'Lecture.',
         '',
         '- l’alerte indique qu’une purge forte est requise pour isoler les sections dégradées ;',
-        '- elle n’est pas un gate autonome : elle signale un besoin de tri/assainissement avant valorisation.',
+        '- elle n’est pas un verrou autonome : elle signale un besoin de tri/assainissement avant valorisation.',
         '',
         'Effet sur l’orientation.',
         '',
@@ -28632,7 +28660,7 @@ buildValoboisMatrixGenericPurgeMechModalMessage() {
         'Lecture.',
         '',
         '- l’alerte signale un besoin de purge/coupe des zones dégradées pour sécuriser la valorisation mécanique ;',
-        '- elle est un signal d’aide au tri, pas un gate autonome.',
+        '- elle est un signal d’aide au tri, pas un verrou autonome.',
         '',
         'Effet sur l’orientation.',
         '',
@@ -29227,7 +29255,7 @@ buildValoboisMatrixGenericVolumetrieModalMessage() {
         '',
         'Limite.',
         '',
-        'la volumétrie seule ne suffit pas à déterminer l’orientation finale : elle doit être lue avec les autres alertes (contamination, intégrité, exposition, etc.) et les règles de gate.'
+        'la volumétrie seule ne suffit pas à déterminer l’orientation finale : elle doit être lue avec les autres alertes (contamination, intégrité, exposition, etc.) et les règles de verrou.'
     ].join('\n');
 }
 
@@ -29334,18 +29362,18 @@ buildValoboisMatrixGenericContaminationModalMessage() {
         'Règle.',
         '',
         '- le signal critique est la valeur Forte ;',
-        '- en logique par défaut, Contamination Forte active un gate disqualifiant ;',
-        '- ce gate force l’orientation vers Combustion (sauf désactivation explicite du gate dans la matrice).',
+        '- en logique par défaut, Contamination Forte active un verrou disqualifiant ;',
+        '- ce verrou force l’orientation vers Combustion (sauf désactivation explicite du verrou dans la matrice).',
         '',
         'Effet sur l’orientation.',
         '',
-        '- si le gate contamination est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
-        '- si le gate est désactivé dans la personnalisation matrice, la contamination reste visible comme alerte mais ne force plus automatiquement la Combustion.',
+        '- si le verrou contamination est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
+        '- si le verrou est désactivé dans la personnalisation matrice, la contamination reste visible comme alerte mais ne force plus automatiquement la Combustion.',
         '',
         'Exemple.',
         '',
-        '- Contamination = Forte, gate contamination activé -> orientation forcée Combustion ;',
-        '- Contamination = Forte, gate contamination désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
+        '- Contamination = Forte, verrou contamination activé -> orientation forcée Combustion ;',
+        '- Contamination = Forte, verrou contamination désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
         '',
         'Limite.',
         '',
@@ -29367,18 +29395,18 @@ buildValoboisMatrixGenericExpansionModalMessage() {
         'Règle.',
         '',
         '- le signal critique est la valeur Forte ;',
-        '- en logique par défaut, Expansion Forte active un gate disqualifiant ;',
-        '- ce gate force l’orientation vers Combustion (sauf désactivation explicite du gate dans la matrice, ou forçage ignoré dans la notation).',
+        '- en logique par défaut, Expansion Forte active un verrou disqualifiant ;',
+        '- ce verrou force l’orientation vers Combustion (sauf désactivation explicite du verrou dans la matrice, ou forçage ignoré dans la notation).',
         '',
         'Effet sur l’orientation.',
         '',
-        '- si le gate expansion est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
-        '- si le gate est désactivé dans la personnalisation matrice, l’expansion reste visible comme alerte mais ne force plus automatiquement la Combustion.',
+        '- si le verrou expansion est actif et déclenché, l’orientation est imposée en Combustion, même si le score global est favorable ;',
+        '- si le verrou est désactivé dans la personnalisation matrice, l’expansion reste visible comme alerte mais ne force plus automatiquement la Combustion.',
         '',
         'Exemple.',
         '',
-        '- Expansion = Forte, gate expansion activé -> orientation forcée Combustion ;',
-        '- Expansion = Forte, gate expansion désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
+        '- Expansion = Forte, verrou expansion activé -> orientation forcée Combustion ;',
+        '- Expansion = Forte, verrou expansion désactivé -> pas de forçage automatique, orientation calculée selon les autres règles encore actives.',
         '',
         'Limite.',
         '',
@@ -29414,7 +29442,7 @@ buildValoboisMatrixGenericDurabiliteConferreeModalMessage() {
         '',
         'Exemple.',
         '',
-        '- Durabilité conférée = Forte, Dépollution = Moyenne, pas de gate Combustion actif -> alerte active et orientation proposée Réutilisation ;',
+        '- Durabilité conférée = Forte, Dépollution = Moyenne, pas de verrou Combustion actif -> alerte active et orientation proposée Réutilisation ;',
         '- mêmes valeurs, mais Contamination = Forte -> la logique Combustion prend le dessus et neutralise cette alerte.',
         '',
         'Limite.',
@@ -29435,11 +29463,11 @@ buildValoboisMatrixGenericAlterationModalMessage() {
         'Règle.',
         '',
         '- le cartouche s’active si Altération = Forte ;',
-        '- la logique de verrouillage associée (soft-lock) ne s’applique que si le gate Altération est actif dans la matrice.',
+        '- la logique de verrouillage associée (soft-lock) ne s’applique que si le verrou Altération est actif dans la matrice.',
         '',
         'Effet sur l’orientation.',
         '',
-        '- en cas d’Altération forte avec gate actif, la notation est gelée (hors critères d’exception) tant que le verrou n’est pas levé ;',
+        '- en cas d’Altération forte avec verrou actif, la notation est gelée (hors critères d’exception) tant que le verrou n’est pas levé ;',
         '- ce mécanisme vise à éviter de conserver des notes potentiellement obsolètes après constat d’altération majeure.',
         '',
         'Levée du verrou.',
@@ -29449,7 +29477,7 @@ buildValoboisMatrixGenericAlterationModalMessage() {
         '',
         'Exemple.',
         '',
-        '- Altération = Forte, gate actif -> cartouche actif et verrouillage de la notation ;',
+        '- Altération = Forte, verrou actif -> cartouche actif et verrouillage de la notation ;',
         '- après révision avec orientation forcée, cette orientation est prioritaire dans le calcul final.',
         '',
         'Limite.',
@@ -29480,15 +29508,15 @@ getValoboisMatrixGenericModalSpec(mapping, badgeType = 'alert') {
 
     if (badgeType === 'gate' && customGateThresholds.length && !mapping.gateKey) {
         return {
-            title: `Gate personnalisé — ${entry?.critere || 'Critère'}`,
+            title: `Verrou personnalisé — ${entry?.critere || 'Critère'}`,
             message: [
-                `Le critère « ${entry?.critere || 'Critère'} » porte un gate personnalisé dans la matrice.`,
+                `Le critère « ${entry?.critere || 'Critère'} » porte un verrou personnalisé dans la matrice.`,
                 '',
                 'Logique appliquée :',
-                `- si le score effectif du critère descend à un seuil de gate configuré (${customGateThresholds.join(', ')}), l’orientation est forcée vers Combustion.`,
+                `- si le score effectif du critère descend à un seuil de verrou configuré (${customGateThresholds.join(', ')}), l’orientation est forcée vers Combustion.`,
                 '- cette règle est une personnalisation de matrice, indépendante du lot courant affiché.',
                 '',
-                'Cette modale expose la règle générique du gate, pas les contributeurs d’un lot particulier.'
+                'Cette modale expose la règle générique du verrou, pas les contributeurs d’un lot particulier.'
             ].join('\n')
         };
     }
@@ -29636,9 +29664,9 @@ getValoboisMatrixGenericModalSpec(mapping, badgeType = 'alert') {
     if (spec) return spec;
 
     return {
-        title: `${badgeType === 'gate' ? 'Gate' : 'Alerte'} — ${entry?.critere || 'Critère'}`,
+        title: `${badgeType === 'gate' ? 'Verrou' : 'Alerte'} — ${entry?.critere || 'Critère'}`,
         message: [
-            `Le critère « ${entry?.critere || 'Critère'} » porte une logique de ${badgeType === 'gate' ? 'gate' : 'signal d’alerte'} dans la matrice.`,
+            `Le critère « ${entry?.critere || 'Critère'} » porte une logique de ${badgeType === 'gate' ? 'verrou' : 'signal d’alerte'} dans la matrice.`,
             '',
             'Cette modale est volontairement générique : elle expose la fonction métier du cartouche sans se baser sur le lot courant.',
             '',
@@ -29750,6 +29778,40 @@ setValoboisMatrixWeightValue(entry, mode, rawValue) {
     this.valoboisMatrixConfig = config;
     this.saveValoboisMatrixConfig();
     this.computeOrientation(this.getCurrentLot());
+    this.renderMatrice();
+}
+
+setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, checked, defaultChecked) {
+    const numericRank = Number(rank);
+    if (!Number.isFinite(numericRank)) return;
+    if (!['vectors', 'rejects'].includes(flowKind)) return;
+    if (!['reemploi', 'reutilisation', 'recyclage', 'combustion'].includes(orientationKey)) return;
+    if (!['fort', 'moyen', 'faible'].includes(levelKey)) return;
+    if (typeof checked !== 'boolean' || typeof defaultChecked !== 'boolean') return;
+
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const criterionKey = `r${numericRank}`;
+    const criterionBlock = { ...(config.flowOverrides[criterionKey] || {}) };
+    const kindBlock = { ...(criterionBlock[flowKind] || {}) };
+    const orientationBlock = { ...(kindBlock[orientationKey] || {}) };
+
+    if (checked === defaultChecked) {
+        delete orientationBlock[levelKey];
+    } else {
+        orientationBlock[levelKey] = checked;
+    }
+
+    if (Object.keys(orientationBlock).length) kindBlock[orientationKey] = orientationBlock;
+    else delete kindBlock[orientationKey];
+
+    if (Object.keys(kindBlock).length) criterionBlock[flowKind] = kindBlock;
+    else delete criterionBlock[flowKind];
+
+    if (Object.keys(criterionBlock).length) config.flowOverrides[criterionKey] = criterionBlock;
+    else delete config.flowOverrides[criterionKey];
+
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
     this.renderMatrice();
 }
 
@@ -29906,6 +29968,10 @@ buildValoboisMatrixConfigExportDiff() {
     });
     if (Object.keys(weights).length) payload.weights = weights;
 
+    if (Object.keys(current.flowOverrides || {}).length) {
+        payload.flowOverrides = current.flowOverrides;
+    }
+
     return payload;
 }
 
@@ -29928,7 +29994,8 @@ handleValoboisMatrixConfigImport(file) {
                     ...(parsed.thresholds || {})
                 },
                 gates: parsed.gates ? { ...current.gates, ...parsed.gates } : current.gates,
-                weights: parsed.weights ? { ...current.weights, ...parsed.weights } : current.weights
+                weights: parsed.weights ? { ...current.weights, ...parsed.weights } : current.weights,
+                flowOverrides: parsed.flowOverrides ? { ...current.flowOverrides, ...parsed.flowOverrides } : current.flowOverrides
             });
 
             const check = this.isValoboisMatrixThresholdOrderValid(merged.thresholds);
@@ -29936,8 +30003,9 @@ handleValoboisMatrixConfigImport(file) {
 
             const changes = [];
             if (parsed.thresholds) changes.push('seuils');
-            if (parsed.gates) changes.push('gates');
+            if (parsed.gates) changes.push('verrous');
             if (parsed.weights) changes.push('pondérations');
+            if (parsed.flowOverrides) changes.push('vecteurs/rejets');
             const summary = changes.length ? changes.join(', ') : 'aucune différence détectée';
 
             const confirmed = window.confirm(`Appliquer la configuration importée (${summary}) ?`);
@@ -29970,7 +30038,7 @@ renderMatrice() {
         customBadgeEl.classList.toggle('hidden', !this.hasValoboisMatrixCustomConfig());
     }
 
-    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
+    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
     const entries = this.getValoboisMatrixDataset();
     const thresholdConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
     const addedGateSet = new Set((thresholdConfig.gates?.added || []).map((item) => {
@@ -30004,11 +30072,6 @@ renderMatrice() {
     });
 
     controlsEl.innerHTML = `
-        <div class="valobois-matrix-mode-switch" role="group" aria-label="Mode de notation">
-            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'fort' ? 'is-active' : ''}" data-valobois-matrix-mode="fort">Fort</button>
-            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'moyen' ? 'is-active' : ''}" data-valobois-matrix-mode="moyen">Moyen</button>
-            <button type="button" class="valobois-matrix-mode-btn ${ui.mode === 'faible' ? 'is-active' : ''}" data-valobois-matrix-mode="faible">Faible</button>
-        </div>
         <label class="valobois-matrix-control-field">Valeurs
             <select id="valoboisMatrixAxisFilter">
                 <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Tous</option>
@@ -30026,7 +30089,7 @@ renderMatrice() {
             </select>
         </label>
         <label class="valobois-matrix-control-check">
-            <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Gates uniquement
+            <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Verrous uniquement
         </label>
         <label class="valobois-matrix-control-check">
             <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
@@ -30096,7 +30159,7 @@ renderMatrice() {
             </table>
             ${ui.editMode ? `
                 <div class="valobois-matrix-gates-editor">
-                    <h4>Gates par défaut</h4>
+                    <h4>Verrous par défaut</h4>
                     <div class="valobois-matrix-gates-list">
                         ${defaultGates.map((gate) => `
                             <label class="valobois-matrix-control-check">
@@ -30105,19 +30168,19 @@ renderMatrice() {
                             </label>
                         `).join('')}
                     </div>
-                    <h4>Gates personnalisés</h4>
+                    <h4>Verrous personnalisés</h4>
                     <div class="valobois-matrix-gates-list">
                         ${customGates.length ? customGates.map((gate, index) => `
                             <div class="valobois-matrix-gate-row">
                                 <span>${gate.critere || 'Critère inconnu'} ≤ ${gate.scoreThreshold}</span>
                                 <button type="button" class="btn" data-valobois-added-gate-remove="${index}">Supprimer</button>
                             </div>
-                        `).join('') : '<p class="valobois-matrix-empty">Aucun gate personnalisé.</p>'}
+                        `).join('') : '<p class="valobois-matrix-empty">Aucun verrou personnalisé.</p>'}
                     </div>
                     <div class="valobois-matrix-gate-add">
                         <input type="text" id="valoboisMatrixGateCriterion" placeholder="Critère (ex: r8, contamination)">
                         <input type="number" id="valoboisMatrixGateThreshold" min="-30" max="30" step="1" value="-10" placeholder="Seuil score">
-                        <button type="button" class="btn" id="valoboisMatrixAddGate">Ajouter un gate</button>
+                        <button type="button" class="btn" id="valoboisMatrixAddGate">Ajouter un verrou</button>
                     </div>
                 </div>
             ` : ''}
@@ -30132,24 +30195,100 @@ renderMatrice() {
         combustion: { label: 'Combustion', color: '#D55E00' }
     };
 
+    const buildOrientationCheckbox = (flowData, orientationKey, orientationInfo, rank, flowKind) => {
+        const terms = (flowData && flowData.terms) || '';
+        const matches = Array.from(terms.matchAll(/\b(Fortes?|Forts?|Moyennes?|Moyens?|Faibles?)\b/gi));
+        const variantByLevel = { fort: '', moyen: '', faible: '' };
+        let preferMasculine = false;
+        const formatVariantLabel = (value) => {
+            if (!value) return '';
+            return value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+        };
+
+        matches.forEach((match) => {
+            const raw = match[0];
+            const lower = raw.toLowerCase();
+            if (lower.startsWith('fort')) {
+                variantByLevel.fort ||= raw;
+                if (lower === 'fort' || lower === 'forts') preferMasculine = true;
+            } else if (lower.startsWith('moy')) {
+                variantByLevel.moyen ||= raw;
+                if (lower === 'moyen' || lower === 'moyens') preferMasculine = true;
+            } else if (lower.startsWith('faibl')) {
+                variantByLevel.faible ||= raw;
+            }
+        });
+
+        const isStrong = /\b(Fortes?|Forts?)\b/i.test(terms);
+        const isMedium = /\b(Moyennes?|Moyens?)\b/i.test(terms);
+        const isWeak = /\b(Faibles?)\b/i.test(terms);
+        const fallbackLabels = preferMasculine
+            ? { fort: 'Fort', moyen: 'Moyen', faible: 'Faible' }
+            : { fort: 'Forte', moyen: 'Moyenne', faible: 'Faible' };
+        const levelDefs = [
+            { key: 'fort', checked: isStrong },
+            { key: 'moyen', checked: isMedium },
+            { key: 'faible', checked: isWeak },
+        ];
+
+        const criterionKey = `r${rank}`;
+        const flowOverrides = thresholdConfig.flowOverrides
+            && thresholdConfig.flowOverrides[criterionKey]
+            && thresholdConfig.flowOverrides[criterionKey][flowKind]
+            && thresholdConfig.flowOverrides[criterionKey][flowKind][orientationKey]
+            ? thresholdConfig.flowOverrides[criterionKey][flowKind][orientationKey]
+            : {};
+
+        return levelDefs.map(({ key, checked }) => {
+            const effectiveChecked = typeof flowOverrides[key] === 'boolean' ? flowOverrides[key] : checked;
+            const label = formatVariantLabel(variantByLevel[key] || fallbackLabels[key]);
+            const rowClass = effectiveChecked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
+            const editableClass = ui.editMode ? ' is-editable' : '';
+            return `<div class="${rowClass}" style="--valobois-checkbox-color:${orientationInfo.color};">
+                <button type="button" class="valobois-matrix-orientation-checkbox${editableClass}"
+                    data-valobois-matrix-flow-toggle="1"
+                    data-valobois-matrix-flow-rank="${rank}"
+                    data-valobois-matrix-flow-kind="${flowKind}"
+                    data-valobois-matrix-flow-orientation="${orientationKey}"
+                    data-valobois-matrix-flow-level="${key}"
+                    data-valobois-matrix-flow-default="${checked ? '1' : '0'}"
+                    data-valobois-matrix-flow-checked="${effectiveChecked ? '1' : '0'}"
+                    aria-label="${orientationInfo.label} ${label}"
+                    aria-pressed="${effectiveChecked ? 'true' : 'false'}"
+                    ${ui.editMode ? '' : 'disabled'}>${effectiveChecked ? '✓' : ''}</button>
+                <span class="valobois-matrix-checkbox-label">${label}</span>
+            </div>`;
+        }).join('');
+    };
+
     const renderFlowCell = (flow) => {
         if (!flow || flow.rangeLabel === '—') return '<span class="valobois-matrix-cell-empty">—</span>';
         return `${flow.terms} · ${flow.rangeLabel}`;
     };
 
     let previousFamily = '';
-    const totalColumns = 8 + (ui.showVectors ? 4 : 0) + (ui.showRejects ? 4 : 0);
+    const totalColumns = 13 + (ui.showVectors ? 4 : 0) + (ui.showRejects ? 4 : 0);
     const rowsHtml = filtered.map((entry) => {
-        const scoreBlock = entry.scores[ui.mode] || { value: null, letter: '' };
         const weightKey = `r${entry.rang}`;
         const overridden = this.valoboisMatrixConfig.weights && (this.valoboisMatrixConfig.weights[weightKey] || this.valoboisMatrixConfig.weights[entry.critereKey]);
-        const overrideValue = overridden && Number.isFinite(Number(overridden[ui.mode])) ? Number(overridden[ui.mode]) : null;
-        const scoreValue = Number.isFinite(overrideValue) ? overrideValue : scoreBlock.value;
-        const scoreClass = scoreValue <= -10 ? 'is-gate' : scoreValue < 0 ? 'is-negative' : scoreValue >= 2 ? 'is-positive' : 'is-neutral';
         const familyMark = previousFamily !== entry.famille ? 'is-family-start' : '';
         const defaultGateEnabled = !entry.defaultGateType || this.isValoboisDefaultGateEnabled(entry.defaultGateType);
         const hasAddedGate = addedGateSet.has(`r${entry.rang}`);
         previousFamily = entry.famille;
+
+        const buildScoreCells = (mode) => {
+            const scoreBlock = entry.scores[mode] || { value: null, letter: '' };
+            const overrideValue = overridden && Number.isFinite(Number(overridden[mode])) ? Number(overridden[mode]) : null;
+            const scoreValue = Number.isFinite(overrideValue) ? overrideValue : scoreBlock.value;
+            const scoreClass = scoreValue <= -10 ? 'is-gate' : scoreValue < 0 ? 'is-negative' : scoreValue >= 2 ? 'is-positive' : 'is-neutral';
+            const numericCell = `<td class="valobois-matrix-col-score ${scoreClass}">
+                ${ui.editMode
+                    ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${mode}">`
+                    : `${scoreValue > 0 ? '+' : ''}${scoreValue}`}
+            </td>`;
+            const letterCell = `<td class="valobois-matrix-col-score ${scoreClass}">${scoreBlock.letter || '—'}</td>`;
+            return `${numericCell}${letterCell}`;
+        };
 
         return `
             <tr class="${familyMark}">
@@ -30165,21 +30304,19 @@ renderMatrice() {
                 <td class="valobois-matrix-col-notation">${(() => { const mapping = this.getValoboisScoreMappingByRank(entry.rang); const hasNotation = mapping && !!this.getNotationDetailSpec(mapping.section, mapping.field); return hasNotation ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--notation valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="notation" aria-label="Ouvrir la fiche de notation">Info</button>` : '<span class="valobois-matrix-cell-empty">—</span>'; })()}</td>
                 <td class="valobois-matrix-col-gate">
                     ${entry.criticite
-                        ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail gate">${defaultGateEnabled ? 'Gate' : 'Gate désactivé'}</button>`
-                        : (hasAddedGate ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail gate personnalisé">Gate perso</button>` : '<span class="valobois-matrix-cell-empty">—</span>')}
+                        ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail verrou">${defaultGateEnabled ? 'Verrou' : 'Verrou désactivé'}</button>`
+                        : (hasAddedGate ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail verrou personnalisé">Verrou perso</button>` : '<span class="valobois-matrix-cell-empty">—</span>')}
                 </td>
                 <td class="valobois-matrix-col-alert">
                     ${entry.alerte
                         ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--alert valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="alert" aria-label="Ouvrir le détail alerte">Alerte</button>`
                         : '<span class="valobois-matrix-cell-empty">—</span>'}
                 </td>
-                <td class="valobois-matrix-col-score ${scoreClass}">
-                    ${ui.editMode
-                        ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${ui.mode}">`
-                        : `${scoreValue > 0 ? '+' : ''}${scoreValue} / ${scoreBlock.letter || '—'}`}
-                </td>
-                ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td><span class="valobois-matrix-orientation-dot" style="background:${orientationMeta[key].color}"></span>${renderFlowCell(entry.vectors[key])}</td>`).join('') : ''}
-                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-reject-cell"><span class="valobois-matrix-orientation-dot" style="background:${orientationMeta[key].color}"></span>${renderFlowCell(entry.rejects[key])}</td>`).join('') : ''}
+                ${buildScoreCells('fort')}
+                ${buildScoreCells('moyen')}
+                ${buildScoreCells('faible')}
+                ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.vectors[key], key, orientationMeta[key], entry.rang, 'vectors')}</div></td>`).join('') : ''}
+                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.rejects[key], key, orientationMeta[key], entry.rang, 'rejects')}</div></td>`).join('') : ''}
             </tr>
         `;
     }).join('');
@@ -30189,14 +30326,27 @@ renderMatrice() {
         <table class="valobois-matrix-table">
             <thead>
                 <tr>
+                    <th colspan="7"></th>
+                    <th colspan="2">Note forte</th>
+                    <th colspan="2">Note moyenne</th>
+                    <th colspan="2">Note faible</th>
+                    ${ui.showVectors ? '<th colspan="4">Vecteurs</th>' : ''}
+                    ${ui.showRejects ? '<th colspan="4">Rejets</th>' : ''}
+                </tr>
+                <tr>
                     <th>Classement</th>
                     <th>Valeurs</th>
                     <th>Catégorie</th>
                     <th>Critère</th>
                     <th>Notation</th>
-                    <th>Gate</th>
+                    <th>Verrou</th>
                     <th>Alerte</th>
-                    <th>Score ${ui.mode}</th>
+                    <th>Score max</th>
+                    <th>Lettre max</th>
+                    <th>Score med</th>
+                    <th>Lettre med</th>
+                    <th>Score min</th>
+                    <th>Lettre min</th>
                     ${ui.showVectors ? '<th>Vect. Réemploi</th><th>Vect. Réutilisation</th><th>Vect. Recyclage</th><th>Vect. Combustion</th>' : ''}
                     ${ui.showRejects ? '<th>Rejet Réemploi</th><th>Rejet Réutilisation</th><th>Rejet Recyclage</th><th>Rejet Combustion</th>' : ''}
                 </tr>
@@ -30212,13 +30362,6 @@ renderMatrice() {
             const rank = Number(button.getAttribute('data-valobois-matrix-modal-rang'));
             const badgeType = button.getAttribute('data-valobois-matrix-modal-type') || 'alert';
             this.openValoboisMatrixCriterionModal(rank, badgeType);
-        });
-    });
-
-    controlsEl.querySelectorAll('[data-valobois-matrix-mode]').forEach((button) => {
-        button.addEventListener('click', () => {
-            ui.mode = button.getAttribute('data-valobois-matrix-mode') || 'fort';
-            this.renderMatrice();
         });
     });
 
@@ -30273,7 +30416,7 @@ renderMatrice() {
     const resetFiltersBtn = document.getElementById('valoboisMatrixResetFilters');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
-            this._valoboisMatrixUiState = { mode: 'fort', axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode };
+            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode };
             this.renderMatrice();
         });
     }
@@ -30337,6 +30480,19 @@ renderMatrice() {
             const mode = input.getAttribute('data-valobois-score-edit-mode');
             if (!key || !mode) return;
             this.setValoboisMatrixWeightValue(key, mode, input.value);
+        });
+    });
+
+    tableWrapEl.querySelectorAll('[data-valobois-matrix-flow-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const rank = Number(button.getAttribute('data-valobois-matrix-flow-rank'));
+            const flowKind = button.getAttribute('data-valobois-matrix-flow-kind') || '';
+            const orientationKey = button.getAttribute('data-valobois-matrix-flow-orientation') || '';
+            const levelKey = button.getAttribute('data-valobois-matrix-flow-level') || '';
+            const defaultChecked = button.getAttribute('data-valobois-matrix-flow-default') === '1';
+            const checked = button.getAttribute('data-valobois-matrix-flow-checked') === '1';
+            this.setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, !checked, defaultChecked);
         });
     });
 
