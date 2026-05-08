@@ -634,6 +634,7 @@ class ValoboisApp {
         this._locSitInfoDictionaryBound = false;
         this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
         this._valoboisMatrixLastThresholdError = '';
+        this._valoboisMatrixLastFlowWarning = '';
         this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
         this.applyValoboisMatrixConfigToData();
         this.ensureTermesBoisDatalist();
@@ -5335,6 +5336,56 @@ class ValoboisApp {
         };
     }
 
+    getValoboisFlowOverrideConflicts(flowOverrides) {
+        if (!flowOverrides || typeof flowOverrides !== 'object') return [];
+
+        const conflicts = [];
+        Object.entries(flowOverrides).forEach(([criterionKey, criterionBlock]) => {
+            if (!criterionBlock || typeof criterionBlock !== 'object') return;
+            ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+                const vectorBlock = criterionBlock.vectors && criterionBlock.vectors[orientationKey];
+                const rejectBlock = criterionBlock.rejects && criterionBlock.rejects[orientationKey];
+                if (!vectorBlock || !rejectBlock) return;
+
+                ['fort', 'moyen', 'faible'].forEach((levelKey) => {
+                    if (vectorBlock[levelKey] === true && rejectBlock[levelKey] === true) {
+                        conflicts.push({ criterionKey, orientationKey, levelKey });
+                    }
+                });
+            });
+        });
+
+        return conflicts;
+    }
+
+    stripValoboisFlowOverrideConflicts(criterionBlock) {
+        if (!criterionBlock || typeof criterionBlock !== 'object') return {};
+
+        const nextCriterion = JSON.parse(JSON.stringify(criterionBlock));
+        ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+            const vectorBlock = nextCriterion.vectors && nextCriterion.vectors[orientationKey];
+            const rejectBlock = nextCriterion.rejects && nextCriterion.rejects[orientationKey];
+            if (!vectorBlock || !rejectBlock) return;
+
+            ['fort', 'moyen', 'faible'].forEach((levelKey) => {
+                if (vectorBlock[levelKey] === true && rejectBlock[levelKey] === true) {
+                    delete rejectBlock[levelKey];
+                }
+            });
+
+            if (!Object.keys(rejectBlock).length && nextCriterion.rejects) {
+                delete nextCriterion.rejects[orientationKey];
+            }
+            if (vectorBlock && !Object.keys(vectorBlock).length && nextCriterion.vectors) {
+                delete nextCriterion.vectors[orientationKey];
+            }
+        });
+
+        if (nextCriterion.rejects && !Object.keys(nextCriterion.rejects).length) delete nextCriterion.rejects;
+        if (nextCriterion.vectors && !Object.keys(nextCriterion.vectors).length) delete nextCriterion.vectors;
+        return nextCriterion;
+    }
+
     normalizeValoboisMatrixConfig(raw) {
         const defaults = this.getDefaultValoboisMatrixConfig();
         if (!raw || typeof raw !== 'object') return defaults;
@@ -5412,7 +5463,8 @@ class ValoboisApp {
                     });
                     if (Object.keys(nextKind).length) nextCriterion[flowKind] = nextKind;
                 });
-                if (Object.keys(nextCriterion).length) out.flowOverrides[criterionKey] = nextCriterion;
+                const cleanedCriterion = this.stripValoboisFlowOverrideConflicts(nextCriterion);
+                if (Object.keys(cleanedCriterion).length) out.flowOverrides[criterionKey] = cleanedCriterion;
             });
         }
 
@@ -5821,6 +5873,91 @@ class ValoboisApp {
         return this.getNotationConfidenceSummaryEntries(lot)
             .map((item) => `${item.label} : ${item.action}`)
             .join('\n');
+    }
+
+    getAnalysisConfidenceSummaryEntries(lot) {
+        const studyStatus = this.data && this.data.meta ? this.data.meta.statutEtude : '';
+        return this.getNotationConfidenceDescriptors(lot).map((item) => ({
+            label: item.label,
+            level: item.level || 'Aucune note',
+            alertState: this.getConfidenceAlertState(item.level, studyStatus)
+        }));
+    }
+
+    renderAnalysisConfidenceSummary(container, lot) {
+        if (!container) return;
+
+        const entries = this.getAnalysisConfidenceSummaryEntries(lot);
+        const itemHtml = entries.map((entry) => `
+            <div class="analysis-confidence-item">
+                <span class="orientation-field-dot analysis-confidence-dot analysis-confidence-dot--${entry.alertState}" aria-hidden="true"></span>
+                <span class="analysis-confidence-label">${this.escapeHtml(entry.label)}</span>
+                <span class="analysis-confidence-level">${this.escapeHtml(entry.level)}</span>
+            </div>
+        `).join('');
+
+        container.innerHTML = `
+            <section class="analysis-confidence-card" aria-label="Confiance des sections">
+                <div class="analysis-confidence-header">
+                    <h3 class="analysis-confidence-title">Confiance des sections</h3>
+                    <p class="analysis-confidence-subtitle">Couleur calculée depuis le statut de l'étude et la note de confiance active.</p>
+                </div>
+                <div class="analysis-confidence-grid">${itemHtml}</div>
+            </section>
+        `;
+    }
+
+    renderAnalysisOrientationDrivers(container, lot) {
+        if (!container || !lot) return;
+
+        const result = this.getValoboisOrientationResult(lot);
+        if (!result) {
+            container.innerHTML = '';
+            return;
+        }
+
+        const currentOrientation = result.orientation || lot.orientationCode || 'none';
+        const orientationLabel = this.getValoboisOrientationLabel(currentOrientation);
+        const activeRejects = (result.activeRejets && result.activeRejets[currentOrientation]) || [];
+        const activeVectors = (result.activeVectors && result.activeVectors[currentOrientation]) || [];
+
+        const formatList = (entries, emptyText) => {
+            if (!entries.length) return `<li class="analysis-drivers-empty">${emptyText}</li>`;
+            const unique = [];
+            const seen = new Set();
+            entries.forEach((entry) => {
+                const key = `r${entry.rang}:${entry.levelKey}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                unique.push(entry);
+            });
+            return unique.slice(0, 6).map((entry) => `
+                <li class="analysis-drivers-item">
+                    <span class="analysis-drivers-rank">r${entry.rang}</span>
+                    <span class="analysis-drivers-label">${this.escapeHtml(entry.critere || entry.criterionKey || '')}</span>
+                    <span class="analysis-drivers-level">${this.escapeHtml((entry.levelKey || '').toUpperCase())}${entry.noteLetter ? ` (${this.escapeHtml(entry.noteLetter)})` : ''}</span>
+                </li>
+            `).join('');
+        };
+
+        container.innerHTML = `
+            <section class="analysis-drivers-card" aria-label="Motifs d'orientation">
+                <div class="analysis-drivers-header">
+                    <h3 class="analysis-drivers-title">Motifs d'orientation</h3>
+                    <p class="analysis-drivers-subtitle">Orientation actuelle: <strong>${this.escapeHtml(orientationLabel)}</strong></p>
+                </div>
+                <div class="analysis-drivers-grid">
+                    <div class="analysis-drivers-column">
+                        <h4 class="analysis-drivers-column-title">Rejets actifs (${activeRejects.length})</h4>
+                        <ul class="analysis-drivers-list">${formatList(activeRejects, 'Aucun rejet actif sur cette orientation.')}</ul>
+                    </div>
+                    <div class="analysis-drivers-column">
+                        <h4 class="analysis-drivers-column-title">Vecteurs actifs (${activeVectors.length})</h4>
+                        <ul class="analysis-drivers-list">${formatList(activeVectors, 'Aucun vecteur actif sur cette orientation.')}</ul>
+                    </div>
+                </div>
+            </section>
+        `;
     }
 
     hasIncompleteDestinationFields(lot) {
@@ -28484,6 +28621,326 @@ getValoboisMatrixEntryByRank(rank) {
     return this.getValoboisMatrixDataset().find((entry) => Number(entry.rang) === numericRank) || null;
 }
 
+getValoboisScoreMappingByCriterionKey(criterionKey) {
+    const normalized = String(criterionKey || '').trim();
+    if (!normalized) return null;
+
+    if (/^r\d+$/i.test(normalized)) {
+        return this.getValoboisScoreMappingByRank(parseInt(normalized.slice(1), 10));
+    }
+
+    return this.getValoboisScoreMappings().find((mapping) => (
+        mapping.field === normalized || `${mapping.section}.${mapping.field}` === normalized
+    )) || null;
+}
+
+getValoboisActiveCriteriaMappings(mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    return this.getValoboisScoreMappings().filter((mapping) => this.isNotationModeCriterionEnabled(mapping.section, mapping.field, activeMode));
+}
+
+getValoboisCriterionEntry(lot, mapping) {
+    if (!lot || !mapping || !mapping.section || !mapping.field) return null;
+    const sectionData = lot[mapping.section];
+    if (!sectionData || typeof sectionData !== 'object') return null;
+    return sectionData[mapping.field] ?? null;
+}
+
+hasValoboisCriterionValue(lot, mapping) {
+    const entry = this.getValoboisCriterionEntry(lot, mapping);
+    if (entry == null) return false;
+    if (typeof entry === 'number') return Number.isFinite(entry);
+    if (typeof entry === 'object') return entry.valeur != null && Number.isFinite(Number(entry.valeur));
+    return false;
+}
+
+normalizeValoboisCriterionLevel(level) {
+    return String(level || '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+}
+
+getValoboisCriterionLevelKey(entry) {
+    const normalized = this.normalizeValoboisCriterionLevel(entry && entry.niveau);
+    if (normalized.startsWith('fort')) return 'fort';
+    if (normalized.startsWith('moy')) return 'moyen';
+    if (normalized.startsWith('faibl')) return 'faible';
+    return '';
+}
+
+getValoboisMatrixLetterForLevel(matrixEntry, levelKey) {
+    if (!matrixEntry || !matrixEntry.scores || !levelKey) return '';
+    const scoreEntry = matrixEntry.scores[levelKey];
+    const letter = scoreEntry && scoreEntry.letter ? String(scoreEntry.letter).trim().toUpperCase() : '';
+    return /^[A-E]$/.test(letter) ? letter : '';
+}
+
+getNoteLetterForCriterion(criterionKey, numericScore) {
+    const mapping = typeof criterionKey === 'object' && criterionKey
+        ? criterionKey
+        : this.getValoboisScoreMappingByCriterionKey(criterionKey);
+    if (!mapping) return '';
+
+    const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+    if (!matrixEntry) return '';
+
+    const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
+    const scoreValue = Number(numericScore);
+    if (!Array.isArray(steps) || steps.length < 3 || !Number.isFinite(scoreValue)) return '';
+
+    const levelOrder = ['fort', 'moyen', 'faible'];
+    const matchedIndex = steps.findIndex((stepValue) => Number(stepValue) === scoreValue);
+    if (matchedIndex >= 0) {
+        return this.getValoboisMatrixLetterForLevel(matrixEntry, levelOrder[matchedIndex]);
+    }
+
+    return '';
+}
+
+getCurrentNoteLetterForCriterion(lot, criterionKey) {
+    const mapping = typeof criterionKey === 'object' && criterionKey
+        ? criterionKey
+        : this.getValoboisScoreMappingByCriterionKey(criterionKey);
+    if (!mapping) return '';
+
+    const entry = this.getValoboisCriterionEntry(lot, mapping);
+    if (entry == null) return '';
+
+    const numericValue = typeof entry === 'number' ? entry : Number(entry.valeur);
+    const letterFromScore = this.getNoteLetterForCriterion(mapping, numericValue);
+    if (letterFromScore) return letterFromScore;
+
+    const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+    const levelKey = this.getValoboisCriterionLevelKey(entry);
+    return this.getValoboisMatrixLetterForLevel(matrixEntry, levelKey);
+}
+
+isOrientationConfirmed(lot, mode = null) {
+    if (!lot) return false;
+    const activeMappings = this.getValoboisActiveCriteriaMappings(mode);
+    if (!activeMappings.length) return false;
+    return activeMappings.every((mapping) => this.hasValoboisCriterionValue(lot, mapping));
+}
+
+getValoboisDefaultFlowLevels(flowData) {
+    const terms = (flowData && flowData.terms) || '';
+    const mentionsStrong = /\b(Fortes?|Forts?)\b/i.test(terms);
+    const mentionsMedium = /\b(Moyennes?|Moyens?)\b/i.test(terms);
+    const mentionsWeak = /\b(Faibles?)\b/i.test(terms);
+    const isRangeA = / à /.test(terms);
+
+    if (isRangeA) {
+        if (mentionsStrong && mentionsWeak) return { fort: true, moyen: true, faible: true };
+        if (mentionsStrong && mentionsMedium) return { fort: true, moyen: true, faible: false };
+        if (mentionsMedium && mentionsWeak) return { fort: false, moyen: true, faible: true };
+    }
+
+    return {
+        fort: mentionsStrong,
+        moyen: mentionsMedium,
+        faible: mentionsWeak,
+    };
+}
+
+getValoboisEffectiveFlowLevels(rank, flowKind, orientationKey, flowData) {
+    const baseLevels = this.getValoboisDefaultFlowLevels(flowData);
+    const criterionKey = `r${Number(rank)}`;
+    const overrides = this.valoboisMatrixConfig && this.valoboisMatrixConfig.flowOverrides
+        && this.valoboisMatrixConfig.flowOverrides[criterionKey]
+        && this.valoboisMatrixConfig.flowOverrides[criterionKey][flowKind]
+        && this.valoboisMatrixConfig.flowOverrides[criterionKey][flowKind][orientationKey]
+        ? this.valoboisMatrixConfig.flowOverrides[criterionKey][flowKind][orientationKey]
+        : null;
+
+    if (!overrides || typeof overrides !== 'object') return baseLevels;
+
+    return {
+        fort: typeof overrides.fort === 'boolean' ? overrides.fort : baseLevels.fort,
+        moyen: typeof overrides.moyen === 'boolean' ? overrides.moyen : baseLevels.moyen,
+        faible: typeof overrides.faible === 'boolean' ? overrides.faible : baseLevels.faible,
+    };
+}
+
+getValoboisEffectiveFlowCheckedState(rank, flowKind, orientationKey, levelKey) {
+    const matrixEntry = this.getValoboisMatrixEntryByRank(rank);
+    if (!matrixEntry || !['vectors', 'rejects'].includes(flowKind)) return false;
+    if (!['reemploi', 'reutilisation', 'recyclage', 'combustion'].includes(orientationKey)) return false;
+    if (!['fort', 'moyen', 'faible'].includes(levelKey)) return false;
+
+    const flowData = matrixEntry[flowKind] && matrixEntry[flowKind][orientationKey]
+        ? matrixEntry[flowKind][orientationKey]
+        : null;
+    const levels = this.getValoboisEffectiveFlowLevels(rank, flowKind, orientationKey, flowData);
+    return !!levels[levelKey];
+}
+
+openValoboisMatrixFlowConflictModal(rank, flowKind, orientationKey, levelKey) {
+    const matrixEntry = this.getValoboisMatrixEntryByRank(rank);
+    const criterionLabel = matrixEntry && matrixEntry.critere ? matrixEntry.critere : `r${rank}`;
+    const orientationLabel = this.getValoboisOrientationLabel(orientationKey);
+    const levelLabels = { fort: 'Fort', moyen: 'Moyen', faible: 'Faible' };
+    const flowLabels = { vectors: 'vecteur', rejects: 'facteur de rejet' };
+    const oppositeKind = flowKind === 'vectors' ? 'rejects' : 'vectors';
+
+    return this.openValoboisMatrixDetailModal(
+        'Conflit vecteur / rejet',
+        `Une même note ne peut pas être à la fois vecteur et facteur de rejet pour la même orientation.\n\nCritère : ${criterionLabel}\nOrientation : ${orientationLabel}\nNiveau : ${levelLabels[levelKey] || levelKey}\n\nDécochez d'abord le ${flowLabels[oppositeKind]} avant de cocher le ${flowLabels[flowKind]}.`
+    );
+}
+
+getValoboisCurrentLevelKeyForCriterion(lot, criterionKey) {
+    const mapping = typeof criterionKey === 'object' && criterionKey
+        ? criterionKey
+        : this.getValoboisScoreMappingByCriterionKey(criterionKey);
+    if (!mapping) return '';
+
+    const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+    const letter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+    if (matrixEntry && letter) {
+        if (this.getValoboisMatrixLetterForLevel(matrixEntry, 'fort') === letter) return 'fort';
+        if (this.getValoboisMatrixLetterForLevel(matrixEntry, 'moyen') === letter) return 'moyen';
+        if (this.getValoboisMatrixLetterForLevel(matrixEntry, 'faible') === letter) return 'faible';
+    }
+
+    return this.getValoboisCriterionLevelKey(this.getValoboisCriterionEntry(lot, mapping));
+}
+
+getValoboisOrientationLabel(code) {
+    const labels = {
+        reemploi: 'Réemploi',
+        reutilisation: 'Réutilisation',
+        recyclage: 'Recyclage',
+        combustion: 'Combustion',
+        none: '…'
+    };
+    return labels[code] || '…';
+}
+
+getValoboisOrientationResult(lot) {
+    if (!lot || !this._valoboisOrientationResults || !(this._valoboisOrientationResults instanceof WeakMap)) {
+        return null;
+    }
+    return this._valoboisOrientationResults.get(lot) || null;
+}
+
+getValoboisOrientationUiState(lot) {
+    const result = this.getValoboisOrientationResult(lot);
+    if (!result) return { stateClass: '', stateLabel: '', titleSuffix: '' };
+
+    if (result.forced) {
+        return {
+            stateClass: 'orientation-badge--forced',
+            stateLabel: 'Orientation forcée',
+            titleSuffix: 'Orientation forcée par révision.'
+        };
+    }
+
+    if (result.orientation === 'combustion' && result.combustionConfirmed === false) {
+        return {
+            stateClass: 'orientation-badge--unconfirmed-combustion',
+            stateLabel: 'Combustion à confirmer',
+            titleSuffix: 'Orientation déduite par élimination, non confirmée positivement par la matrice.'
+        };
+    }
+
+    if (result.confirmed === false) {
+        return {
+            stateClass: 'orientation-badge--provisional',
+            stateLabel: 'En cours',
+            titleSuffix: 'Orientation provisoire: tous les critères actifs ne sont pas encore notés.'
+        };
+    }
+
+    return { stateClass: '', stateLabel: '', titleSuffix: '' };
+}
+
+collectValoboisMatrixActiveFlows(lot, mode = null) {
+    const activeMappings = this.getValoboisActiveCriteriaMappings(mode);
+    const activeRejets = { reemploi: [], reutilisation: [], recyclage: [], combustion: [] };
+    const activeVectors = { reemploi: [], reutilisation: [], recyclage: [], combustion: [] };
+
+    activeMappings.forEach((mapping) => {
+        if (!this.hasValoboisCriterionValue(lot, mapping)) return;
+
+        const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+        if (!matrixEntry) return;
+
+        const levelKey = this.getValoboisCurrentLevelKeyForCriterion(lot, mapping);
+        const noteLetter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+        if (!levelKey) return;
+
+        ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+            const vectorLevels = this.getValoboisEffectiveFlowLevels(mapping.rang, 'vectors', orientationKey, matrixEntry.vectors && matrixEntry.vectors[orientationKey]);
+            const rejectLevels = this.getValoboisEffectiveFlowLevels(mapping.rang, 'rejects', orientationKey, matrixEntry.rejects && matrixEntry.rejects[orientationKey]);
+            const payload = {
+                rang: mapping.rang,
+                section: mapping.section,
+                field: mapping.field,
+                criterionKey: `${mapping.section}.${mapping.field}`,
+                critere: matrixEntry.critere || mapping.field,
+                famille: matrixEntry.famille || '',
+                orientation: orientationKey,
+                levelKey,
+                noteLetter,
+                numericScore: typeof this.getValoboisCriterionEntry(lot, mapping) === 'number'
+                    ? this.getValoboisCriterionEntry(lot, mapping)
+                    : Number(this.getValoboisCriterionEntry(lot, mapping)?.valeur),
+            };
+
+            if (vectorLevels[levelKey]) activeVectors[orientationKey].push(payload);
+            if (rejectLevels[levelKey]) activeRejets[orientationKey].push(payload);
+        });
+    });
+
+    return { activeRejets, activeVectors };
+}
+
+computeOrientationFromMatrix(lot, mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const confirmed = this.isOrientationConfirmed(lot, activeMode);
+    const { activeRejets, activeVectors } = this.collectValoboisMatrixActiveFlows(lot, activeMode);
+
+    if (!this.hasAnyNotationForLot(lot)) {
+        return {
+            orientation: 'none',
+            label: this.getValoboisOrientationLabel('none'),
+            confirmed: false,
+            combustionConfirmed: false,
+            activeRejets,
+            activeVectors,
+        };
+    }
+
+    let orientation = 'reemploi';
+
+    if (!activeRejets.reemploi.length && activeVectors.recyclage.length) {
+        orientation = activeRejets.recyclage.length ? 'combustion' : 'recyclage';
+    } else {
+        if (activeRejets.reemploi.length) {
+            orientation = 'reutilisation';
+            if (activeRejets.reutilisation.length) {
+                orientation = 'recyclage';
+                if (activeRejets.recyclage.length) {
+                    orientation = 'combustion';
+                }
+            }
+        }
+    }
+
+    const combustionConfirmed = orientation !== 'combustion' || activeVectors.combustion.length > 0;
+
+    return {
+        orientation,
+        label: this.getValoboisOrientationLabel(orientation),
+        confirmed,
+        combustionConfirmed,
+        activeRejets,
+        activeVectors,
+    };
+}
+
 getValoboisNotationRowForMapping(mapping) {
     if (!mapping || !mapping.section || !mapping.field) return null;
     const sectionMeta = NOTATION_MODE_SECTION_SELECTORS.find((entry) => entry.section === mapping.section);
@@ -29987,7 +30444,7 @@ handleValoboisMatrixConfigImport(file) {
             }
 
             const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-            const merged = this.normalizeValoboisMatrixConfig({
+            const mergedRaw = {
                 ...current,
                 thresholds: {
                     ...current.thresholds,
@@ -29996,7 +30453,9 @@ handleValoboisMatrixConfigImport(file) {
                 gates: parsed.gates ? { ...current.gates, ...parsed.gates } : current.gates,
                 weights: parsed.weights ? { ...current.weights, ...parsed.weights } : current.weights,
                 flowOverrides: parsed.flowOverrides ? { ...current.flowOverrides, ...parsed.flowOverrides } : current.flowOverrides
-            });
+            };
+            const flowConflictCount = this.getValoboisFlowOverrideConflicts(mergedRaw.flowOverrides).length;
+            const merged = this.normalizeValoboisMatrixConfig(mergedRaw);
 
             const check = this.isValoboisMatrixThresholdOrderValid(merged.thresholds);
             if (!check.valid) throw new Error(check.message);
@@ -30008,10 +30467,16 @@ handleValoboisMatrixConfigImport(file) {
             if (parsed.flowOverrides) changes.push('vecteurs/rejets');
             const summary = changes.length ? changes.join(', ') : 'aucune différence détectée';
 
-            const confirmed = window.confirm(`Appliquer la configuration importée (${summary}) ?`);
+            const conflictSuffix = flowConflictCount > 0
+                ? `\n\nNote: ${flowConflictCount} conflit(s) vecteur/rejet seront nettoyés automatiquement.`
+                : '';
+            const confirmed = window.confirm(`Appliquer la configuration importée (${summary}) ?${conflictSuffix}`);
             if (!confirmed) return;
 
             this._valoboisMatrixLastThresholdError = '';
+            this._valoboisMatrixLastFlowWarning = flowConflictCount > 0
+                ? `${flowConflictCount} conflit(s) vecteur/rejet importé(s) ont été nettoyés automatiquement.`
+                : '';
             this.valoboisMatrixConfig = merged;
             this.applyValoboisMatrixConfigToData();
             this.saveValoboisMatrixConfig();
@@ -30020,6 +30485,7 @@ handleValoboisMatrixConfigImport(file) {
             this.renderMatrice();
         } catch (error) {
             this._valoboisMatrixLastThresholdError = error && error.message ? error.message : 'Import impossible.';
+            this._valoboisMatrixLastFlowWarning = '';
             this.renderMatrice();
         }
     };
@@ -30185,6 +30651,7 @@ renderMatrice() {
                 </div>
             ` : ''}
             ${this._valoboisMatrixLastThresholdError ? `<p class="valobois-matrix-threshold-error">${this._valoboisMatrixLastThresholdError}</p>` : ''}
+            ${this._valoboisMatrixLastFlowWarning ? `<p class="valobois-matrix-threshold-warning">${this._valoboisMatrixLastFlowWarning}</p>` : ''}
         </div>
     `;
 
@@ -30219,9 +30686,28 @@ renderMatrice() {
             }
         });
 
-        const isStrong = /\b(Fortes?|Forts?)\b/i.test(terms);
-        const isMedium = /\b(Moyennes?|Moyens?)\b/i.test(terms);
-        const isWeak = /\b(Faibles?)\b/i.test(terms);
+        const mentionsStrong = /\b(Fortes?|Forts?)\b/i.test(terms);
+        const mentionsMedium = /\b(Moyennes?|Moyens?)\b/i.test(terms);
+        const mentionsWeak = /\b(Faibles?)\b/i.test(terms);
+        const isRangeA = / à /.test(terms); // "X à Y" → plage inclusive (à n'est pas \w en JS)
+        let isStrong, isMedium, isWeak;
+        if (isRangeA) {
+            if (mentionsStrong && mentionsWeak) {
+                // "Fort(e) à Faible" → les trois niveaux
+                isStrong = true; isMedium = true; isWeak = true;
+            } else if (mentionsStrong && mentionsMedium) {
+                // "Fort(e) à Moyen(ne)"
+                isStrong = true; isMedium = true; isWeak = false;
+            } else if (mentionsMedium && mentionsWeak) {
+                // "Moyen(ne) à Faible"
+                isStrong = false; isMedium = true; isWeak = true;
+            } else {
+                isStrong = mentionsStrong; isMedium = mentionsMedium; isWeak = mentionsWeak;
+            }
+        } else {
+            // "ou" ou mention unique → niveaux explicites seulement
+            isStrong = mentionsStrong; isMedium = mentionsMedium; isWeak = mentionsWeak;
+        }
         const fallbackLabels = preferMasculine
             ? { fort: 'Fort', moyen: 'Moyen', faible: 'Faible' }
             : { fort: 'Forte', moyen: 'Moyenne', faible: 'Faible' };
@@ -30347,8 +30833,8 @@ renderMatrice() {
                     <th>Lettre med</th>
                     <th>Score min</th>
                     <th>Lettre min</th>
-                    ${ui.showVectors ? '<th>Vect. Réemploi</th><th>Vect. Réutilisation</th><th>Vect. Recyclage</th><th>Vect. Combustion</th>' : ''}
-                    ${ui.showRejects ? '<th>Rejet Réemploi</th><th>Rejet Réutilisation</th><th>Rejet Recyclage</th><th>Rejet Combustion</th>' : ''}
+                    ${ui.showVectors ? '<th>Réemploi</th><th>Réutilisation</th><th>Recyclage</th><th>Combustion</th>' : ''}
+                    ${ui.showRejects ? '<th>Réemploi</th><th>Réutilisation</th><th>Recyclage</th><th>Combustion</th>' : ''}
                 </tr>
             </thead>
             <tbody>
@@ -30492,7 +30978,14 @@ renderMatrice() {
             const levelKey = button.getAttribute('data-valobois-matrix-flow-level') || '';
             const defaultChecked = button.getAttribute('data-valobois-matrix-flow-default') === '1';
             const checked = button.getAttribute('data-valobois-matrix-flow-checked') === '1';
-            this.setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, !checked, defaultChecked);
+            const nextChecked = !checked;
+            const oppositeKind = flowKind === 'vectors' ? 'rejects' : 'vectors';
+
+            if (nextChecked && this.getValoboisEffectiveFlowCheckedState(rank, oppositeKind, orientationKey, levelKey)) {
+                this.openValoboisMatrixFlowConflictModal(rank, flowKind, orientationKey, levelKey);
+                return;
+            }
+            this.setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, nextChecked, defaultChecked);
         });
     });
 
@@ -30539,6 +31032,22 @@ renderSeuils() {
     const hasNotation = this.hasAnyNotationForLot(lot);
     const root = document.getElementById('seuils-section');
     if (!root) return;
+
+    let confidenceRoot = root.querySelector('[data-analysis-confidence-summary]');
+    if (!confidenceRoot) {
+        confidenceRoot = document.createElement('div');
+        confidenceRoot.setAttribute('data-analysis-confidence-summary', 'true');
+        root.appendChild(confidenceRoot);
+    }
+    this.renderAnalysisConfidenceSummary(confidenceRoot, lot);
+
+    let driversRoot = root.querySelector('[data-analysis-orientation-drivers]');
+    if (!driversRoot) {
+        driversRoot = document.createElement('div');
+        driversRoot.setAttribute('data-analysis-orientation-drivers', 'true');
+        root.appendChild(driversRoot);
+    }
+    this.renderAnalysisOrientationDrivers(driversRoot, lot);
 
     const categories = [
         { key: 'economique', label: 'Économique' },
@@ -32717,6 +33226,7 @@ renderRadar() {
 
         const label = lot.orientationLabel || '…';
         const normalized = (label || '').toLowerCase();
+        const uiState = this.getValoboisOrientationUiState(lot);
 
         let extraClass = 'orientation-lot-orientation--none';
         if (normalized === 'réemploi' || normalized === 'reemploi') {
@@ -32729,7 +33239,14 @@ renderRadar() {
             extraClass = 'orientation-lot-orientation--combustion';
         }
         orientationBox.classList.add(extraClass);
+        if (uiState.stateClass) orientationBox.classList.add(uiState.stateClass);
         orientationBox.textContent = label || '…';
+        orientationBox.title = uiState.titleSuffix ? `${label || '…'} — ${uiState.titleSuffix}` : (label || '…');
+        if (uiState.stateLabel) {
+            orientationBox.setAttribute('data-orientation-state-label', uiState.stateLabel);
+        } else {
+            orientationBox.removeAttribute('data-orientation-state-label');
+        }
 
         header.appendChild(nameBox);
         header.appendChild(orientationBox);
@@ -32905,83 +33422,25 @@ renderRadar() {
     }
 
     computeOrientation(lot) {
-        const scores = this.getValueScoresForLot(lot);
-        const avg = (scores.economique + scores.ecologique + scores.mecanique + scores.historique + scores.esthetique) / 5;
-        const percentage = (avg / 30) * 100;
-        const gateState = this.getValoboisGateTriggerInfo(lot);
+        const orientationResult = this.computeOrientationFromMatrix(lot, this.getValoboisActiveMatrixMode());
+        let label = orientationResult.label;
+        let code = orientationResult.orientation;
 
-        let label = "…";
-        let code = "none";
-
-        if (this.hasAnyNotationForLot(lot)) {
-            const threshold = this.getOrientationThresholdForPercent(percentage);
-            label = threshold.orientationLabel;
-            code = threshold.code;
-        }
-
-        if (gateState.triggered) {
-            label = 'Combustion';
-            code = 'combustion';
-        }
-
-        // Plafonnement : integriteBio Faible → orientation max = Réutilisation
-        const _normInteg = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        if (_normInteg(lot?.bio?.integriteBio?.niveau) === 'faible' && code === 'reemploi') {
-            label = 'Réutilisation';
-            code  = 'reutilisation';
-        }
-        // Plafonnement : integriteMech Faible → orientation max = Réutilisation
-        if (_normInteg(lot?.mech?.integriteMech?.niveau) === 'faible' && code === 'reemploi') {
-            label = 'Réutilisation';
-            code  = 'reutilisation';
-        }
-
-        const _isStrongLevel = (value) => {
-            const normalized = _normInteg(value);
-            return normalized === 'fort' || normalized === 'forte';
-        };
-
-        // Forçage : altération Forte ignorée avec orientation forcée par révision
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
-            const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
-            const forced = altMap[lot.locked.alterationForcedOrientation];
-            if (forced) { label = forced; code = lot.locked.alterationForcedOrientation; }
-        }
-        // Forçage : expansion Forte ou contamination Forte → Combustion (sauf si ignoré)
-        if (!this.isLockIgnored(lot)) {
-            if (this.isValoboisDefaultGateEnabled('expansion') && _normInteg(lot?.bio?.expansion?.niveau) === 'forte') {
-                label = 'Combustion'; code = 'combustion';
-            } else if (this.isValoboisDefaultGateEnabled('contamination') && _normInteg(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
-                label = 'Combustion'; code = 'combustion';
-            }
-        }
-
-        // Forçage combustion non ignorable : intégrité biologique ET mécanique faibles
-        if (
-            this.isValoboisDefaultGateEnabled('integrite_biologique')
-            && this.isValoboisDefaultGateEnabled('integrite_mecanique')
-            &&
-            _normInteg(lot?.bio?.integriteBio?.niveau) === 'faible'
-            && _normInteg(lot?.mech?.integriteMech?.niveau) === 'faible'
-        ) {
-            label = 'Combustion';
-            code = 'combustion';
-        }
-
-        // Règle durabilité conférée : sans critère combustion actif, orientation par défaut = Réutilisation
-        if (
-            _isStrongLevel(lot?.denat?.durabiliteConfDenat?.niveau)
-            && !_isStrongLevel(lot?.denat?.depollutionDenat?.niveau)
-            && code !== 'combustion'
-        ) {
-            label = 'Réutilisation';
-            code = 'reutilisation';
+            code = lot.locked.alterationForcedOrientation;
+            label = this.getValoboisOrientationLabel(code);
         }
 
         lot.orientationLabel = label;
         lot.orientationCode = code;
         lot.orientation = label;
+        this._valoboisOrientationResults = this._valoboisOrientationResults || new WeakMap();
+        this._valoboisOrientationResults.set(lot, {
+            ...orientationResult,
+            orientation: code,
+            label,
+            forced: this.isAlterationLockIgnored(lot) && !!lot?.locked?.alterationForcedOrientation,
+        });
 
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotIndex >= 0) {
@@ -33016,11 +33475,22 @@ renderRadar() {
             'lot-orientation--reutilisation',
             'lot-orientation--recyclage',
             'lot-orientation--combustion',
-            'lot-orientation--none'
+            'lot-orientation--none',
+            'orientation-badge--forced',
+            'orientation-badge--unconfirmed-combustion',
+            'orientation-badge--provisional'
         );
 
+        const uiState = this.getValoboisOrientationUiState(lot);
         badge.classList.add(`lot-orientation--${code}`);
+        if (uiState.stateClass) badge.classList.add(uiState.stateClass);
         badge.textContent = label;
+        badge.title = uiState.titleSuffix ? `${label} — ${uiState.titleSuffix}` : label;
+        if (uiState.stateLabel) {
+            badge.setAttribute('data-orientation-state-label', uiState.stateLabel);
+        } else {
+            badge.removeAttribute('data-orientation-state-label');
+        }
     }
 
     /* ---- Évaluation de l’opération ---- */
@@ -33998,7 +34468,28 @@ renderRadar() {
     }
 
     getPdfText(_key, frValue, enValue) {
-        return this.getPdfLocaleCode() === 'en' ? enValue : frValue;
+        const key = (_key || '').toString().trim();
+        const map = {
+            'pdf.common.none': { fr: 'Aucun', en: 'None' },
+            'pdf.orientation.status.confirmed': { fr: 'Confirmee', en: 'Confirmed' },
+            'pdf.orientation.status.forced': { fr: 'Forcee', en: 'Forced' },
+            'pdf.orientation.status.unconfirmedCombustion': { fr: 'Deduite (non confirmee)', en: 'Inferred (unconfirmed)' },
+            'pdf.orientation.status.inProgress': { fr: 'En cours', en: 'In progress' },
+            'pdf.lot.orientationStatus': { fr: 'Statut orientation', en: 'Orientation status' },
+            'pdf.lot.orientationRejects': { fr: 'Rejets actifs', en: 'Active rejects' },
+            'pdf.lot.orientationVectors': { fr: 'Vecteurs actifs', en: 'Active vectors' },
+            'pdf.lot.combustionCaution': { fr: 'Alerte combustion', en: 'Combustion warning' },
+            'pdf.orientation.combustionCaution': {
+                fr: 'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                en: 'Orientation inferred by elimination, not positively confirmed by the matrix.'
+            }
+        };
+
+        const locale = this.getPdfLocaleCode();
+        if (key && map[key]) {
+            return locale === 'en' ? map[key].en : map[key].fr;
+        }
+        return locale === 'en' ? enValue : frValue;
     }
 
     getPdfDocInfo(kind = 'synthese', lotLabel = '') {
@@ -34458,85 +34949,70 @@ renderRadar() {
     }
 
     getPdfOrientationSummary(lot) {
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const scores = this.getValueScoresForLot(lot);
         const total = Object.values(scores).reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
         const average = total / 5;
         const percentage = (average / 30) * 100;
 
-        let label = '…';
-        let code = 'none';
-        if (average > 0 || average < 0) {
-            if (percentage >= 70) {
-                label = 'Réemploi';
-                code = 'reemploi';
-            } else if (percentage >= 50) {
-                label = 'Réutilisation';
-                code = 'reutilisation';
-            } else if (percentage >= 30) {
-                label = 'Recyclage';
-                code = 'recyclage';
-            } else {
-                label = 'Combustion';
-                code = 'combustion';
-            }
-        }
+        const matrixResult = this.getValoboisOrientationResult(lot)
+            || this.computeOrientationFromMatrix(lot, this.getValoboisActiveMatrixMode());
 
-        const resolvedLabel = (lot && lot.orientationLabel) ? lot.orientationLabel : label;
-        const resolvedCode  = (lot && lot.orientationCode)  ? lot.orientationCode  : code;
+        let finalCode = matrixResult && matrixResult.orientation ? matrixResult.orientation : 'none';
+        let finalLabel = this.getValoboisOrientationLabel(finalCode);
 
-        // Plafonnement : integriteBio Faible → orientation max = Réutilisation
-        const _normPdf = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        let finalLabel = resolvedLabel;
-        let finalCode  = resolvedCode;
-        if (_normPdf(lot?.bio?.integriteBio?.niveau) === 'faible' && finalCode === 'reemploi') {
-            finalLabel = 'Réutilisation';
-            finalCode  = 'reutilisation';
-        }
-        // Plafonnement : integriteMech Faible → orientation max = Réutilisation
-        if (_normPdf(lot?.mech?.integriteMech?.niveau) === 'faible' && finalCode === 'reemploi') {
-            finalLabel = 'Réutilisation';
-            finalCode  = 'reutilisation';
-        }
-        const _isStrongPdfLevel = (value) => {
-            const normalized = _normPdf(value);
-            return normalized === 'fort' || normalized === 'forte';
-        };
-        // Forçage : altération Forte ignorée avec orientation forcée par révision
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
-            const altMap = { reemploi: 'Réemploi', reutilisation: 'Réutilisation', recyclage: 'Recyclage', combustion: 'Combustion' };
-            const forced = altMap[lot.locked.alterationForcedOrientation];
-            if (forced) { finalLabel = forced; finalCode = lot.locked.alterationForcedOrientation; }
-        }
-        // Forçage : expansion Forte ou contamination Forte → Combustion (sauf si ignoré)
-        if (!this.isLockIgnored(lot)) {
-            if (_normPdf(lot?.bio?.expansion?.niveau) === 'forte') {
-                finalLabel = 'Combustion'; finalCode = 'combustion';
-            } else if (_normPdf(lot?.denat?.contaminationDenat?.niveau) === 'forte') {
-                finalLabel = 'Combustion'; finalCode = 'combustion';
-            }
+            finalCode = lot.locked.alterationForcedOrientation;
+            finalLabel = this.getValoboisOrientationLabel(finalCode);
         }
 
-        // Forçage combustion non ignorable : intégrité biologique ET mécanique faibles
-        if (
-            _normPdf(lot?.bio?.integriteBio?.niveau) === 'faible'
-            && _normPdf(lot?.mech?.integriteMech?.niveau) === 'faible'
-        ) {
-            finalLabel = 'Combustion';
-            finalCode = 'combustion';
+        const activeRejects = (matrixResult && matrixResult.activeRejets && matrixResult.activeRejets[finalCode]) || [];
+        const activeVectors = (matrixResult && matrixResult.activeVectors && matrixResult.activeVectors[finalCode]) || [];
+        const formatDrivers = (entries) => {
+            if (!entries.length) return tpdf('pdf.common.none', 'Aucun', 'None');
+            const unique = [];
+            const seen = new Set();
+            entries.forEach((entry) => {
+                const key = `r${entry.rang}:${entry.levelKey}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                unique.push(`r${entry.rang} ${entry.critere || entry.criterionKey || ''}`.trim());
+            });
+            const head = unique.slice(0, 4);
+            const suffix = unique.length > 4 ? `, +${unique.length - 4}` : '';
+            return head.join(', ') + suffix;
+        };
+
+        let statusLabel = tpdf('pdf.orientation.status.confirmed', 'Confirmee', 'Confirmed');
+        if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
+            statusLabel = tpdf('pdf.orientation.status.forced', 'Forcee', 'Forced');
+        } else if (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false) {
+            statusLabel = tpdf('pdf.orientation.status.unconfirmedCombustion', 'Deduite (non confirmee)', 'Inferred (unconfirmed)');
+        } else if (matrixResult && matrixResult.confirmed === false) {
+            statusLabel = tpdf('pdf.orientation.status.inProgress', 'En cours', 'In progress');
         }
 
-        // Règle durabilité conférée : sans critère combustion actif, orientation par défaut = Réutilisation
-        if (
-            _isStrongPdfLevel(lot?.denat?.durabiliteConfDenat?.niveau)
-            && !_isStrongPdfLevel(lot?.denat?.depollutionDenat?.niveau)
-            && finalCode !== 'combustion'
-        ) {
-            finalLabel = 'Réutilisation';
-            finalCode = 'reutilisation';
-        }
+        const combustionCaution = (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false)
+            ? tpdf(
+                'pdf.orientation.combustionCaution',
+                'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                'Orientation inferred by elimination, not positively confirmed by the matrix.'
+            )
+            : '';
 
-        return { label: finalLabel, code: finalCode, percentage, average, scores };
+        return {
+            label: finalLabel,
+            code: finalCode,
+            percentage,
+            average,
+            scores,
+            statusLabel,
+            combustionCaution,
+            activeRejects,
+            activeVectors,
+            activeRejectsText: formatDrivers(activeRejects),
+            activeVectorsText: formatDrivers(activeVectors)
+        };
     }
 
     getPdfOperationSummary(lotIndices = null) {
@@ -36522,6 +36998,7 @@ renderRadar() {
             : tpdf('pdf.common.no', 'Non', 'No');
         const mmSectionsLabel = mmSummary.totalSections > 0 ? this.formatPdfDecimal(mmSummary.totalSections, 0, 0) : '—';
         const lotSituationExport = this.getLocSitLotSituationExportSummary(currentLot);
+        const orientationSummary = this.getPdfOrientationSummary(currentLot);
 
         const lotPairs = [
             { label: tpdf('pdf.lot.pieceType', 'Type de pièces', 'Piece type'), value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
@@ -36544,7 +37021,12 @@ renderRadar() {
             { label: tpdf('pdf.lot.medoid', 'Pièce médoïde', 'Medoid piece'), value: medoideLabel + ' (' + medoideScore + ')' },
             { label: tpdf('pdf.lot.minPieceDelta', 'Pièce min / Delta', 'Min piece / Delta'), value: scoreMinPieceLabel + ' (Δ ' + scoreMinDelta + ')' },
             { label: tpdf('pdf.lot.mmValid', 'Mesures multiples valides', 'Valid multiple measurements'), value: mmValidLabel },
-            { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel }
+            { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel },
+            { label: tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'), value: orientationSummary.label || '—' },
+            { label: tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status'), value: orientationSummary.statusLabel || '—' },
+            { label: tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects'), value: orientationSummary.activeRejectsText || tpdf('pdf.common.none', 'Aucun', 'None') },
+            { label: tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors'), value: orientationSummary.activeVectorsText || tpdf('pdf.common.none', 'Aucun', 'None') },
+            { label: tpdf('pdf.lot.combustionCaution', 'Alerte combustion', 'Combustion warning'), value: orientationSummary.combustionCaution || '—' }
         ];
 
         // ── Inspection card ──
