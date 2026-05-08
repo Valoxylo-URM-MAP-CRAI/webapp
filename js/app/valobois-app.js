@@ -28457,7 +28457,312 @@ getValueScoresForLot(lot) {
         if (totals[k] < 0) totals[k] = 0;
     });
     return totals;
-}  
+}
+
+getScoreConfidenceEnvelopeForLot(lot) {
+    const result = { economique: 0, ecologique: 0, mecanique: 0, historique: 0, esthetique: 0 };
+    if (!lot) return result;
+
+    const mode = this.getValoboisActiveMatrixMode();
+    this.getValoboisActiveCriteriaMappings(mode).forEach((mapping) => {
+        if (this.hasValoboisCriterionValue(lot, mapping)) {
+            result[mapping.category] += 3;
+        }
+    });
+
+    Object.keys(result).forEach((key) => {
+        result[key] = Math.min(30, result[key]);
+    });
+    return result;
+}
+
+getRadarOrientationPositionData(lot, mode = null) {
+    const axisKeys = ['economique', 'ecologique', 'mecanique', 'historique', 'esthetique'];
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const hasScore = this.hasAnyNotationForLot(lot);
+    const scores = this.getValueScoresForLot(lot);
+    const scoreSum = axisKeys.reduce((sum, key) => sum + (Number(scores[key]) || 0), 0);
+    const scoreMax = 150;
+    const clampedScore = Math.max(0, Math.min(scoreMax, scoreSum));
+
+    const thresholdSource = this.ensureNotationModeOrientationThresholds();
+    const thresholdDefaults = this.getDefaultNotationModeOrientationThresholds();
+    const readThreshold = (key) => {
+        const raw = Number(thresholdSource && thresholdSource[key] && thresholdSource[key][activeMode]);
+        if (Number.isFinite(raw)) return Math.max(0, Math.min(30, raw));
+        const fallback = Number(thresholdDefaults && thresholdDefaults[key] && thresholdDefaults[key][activeMode]);
+        return Number.isFinite(fallback) ? Math.max(0, Math.min(30, fallback)) : 0;
+    };
+
+    const seuils = {
+        recyclage: readThreshold('recyclage') * 5,
+        reutilisation: readThreshold('reutilisation') * 5,
+        reemploi: readThreshold('reemploi') * 5
+    };
+    const toPct = (value) => Math.round(Math.max(0, Math.min(100, (value / scoreMax) * 100)));
+
+    const orientationResult = this.getValoboisOrientationResult(lot) || this.computeOrientationFromMatrix(lot, activeMode);
+    const currentOrientation = (orientationResult && orientationResult.orientation) || lot?.orientationCode || 'none';
+    const nextOrientationByCurrent = {
+        none: 'recyclage',
+        combustion: 'recyclage',
+        recyclage: 'reutilisation',
+        reutilisation: 'reemploi',
+        reemploi: null
+    };
+    const nextOrientation = Object.prototype.hasOwnProperty.call(nextOrientationByCurrent, currentOrientation)
+        ? nextOrientationByCurrent[currentOrientation]
+        : 'recyclage';
+
+    const targetByOrientation = {
+        recyclage: seuils.recyclage,
+        reutilisation: seuils.reutilisation,
+        reemploi: seuils.reemploi
+    };
+    const nextTarget = nextOrientation ? (targetByOrientation[nextOrientation] || 0) : null;
+    const deltaToNext = nextTarget == null ? 0 : Math.max(0, nextTarget - clampedScore);
+
+    const rawBlocking = (nextOrientation && orientationResult && orientationResult.activeRejets && orientationResult.activeRejets[nextOrientation]) || [];
+    const dedup = [];
+    const seen = new Set();
+    rawBlocking.forEach((entry) => {
+        const key = `${entry && entry.rang}:${entry && entry.levelKey}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        dedup.push(entry);
+    });
+    dedup.sort((a, b) => (Number(a && a.rang) || 0) - (Number(b && b.rang) || 0));
+
+    const topBlocking = dedup.slice(0, 3).map((entry) => ({
+        rang: Number(entry && entry.rang) || 0,
+        critere: (entry && (entry.critere || entry.criterionKey)) || 'Critère',
+        levelKey: (entry && entry.levelKey) || '',
+        noteLetter: (entry && entry.noteLetter) || ''
+    }));
+
+    const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode)
+        .filter((mapping) => this.hasValoboisCriterionValue(lot, mapping));
+    const isConfidenceField = (field) => typeof field === 'string' && field.startsWith('confiance');
+
+    const positiveNoConfidenceItems = [];
+    const negativeNoConfidenceItems = [];
+    let positiveNoConfidence = 0;
+    let negativeNoConfidenceAbs = 0;
+    activeMappings.forEach((mapping) => {
+        if (isConfidenceField(mapping.field)) return;
+        const score = Number(this.getValoboisEffectiveCriterionScore(lot, mapping, activeMode)) || 0;
+        const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+        const criterionLabel = (matrixEntry && matrixEntry.critere) ? matrixEntry.critere : `${mapping.section}.${mapping.field}`;
+        const levelKey = this.getValoboisCurrentLevelKeyForCriterion(lot, mapping);
+        const noteLetter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+        const payload = {
+            rang: Number(mapping.rang) || 0,
+            critere: criterionLabel,
+            score,
+            levelKey,
+            noteLetter
+        };
+
+        if (score >= 0) {
+            positiveNoConfidence += score;
+            positiveNoConfidenceItems.push(payload);
+        } else {
+            negativeNoConfidenceAbs += Math.abs(score);
+            negativeNoConfidenceItems.push(payload);
+        }
+    });
+
+    const confidenceMappings = this.getValoboisScoreMappings()
+        .filter((mapping) => isConfidenceField(mapping.field))
+        .filter((mapping) => this.hasValoboisCriterionValue(lot, mapping));
+    const confidenceItems = confidenceMappings.map((mapping) => {
+        const entry = this.getValoboisCriterionEntry(lot, mapping);
+        const score = Number(this.getValoboisRawCriterionValue(entry)) || 0;
+        const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+        const criterionLabel = (matrixEntry && matrixEntry.critere) ? matrixEntry.critere : `${mapping.section}.${mapping.field}`;
+        const levelKey = this.getValoboisCurrentLevelKeyForCriterion(lot, mapping);
+        const noteLetter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+        return {
+            rang: Number(mapping.rang) || 0,
+            critere: criterionLabel,
+            score,
+            levelKey,
+            noteLetter
+        };
+    });
+    const confidenceTotal = confidenceItems.reduce((sum, item) => sum + item.score, 0);
+    const confidenceMax = confidenceMappings.length * 3;
+
+    positiveNoConfidenceItems.sort((a, b) => a.rang - b.rang);
+    negativeNoConfidenceItems.sort((a, b) => a.rang - b.rang);
+    confidenceItems.sort((a, b) => a.rang - b.rang);
+
+    return {
+        hasScore,
+        scoreMax,
+        scoreSum: clampedScore,
+        scorePercent: toPct(clampedScore),
+        seuils,
+        positions: {
+            lot: toPct(clampedScore),
+            recyclage: toPct(seuils.recyclage),
+            reutilisation: toPct(seuils.reutilisation),
+            reemploi: toPct(seuils.reemploi)
+        },
+        currentOrientation,
+        currentOrientationLabel: this.getValoboisOrientationLabel(currentOrientation),
+        nextOrientation,
+        nextOrientationLabel: nextOrientation ? this.getValoboisOrientationLabel(nextOrientation) : '',
+        deltaToNext,
+        topBlocking,
+        blockingCount: dedup.length,
+        decomposition: {
+            positiveNoConfidence,
+            negativeNoConfidenceAbs,
+            netNoConfidence: positiveNoConfidence - negativeNoConfidenceAbs,
+            confidenceTotal,
+            confidenceMax,
+            confidenceCount: confidenceMappings.length,
+            positiveNoConfidenceItems,
+            negativeNoConfidenceItems,
+            confidenceItems
+        }
+    };
+}
+
+buildOrientationPositionBarHtml(lot, mode = null) {
+    const state = this.getRadarOrientationPositionData(lot, mode);
+    if (!state || !state.hasScore) {
+        return `
+            <section class="orientation-position-bar orientation-position-bar--empty" aria-label="Position orientation">
+                <p class="orientation-bar-hint">Aucun score exploitable pour positionner le lot.</p>
+            </section>
+        `;
+    }
+
+    const pos = state.positions;
+    const zoneRecyclageWidth = Math.max(0, pos.reutilisation - pos.recyclage);
+    const zoneReutilisationWidth = Math.max(0, pos.reemploi - pos.reutilisation);
+    const zoneReemploiWidth = Math.max(0, 100 - pos.reemploi);
+    const hasBlocking = state.topBlocking.length > 0;
+    const decomposition = state.decomposition || {};
+    const positiveNoConfidence = Number(decomposition.positiveNoConfidence) || 0;
+    const negativeNoConfidenceAbs = Number(decomposition.negativeNoConfidenceAbs) || 0;
+    const netNoConfidence = Number(decomposition.netNoConfidence) || 0;
+    const confidenceTotal = Number(decomposition.confidenceTotal) || 0;
+    const confidenceMax = Number(decomposition.confidenceMax) || 0;
+    const confidenceCount = Number(decomposition.confidenceCount) || 0;
+    const positiveNoConfidenceItems = Array.isArray(decomposition.positiveNoConfidenceItems) ? decomposition.positiveNoConfidenceItems : [];
+    const negativeNoConfidenceItems = Array.isArray(decomposition.negativeNoConfidenceItems) ? decomposition.negativeNoConfidenceItems : [];
+    const confidenceItems = Array.isArray(decomposition.confidenceItems) ? decomposition.confidenceItems : [];
+
+    const formatDetailItem = (item, showSign = true) => {
+        const level = item.levelKey ? String(item.levelKey).toUpperCase() : 'N/A';
+        const letter = item.noteLetter ? ` (${this.escapeHtml(item.noteLetter)})` : '';
+        const scoreLabel = `${showSign && item.score >= 0 ? '+' : ''}${Number(item.score || 0).toFixed(0)}`;
+        return `<li class="orientation-breakdown-detail-item"><span class="orientation-breakdown-detail-rank">r${item.rang}</span><span class="orientation-breakdown-detail-label">${this.escapeHtml(item.critere || 'Critère')}</span><span class="orientation-breakdown-detail-meta">${this.escapeHtml(level)}${letter} · ${scoreLabel} pts</span></li>`;
+    };
+
+    const noConfidenceBase = Math.max(positiveNoConfidence + negativeNoConfidenceAbs, 1);
+    const noConfidencePositivePct = Math.round((positiveNoConfidence / noConfidenceBase) * 100);
+    const noConfidenceNegativePct = Math.round((negativeNoConfidenceAbs / noConfidenceBase) * 100);
+    const confidencePct = confidenceMax > 0
+        ? Math.round(Math.max(0, Math.min(100, (confidenceTotal / confidenceMax) * 100)))
+        : 0;
+
+    const nextHint = state.nextOrientation
+        ? (hasBlocking
+            ? `Verrou actif vers ${this.escapeHtml(state.nextOrientationLabel)} (${state.blockingCount} rejet${state.blockingCount > 1 ? 's' : ''}).`
+            : `+${state.deltaToNext} pts pour atteindre ${this.escapeHtml(state.nextOrientationLabel)}.`)
+        : 'Seuil Réemploi atteint.';
+
+    const blockingHtml = hasBlocking
+        ? `
+            <div class="orientation-bar-blocking">
+                <div class="orientation-bar-blocking-title">Top 3 critères bloquants</div>
+                <ul class="orientation-bar-blocking-list">
+                    ${state.topBlocking.map((entry) => {
+                        const level = entry.levelKey ? String(entry.levelKey).toUpperCase() : 'N/A';
+                        const letter = entry.noteLetter ? ` (${this.escapeHtml(entry.noteLetter)})` : '';
+                        return `<li class="orientation-bar-blocking-item"><span class="orientation-bar-blocking-rank">r${entry.rang}</span><span class="orientation-bar-blocking-label">${this.escapeHtml(entry.critere)}</span><span class="orientation-bar-blocking-level">${this.escapeHtml(level)}${letter}</span></li>`;
+                    }).join('')}
+                </ul>
+            </div>
+        `
+        : '';
+
+    return `
+        <section class="orientation-position-bar" aria-label="Position orientation du lot">
+            <div class="orientation-position-bar-head">
+                <span class="orientation-position-bar-title">Position orientation</span>
+                <span class="orientation-position-bar-score">${state.scoreSum}/${state.scoreMax} (${state.scorePercent}%)</span>
+            </div>
+            <div class="orientation-bar-track">
+                <div class="orientation-bar-zone orientation-bar-zone--combustion" style="width:${pos.recyclage}%"></div>
+                <div class="orientation-bar-zone orientation-bar-zone--recyclage" style="left:${pos.recyclage}%;width:${zoneRecyclageWidth}%"></div>
+                <div class="orientation-bar-zone orientation-bar-zone--reutilisation" style="left:${pos.reutilisation}%;width:${zoneReutilisationWidth}%"></div>
+                <div class="orientation-bar-zone orientation-bar-zone--reemploi" style="left:${pos.reemploi}%;width:${zoneReemploiWidth}%"></div>
+
+                <div class="orientation-bar-threshold" style="left:${pos.recyclage}%" title="Seuil Recyclage : ${state.seuils.recyclage}/${state.scoreMax}"></div>
+                <div class="orientation-bar-threshold" style="left:${pos.reutilisation}%" title="Seuil Réutilisation : ${state.seuils.reutilisation}/${state.scoreMax}"></div>
+                <div class="orientation-bar-threshold" style="left:${pos.reemploi}%" title="Seuil Réemploi : ${state.seuils.reemploi}/${state.scoreMax}"></div>
+
+                <div class="orientation-bar-cursor" style="left:${pos.lot}%">
+                    <div class="orientation-bar-cursor-pin"></div>
+                    <div class="orientation-bar-cursor-label">Lot</div>
+                </div>
+            </div>
+            <div class="orientation-bar-meta">
+                <span class="orientation-bar-current">Filière actuelle: <strong>${this.escapeHtml(state.currentOrientationLabel)}</strong></span>
+                <span class="orientation-bar-hint${!state.nextOrientation ? ' orientation-bar-hint--top' : ''}">${nextHint}</span>
+            </div>
+            <div class="orientation-breakdown" aria-label="Dissociation des scores">
+                <div class="orientation-breakdown-title">Dissociation des scores</div>
+                <div class="orientation-breakdown-row">
+                    <span class="orientation-breakdown-label">Positif hors confiance</span>
+                    <span class="orientation-breakdown-value">+${positiveNoConfidence.toFixed(0)} pts</span>
+                </div>
+                <div class="orientation-breakdown-track" role="img" aria-label="Part des points positifs hors confiance">
+                    <div class="orientation-breakdown-fill orientation-breakdown-fill--positive" style="width:${noConfidencePositivePct}%"></div>
+                </div>
+                <div class="orientation-breakdown-row">
+                    <span class="orientation-breakdown-label">Malus hors confiance</span>
+                    <span class="orientation-breakdown-value orientation-breakdown-value--negative">-${negativeNoConfidenceAbs.toFixed(0)} pts</span>
+                </div>
+                <div class="orientation-breakdown-track" role="img" aria-label="Part des malus hors confiance">
+                    <div class="orientation-breakdown-fill orientation-breakdown-fill--negative" style="width:${noConfidenceNegativePct}%"></div>
+                </div>
+                <div class="orientation-breakdown-row orientation-breakdown-row--net">
+                    <span class="orientation-breakdown-label">Net hors confiance</span>
+                    <span class="orientation-breakdown-value">${netNoConfidence >= 0 ? '+' : ''}${netNoConfidence.toFixed(0)} pts</span>
+                </div>
+                <div class="orientation-breakdown-row">
+                    <span class="orientation-breakdown-label">Confiance totale renseignée</span>
+                    <span class="orientation-breakdown-value">${confidenceTotal.toFixed(0)}/${confidenceMax.toFixed(0)} pts (${confidenceCount} critère${confidenceCount > 1 ? 's' : ''})</span>
+                </div>
+                <div class="orientation-breakdown-track" role="img" aria-label="Progression confiance totale renseignée">
+                    <div class="orientation-breakdown-fill orientation-breakdown-fill--confidence" style="width:${confidencePct}%"></div>
+                </div>
+                <details class="orientation-breakdown-details">
+                    <summary>Détail des critères contributeurs</summary>
+                    <div class="orientation-breakdown-detail-block">
+                        <div class="orientation-breakdown-detail-title">Positif hors confiance (${positiveNoConfidenceItems.length})</div>
+                        <ul class="orientation-breakdown-detail-list">${positiveNoConfidenceItems.length ? positiveNoConfidenceItems.map((item) => formatDetailItem(item, true)).join('') : '<li class="orientation-breakdown-detail-empty">Aucune contribution positive.</li>'}</ul>
+                    </div>
+                    <div class="orientation-breakdown-detail-block">
+                        <div class="orientation-breakdown-detail-title">Malus hors confiance (${negativeNoConfidenceItems.length})</div>
+                        <ul class="orientation-breakdown-detail-list">${negativeNoConfidenceItems.length ? negativeNoConfidenceItems.map((item) => formatDetailItem(item, false)).join('') : '<li class="orientation-breakdown-detail-empty">Aucun malus.</li>'}</ul>
+                    </div>
+                    <div class="orientation-breakdown-detail-block">
+                        <div class="orientation-breakdown-detail-title">Confiance totale renseignée (${confidenceItems.length})</div>
+                        <ul class="orientation-breakdown-detail-list">${confidenceItems.length ? confidenceItems.map((item) => formatDetailItem(item, true)).join('') : '<li class="orientation-breakdown-detail-empty">Aucun critère confiance renseigné.</li>'}</ul>
+                    </div>
+                </details>
+            </div>
+            ${blockingHtml}
+        </section>
+    `;
+}
 
 getOrientationThresholdConfig() {
     const thresholdsByOrientation = this.ensureNotationModeOrientationThresholds();
@@ -31139,21 +31444,41 @@ renderRadar() {
     const lotIndex = lots.indexOf(lot);
     this.renderAnalysisLotSelector('radar', lot, lotIndex);
 
-    const scores = this.getValueScoresForLot(lot);
-    const labels = ['Économique', 'Écologique', 'Mécanique', 'Historique', 'Esthétique'];
-    const toPercent = (score) => Math.min(100, Math.max(0, Math.round((score / 30) * 100)));
-    const data = [
-        toPercent(scores.economique || 0),
-        toPercent(scores.ecologique || 0),
-        toPercent(scores.mecanique || 0),
-        toPercent(scores.historique || 0),
-        toPercent(scores.esthetique || 0)
+    const axisMeta = [
+        { key: 'economique', label: 'Économique' },
+        { key: 'ecologique', label: 'Écologique' },
+        { key: 'mecanique', label: 'Mécanique' },
+        { key: 'historique', label: 'Historique' },
+        { key: 'esthetique', label: 'Esthétique' }
     ];
+    const axisKeys = axisMeta.map((axis) => axis.key);
+    const labels = axisMeta.map((axis) => axis.label);
+    const mode = this.getValoboisActiveMatrixMode();
+    const hasNotation = this.hasAnyNotationForLot(lot);
+
+    const scores = this.getValueScoresForLot(lot);
+    const toPercent = (score) => Math.min(100, Math.max(0, Math.round((score / 30) * 100)));
+    const axisScores = axisKeys.map((key) => Number(scores[key]) || 0);
+    const data = axisScores.map((score) => toPercent(score));
+
+    const confidenceEnvelopeScores = this.getScoreConfidenceEnvelopeForLot(lot);
+    const confidenceEnvelopeData = axisKeys.map((key) => toPercent(confidenceEnvelopeScores[key] || 0));
+
+    const gatesByAxis = { economique: false, ecologique: false, mecanique: false, historique: false, esthetique: false };
+    this.getValoboisScoreMappings()
+        .filter((mapping) => mapping.gateKey)
+        .forEach((mapping) => {
+            const entry = this.getValoboisCriterionEntry(lot, mapping);
+            if (entry == null) return;
+            const score = typeof entry === 'number' ? entry : Number(entry && entry.valeur);
+            if (score === -10) gatesByAxis[mapping.category] = true;
+        });
 
     const weakestValue = Math.min(...data);
     const weakestAxisIndex = data.findIndex((value) => value === weakestValue);
     const weakestThreshold = this.getOrientationThresholdForPercent(weakestValue);
     const weakestAxisColor = weakestThreshold?.color || '#D55E00';
+    const gateMarkerColor = '#D55E00';
 
     const avg = data.reduce((acc, v) => acc + v, 0) / (data.length || 1);
     const fallbackOrientation = this.getOrientationThresholdForPercent(avg);
@@ -31164,6 +31489,20 @@ renderRadar() {
     const canvas = document.getElementById('radarChart') || document.getElementById('radarChartCanvas');
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
+    const wrapper = canvas.closest('.radar-canvas-wrapper') || canvas.parentElement;
+
+    let tooltipEl = wrapper ? wrapper.querySelector('#radarTooltip') : null;
+    if (wrapper && !tooltipEl) {
+        tooltipEl = document.createElement('div');
+        tooltipEl.id = 'radarTooltip';
+        tooltipEl.className = 'radar-tooltip';
+        tooltipEl.style.display = 'none';
+        tooltipEl.style.pointerEvents = 'none';
+        wrapper.appendChild(tooltipEl);
+    }
+    if (tooltipEl) {
+        tooltipEl.style.display = 'none';
+    }
 
     const thresholdRingsPlugin = {
         id: 'radarThresholdRings',
@@ -31224,9 +31563,40 @@ renderRadar() {
         }
     };
 
+    const confidenceEnvelopePlugin = {
+        id: 'radarConfidenceEnvelope',
+        beforeDatasetsDraw(chart) {
+            if (!hasNotation) return;
+
+            const radialScale = chart.scales && chart.scales.r;
+            if (!radialScale || !Array.isArray(confidenceEnvelopeData) || !confidenceEnvelopeData.length) return;
+
+            const chartContext = chart.ctx;
+            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
+            if (!axisCount) return;
+
+            chartContext.save();
+            chartContext.beginPath();
+            for (let i = 0; i < axisCount; i += 1) {
+                const point = radialScale.getPointPositionForValue(i, confidenceEnvelopeData[i]);
+                if (i === 0) chartContext.moveTo(point.x, point.y);
+                else chartContext.lineTo(point.x, point.y);
+            }
+            chartContext.closePath();
+            chartContext.fillStyle = 'rgba(86, 180, 233, 0.10)';
+            chartContext.fill();
+            chartContext.strokeStyle = '#56B4E9';
+            chartContext.lineWidth = 0.8;
+            chartContext.setLineDash([3, 3]);
+            chartContext.stroke();
+            chartContext.setLineDash([]);
+            chartContext.restore();
+        }
+    };
+
     const weakestAxisPlugin = {
         id: 'radarWeakestAxis',
-        afterDraw(chart) {
+        afterDatasetsDraw(chart) {
             const radialScale = chart.scales && chart.scales.r;
             if (!radialScale || weakestAxisIndex < 0) return;
 
@@ -31247,13 +31617,48 @@ renderRadar() {
         }
     };
 
+    const gateMarkersPlugin = {
+        id: 'radarGateMarkers',
+        afterDraw(chart) {
+            const radialScale = chart.scales && chart.scales.r;
+            if (!radialScale) return;
+
+            const chartContext = chart.ctx;
+            const markerRadius = 82;
+            const halfWidth = 4;
+            const halfHeight = 5;
+
+            chartContext.save();
+            axisKeys.forEach((axisKey, index) => {
+                if (!gatesByAxis[axisKey]) return;
+                const point = radialScale.getPointPositionForValue(index, markerRadius);
+                chartContext.beginPath();
+                chartContext.moveTo(point.x, point.y - halfHeight);
+                chartContext.lineTo(point.x + halfWidth, point.y);
+                chartContext.lineTo(point.x, point.y + halfHeight);
+                chartContext.lineTo(point.x - halfWidth, point.y);
+                chartContext.closePath();
+                chartContext.fillStyle = gateMarkerColor;
+                chartContext.globalAlpha = 0.9;
+                chartContext.fill();
+            });
+            chartContext.restore();
+        }
+    };
+
     if (this.radarChart) {
         this.radarChart.destroy();
         this.radarChart = null;
     }
 
+    if (this._radarTooltipHandlers && this._radarTooltipHandlers.canvas) {
+        const handlers = this._radarTooltipHandlers;
+        handlers.canvas.removeEventListener('mousemove', handlers.onMove);
+        handlers.canvas.removeEventListener('mouseleave', handlers.onLeave);
+    }
+
     this.radarChart = new Chart(ctx, {
-        plugins: [thresholdRingsPlugin, orientationOverlayPlugin, weakestAxisPlugin],
+        plugins: [thresholdRingsPlugin, orientationOverlayPlugin, confidenceEnvelopePlugin, weakestAxisPlugin, gateMarkersPlugin],
         type: 'radar',
         data: {
             labels,
@@ -31273,6 +31678,14 @@ renderRadar() {
         },
         options: {
             responsive: true,
+            layout: {
+                padding: {
+                    top: 10,
+                    right: 20,
+                    bottom: 10,
+                    left: 20
+                }
+            },
             scales: {
                 r: {
                     min: 0,
@@ -31295,7 +31708,8 @@ renderRadar() {
                                 size: context.index === weakestAxisIndex ? 16 : 13,
                                 weight: context.index === weakestAxisIndex ? '700' : '400'
                             };
-                        }
+                        },
+                        padding: 8
                     }
                 }
             },
@@ -31306,38 +31720,120 @@ renderRadar() {
         }
     });
 
+    const hideRadarTooltip = () => {
+        if (!tooltipEl) return;
+        tooltipEl.style.display = 'none';
+    };
+
+    const onRadarMouseMove = (event) => {
+        if (!tooltipEl || !this.radarChart) return;
+        const active = this.radarChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+        if (!active || !active.length) {
+            hideRadarTooltip();
+            return;
+        }
+
+        const hit = active[0];
+        if (hit.datasetIndex !== 0 || hit.index < 0 || hit.index >= axisMeta.length) {
+            hideRadarTooltip();
+            return;
+        }
+
+        const axis = axisMeta[hit.index];
+        const scoreValue = Math.round(axisScores[hit.index] || 0);
+        const percentValue = Math.round(data[hit.index] || 0);
+        const gateActive = gatesByAxis[axis.key] === true;
+
+        tooltipEl.innerHTML = `<strong>${axis.label}</strong><br>${scoreValue} / 30 &nbsp; <em>${percentValue}%</em>${gateActive ? '<br><span class="radar-tooltip-gate">⚠ Gate déclenché</span>' : ''}`;
+
+        const rect = wrapper ? wrapper.getBoundingClientRect() : canvas.getBoundingClientRect();
+        tooltipEl.style.left = `${event.clientX - rect.left + 12}px`;
+        tooltipEl.style.top = `${event.clientY - rect.top - 10}px`;
+        tooltipEl.style.display = 'block';
+    };
+
+    canvas.addEventListener('mousemove', onRadarMouseMove);
+    canvas.addEventListener('mouseleave', hideRadarTooltip);
+    this._radarTooltipHandlers = {
+        canvas,
+        onMove: onRadarMouseMove,
+        onLeave: hideRadarTooltip
+    };
+
     const legendId = 'radar-legend';
     let legendEl = document.getElementById(legendId);
     if (!legendEl) {
         legendEl = document.createElement('div');
         legendEl.id = legendId;
         legendEl.className = 'radar-legend';
-        const wrapper = canvas.closest('.radar-canvas-wrapper') || canvas.parentElement;
         if (wrapper) wrapper.appendChild(legendEl);
     }
+    const activeMappings = this.getValoboisActiveCriteriaMappings(mode);
     if (legendEl) {
         legendEl.innerHTML = '';
-        labels.forEach((label, index) => {
+        axisMeta.forEach((axis, index) => {
             const item = document.createElement('div');
             item.className = 'radar-legend-item';
             if (index === weakestAxisIndex) item.classList.add('weakest');
-            if (index === weakestAxisIndex) item.style.color = weakestAxisColor;
+            if (index === weakestAxisIndex) {
+                item.style.color = weakestAxisColor;
+                item.style.fontWeight = '700';
+            }
 
             const dot = document.createElement('span');
             dot.className = 'radar-legend-dot';
             dot.style.background = index === weakestAxisIndex ? weakestAxisColor : 'rgba(0, 0, 0, 0.45)';
             item.appendChild(dot);
-            item.appendChild(document.createTextNode(label));
+
+            const labelNode = document.createElement('span');
+            labelNode.textContent = axis.label;
+            item.appendChild(labelNode);
+
+            const axisMappings = activeMappings.filter((mapping) => mapping.category === axis.key);
+            const noted = axisMappings.filter((mapping) => this.hasValoboisCriterionValue(lot, mapping)).length;
+            const total = axisMappings.length;
+            const completion = document.createElement('span');
+            completion.className = 'radar-legend-completion';
+            completion.textContent = `${noted}/${total}`;
+            item.appendChild(completion);
+
             legendEl.appendChild(item);
         });
     }
 
+    const radarBody = wrapper ? wrapper.closest('.radar-body') : null;
+    if (radarBody) {
+        let positionHost = radarBody.querySelector('[data-radar-orientation-position]');
+        if (!positionHost) {
+            positionHost = document.createElement('div');
+            positionHost.setAttribute('data-radar-orientation-position', 'true');
+            positionHost.className = 'radar-orientation-position-host';
+            radarBody.insertBefore(positionHost, wrapper.nextSibling);
+        }
+        positionHost.innerHTML = this.buildOrientationPositionBarHtml(lot, mode);
+    }
+
     const bodyText = document.getElementById('radarBodyText');
     if (bodyText) {
-        let synth = 'Profil non renseigné.';
-        if (avg > 0 && avg <= 33) synth = 'Profil globalement faible.';
-        else if (avg > 33 && avg <= 66) synth = 'Profil globalement moyen.';
-        else if (avg > 66) synth = 'Profil globalement fort.';
+        const notedMappings = activeMappings.filter((mapping) => this.hasValoboisCriterionValue(lot, mapping)).length;
+        const totalMappings = activeMappings.length;
+        const completionRate = totalMappings > 0 ? notedMappings / totalMappings : 0;
+        const hasActiveGate = Object.values(gatesByAxis).some(Boolean);
+
+        let synth = '';
+        if (!hasNotation) {
+            synth = 'Aucun critère renseigné.';
+        } else if (completionRate < 0.4) {
+            synth = `Notation partielle (${notedMappings}/${totalMappings} critères). Profil provisoire.`;
+        } else if (hasActiveGate) {
+            synth = 'Gate déclenché - orientation contrainte indépendamment du score global.';
+        } else if (avg < 33) {
+            synth = `Profil globalement faible (${notedMappings}/${totalMappings} critères notés).`;
+        } else if (avg < 66) {
+            synth = `Profil globalement moyen (${notedMappings}/${totalMappings} critères notés).`;
+        } else {
+            synth = `Profil globalement fort (${notedMappings}/${totalMappings} critères notés).`;
+        }
         bodyText.textContent = synth;
     }
 }
