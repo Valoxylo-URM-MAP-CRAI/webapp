@@ -5328,11 +5328,22 @@ class ValoboisApp {
                 }
             },
             gates: {
-                disabled: [],
+                disabled: ['demontabilite'],
                 added: []
             },
             weights: {},
-            flowOverrides: {}
+            flowOverrides: {
+                r16: {
+                    vectors: {
+                        reemploi: { faible: false },
+                        reutilisation: { faible: false }
+                    },
+                    rejects: {
+                        reemploi: { faible: false },
+                        reutilisation: { faible: false }
+                    }
+                }
+            }
         };
     }
 
@@ -5402,7 +5413,7 @@ class ValoboisApp {
                 added: []
             },
             weights: {},
-            flowOverrides: {}
+            flowOverrides: JSON.parse(JSON.stringify(defaults.flowOverrides || {}))
         };
 
         ['fort', 'moyen', 'faible'].forEach((mode) => {
@@ -5888,6 +5899,29 @@ class ValoboisApp {
         if (!container) return;
 
         const entries = this.getAnalysisConfidenceSummaryEntries(lot);
+        const confidenceSummary = this.getNotationConfidenceGeneralSummary(lot);
+        const maxScore = Number(confidenceSummary.maxScore) || 24;
+        const currentScore = Number(confidenceSummary.score) || 0;
+        const progressPct = Math.max(0, Math.min(100, Math.round((currentScore / Math.max(1, maxScore)) * 100)));
+        const counts = {
+            forte: 0,
+            moyenne: 0,
+            faible: 0,
+            missing: 0
+        };
+        entries.forEach((entry) => {
+            const norm = this.normalizeNotationConfidenceLevel(entry.level);
+            if (norm.startsWith('fort')) {
+                counts.forte += 1;
+            } else if (norm.startsWith('moy')) {
+                counts.moyenne += 1;
+            } else if (norm.startsWith('faibl')) {
+                counts.faible += 1;
+            } else {
+                counts.missing += 1;
+            }
+        });
+
         const itemHtml = entries.map((entry) => `
             <div class="analysis-confidence-item">
                 <span class="orientation-field-dot analysis-confidence-dot analysis-confidence-dot--${entry.alertState}" aria-hidden="true"></span>
@@ -5900,7 +5934,22 @@ class ValoboisApp {
             <section class="analysis-confidence-card" aria-label="Confiance des sections">
                 <div class="analysis-confidence-header">
                     <h3 class="analysis-confidence-title">Confiance des sections</h3>
-                    <p class="analysis-confidence-subtitle">Couleur calculée depuis le statut de l'étude et la note de confiance active.</p>
+                    <p class="analysis-confidence-subtitle">Bloc dédié à la confiance (hors barre d'orientation).</p>
+                </div>
+                <div class="analysis-confidence-overview">
+                    <div class="analysis-confidence-overview-head">
+                        <span class="analysis-confidence-overview-title">Points de confiance renseignés</span>
+                        <span class="analysis-confidence-overview-score">${currentScore}/${maxScore} pts (${progressPct}%) · Niveau ${this.escapeHtml(confidenceSummary.level)}</span>
+                    </div>
+                    <div class="analysis-confidence-overview-track" role="img" aria-label="Progression des points de confiance">
+                        <div class="analysis-confidence-overview-fill" style="width:${progressPct}%"></div>
+                    </div>
+                    <div class="analysis-confidence-overview-meta">
+                        <span>Forte: ${counts.forte}</span>
+                        <span>Moyenne: ${counts.moyenne}</span>
+                        <span>Faible: ${counts.faible}</span>
+                        <span>Non renseignée: ${counts.missing}</span>
+                    </div>
                 </div>
                 <div class="analysis-confidence-grid">${itemHtml}</div>
             </section>
@@ -28499,8 +28548,6 @@ getRadarOrientationPositionData(lot, mode = null) {
         reutilisation: readThreshold('reutilisation') * 5,
         reemploi: readThreshold('reemploi') * 5
     };
-    const toPct = (value) => Math.round(Math.max(0, Math.min(100, (value / scoreMax) * 100)));
-
     const orientationResult = this.getValoboisOrientationResult(lot) || this.computeOrientationFromMatrix(lot, activeMode);
     const currentOrientation = (orientationResult && orientationResult.orientation) || lot?.orientationCode || 'none';
     const nextOrientationByCurrent = {
@@ -28513,14 +28560,6 @@ getRadarOrientationPositionData(lot, mode = null) {
     const nextOrientation = Object.prototype.hasOwnProperty.call(nextOrientationByCurrent, currentOrientation)
         ? nextOrientationByCurrent[currentOrientation]
         : 'recyclage';
-
-    const targetByOrientation = {
-        recyclage: seuils.recyclage,
-        reutilisation: seuils.reutilisation,
-        reemploi: seuils.reemploi
-    };
-    const nextTarget = nextOrientation ? (targetByOrientation[nextOrientation] || 0) : null;
-    const deltaToNext = nextTarget == null ? 0 : Math.max(0, nextTarget - clampedScore);
 
     const rawBlocking = (nextOrientation && orientationResult && orientationResult.activeRejets && orientationResult.activeRejets[nextOrientation]) || [];
     const dedup = [];
@@ -28540,9 +28579,31 @@ getRadarOrientationPositionData(lot, mode = null) {
         noteLetter: (entry && entry.noteLetter) || ''
     }));
 
-    const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode)
+    const activeModeMappings = this.getValoboisActiveCriteriaMappings(activeMode);
+    const activeMappings = activeModeMappings
         .filter((mapping) => this.hasValoboisCriterionValue(lot, mapping));
     const isConfidenceField = (field) => typeof field === 'string' && field.startsWith('confiance');
+
+    const nonConfidenceMappings = activeModeMappings.filter((mapping) => !isConfidenceField(mapping.field));
+    const positiveScoreMaxNoConfidence = nonConfidenceMappings.reduce((sum, mapping) => {
+        const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
+        if (!Array.isArray(steps) || !steps.length) return sum;
+        const maxStep = Math.max(...steps.map((v) => Number(v)).filter((v) => Number.isFinite(v)));
+        return sum + (Number.isFinite(maxStep) ? Math.max(0, maxStep) : 0);
+    }, 0);
+    const negativeScoreMinNoConfidence = nonConfidenceMappings.reduce((sum, mapping) => {
+        const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
+        if (!Array.isArray(steps) || !steps.length) return sum;
+        const minStep = Math.min(...steps.map((v) => Number(v)).filter((v) => Number.isFinite(v)));
+        return sum + (Number.isFinite(minStep) ? Math.min(0, minStep) : 0);
+    }, 0);
+
+    const axisMin = Math.min(0, negativeScoreMinNoConfidence);
+    const axisMax = Math.max(1, positiveScoreMaxNoConfidence);
+    const toPositivePct = (value) => Math.round(Math.max(0, Math.min(100, (value / axisMax) * 100)));
+    const toAxisPct = (value) => {
+        return Math.round(Math.max(0, Math.min(100, ((value - axisMin) / (axisMax - axisMin)) * 100)));
+    };
 
     const positiveNoConfidenceItems = [];
     const negativeNoConfidenceItems = [];
@@ -28597,17 +28658,84 @@ getRadarOrientationPositionData(lot, mode = null) {
     negativeNoConfidenceItems.sort((a, b) => a.rang - b.rang);
     confidenceItems.sort((a, b) => a.rang - b.rang);
 
+    const orientationOrder = ['reemploi', 'reutilisation', 'recyclage', 'combustion'];
+    const rejectsByOrientation = {};
+    const rejectIndexByRank = new Map();
+    orientationOrder.forEach((orientationKey) => {
+        const list = (orientationResult && orientationResult.activeRejets && orientationResult.activeRejets[orientationKey]) || [];
+        const unique = [];
+        const localSeen = new Set();
+        list.forEach((entry) => {
+            const uniqKey = `${entry && entry.rang}:${entry && entry.levelKey}`;
+            if (localSeen.has(uniqKey)) return;
+            localSeen.add(uniqKey);
+            const row = {
+                rang: Number(entry && entry.rang) || 0,
+                critere: (entry && (entry.critere || entry.criterionKey)) || 'Critère',
+                levelKey: (entry && entry.levelKey) || '',
+                noteLetter: (entry && entry.noteLetter) || ''
+            };
+            unique.push(row);
+            const rankKey = String(row.rang);
+            if (!rejectIndexByRank.has(rankKey)) rejectIndexByRank.set(rankKey, new Set());
+            rejectIndexByRank.get(rankKey).add(orientationKey);
+        });
+        unique.sort((a, b) => a.rang - b.rang);
+        rejectsByOrientation[orientationKey] = unique;
+    });
+
+    const notationRows = [];
+    const appendNotationRow = (item, type) => {
+        const rankKey = String(Number(item.rang) || 0);
+        const lockedSet = rejectIndexByRank.get(rankKey) || new Set();
+        const letter = String(item.noteLetter || '').trim().toUpperCase();
+        notationRows.push({
+            rang: Number(item.rang) || 0,
+            critere: item.critere || 'Critère',
+            levelKey: (item.levelKey || '').toString().toUpperCase(),
+            noteLetter: /^[A-E]$/.test(letter) ? letter : '',
+            score: Number(item.score) || 0,
+            type,
+            lockedOrientations: Array.from(lockedSet)
+        });
+    };
+    positiveNoConfidenceItems.forEach((item) => appendNotationRow(item, 'positive'));
+    negativeNoConfidenceItems.forEach((item) => appendNotationRow(item, 'negative'));
+    notationRows.sort((a, b) => a.rang - b.rang);
+
+    const letterCounts = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    notationRows.forEach((row) => {
+        if (row.noteLetter && Object.prototype.hasOwnProperty.call(letterCounts, row.noteLetter)) {
+            letterCounts[row.noteLetter] += 1;
+        }
+    });
+
+    const netScoreRaw = positiveNoConfidence - negativeNoConfidenceAbs;
+    const netScore = Math.max(axisMin, Math.min(axisMax, netScoreRaw));
+    const targetByOrientation = {
+        recyclage: seuils.recyclage,
+        reutilisation: seuils.reutilisation,
+        reemploi: seuils.reemploi
+    };
+    const nextTarget = nextOrientation ? (targetByOrientation[nextOrientation] || 0) : null;
+    const deltaToNext = nextTarget == null ? 0 : Math.max(0, nextTarget - positiveNoConfidence);
+
     return {
         hasScore,
         scoreMax,
         scoreSum: clampedScore,
-        scorePercent: toPct(clampedScore),
+        scorePercent: toPositivePct(positiveNoConfidence),
+        negativeScoreMin: axisMin,
+        netScore,
+        positiveScore: positiveNoConfidence,
+        positiveScoreMax: axisMax,
         seuils,
         positions: {
-            lot: toPct(clampedScore),
-            recyclage: toPct(seuils.recyclage),
-            reutilisation: toPct(seuils.reutilisation),
-            reemploi: toPct(seuils.reemploi)
+            lot: toAxisPct(netScore),
+            zero: toAxisPct(0),
+            recyclage: toAxisPct(seuils.recyclage),
+            reutilisation: toAxisPct(seuils.reutilisation),
+            reemploi: toAxisPct(seuils.reemploi)
         },
         currentOrientation,
         currentOrientationLabel: this.getValoboisOrientationLabel(currentOrientation),
@@ -28616,6 +28744,9 @@ getRadarOrientationPositionData(lot, mode = null) {
         deltaToNext,
         topBlocking,
         blockingCount: dedup.length,
+        rejectsByOrientation,
+        letterCounts,
+        notationRows,
         decomposition: {
             positiveNoConfidence,
             negativeNoConfidenceAbs,
@@ -28630,6 +28761,85 @@ getRadarOrientationPositionData(lot, mode = null) {
     };
 }
 
+getValoboisOrientationDisplayBounds(mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode)
+        .filter((mapping) => !(typeof mapping.field === 'string' && mapping.field.startsWith('confiance')));
+    const levelOrder = ['fort', 'moyen', 'faible'];
+    const negativeByOrientation = {
+        reemploi: 0,
+        reutilisation: 0,
+        recyclage: 0,
+        combustion: 0
+    };
+    let reemploiPositiveMin = 0;
+
+    activeMappings.forEach((mapping) => {
+        const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
+        const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+        if (!Array.isArray(steps) || steps.length < 3 || !matrixEntry) return;
+
+        ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+            const vectorLevels = this.getValoboisEffectiveFlowLevels(
+                mapping.rang,
+                'vectors',
+                orientationKey,
+                matrixEntry.vectors && matrixEntry.vectors[orientationKey]
+            );
+            const rejectLevels = this.getValoboisEffectiveFlowLevels(
+                mapping.rang,
+                'rejects',
+                orientationKey,
+                matrixEntry.rejects && matrixEntry.rejects[orientationKey]
+            );
+
+            let minNegative = Infinity;
+            levelOrder.forEach((levelKey, index) => {
+                if (!vectorLevels[levelKey] && !rejectLevels[levelKey]) return;
+                const value = Number(steps[index]);
+                if (!Number.isFinite(value) || value >= 0) return;
+                if (value < minNegative) minNegative = value;
+            });
+            if (Number.isFinite(minNegative) && minNegative < 0) {
+                negativeByOrientation[orientationKey] += minNegative;
+            }
+
+            if (orientationKey === 'reemploi') {
+                let minPositive = Infinity;
+                levelOrder.forEach((levelKey, index) => {
+                    if (!vectorLevels[levelKey]) return;
+                    const value = Number(steps[index]);
+                    if (!Number.isFinite(value) || value <= 0) return;
+                    if (value < minPositive) minPositive = value;
+                });
+                if (Number.isFinite(minPositive) && minPositive > 0) {
+                    reemploiPositiveMin += minPositive;
+                }
+            }
+        });
+    });
+
+    const gateThresholds = this.getValoboisDefaultGateDefinitions()
+        .filter((gate) => this.isValoboisDefaultGateEnabled(gate.id))
+        .map((gate) => Number.isFinite(Number(gate.scoreThreshold)) ? Number(gate.scoreThreshold) : -10)
+        .filter((value) => Number.isFinite(value));
+    const gateThreshold = gateThresholds.length ? Math.min(...gateThresholds) : -10;
+
+    const clampNeg = (value) => Math.min(-1, Math.max(-76, Math.round(value)));
+    const clampPos = (value) => Math.min(126, Math.max(0, Math.round(value)));
+
+    return {
+        negative: {
+            reemploi: clampNeg(negativeByOrientation.reemploi || -21),
+            reutilisation: clampNeg(negativeByOrientation.reutilisation || -42),
+            recyclage: clampNeg(negativeByOrientation.recyclage || -37),
+            combustion: clampNeg(negativeByOrientation.combustion || -76)
+        },
+        reemploiPositiveMin: clampPos(reemploiPositiveMin || 29),
+        gateThreshold: clampNeg(gateThreshold)
+    };
+}
+
 buildOrientationPositionBarHtml(lot, mode = null) {
     const state = this.getRadarOrientationPositionData(lot, mode);
     if (!state || !state.hasScore) {
@@ -28640,126 +28850,282 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         `;
     }
 
-    const pos = state.positions;
-    const zoneRecyclageWidth = Math.max(0, pos.reutilisation - pos.recyclage);
-    const zoneReutilisationWidth = Math.max(0, pos.reemploi - pos.reutilisation);
-    const zoneReemploiWidth = Math.max(0, 100 - pos.reemploi);
-    const hasBlocking = state.topBlocking.length > 0;
     const decomposition = state.decomposition || {};
     const positiveNoConfidence = Number(decomposition.positiveNoConfidence) || 0;
     const negativeNoConfidenceAbs = Number(decomposition.negativeNoConfidenceAbs) || 0;
     const netNoConfidence = Number(decomposition.netNoConfidence) || 0;
-    const confidenceTotal = Number(decomposition.confidenceTotal) || 0;
-    const confidenceMax = Number(decomposition.confidenceMax) || 0;
-    const confidenceCount = Number(decomposition.confidenceCount) || 0;
-    const positiveNoConfidenceItems = Array.isArray(decomposition.positiveNoConfidenceItems) ? decomposition.positiveNoConfidenceItems : [];
-    const negativeNoConfidenceItems = Array.isArray(decomposition.negativeNoConfidenceItems) ? decomposition.negativeNoConfidenceItems : [];
-    const confidenceItems = Array.isArray(decomposition.confidenceItems) ? decomposition.confidenceItems : [];
 
-    const formatDetailItem = (item, showSign = true) => {
-        const level = item.levelKey ? String(item.levelKey).toUpperCase() : 'N/A';
-        const letter = item.noteLetter ? ` (${this.escapeHtml(item.noteLetter)})` : '';
-        const scoreLabel = `${showSign && item.score >= 0 ? '+' : ''}${Number(item.score || 0).toFixed(0)}`;
-        return `<li class="orientation-breakdown-detail-item"><span class="orientation-breakdown-detail-rank">r${item.rang}</span><span class="orientation-breakdown-detail-label">${this.escapeHtml(item.critere || 'Critère')}</span><span class="orientation-breakdown-detail-meta">${this.escapeHtml(level)}${letter} · ${scoreLabel} pts</span></li>`;
+    // === Component 1 : barre de position (bornes fixes) ===
+    const SCORE_MIN = -76;
+    const SCORE_MAX = 126;
+    const SCORE_NEG = -Math.abs(negativeNoConfidenceAbs);
+    const SCORE_POS = Number(positiveNoConfidence) || 0;
+    const SCORE_NET = Number(netNoConfidence) || 0;
+    const hasNegative = negativeNoConfidenceAbs > 0.01;
+    const lotScore = hasNegative ? SCORE_NET : SCORE_POS;
+    const RANGE = SCORE_MAX - SCORE_MIN || 1;
+    const toPctNumber = (v) => ((v - SCORE_MIN) / RANGE * 100);
+    const toPct = (v) => `${toPctNumber(v).toFixed(3)}%`;
+    const clampPct = (v) => Math.max(0, Math.min(100, toPctNumber(v)));
+
+    const letterPaletteClass = (letter) => {
+        const v = String(letter || '').toUpperCase();
+        if (!/^[A-E]$/.test(v)) return 'orientation-note-letter--none';
+        return `orientation-note-letter--${v.toLowerCase()}`;
     };
 
-    const noConfidenceBase = Math.max(positiveNoConfidence + negativeNoConfidenceAbs, 1);
-    const noConfidencePositivePct = Math.round((positiveNoConfidence / noConfidenceBase) * 100);
-    const noConfidenceNegativePct = Math.round((negativeNoConfidenceAbs / noConfidenceBase) * 100);
-    const confidencePct = confidenceMax > 0
-        ? Math.round(Math.max(0, Math.min(100, (confidenceTotal / confidenceMax) * 100)))
-        : 0;
-
-    const nextHint = state.nextOrientation
-        ? (hasBlocking
-            ? `Verrou actif vers ${this.escapeHtml(state.nextOrientationLabel)} (${state.blockingCount} rejet${state.blockingCount > 1 ? 's' : ''}).`
-            : `+${state.deltaToNext} pts pour atteindre ${this.escapeHtml(state.nextOrientationLabel)}.`)
-        : 'Seuil Réemploi atteint.';
-
-    const blockingHtml = hasBlocking
-        ? `
-            <div class="orientation-bar-blocking">
-                <div class="orientation-bar-blocking-title">Top 3 critères bloquants</div>
-                <ul class="orientation-bar-blocking-list">
-                    ${state.topBlocking.map((entry) => {
-                        const level = entry.levelKey ? String(entry.levelKey).toUpperCase() : 'N/A';
-                        const letter = entry.noteLetter ? ` (${this.escapeHtml(entry.noteLetter)})` : '';
-                        return `<li class="orientation-bar-blocking-item"><span class="orientation-bar-blocking-rank">r${entry.rang}</span><span class="orientation-bar-blocking-label">${this.escapeHtml(entry.critere)}</span><span class="orientation-bar-blocking-level">${this.escapeHtml(level)}${letter}</span></li>`;
-                    }).join('')}
-                </ul>
+    // === Component 2 : répartition des notes (jauges a capacite fixe) ===
+    const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const letterCapacity = { A: 41, B: 26, C: 39, D: 14, E: 5 };
+    const makeGauge = (letter, side) => {
+        const cap = Number(letterCapacity[letter]) || 0;
+        const countRaw = Number(letterCounts[letter]) || 0;
+        const count = Math.max(0, countRaw);
+        if (cap === 0) return '';
+        const ratio = cap > 0 ? Math.min(100, (count / cap) * 100) : 0;
+        const emptyClass = count > 0 ? '' : ' is-empty';
+        return `
+            <div class="notes-gauge notes-gauge--${side} notes-gauge--${letter}${emptyClass}" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
+                <span class="notes-gauge-letter">${letter}</span>
+                <span class="notes-gauge-track-wrap" style="--cap:${cap};">
+                    <span class="notes-gauge-track">
+                        <span class="notes-gauge-fill notes-gauge-fill--${letter}${emptyClass}" style="width:${ratio.toFixed(2)}%;"></span>
+                        <span class="notes-gauge-count">x${count}</span>
+                    </span>
+                </span>
             </div>
-        `
-        : '';
+        `;
+    };
+    const repartitionLeftHtml = makeGauge('E', 'neg') + makeGauge('D', 'neg');
+    const repartitionRightHtml = makeGauge('A', 'pos') + makeGauge('B', 'pos') + makeGauge('C', 'pos');
+
+    const formatSigned = (value) => {
+        const n = Number(value) || 0;
+        return n > 0 ? `+${n.toFixed(0)}` : `${n.toFixed(0)}`;
+    };
+    const scaleMarkers = [
+        { value: SCORE_MIN, label: '-76', edge: 'start', key: 'min' },
+        { value: -10, label: '-10', key: 'minus10' },
+        { value: 0, label: '0', key: 'zero' },
+        { value: SCORE_MAX, label: '+126', edge: 'end', key: 'max' }
+    ];
+
+    const laneDefs = [
+        {
+            key: 'reemploi',
+            label: 'Réemploi',
+            color: '#009E73',
+            segments: [
+                { start: -21, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
+                { start: 29, end: 126, color: '#53a57a', roundLeft: true, roundRight: true }
+            ]
+        },
+        {
+            key: 'reutilisation',
+            label: 'Réutilisation',
+            color: '#56B4E9',
+            segments: [
+                { start: -42, end: 122, color: '#56B4E9', roundLeft: true, roundRight: true }
+            ]
+        },
+        {
+            key: 'recyclage',
+            label: 'Recyclage',
+            color: '#E69F00',
+            segments: [
+                { start: -37, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
+            ]
+        },
+        {
+            key: 'combustion',
+            label: 'Combustion',
+            color: '#d95f0e',
+            segments: [
+                { start: -76, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
+            ]
+        }
+    ];
+
+    const activeOrientation = laneDefs.some((lane) => lane.key === state.currentOrientation)
+        ? state.currentOrientation
+        : 'reutilisation';
+    const activeLaneIndex = Math.max(0, laneDefs.findIndex((lane) => lane.key === activeOrientation));
+    const lotNameRaw = String((lot && (lot.nomLot || lot.nom)) || '').trim();
+    const lotIndex = (this.data && Array.isArray(this.data.lots)) ? this.data.lots.indexOf(lot) : -1;
+    const lotBubbleLabel = lotNameRaw || (lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant');
+    const lotScoreLabel = formatSigned(lotScore);
+    const positiveLabel = formatSigned(SCORE_POS);
+    const negativeLabel = formatSigned(SCORE_NEG);
+
+    const normalizeToken = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    const femininePrefixes = [
+        'exposition', 'integrite', 'humidite', 'purge', 'inclusivite', 'demontabilite',
+        'naturalite', 'stabilite', 'depollution', 'micro-histoire', 'micro-histoire', 'durabilite'
+    ];
+    const masculinePrefixes = ['amortissement', 'vieillissement', 'debit'];
+    const getCriterionGender = (critere) => {
+        const normalized = normalizeToken(critere);
+        if (masculinePrefixes.some((prefix) => normalized.startsWith(prefix))) return 'm';
+        if (femininePrefixes.some((prefix) => normalized.startsWith(prefix))) return 'f';
+        return 'f';
+    };
+    const getLevelLabel = (levelKey, critere) => {
+        const normalized = normalizeToken(levelKey);
+        if (normalized.includes('faib')) return 'faible';
+        const gender = getCriterionGender(critere);
+        if (normalized.includes('fort')) return gender === 'f' ? 'forte' : 'fort';
+        if (normalized.includes('moy')) return gender === 'f' ? 'moyenne' : 'moyen';
+        return String(levelKey || '').toLowerCase();
+    };
+    const toTitleCase = (value) => {
+        const text = String(value || '').trim();
+        if (!text) return text;
+        return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+    };
+
+    const laneRowsHtml = laneDefs.map((lane) => {
+        const isActive = lane.key === activeOrientation;
+        const segmentHtml = lane.segments.map((segment) => {
+            const left = clampPct(Math.min(segment.start, segment.end));
+            const width = Math.abs(clampPct(segment.end) - clampPct(segment.start));
+            const radius = `${segment.roundLeft ? '999px' : '0'} ${segment.roundRight ? '999px' : '0'} ${segment.roundRight ? '999px' : '0'} ${segment.roundLeft ? '999px' : '0'}`;
+            return `<span class="lot-position-segment" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${segment.color};border-radius:${radius};"></span>`;
+        }).join('');
+
+        const negativeLineLeft = clampPct(Math.min(SCORE_NEG, 0));
+        const negativeLineWidth = Math.abs(clampPct(0) - clampPct(SCORE_NEG));
+        const positiveLineLeft = clampPct(Math.min(0, SCORE_POS));
+        const positiveLineWidth = Math.abs(clampPct(SCORE_POS) - clampPct(0));
+
+        const activeOverlay = isActive ? `
+            ${hasNegative ? `<span class="lot-position-range lot-position-range--neg" style="left:${negativeLineLeft.toFixed(3)}%;width:${negativeLineWidth.toFixed(3)}%;"></span><span class="lot-position-pill lot-position-pill--neg" style="left:${toPct(SCORE_NEG)};">${this.escapeHtml(negativeLabel)}</span>` : ''}
+            ${SCORE_POS > 0 ? `<span class="lot-position-range lot-position-range--pos" style="left:${positiveLineLeft.toFixed(3)}%;width:${positiveLineWidth.toFixed(3)}%;"></span>${hasNegative ? `<span class="lot-position-pill lot-position-pill--pos" style="left:${toPct(SCORE_POS)};">${this.escapeHtml(positiveLabel)}</span>` : ''}` : ''}
+            <span class="lot-position-zero-diamond" style="left:${toPct(0)};"></span>
+            <span class="lot-position-point lot-position-point--lot" style="left:${toPct(lotScore)};"></span>
+            <span class="lot-position-lot-line" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"></span>
+            <span class="lot-position-lot-bubble" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"><strong>${this.escapeHtml(lotBubbleLabel)}</strong><em>${this.escapeHtml(lotScoreLabel)}</em></span>
+        ` : '';
+
+        return `
+            <div class="lot-position-lane ${isActive ? `is-active is-active--${lane.key}` : ''}" style="--lane-color:${lane.color};">
+                <div class="lot-position-track">
+                    <span class="lot-position-track-label">${this.escapeHtml(lane.label)}</span>
+                    ${segmentHtml}
+                    ${activeOverlay}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const zeroPct = clampPct(0);
+    const orientationOrder = ['reemploi', 'reutilisation', 'recyclage', 'combustion'];
+    const lockRows = orientationOrder
+        .flatMap((orientationKey) => ((state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || []))
+        .filter(Boolean);
+    const lockUniqueKeys = new Set();
+    lockRows.forEach((row) => {
+        const key = [row.rang, row.critere, row.levelKey, row.noteLetter].map((part) => String(part || '')).join('|');
+        lockUniqueKeys.add(key);
+    });
+    const lockCount = lockUniqueKeys.size;
+    const lockGroupsHtml = orientationOrder.map((orientationKey) => {
+        const rows = (state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || [];
+        const title = this.getValoboisOrientationLabel(orientationKey);
+        const groupCount = rows.length;
+        const groupCountLabel = `${groupCount}/${lockCount}`;
+        const listClass = rows.length ? 'orientation-lock-list' : 'orientation-lock-list is-empty';
+        const itemsHtml = rows.map((row) => {
+            const level = toTitleCase(getLevelLabel(row.levelKey, row.critere));
+            const lockLetter = String(row.noteLetter || '').trim().toUpperCase();
+            const letterClass = /^[A-E]$/.test(lockLetter) ? ` orientation-lock-icon--letter-${lockLetter}` : '';
+            const levelClass = normalizeToken(level).replace(/[^a-z0-9_-]/g, '');
+            return `<span class="orientation-lock-item"><span class="orientation-lock-icon orientation-lock-icon--${levelClass}${letterClass}" aria-hidden="true"></span><span class="orientation-lock-label">${this.escapeHtml(row.critere)} ${this.escapeHtml(level)}</span></span>`;
+        }).join('');
+        return `
+            <div class="orientation-lock-group">
+                <div class="orientation-lock-group-title orientation-lock-group-title--${orientationKey}">
+                    ${this.escapeHtml(title)} <span class="orientation-lock-group-title-count">${this.escapeHtml(groupCountLabel)}</span>
+                </div>
+                <div class="${listClass}">
+                    ${itemsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    const rows = Array.isArray(state.notationRows) ? state.notationRows : [];
+    const colCount = 2;
+    const rowsPerCol = rows.length ? Math.ceil(rows.length / colCount) : 0;
+    const colTables = Array.from({ length: colCount }, (_unused, idx) => {
+        const start = idx * rowsPerCol;
+        const slice = rowsPerCol ? rows.slice(start, start + rowsPerCol) : [];
+        return `
+            <table class="orientation-detail-table">
+                <tbody>
+                    ${slice.map((row) => {
+                        const scoreLabel = `${row.score >= 0 ? '+' : ''}${row.score.toFixed(0)}`;
+                        const levelLabel = toTitleCase(getLevelLabel(row.levelKey, row.critere));
+                        const isLocked = Array.isArray(row.lockedOrientations) && row.lockedOrientations.length;
+                        const lockTitle = isLocked
+                            ? ` title="Verrou: ${row.lockedOrientations.map((k) => this.getValoboisOrientationLabel(k)).join(', ')}"`
+                            : '';
+                        const lockHtml = isLocked ? '<span class="orientation-detail-lock-flag" aria-hidden="true"></span>' : '';
+                        return `<tr class="orientation-detail-row ${letterPaletteClass(row.noteLetter)}"><td class="orientation-detail-rank">r${row.rang}</td><td class="orientation-detail-criterion">${this.escapeHtml(row.critere)}</td><td class="orientation-detail-level">${this.escapeHtml(levelLabel || 'N/A')}</td><td class="orientation-detail-score">${scoreLabel}</td><td class="orientation-detail-letter">${this.escapeHtml(row.noteLetter || '—')}</td><td class="orientation-detail-lock"${lockTitle}>${lockHtml}</td></tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+        `;
+    }).join('');
 
     return `
-        <section class="orientation-position-bar" aria-label="Position orientation du lot">
+        <section class="orientation-position-bar lot-position-section" aria-label="Position orientation du lot">
             <div class="orientation-position-bar-head">
-                <span class="orientation-position-bar-title">Position orientation</span>
-                <span class="orientation-position-bar-score">${state.scoreSum}/${state.scoreMax} (${state.scorePercent}%)</span>
+                <span class="orientation-position-bar-title">Position du lot sur l'échelle de notation</span>
             </div>
-            <div class="orientation-bar-track">
-                <div class="orientation-bar-zone orientation-bar-zone--combustion" style="width:${pos.recyclage}%"></div>
-                <div class="orientation-bar-zone orientation-bar-zone--recyclage" style="left:${pos.recyclage}%;width:${zoneRecyclageWidth}%"></div>
-                <div class="orientation-bar-zone orientation-bar-zone--reutilisation" style="left:${pos.reutilisation}%;width:${zoneReutilisationWidth}%"></div>
-                <div class="orientation-bar-zone orientation-bar-zone--reemploi" style="left:${pos.reemploi}%;width:${zoneReemploiWidth}%"></div>
-
-                <div class="orientation-bar-threshold" style="left:${pos.recyclage}%" title="Seuil Recyclage : ${state.seuils.recyclage}/${state.scoreMax}"></div>
-                <div class="orientation-bar-threshold" style="left:${pos.reutilisation}%" title="Seuil Réutilisation : ${state.seuils.reutilisation}/${state.scoreMax}"></div>
-                <div class="orientation-bar-threshold" style="left:${pos.reemploi}%" title="Seuil Réemploi : ${state.seuils.reemploi}/${state.scoreMax}"></div>
-
-                <div class="orientation-bar-cursor" style="left:${pos.lot}%">
-                    <div class="orientation-bar-cursor-pin"></div>
-                    <div class="orientation-bar-cursor-label">Lot</div>
+            <div class="lot-position-chart">
+                <div class="lot-position-grid-lines" aria-hidden="true">
+                    ${scaleMarkers.map((marker) => `<span class="lot-position-grid-line" style="left:${toPct(marker.value)};"></span>`).join('')}
                 </div>
-            </div>
-            <div class="orientation-bar-meta">
-                <span class="orientation-bar-current">Filière actuelle: <strong>${this.escapeHtml(state.currentOrientationLabel)}</strong></span>
-                <span class="orientation-bar-hint${!state.nextOrientation ? ' orientation-bar-hint--top' : ''}">${nextHint}</span>
+                <div class="lot-position-lanes">
+                    ${laneRowsHtml}
+                </div>
+                <div class="lot-position-axis-labels" aria-hidden="true">
+                    ${scaleMarkers.map((marker) => {
+                        const edgeClass = marker.edge === 'start'
+                            ? ' lot-position-axis-label--start'
+                            : (marker.edge === 'end' ? ' lot-position-axis-label--end' : '');
+                        return `<span class="lot-position-axis-label lot-position-axis-label--${marker.key}${edgeClass}" style="left:${toPct(marker.value)};">${this.escapeHtml(marker.label)}</span>`;
+                    }).join('')}
+                </div>
             </div>
             <div class="orientation-breakdown" aria-label="Dissociation des scores">
-                <div class="orientation-breakdown-title">Dissociation des scores</div>
-                <div class="orientation-breakdown-row">
-                    <span class="orientation-breakdown-label">Positif hors confiance</span>
-                    <span class="orientation-breakdown-value">+${positiveNoConfidence.toFixed(0)} pts</span>
-                </div>
-                <div class="orientation-breakdown-track" role="img" aria-label="Part des points positifs hors confiance">
-                    <div class="orientation-breakdown-fill orientation-breakdown-fill--positive" style="width:${noConfidencePositivePct}%"></div>
-                </div>
-                <div class="orientation-breakdown-row">
-                    <span class="orientation-breakdown-label">Malus hors confiance</span>
-                    <span class="orientation-breakdown-value orientation-breakdown-value--negative">-${negativeNoConfidenceAbs.toFixed(0)} pts</span>
-                </div>
-                <div class="orientation-breakdown-track" role="img" aria-label="Part des malus hors confiance">
-                    <div class="orientation-breakdown-fill orientation-breakdown-fill--negative" style="width:${noConfidenceNegativePct}%"></div>
-                </div>
-                <div class="orientation-breakdown-row orientation-breakdown-row--net">
-                    <span class="orientation-breakdown-label">Net hors confiance</span>
-                    <span class="orientation-breakdown-value">${netNoConfidence >= 0 ? '+' : ''}${netNoConfidence.toFixed(0)} pts</span>
-                </div>
-                <div class="orientation-breakdown-row">
-                    <span class="orientation-breakdown-label">Confiance totale renseignée</span>
-                    <span class="orientation-breakdown-value">${confidenceTotal.toFixed(0)}/${confidenceMax.toFixed(0)} pts (${confidenceCount} critère${confidenceCount > 1 ? 's' : ''})</span>
-                </div>
-                <div class="orientation-breakdown-track" role="img" aria-label="Progression confiance totale renseignée">
-                    <div class="orientation-breakdown-fill orientation-breakdown-fill--confidence" style="width:${confidencePct}%"></div>
-                </div>
-                <details class="orientation-breakdown-details">
-                    <summary>Détail des critères contributeurs</summary>
-                    <div class="orientation-breakdown-detail-block">
-                        <div class="orientation-breakdown-detail-title">Positif hors confiance (${positiveNoConfidenceItems.length})</div>
-                        <ul class="orientation-breakdown-detail-list">${positiveNoConfidenceItems.length ? positiveNoConfidenceItems.map((item) => formatDetailItem(item, true)).join('') : '<li class="orientation-breakdown-detail-empty">Aucune contribution positive.</li>'}</ul>
+                <div class="orientation-breakdown-title">Répartition des notes</div>
+                <div class="notes-distribution-row">
+                    <div class="notes-distribution-shell">
+                        <div class="notes-distribution-bar" style="--notes-zero-pct:${zeroPct.toFixed(3)}%;">
+                            <div class="notes-gauge-side notes-gauge-side--neg" style="flex:0 0 ${zeroPct.toFixed(3)}%;max-width:${zeroPct.toFixed(3)}%;">
+                                ${repartitionLeftHtml}
+                            </div>
+                            <span class="notes-seg-divider notes-seg-divider--axis" aria-hidden="true" style="left:${zeroPct.toFixed(3)}%;"></span>
+                            <div class="notes-gauge-side notes-gauge-side--pos" style="flex:1 1 auto;">
+                                ${repartitionRightHtml}
+                            </div>
+                        </div>
                     </div>
-                    <div class="orientation-breakdown-detail-block">
-                        <div class="orientation-breakdown-detail-title">Malus hors confiance (${negativeNoConfidenceItems.length})</div>
-                        <ul class="orientation-breakdown-detail-list">${negativeNoConfidenceItems.length ? negativeNoConfidenceItems.map((item) => formatDetailItem(item, false)).join('') : '<li class="orientation-breakdown-detail-empty">Aucun malus.</li>'}</ul>
-                    </div>
-                    <div class="orientation-breakdown-detail-block">
-                        <div class="orientation-breakdown-detail-title">Confiance totale renseignée (${confidenceItems.length})</div>
-                        <ul class="orientation-breakdown-detail-list">${confidenceItems.length ? confidenceItems.map((item) => formatDetailItem(item, true)).join('') : '<li class="orientation-breakdown-detail-empty">Aucun critère confiance renseigné.</li>'}</ul>
-                    </div>
-                </details>
+                </div>
             </div>
-            ${blockingHtml}
+            <div class="orientation-locks" aria-label="Verrous facteurs de rejet">
+                <div class="orientation-locks-title">Verrous (facteurs de rejet)</div>
+                <div class="orientation-lock-groups">${lockGroupsHtml}</div>
+            </div>
+            <details class="orientation-detail-panel">
+                <summary>Détail de la notation</summary>
+                <div class="orientation-detail-grid">${colTables}</div>
+            </details>
         </section>
     `;
 }
@@ -28866,7 +29232,15 @@ hasNotationForCategory(lot, category) {
 getValoboisMatrixDataset() {
     const payload = window.VALOBOIS_MATRICE_VECTEURS_REJETS;
     if (!payload || !Array.isArray(payload.entries)) return [];
-    return payload.entries;
+    const gateByRank = new Map(this.getValoboisDefaultGateDefinitions().map((gate) => [Number(gate.rang), gate.id]));
+    return payload.entries.map((entry) => {
+        const rank = Number(entry && entry.rang);
+        const defaultGateType = Number.isFinite(rank) ? (gateByRank.get(rank) || null) : null;
+        return {
+            ...entry,
+            defaultGateType
+        };
+    });
 }
 
 normalizeValoboisGateId(value) {
@@ -28884,7 +29258,8 @@ getValoboisDefaultGateDefinitions() {
         { id: 'expansion', label: 'Expansion', rang: 2 },
         { id: 'integrite_biologique', label: 'Intégrité biologique', rang: 3 },
         { id: 'integrite_mecanique', label: 'Intégrité mécanique', rang: 4 },
-        { id: 'alteration', label: 'Altération', rang: 5 }
+        { id: 'alteration', label: 'Altération', rang: 5 },
+        { id: 'demontabilite', label: 'Démontabilité', rang: 16, scoreThreshold: -3 }
     ];
 }
 
@@ -29059,13 +29434,25 @@ getValoboisEffectiveFlowLevels(rank, flowKind, orientationKey, flowData) {
         ? this.valoboisMatrixConfig.flowOverrides[criterionKey][flowKind][orientationKey]
         : null;
 
-    if (!overrides || typeof overrides !== 'object') return baseLevels;
-
-    return {
+    const merged = (!overrides || typeof overrides !== 'object')
+        ? baseLevels
+        : {
         fort: typeof overrides.fort === 'boolean' ? overrides.fort : baseLevels.fort,
         moyen: typeof overrides.moyen === 'boolean' ? overrides.moyen : baseLevels.moyen,
         faible: typeof overrides.faible === 'boolean' ? overrides.faible : baseLevels.faible,
     };
+
+    // Règle métier demandée: Démontabilité faible ne doit pas être cochée
+    // pour Réemploi/Réutilisation, en vecteurs comme en rejets.
+    if (
+        Number(rank) === 16
+        && ['vectors', 'rejects'].includes(flowKind)
+        && ['reemploi', 'reutilisation'].includes(orientationKey)
+    ) {
+        merged.faible = false;
+    }
+
+    return merged;
 }
 
 getValoboisEffectiveFlowCheckedState(rank, flowKind, orientationKey, levelKey) {
@@ -30484,7 +30871,8 @@ isValoboisDefaultGateEnabled(gateId) {
         expansion: ['expansion', 'r2'],
         integrite_biologique: ['integrite_biologique', 'integritebio', 'integrite_bio', 'r3'],
         integrite_mecanique: ['integrite_mecanique', 'integritemech', 'integrite_mech', 'r4'],
-        alteration: ['alteration', 'alterationtraces', 'r5']
+        alteration: ['alteration', 'alterationtraces', 'r5'],
+        demontabilite: ['demontabilite', 'demontabiliteancien', 'r16']
     };
     const targetAliases = aliases[target] || [target];
     const disabledSet = new Set(disabled.map((entry) => this.normalizeValoboisGateId(entry)));
@@ -30550,6 +30938,16 @@ setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, che
     if (!['reemploi', 'reutilisation', 'recyclage', 'combustion'].includes(orientationKey)) return;
     if (!['fort', 'moyen', 'faible'].includes(levelKey)) return;
     if (typeof checked !== 'boolean' || typeof defaultChecked !== 'boolean') return;
+
+    if (
+        Number(rank) === 16
+        && ['vectors', 'rejects'].includes(flowKind)
+        && ['reemploi', 'reutilisation'].includes(orientationKey)
+        && levelKey === 'faible'
+        && checked
+    ) {
+        return;
+    }
 
     const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
     const criterionKey = `r${numericRank}`;
@@ -30623,7 +31021,8 @@ getValoboisGateTriggerInfo(lot) {
         const mapping = this.getValoboisScoreMappings().find((entry) => entry.rang === gate.rang);
         if (!mapping) return;
         const score = this.getValoboisEffectiveCriterionScore(lot, mapping, mode);
-        if (Number(score) <= -10) {
+        const gateThreshold = Number.isFinite(Number(gate.scoreThreshold)) ? Number(gate.scoreThreshold) : -10;
+        if (Number(score) <= gateThreshold) {
             defaultTriggered.push({ ...gate, score });
         }
     });
@@ -30889,7 +31288,8 @@ renderMatrice() {
         contamination: 'Contamination forte',
         alteration: 'Altération des traces forte',
         integrite_biologique: 'Intégrité biologique faible',
-        integrite_mecanique: 'Intégrité mécanique faible'
+        integrite_mecanique: 'Intégrité mécanique faible',
+        demontabilite: 'Démontabilité faible'
     };
     const defaultGates = this.getValoboisDefaultGateDefinitions();
     const customGates = thresholdConfig.gates?.added || [];
@@ -31030,11 +31430,21 @@ renderMatrice() {
             ? thresholdConfig.flowOverrides[criterionKey][flowKind][orientationKey]
             : {};
 
+        const isHardDisabledFlow = (levelKey) => (
+            Number(rank) === 16
+            && ['vectors', 'rejects'].includes(flowKind)
+            && ['reemploi', 'reutilisation'].includes(orientationKey)
+            && levelKey === 'faible'
+        );
+
         return levelDefs.map(({ key, checked }) => {
-            const effectiveChecked = typeof flowOverrides[key] === 'boolean' ? flowOverrides[key] : checked;
+            const effectiveCheckedBase = typeof flowOverrides[key] === 'boolean' ? flowOverrides[key] : checked;
+            const effectiveChecked = isHardDisabledFlow(key) ? false : effectiveCheckedBase;
+            const defaultChecked = isHardDisabledFlow(key) ? false : checked;
             const label = formatVariantLabel(variantByLevel[key] || fallbackLabels[key]);
             const rowClass = effectiveChecked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
             const editableClass = ui.editMode ? ' is-editable' : '';
+            const hardDisabled = isHardDisabledFlow(key);
             return `<div class="${rowClass}" style="--valobois-checkbox-color:${orientationInfo.color};">
                 <button type="button" class="valobois-matrix-orientation-checkbox${editableClass}"
                     data-valobois-matrix-flow-toggle="1"
@@ -31042,11 +31452,11 @@ renderMatrice() {
                     data-valobois-matrix-flow-kind="${flowKind}"
                     data-valobois-matrix-flow-orientation="${orientationKey}"
                     data-valobois-matrix-flow-level="${key}"
-                    data-valobois-matrix-flow-default="${checked ? '1' : '0'}"
+                    data-valobois-matrix-flow-default="${defaultChecked ? '1' : '0'}"
                     data-valobois-matrix-flow-checked="${effectiveChecked ? '1' : '0'}"
                     aria-label="${orientationInfo.label} ${label}"
                     aria-pressed="${effectiveChecked ? 'true' : 'false'}"
-                    ${ui.editMode ? '' : 'disabled'}>${effectiveChecked ? '✓' : ''}</button>
+                    ${ui.editMode && !hardDisabled ? '' : 'disabled'}>${effectiveChecked ? '✓' : ''}</button>
                 <span class="valobois-matrix-checkbox-label">${label}</span>
             </div>`;
         }).join('');
@@ -31084,14 +31494,14 @@ renderMatrice() {
         return `
             <tr class="${familyMark}">
                 <td class="valobois-matrix-col-rank"><span class="valobois-matrix-rank">${entry.rang}</span></td>
-                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
-                <td class="valobois-matrix-col-family">${entry.famille}</td>
                 <td class="valobois-matrix-col-criterion">
                     <div class="valobois-matrix-criterion-name">${entry.critere}</div>
                     <div class="valobois-matrix-badges">
                         ${overridden ? '<span class="valobois-matrix-badge valobois-matrix-badge--edited">Modifié</span>' : ''}
                     </div>
                 </td>
+                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
+                <td class="valobois-matrix-col-family">${entry.famille}</td>
                 <td class="valobois-matrix-col-notation">${(() => { const mapping = this.getValoboisScoreMappingByRank(entry.rang); const hasNotation = mapping && !!this.getNotationDetailSpec(mapping.section, mapping.field); return hasNotation ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--notation valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="notation" aria-label="Ouvrir la fiche de notation">Info</button>` : '<span class="valobois-matrix-cell-empty">—</span>'; })()}</td>
                 <td class="valobois-matrix-col-gate">
                     ${entry.criticite
@@ -31126,9 +31536,9 @@ renderMatrice() {
                 </tr>
                 <tr>
                     <th>Classement</th>
+                    <th>Critère</th>
                     <th>Valeurs</th>
                     <th>Catégorie</th>
-                    <th>Critère</th>
                     <th>Notation</th>
                     <th>Verrou</th>
                     <th>Alerte</th>
