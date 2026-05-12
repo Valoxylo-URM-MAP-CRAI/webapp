@@ -28877,27 +28877,28 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     // === Component 2 : répartition des notes (jauges a capacite fixe) ===
     const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
     const letterCapacity = { A: 41, B: 26, C: 39, D: 14, E: 5 };
-    const makeGauge = (letter, side) => {
+    const makeGauge = (letter) => {
         const cap = Number(letterCapacity[letter]) || 0;
         const countRaw = Number(letterCounts[letter]) || 0;
         const count = Math.max(0, countRaw);
         if (cap === 0) return '';
         const ratio = cap > 0 ? Math.min(100, (count / cap) * 100) : 0;
+        const countLabel = `x${count}`;
+        const shouldPlaceCountOutside = ratio < 80;
         const emptyClass = count > 0 ? '' : ' is-empty';
         return `
-            <div class="notes-gauge notes-gauge--${side} notes-gauge--${letter}${emptyClass}" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
+            <div class="notes-gauge notes-gauge--${letter}${emptyClass}" style="--cap:${cap};" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
                 <span class="notes-gauge-letter">${letter}</span>
                 <span class="notes-gauge-track-wrap" style="--cap:${cap};">
-                    <span class="notes-gauge-track">
+                    <span class="notes-gauge-track" style="--fill-ratio:${ratio.toFixed(2)}%;">
                         <span class="notes-gauge-fill notes-gauge-fill--${letter}${emptyClass}" style="width:${ratio.toFixed(2)}%;"></span>
-                        <span class="notes-gauge-count">x${count}</span>
+                        <span class="notes-gauge-count${shouldPlaceCountOutside ? ' notes-gauge-count--outside' : ''}">${countLabel}</span>
                     </span>
                 </span>
             </div>
         `;
     };
-    const repartitionLeftHtml = makeGauge('E', 'neg') + makeGauge('D', 'neg');
-    const repartitionRightHtml = makeGauge('A', 'pos') + makeGauge('B', 'pos') + makeGauge('C', 'pos');
+    const repartitionHtml = ['A', 'B', 'C', 'D', 'E'].map((letter) => makeGauge(letter)).join('');
 
     const formatSigned = (value) => {
         const n = Number(value) || 0;
@@ -28954,8 +28955,19 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     const lotIndex = (this.data && Array.isArray(this.data.lots)) ? this.data.lots.indexOf(lot) : -1;
     const lotBubbleLabel = lotNameRaw || (lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant');
     const lotScoreLabel = formatSigned(lotScore);
+    const lotFlagClass = lotScore >= 0
+        ? ' lot-position-lot-bubble--flag-left'
+        : ' lot-position-lot-bubble--flag-right';
     const positiveLabel = formatSigned(SCORE_POS);
     const negativeLabel = formatSigned(SCORE_NEG);
+    const getPillSizeClass = (label) => {
+        const length = String(label || '').trim().length;
+        if (length <= 2) return ' lot-position-pill--size-s';
+        if (length === 3) return ' lot-position-pill--size-m';
+        return ' lot-position-pill--size-l';
+    };
+    const positivePillSizeClass = getPillSizeClass(positiveLabel);
+    const negativePillSizeClass = getPillSizeClass(negativeLabel);
 
     const normalizeToken = (value) => String(value || '')
         .normalize('NFD')
@@ -28989,6 +29001,8 @@ buildOrientationPositionBarHtml(lot, mode = null) {
 
     const laneRowsHtml = laneDefs.map((lane) => {
         const isActive = lane.key === activeOrientation;
+        const shouldFlipCombustionLabel = lane.key === 'combustion' && SCORE_NEG < -30;
+        const trackLabelClass = `lot-position-track-label${shouldFlipCombustionLabel ? ' lot-position-track-label--edge-end' : ''}`;
         const segmentHtml = lane.segments.map((segment) => {
             const left = clampPct(Math.min(segment.start, segment.end));
             const width = Math.abs(clampPct(segment.end) - clampPct(segment.start));
@@ -29002,18 +29016,18 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         const positiveLineWidth = Math.abs(clampPct(SCORE_POS) - clampPct(0));
 
         const activeOverlay = isActive ? `
-            ${hasNegative ? `<span class="lot-position-range lot-position-range--neg" style="left:${negativeLineLeft.toFixed(3)}%;width:${negativeLineWidth.toFixed(3)}%;"></span><span class="lot-position-pill lot-position-pill--neg" style="left:${toPct(SCORE_NEG)};">${this.escapeHtml(negativeLabel)}</span>` : ''}
-            ${SCORE_POS > 0 ? `<span class="lot-position-range lot-position-range--pos" style="left:${positiveLineLeft.toFixed(3)}%;width:${positiveLineWidth.toFixed(3)}%;"></span>${hasNegative ? `<span class="lot-position-pill lot-position-pill--pos" style="left:${toPct(SCORE_POS)};">${this.escapeHtml(positiveLabel)}</span>` : ''}` : ''}
+            ${hasNegative ? `<span class="lot-position-range lot-position-range--neg" style="left:${negativeLineLeft.toFixed(3)}%;width:${negativeLineWidth.toFixed(3)}%;"></span><span class="lot-position-pill lot-position-pill--neg${negativePillSizeClass}" style="left:${toPct(SCORE_NEG)};">${this.escapeHtml(negativeLabel)}</span>` : ''}
+            ${SCORE_POS > 0 ? `<span class="lot-position-range lot-position-range--pos" style="left:${positiveLineLeft.toFixed(3)}%;width:${positiveLineWidth.toFixed(3)}%;"></span>${hasNegative ? `<span class="lot-position-pill lot-position-pill--pos${positivePillSizeClass}" style="left:${toPct(SCORE_POS)};">${this.escapeHtml(positiveLabel)}</span>` : ''}` : ''}
             <span class="lot-position-zero-diamond" style="left:${toPct(0)};"></span>
             <span class="lot-position-point lot-position-point--lot" style="left:${toPct(lotScore)};"></span>
             <span class="lot-position-lot-line" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"></span>
-            <span class="lot-position-lot-bubble" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"><strong>${this.escapeHtml(lotBubbleLabel)}</strong><em>${this.escapeHtml(lotScoreLabel)}</em></span>
+            <span class="lot-position-lot-bubble${lotFlagClass}" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"><strong>${this.escapeHtml(lotBubbleLabel)}</strong><em>${this.escapeHtml(lotScoreLabel)}</em></span>
         ` : '';
 
         return `
             <div class="lot-position-lane ${isActive ? `is-active is-active--${lane.key}` : ''}" style="--lane-color:${lane.color};">
                 <div class="lot-position-track">
-                    <span class="lot-position-track-label">${this.escapeHtml(lane.label)}</span>
+                    <span class="${trackLabelClass}">${this.escapeHtml(lane.label)}</span>
                     ${segmentHtml}
                     ${activeOverlay}
                 </div>
@@ -29021,17 +29035,11 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         `;
     }).join('');
 
-    const zeroPct = clampPct(0);
     const orientationOrder = ['reemploi', 'reutilisation', 'recyclage', 'combustion'];
     const lockRows = orientationOrder
         .flatMap((orientationKey) => ((state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || []))
         .filter(Boolean);
-    const lockUniqueKeys = new Set();
-    lockRows.forEach((row) => {
-        const key = [row.rang, row.critere, row.levelKey, row.noteLetter].map((part) => String(part || '')).join('|');
-        lockUniqueKeys.add(key);
-    });
-    const lockCount = lockUniqueKeys.size;
+    const lockCount = lockRows.length;
     const lockGroupsHtml = orientationOrder.map((orientationKey) => {
         const rows = (state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || [];
         const title = this.getValoboisOrientationLabel(orientationKey);
@@ -29048,7 +29056,8 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         return `
             <div class="orientation-lock-group">
                 <div class="orientation-lock-group-title orientation-lock-group-title--${orientationKey}">
-                    ${this.escapeHtml(title)} <span class="orientation-lock-group-title-count">${this.escapeHtml(groupCountLabel)}</span>
+                    <span class="orientation-lock-group-title-label">${this.escapeHtml(title)}</span>
+                    <span class="orientation-lock-group-title-count">${this.escapeHtml(groupCountLabel)}</span>
                 </div>
                 <div class="${listClass}">
                     ${itemsHtml}
@@ -29088,7 +29097,10 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             </div>
             <div class="lot-position-chart">
                 <div class="lot-position-grid-lines" aria-hidden="true">
-                    ${scaleMarkers.map((marker) => `<span class="lot-position-grid-line" style="left:${toPct(marker.value)};"></span>`).join('')}
+                    ${scaleMarkers
+                        .filter((marker) => !marker.edge)
+                        .map((marker) => `<span class="lot-position-grid-line lot-position-grid-line--${marker.key}" style="left:${toPct(marker.value)};"></span>`)
+                        .join('')}
                 </div>
                 <div class="lot-position-lanes">
                     ${laneRowsHtml}
@@ -29106,14 +29118,8 @@ buildOrientationPositionBarHtml(lot, mode = null) {
                 <div class="orientation-breakdown-title">Répartition des notes</div>
                 <div class="notes-distribution-row">
                     <div class="notes-distribution-shell">
-                        <div class="notes-distribution-bar" style="--notes-zero-pct:${zeroPct.toFixed(3)}%;">
-                            <div class="notes-gauge-side notes-gauge-side--neg" style="flex:0 0 ${zeroPct.toFixed(3)}%;max-width:${zeroPct.toFixed(3)}%;">
-                                ${repartitionLeftHtml}
-                            </div>
-                            <span class="notes-seg-divider notes-seg-divider--axis" aria-hidden="true" style="left:${zeroPct.toFixed(3)}%;"></span>
-                            <div class="notes-gauge-side notes-gauge-side--pos" style="flex:1 1 auto;">
-                                ${repartitionRightHtml}
-                            </div>
+                        <div class="notes-distribution-bar">
+                            ${repartitionHtml}
                         </div>
                     </div>
                 </div>
@@ -31482,12 +31488,14 @@ renderMatrice() {
             const overrideValue = overridden && Number.isFinite(Number(overridden[mode])) ? Number(overridden[mode]) : null;
             const scoreValue = Number.isFinite(overrideValue) ? overrideValue : scoreBlock.value;
             const scoreClass = scoreValue <= -10 ? 'is-gate' : scoreValue < 0 ? 'is-negative' : scoreValue >= 2 ? 'is-positive' : 'is-neutral';
-            const numericCell = `<td class="valobois-matrix-col-score ${scoreClass}">
+            const letterValue = String(scoreBlock.letter || '').trim().toUpperCase();
+            const letterClass = /^[A-E]$/.test(letterValue) ? ` valobois-matrix-col-score--letter-${letterValue.toLowerCase()}` : '';
+            const numericCell = `<td class="valobois-matrix-col-score ${scoreClass}${letterClass}">
                 ${ui.editMode
                     ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${mode}">`
                     : `${scoreValue > 0 ? '+' : ''}${scoreValue}`}
             </td>`;
-            const letterCell = `<td class="valobois-matrix-col-score ${scoreClass}">${scoreBlock.letter || '—'}</td>`;
+            const letterCell = `<td class="valobois-matrix-col-score ${scoreClass}${letterClass}">${scoreBlock.letter || '—'}</td>`;
             return `${numericCell}${letterCell}`;
         };
 
