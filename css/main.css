@@ -13309,18 +13309,18 @@ body.day-mode .inspection-ignore-box {
   max-width: 180px;
 }
 .radar-tooltip-gate {
-  color: #D55E00;
+    color: #D55E00;
   font-weight: 600;
 }
 .radar-orientation-position-host {
-    margin-top: 10px;
+    margin-top: 5px;
 }
 .orientation-position-bar {
     --orientation-chart-horizontal-pad: 2px;
     border: 1px solid rgba(0, 0, 0, 0.12);
-    border-radius: 14px;
+    border-radius: 8px;
     background: #fff;
-    padding: 2px;
+    padding: 6px;
 }
 .orientation-position-bar--empty {
     padding: 8px 10px;
@@ -13346,8 +13346,8 @@ body.day-mode .inspection-ignore-box {
     position: relative;
     --lot-lane-height: 28px;
     --lot-lane-gap: 8px;
-    --lot-bubble-height: 48px;
-    --lot-bubble-offset: 30px;
+    --lot-bubble-height: 36px;
+    --lot-bubble-offset: 10px;
     --lot-axis-height: 20px;
     --lot-axis-gap: 8px;
     --lot-thumb-size: 16px;
@@ -13402,12 +13402,12 @@ body.day-mode .inspection-ignore-box {
     top: 50%;
     transform: translateY(-50%);
     z-index: 5;
-    font-size: 13px;
+    font-size: 11px;
     line-height: 1.2;
     color: #595959;
     font-weight: 500;
     border-radius: 999px;
-    padding: 2px 8px;
+    padding: 2px 4px;
     pointer-events: none;
     white-space: nowrap;
 }
@@ -13507,7 +13507,7 @@ body.day-mode .inspection-ignore-box {
     display: none;
 }
 .lot-position-pill--pos {
-    transform: translate(calc(-50% - var(--lot-pill-tip) / 2), -50%);
+    transform: translate(-100%, -50%);
     clip-path: polygon(
         0% 0%,
         calc(100% - var(--lot-pill-tip)) 0%,
@@ -13523,7 +13523,7 @@ body.day-mode .inspection-ignore-box {
     flex-shrink: 0;
 }
 .lot-position-pill--neg {
-    transform: translate(calc(-50% + var(--lot-pill-tip) / 2), -50%);
+    transform: translate(0, -50%);
     clip-path: polygon(
         var(--lot-pill-tip) 0%,
         100% 0%,
@@ -13557,7 +13557,7 @@ body.day-mode .inspection-ignore-box {
     gap: 1px;
     min-width: 64px;
     min-height: var(--lot-bubble-height);
-    padding: 6px 10px;
+    padding: 2px 4px;
     border-radius: 0;
     background: #000;
     color: #fff;
@@ -13593,21 +13593,25 @@ body.day-mode .inspection-ignore-box {
     margin-top: var(--lot-axis-gap);
     --lot-axis-chip-bg: #8f8f8f;
     --lot-axis-chip-fg: #f5f5f5;
+    --lot-axis-line-top: 16px;
+    --lot-axis-label-height: 15px;
+    --lot-axis-threshold-chip-height: 15px;
+    --lot-axis-threshold-chip-min-width: 32px;
 }
 .lot-position-axis-labels::before {
     content: '';
     position: absolute;
     left: 0;
     right: 1px;
-    top: 16px;
+    top: var(--lot-axis-line-top);
     height: var(--lot-threshold-line-size);
     background: #8f8f8f;
     z-index: 0;
 }
 .lot-position-axis-label {
     position: absolute;
-    top: 6px;
-    transform: translateX(-50%);
+    top: calc(var(--lot-axis-line-top) + (var(--lot-threshold-line-size) / 2) - 1px);
+    transform: translate(-50%, -50%);
     font-size: 11px;
     line-height: 1;
     color: var(--lot-axis-chip-fg);
@@ -13616,7 +13620,8 @@ body.day-mode .inspection-ignore-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-height: 20px;
+    height: var(--lot-axis-label-height);
+    min-height: var(--lot-axis-label-height);
     padding: 0 5px;
     border-radius: 999px;
     background: var(--lot-axis-chip-bg);
@@ -13625,22 +13630,30 @@ body.day-mode .inspection-ignore-box {
     box-sizing: border-box;
 }
 .lot-position-axis-label--start {
-    transform: translateX(0);
+    transform: translate(0, -50%);
     border-radius: 0 999px 999px 0;
     padding-left: 12px;
 }
 .lot-position-axis-label--end {
-    transform: translateX(-100%);
+    transform: translate(-100%, -50%);
     border-radius: 999px 0 0 999px;
     padding-right: 12px;
 }
 .lot-position-axis-label--minus10 {
-    transform: translateX(-50%);
-    min-width: 27px;
+    transform: translate(-100%, -50%);
+    min-width: var(--lot-axis-threshold-chip-min-width);
+    height: var(--lot-axis-threshold-chip-height);
+    min-height: var(--lot-axis-threshold-chip-height);
+    padding: 0 6px 0 12px;
+    border-radius: 999px 0 0 999px;
 }
 .lot-position-axis-label--zero {
-    transform: translateX(-50%);
-    min-width: 27px;
+    transform: translate(0, -50%);
+    min-width: var(--lot-axis-threshold-chip-min-width);
+    height: var(--lot-axis-threshold-chip-height);
+    min-height: var(--lot-axis-threshold-chip-height);
+    padding: 0 12px 0 6px;
+    border-radius: 0 999px 999px 0;
 }
 .orientation-bar-hint {
     font-size: 12px;
@@ -13723,8 +13736,23 @@ body.day-mode .inspection-ignore-box {
     flex: 0 0 auto;
 }
 .notes-distribution-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
     width: 100%;
     padding: 0 var(--orientation-chart-horizontal-pad, 20px);
+}
+.notes-distribution-columns {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+    align-items: start;
+}
+.notes-distribution-column {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
 }
 .notes-distribution-bar {
     position: relative;
@@ -13735,14 +13763,19 @@ body.day-mode .inspection-ignore-box {
     width: 100%;
     min-width: 0;
     height: 28px;
-    gap: 8px;
+    gap: 0;
+}
+.notes-distribution-bar--bottom {
+    margin-top: 2px;
 }
 .notes-gauge {
     display: inline-flex;
     align-items: center;
     gap: 5px;
     height: 100%;
-    flex: 1 1 calc(var(--cap, 1) * var(--notes-gauge-unit));
+    flex: 0 0 auto;
+    width: calc((var(--cap, 1) * 100%) / var(--col-max, 1));
+    max-width: 100%;
     min-width: 0;
 }
 .notes-gauge-letter {
@@ -14073,59 +14106,6 @@ body.day-mode .inspection-ignore-box {
     }
 }
 @media (max-width: 700px) {
-    .lot-position-chart {
-        --lot-lane-height: 22px;
-        --lot-lane-gap: 6px;
-        --lot-bubble-height: 40px;
-        --lot-bubble-offset: 14px;
-        --lot-axis-height: 17px;
-        --lot-axis-gap: 6px;
-        --lot-thumb-size: 13px;
-        --lot-horizontal-pad: 28px;
-    }
-    .lot-position-track {
-        height: 22px;
-    }
-    .lot-position-track-label {
-        font-size: 11px;
-        left: 8px;
-    }
-    .lot-position-pill {
-        --lot-pill-tip: 5px;
-        --lot-pill-half: 6px;
-        font-size: 10px;
-        padding: 2px 5px 2px;
-        min-height: 14px;
-    }
-    .lot-position-point {
-        width: 8px;
-        height: 8px;
-        border-width: 1px;
-    }
-    .lot-position-lot-bubble {
-        min-width: 64px;
-        min-height: var(--lot-bubble-height);
-        padding: 5px 8px;
-    }
-    .lot-position-lot-bubble strong {
-        font-size: 11px;
-    }
-    .lot-position-lot-bubble em {
-        font-size: 11px;
-    }
-    .lot-position-axis-label {
-        font-size: 9px;
-        min-height: 18px;
-        padding: 0 4px;
-        top: 6px;
-    }
-    .lot-position-axis-labels::before {
-        top: 15px;
-    }
-    .lot-position-axis-label--minus10,
-    .lot-position-axis-label--zero {
-        min-width: 23px;
-    }
     .orientation-detail-grid {
         grid-template-columns: 1fr;
     }
@@ -15353,7 +15333,7 @@ body.day-mode .inspection-ignore-box {
         --lot-lane-height: 24px;
         --lot-lane-gap: 7px;
         --lot-bubble-height: 44px;
-        --lot-bubble-offset: 24px;
+        --lot-bubble-offset: 10px;
         --lot-axis-height: 18px;
         --lot-axis-gap: 7px;
         --lot-thumb-size: 14px;
@@ -15364,49 +15344,59 @@ body.day-mode .inspection-ignore-box {
     }
     .lot-position-track-label {
         font-size: 11px;
-        left: 10px;
+        left: 5px;
     }
     .lot-position-pill {
-        --lot-pill-tip: 7px;
-        --lot-pill-half: 8px;
-        font-size: 10px;
-        padding: 2px 6px 3px;
+        --lot-pill-tip: 6px;
+        --lot-pill-half: 7px;
+        font-size: 11px;
+        padding: 2px 0 3px;
         min-height: 16px;
     }
     .lot-position-lot-bubble {
-        min-width: 58px;
+        min-width: 64px;
         min-height: var(--lot-bubble-height);
-        padding: 6px 9px;
+        padding: 2px 4px;
         border-radius: 0;
     }
     .lot-position-lot-bubble strong {
-        font-size: 12px;
+        font-size: 14px;
     }
     .lot-position-lot-bubble em {
-        font-size: 12px;
+        font-size: 14px;
     }
     .lot-position-axis-label {
         font-size: 9px;
-        min-height: 18px;
+        --lot-axis-label-height: 13px;
         padding: 0 4px;
     }
-    .lot-position-axis-labels::before {
-        top: 15px;
+    .lot-position-axis-labels {
+        --lot-axis-line-top: 15px;
     }
     .lot-position-axis-label--minus10,
     .lot-position-axis-label--zero {
-        min-width: 23px;
+        min-width: 28px;
+        height: 13px;
+        min-height: 13px;
+        padding-top: 0;
+        padding-bottom: 0;
     }
     .notes-distribution-bar {
         --notes-gauge-unit: 3.4px;
         height: 24px;
-        gap: 6px;
+        gap: 0;
     }
     .notes-distribution-row {
         min-height: 24px;
     }
     .notes-distribution-shell {
         padding: 0 var(--orientation-chart-horizontal-pad, 15px);
+    }
+    .notes-distribution-columns {
+        column-gap: 10px;
+    }
+    .notes-distribution-column {
+        gap: 5px;
     }
     .orientation-locks-meta {
         gap: 7px;
@@ -15456,7 +15446,7 @@ body.day-mode .inspection-ignore-box {
         --lot-lane-height: 24px;
         --lot-lane-gap: 6px;
         --lot-bubble-height: 44px;
-        --lot-bubble-offset: 22px;
+        --lot-bubble-offset: 10px;
         --lot-axis-height: 18px;
         --lot-axis-gap: 6px;
         --lot-thumb-size: 13px;
@@ -15465,27 +15455,37 @@ body.day-mode .inspection-ignore-box {
     .lot-position-track {
         height: 24px;
     }
+    .lot-position-axis-labels {
+        --lot-axis-threshold-chip-height: 13px;
+        --lot-axis-threshold-chip-min-width: 28px;
+    }
     .lot-position-track-label {
-        left: 8px;
+        left: 2px;
         font-size: 11px;
     }
     .lot-position-pill {
-        --lot-pill-tip: 5px;
-        --lot-pill-half: 6px;
-        font-size: 10px;
-        padding: 2px 5px 2px;
-        min-height: 14px;
+        --lot-pill-tip: 6px;
+        --lot-pill-half: 7px;
+        font-size: 11px;
+        padding: 2px 0 3px;
+        min-height: 16px;
     }
     .lot-position-lot-bubble {
-        min-width: 54px;
+        min-width: 64px;
         min-height: var(--lot-bubble-height);
-        padding: 5px 7px;
+        padding: 2px 4px;
         border-radius: 0;
+    }
+    .lot-position-lot-bubble strong {
+        font-size: 14px;
+    }
+    .lot-position-lot-bubble em {
+        font-size: 14px;
     }
     .notes-distribution-bar {
         --notes-gauge-unit: 1.45px;
         height: 20px;
-        gap: 3px;
+        gap: 0;
     }
     .notes-gauge-track-wrap {
         min-width: 0;
@@ -15504,6 +15504,12 @@ body.day-mode .inspection-ignore-box {
         width: 100%;
         flex: 0 0 auto;
         min-width: 100%;
+    }
+    .notes-distribution-columns {
+        column-gap: 8px;
+    }
+    .notes-distribution-column {
+        gap: 4px;
     }
     .notes-row-separator {
         width: 2px;

@@ -28877,6 +28877,10 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     // === Component 2 : répartition des notes (jauges a capacite fixe) ===
     const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
     const letterCapacity = { A: 41, B: 26, C: 39, D: 14, E: 5 };
+    const leftLetters = ['A', 'B', 'C'];
+    const rightLetters = ['D', 'E'];
+    const leftColMax = Math.max(...leftLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+    const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
     const makeGauge = (letter) => {
         const cap = Number(letterCapacity[letter]) || 0;
         const countRaw = Number(letterCounts[letter]) || 0;
@@ -28898,7 +28902,18 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             </div>
         `;
     };
-    const repartitionHtml = ['A', 'B', 'C', 'D', 'E'].map((letter) => makeGauge(letter)).join('');
+    const repartitionLeftHtml = leftLetters.map((letter) => makeGauge(letter)).join('');
+    const repartitionRightHtml = rightLetters.map((letter) => makeGauge(letter)).join('');
+    const repartitionHtml = `
+        <div class="notes-distribution-columns" style="grid-template-columns:minmax(0, ${leftColMax}fr) minmax(0, ${rightColMax}fr);">
+            <div class="notes-distribution-column notes-distribution-column--left" style="--col-max:${leftColMax};">
+                ${repartitionLeftHtml}
+            </div>
+            <div class="notes-distribution-column notes-distribution-column--right" style="--col-max:${rightColMax};">
+                ${repartitionRightHtml}
+            </div>
+        </div>
+    `;
 
     const formatSigned = (value) => {
         const n = Number(value) || 0;
@@ -29118,9 +29133,7 @@ buildOrientationPositionBarHtml(lot, mode = null) {
                 <div class="orientation-breakdown-title">Répartition des notes</div>
                 <div class="notes-distribution-row">
                     <div class="notes-distribution-shell">
-                        <div class="notes-distribution-bar">
-                            ${repartitionHtml}
-                        </div>
+                        ${repartitionHtml}
                     </div>
                 </div>
             </div>
