@@ -28508,6 +28508,76 @@ getValueScoresForLot(lot) {
     return totals;
 }
 
+getValueScoreRangesForLot(_lot, mode = null) {
+    const ranges = {
+        economique: { min: 0, max: 0, count: 0 },
+        ecologique: { min: 0, max: 0, count: 0 },
+        mecanique: { min: 0, max: 0, count: 0 },
+        historique: { min: 0, max: 0, count: 0 },
+        esthetique: { min: 0, max: 0, count: 0 }
+    };
+
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const mappings = this.getValoboisActiveCriteriaMappings(activeMode);
+
+    mappings.forEach((mapping) => {
+        if (!ranges[mapping.category]) return;
+        const categoryRange = ranges[mapping.category];
+        categoryRange.count += 1;
+
+        let minScore = 0;
+        let maxScore = 0;
+        let hasFixedOverride = false;
+
+        const weightKey = this.getValoboisMatrixWeightKeyFromMapping(mapping);
+        const custom = this.valoboisMatrixConfig && this.valoboisMatrixConfig.weights
+            ? (this.valoboisMatrixConfig.weights[weightKey] || this.valoboisMatrixConfig.weights[mapping.field])
+            : null;
+
+        if (custom && typeof custom === 'object') {
+            const override = Number(custom[activeMode]);
+            if (Number.isFinite(override)) {
+                minScore = override;
+                maxScore = override;
+                hasFixedOverride = true;
+            }
+        }
+
+        if (!hasFixedOverride) {
+            const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+            const matrixValues = ['fort', 'moyen', 'faible']
+                .map((levelKey) => Number(matrixEntry && matrixEntry.scores && matrixEntry.scores[levelKey] && matrixEntry.scores[levelKey].value))
+                .filter((value) => Number.isFinite(value));
+
+            if (matrixValues.length) {
+                minScore = Math.min(...matrixValues);
+                maxScore = Math.max(...matrixValues);
+            } else {
+                const steps = Array.isArray(NOTATION_CRITERION_SCORE_STEPS[mapping.field])
+                    ? NOTATION_CRITERION_SCORE_STEPS[mapping.field].map((value) => Number(value)).filter((value) => Number.isFinite(value))
+                    : [];
+                if (steps.length) {
+                    minScore = Math.min(...steps);
+                    maxScore = Math.max(...steps);
+                }
+            }
+        }
+
+        categoryRange.min += Math.min(0, minScore);
+        categoryRange.max += Math.max(0, maxScore);
+    });
+
+    Object.keys(ranges).forEach((categoryKey) => {
+        const range = ranges[categoryKey];
+        const fallbackMax = range.count > 0 ? range.count * 3 : 30;
+        range.min = Math.min(0, range.min);
+        range.max = Math.max(1, range.max, fallbackMax);
+        delete range.count;
+    });
+
+    return ranges;
+}
+
 getScoreConfidenceEnvelopeForLot(lot) {
     const result = { economique: 0, ecologique: 0, mecanique: 0, historique: 0, esthetique: 0 };
     if (!lot) return result;
@@ -32131,6 +32201,29 @@ renderMatrice() {
     }
 }
 
+getLetterDistributionForCategory(lot, categoryKey) {
+    const letterCounts = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+    const letterPoints = { A: 0, B: 0, C: 0, D: 0, E: 0 };
+
+    const mappingsForCategory = this.getValoboisScoreMappings()
+        .filter((mapping) => mapping.category === categoryKey);
+
+    mappingsForCategory.forEach((mapping) => {
+        if (!this.hasValoboisCriterionValue(lot, mapping)) return;
+
+        const entry = this.getValoboisCriterionEntry(lot, mapping);
+        const rawValue = typeof entry === 'number' ? entry : Number(entry && entry.valeur);
+        const letter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+
+        if (letter && /^[A-E]$/.test(letter)) {
+            letterCounts[letter] += 1;
+            letterPoints[letter] += Math.abs(rawValue);
+        }
+    });
+
+    return { letterCounts, letterPoints };
+}
+
 renderSeuils() {
     const lot = this.getCurrentLot();
     if (!lot) return; // Sécurité si aucun lot
@@ -32143,6 +32236,7 @@ renderSeuils() {
     
     const rawScores = this.getRawValueScoresForLot(lot);
     const scores = this.getValueScoresForLot(lot);
+    const scoreRanges = this.getValueScoreRangesForLot(lot);
     const hasNotation = this.hasAnyNotationForLot(lot);
     const root = document.getElementById('seuils-section');
     if (!root) return;
@@ -32155,13 +32249,10 @@ renderSeuils() {
     }
     this.renderAnalysisConfidenceSummary(confidenceRoot, lot);
 
-    let driversRoot = root.querySelector('[data-analysis-orientation-drivers]');
-    if (!driversRoot) {
-        driversRoot = document.createElement('div');
-        driversRoot.setAttribute('data-analysis-orientation-drivers', 'true');
-        root.appendChild(driversRoot);
+    const existingDriversRoot = root.querySelector('[data-analysis-orientation-drivers]');
+    if (existingDriversRoot) {
+        existingDriversRoot.remove();
     }
-    this.renderAnalysisOrientationDrivers(driversRoot, lot);
 
     const categories = [
         { key: 'economique', label: 'Économique' },
@@ -32171,67 +32262,145 @@ renderSeuils() {
         { key: 'esthetique', label: 'Esthétique' }
     ];
 
+    const formatSignedValue = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return '0';
+        const rounded = Math.round(numeric * 10) / 10;
+        const normalized = Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
+        return rounded > 0 ? `+${normalized}` : normalized;
+    };
+
+    const formatUnsignedValue = (value) => {
+        const numeric = Number(value);
+        if (!Number.isFinite(numeric)) return '0';
+        const rounded = Math.round(numeric * 10) / 10;
+        return Number.isInteger(rounded) ? String(rounded) : String(rounded).replace('.', ',');
+    };
+
+    // Référence commune: la jauge la plus étendue (span max), pour aligner le zéro verticalement.
+    const globalMinScore = Math.min(...categories.map((cat) => {
+        const range = scoreRanges[cat.key] || { min: 0 };
+        return Math.min(0, Number(range.min) || 0);
+    }));
+    const globalMaxScore = Math.max(...categories.map((cat) => {
+        const range = scoreRanges[cat.key] || { max: 30 };
+        return Math.max(1, Number(range.max) || 30);
+    }), 30);
+    const globalSpan = Math.max(1, globalMaxScore - globalMinScore);
+    const globalZeroPct = Math.max(0, Math.min(100, ((0 - globalMinScore) / globalSpan) * 100));
+
+    const letterColors = { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
+
     categories.forEach(cat => {
         const rawScore = rawScores[cat.key] || 0;
         const score = scores[cat.key] || 0;
+        const range = scoreRanges[cat.key] || { min: 0, max: 30 };
+        const minScore = Math.min(0, Number(range.min) || 0);
+        const maxScore = Math.max(1, Number(range.max) || 30);
+        const clampedRawScore = Math.max(minScore, Math.min(maxScore, rawScore));
+        const localMinPct = Math.max(0, Math.min(100, ((minScore - globalMinScore) / globalSpan) * 100));
+        const localMaxPct = Math.max(0, Math.min(100, ((maxScore - globalMinScore) / globalSpan) * 100));
+        const zeroPct = globalZeroPct;
         const hasCategoryNotation = this.hasNotationForCategory(lot, cat.key);
         const isAlertState = hasCategoryNotation && rawScore <= 0;
-        // Le score max est de 30 (10 critères x 3 points max)
-        const percent = Math.min(100, Math.round((score / 30) * 100));
+
+        // Récupérer les décomptes de lettres et points
+        const { letterCounts, letterPoints } = this.getLetterDistributionForCategory(lot, cat.key);
         
-        // Mise à jour du pourcentage
-        const pctEl = root.querySelector(`[data-seuils-percent="${cat.key}"]`);
-        if (pctEl) pctEl.textContent = hasNotation ? `${percent}%` : "…";
+        // Afficher les pillules de décompte
+        const titleEls = root.querySelectorAll(`[data-seuils-pills="${cat.key}"]`);
+        titleEls.forEach((titleEl) => {
+            const pillsHtml = ['A', 'B', 'C', 'D', 'E'].map((letter) => {
+                const count = letterCounts[letter] || 0;
+                return count > 0 ? `<span class="seuils-pill seuils-pill--${letter.toLowerCase()}">${letter}-${count}</span>` : '';
+            }).filter(h => h).join('');
+            titleEl.innerHTML = pillsHtml;
+        });
 
-        // Mise à jour du score numérique
-        const scoreEl = root.querySelector(`[data-seuils-score="${cat.key}"]`);
-        if (scoreEl) scoreEl.textContent = hasNotation ? `${score} / 30` : "…";
+        const minEls = root.querySelectorAll(`[data-seuils-min="${cat.key}"]`);
+        minEls.forEach((minEl) => {
+            minEl.textContent = formatSignedValue(minScore);
+        });
 
-        // Mise à jour de la jauge canvas
+        const maxEls = root.querySelectorAll(`[data-seuils-max="${cat.key}"]`);
+        maxEls.forEach((maxEl) => {
+            maxEl.textContent = `+${formatUnsignedValue(maxScore)}`;
+        });
+
+        // Mise à jour de la jauge linéaire bidirectionnelle avec bandes empilées
         const gauge = root.querySelector(`[data-seuils-gauge="${cat.key}"]`);
-        if (gauge && gauge.getContext) {
-            const rect = gauge.getBoundingClientRect();
-            const width = Math.max(1, Math.floor(rect.width || gauge.clientWidth || 28));
-            const height = Math.max(1, Math.floor(rect.height || gauge.clientHeight || 132));
-            if (gauge.width !== width) gauge.width = width;
-            if (gauge.height !== height) gauge.height = height;
+        if (gauge) {
+            const track = gauge.querySelector('[data-seuils-track]');
+            const rangeOutline = gauge.querySelector('[data-seuils-range-outline]');
+            const zeroMarker = gauge.querySelector('[data-seuils-zero]');
+            const thumb = gauge.querySelector('[data-seuils-thumb]');
+            const thumbLabel = gauge.querySelector('[data-seuils-thumb-label]');
+            const minBound = gauge.querySelector(`[data-seuils-min="${cat.key}"]`);
+            const maxBound = gauge.querySelector(`[data-seuils-max="${cat.key}"]`);
+            if (!track || !rangeOutline || !zeroMarker || !thumb || !thumbLabel || !minBound || !maxBound) return;
 
-            const ctx = gauge.getContext('2d');
-            if (!ctx) return;
+            const thumbPct = Math.max(0, Math.min(100, ((clampedRawScore - globalMinScore) / globalSpan) * 100));
+            const localSpan = Math.max(0, localMaxPct - localMinPct);
 
-            let track = isAlertState ? defaultThreshold.color : "#E6E6E6";
-            let fill = "#E6E6E6";
-            if (score > 0) {
-                fill = this.getOrientationThresholdForPercent(percent).color;
+            // Les bandes représentent les points cumulés par lettre, indépendamment du thumb.
+            // Chaque point = 1/globalSpan de la largeur totale de la jauge.
+            // Le thumb = score net (positifs - négatifs), les bandes peuvent le dépasser.
+            const pctPerPoint = 100 / globalSpan;
+
+            const positiveBandCWidth = letterPoints.C * pctPerPoint;
+            const positiveBandBWidth = letterPoints.B * pctPerPoint;
+            const positiveBandAWidth = letterPoints.A * pctPerPoint;
+
+            const negativeBandDWidth = Math.abs(letterPoints.D) * pctPerPoint;
+            const negativeBandEWidth = Math.abs(letterPoints.E) * pctPerPoint;
+
+            // Placer les bandes négatives (D le plus proche du zéro, E plus à gauche)
+            const negDEl = gauge.querySelector('[data-seuils-band="neg-d"]');
+            const negEEl = gauge.querySelector('[data-seuils-band="neg-e"]');
+            if (negDEl) {
+                negDEl.style.left = `${zeroPct - negativeBandDWidth}%`;
+                negDEl.style.width = `${Math.max(0, negativeBandDWidth)}%`;
+                negDEl.style.background = letterColors.D;
+            }
+            if (negEEl) {
+                negEEl.style.left = `${zeroPct - negativeBandDWidth - negativeBandEWidth}%`;
+                negEEl.style.width = `${Math.max(0, negativeBandEWidth)}%`;
+                negEEl.style.background = letterColors.E;
             }
 
-            const barWidth = Math.max(10, Math.min(18, Math.round(width * 0.7)));
-            const barX = Math.round((width - barWidth) / 2);
-            const radius = Math.min(barWidth / 2, 8);
-            const filledHeight = Math.max(0, Math.min(height, Math.round((percent / 100) * height)));
-
-            const roundedRect = (x, y, w, h, r) => {
-                const rr = Math.min(r, w / 2, h / 2);
-                ctx.beginPath();
-                ctx.moveTo(x + rr, y);
-                ctx.arcTo(x + w, y, x + w, y + h, rr);
-                ctx.arcTo(x + w, y + h, x, y + h, rr);
-                ctx.arcTo(x, y + h, x, y, rr);
-                ctx.arcTo(x, y, x + w, y, rr);
-                ctx.closePath();
-            };
-
-            ctx.clearRect(0, 0, width, height);
-
-            ctx.fillStyle = track;
-            roundedRect(barX, 0, barWidth, height, radius);
-            ctx.fill();
-
-            if (filledHeight > 0) {
-                ctx.fillStyle = fill;
-                roundedRect(barX, height - filledHeight, barWidth, filledHeight, radius);
-                ctx.fill();
+            // Placer les bandes positives (C le plus proche du zéro, puis B, puis A)
+            const posCEl = gauge.querySelector('[data-seuils-band="pos-c"]');
+            const posBEl = gauge.querySelector('[data-seuils-band="pos-b"]');
+            const posAEl = gauge.querySelector('[data-seuils-band="pos-a"]');
+            if (posCEl) {
+                posCEl.style.left = `${zeroPct}%`;
+                posCEl.style.width = `${Math.max(0, positiveBandCWidth)}%`;
+                posCEl.style.background = letterColors.C;
             }
+            if (posBEl) {
+                posBEl.style.left = `${zeroPct + positiveBandCWidth}%`;
+                posBEl.style.width = `${Math.max(0, positiveBandBWidth)}%`;
+                posBEl.style.background = letterColors.B;
+            }
+            if (posAEl) {
+                posAEl.style.left = `${zeroPct + positiveBandCWidth + positiveBandBWidth}%`;
+                posAEl.style.width = `${Math.max(0, positiveBandAWidth)}%`;
+                posAEl.style.background = letterColors.A;
+            }
+
+            rangeOutline.style.left = `${localMinPct}%`;
+            rangeOutline.style.width = `${Math.max(0, localMaxPct - localMinPct)}%`;
+
+            zeroMarker.style.left = `${zeroPct}%`;
+
+            thumb.style.left = `${thumbPct}%`;
+            thumb.style.background = '#111111';
+            thumbLabel.style.left = `${thumbPct}%`;
+            thumbLabel.textContent = hasCategoryNotation ? `${formatSignedValue(rawScore)}` : '…';
+            minBound.style.left = `${localMinPct}%`;
+            maxBound.style.left = `${localMaxPct}%`;
+
+            gauge.setAttribute('aria-label', `${cat.label}: ${formatSignedValue(rawScore)} (de ${formatSignedValue(minScore)} à +${formatUnsignedValue(maxScore)})`);
         }
     });
 }
@@ -35785,6 +35954,9 @@ renderRadar() {
             'pdf.lot.orientationStatus': { fr: 'Statut orientation', en: 'Orientation status' },
             'pdf.lot.orientationRejects': { fr: 'Rejets actifs', en: 'Active rejects' },
             'pdf.lot.orientationVectors': { fr: 'Vecteurs actifs', en: 'Active vectors' },
+            'pdf.card.orientationJustification': { fr: 'Justification de l\'orientation', en: 'Orientation rationale' },
+            'pdf.orientation.emptyRejects': { fr: 'Aucun rejet actif pour cette orientation.', en: 'No active reject for this orientation.' },
+            'pdf.orientation.emptyVectors': { fr: 'Aucun vecteur actif pour cette orientation.', en: 'No active vector for this orientation.' },
             'pdf.lot.combustionCaution': { fr: 'Alerte combustion', en: 'Combustion warning' },
             'pdf.orientation.combustionCaution': {
                 fr: 'Orientation deduite par elimination, non confirmee positivement par la matrice.',
@@ -36275,20 +36447,33 @@ renderRadar() {
 
         const activeRejects = (matrixResult && matrixResult.activeRejets && matrixResult.activeRejets[finalCode]) || [];
         const activeVectors = (matrixResult && matrixResult.activeVectors && matrixResult.activeVectors[finalCode]) || [];
-        const formatDrivers = (entries) => {
-            if (!entries.length) return tpdf('pdf.common.none', 'Aucun', 'None');
+        const formatDriverItems = (entries) => {
+            if (!entries.length) return [];
             const unique = [];
             const seen = new Set();
             entries.forEach((entry) => {
                 const key = `r${entry.rang}:${entry.levelKey}`;
                 if (seen.has(key)) return;
                 seen.add(key);
-                unique.push(`r${entry.rang} ${entry.critere || entry.criterionKey || ''}`.trim());
+                const criterionLabel = (entry.critere || entry.criterionKey || '').toString().trim();
+                const levelText = (entry.levelKey || '').toString().trim().toUpperCase();
+                const noteText = entry.noteLetter ? ` (${String(entry.noteLetter).trim()})` : '';
+                const suffix = levelText ? ` · ${levelText}${noteText}` : '';
+                unique.push({
+                    rang: Number(entry.rang) || 0,
+                    text: `r${entry.rang} ${criterionLabel}${suffix}`.trim()
+                });
             });
-            const head = unique.slice(0, 4);
-            const suffix = unique.length > 4 ? `, +${unique.length - 4}` : '';
-            return head.join(', ') + suffix;
+            return unique.sort((a, b) => a.rang - b.rang);
         };
+
+        const formatDriverText = (items) => {
+            if (!items.length) return tpdf('pdf.common.none', 'Aucun', 'None');
+            return items.map((item) => item.text).join('\n');
+        };
+
+        const activeRejectsItems = formatDriverItems(activeRejects);
+        const activeVectorsItems = formatDriverItems(activeVectors);
 
         let statusLabel = tpdf('pdf.orientation.status.confirmed', 'Confirmee', 'Confirmed');
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
@@ -36317,8 +36502,10 @@ renderRadar() {
             combustionCaution,
             activeRejects,
             activeVectors,
-            activeRejectsText: formatDrivers(activeRejects),
-            activeVectorsText: formatDrivers(activeVectors)
+            activeRejectsItems,
+            activeVectorsItems,
+            activeRejectsText: formatDriverText(activeRejectsItems),
+            activeVectorsText: formatDriverText(activeVectorsItems)
         };
     }
 
@@ -38331,8 +38518,6 @@ renderRadar() {
             { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel },
             { label: tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'), value: orientationSummary.label || '—' },
             { label: tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status'), value: orientationSummary.statusLabel || '—' },
-            { label: tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects'), value: orientationSummary.activeRejectsText || tpdf('pdf.common.none', 'Aucun', 'None') },
-            { label: tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors'), value: orientationSummary.activeVectorsText || tpdf('pdf.common.none', 'Aucun', 'None') },
             { label: tpdf('pdf.lot.combustionCaution', 'Alerte combustion', 'Combustion warning'), value: orientationSummary.combustionCaution || '—' }
         ];
 
@@ -38409,6 +38594,65 @@ renderRadar() {
         ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
         const lotCard = this.pdfCard(tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'), [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
 
+        const buildOrientationDriversList = (items, emptyText) => {
+            if (!Array.isArray(items) || !items.length) {
+                return {
+                    text: this.sanitizePdfText(emptyText),
+                    fontSize: f.tableCompact,
+                    color: '#6b7280',
+                    italics: true,
+                    margin: [0, 1, 0, 3]
+                };
+            }
+            return {
+                ul: items.map((item) => this.sanitizePdfText(item && item.text ? item.text : '—')),
+                fontSize: f.tableCompact,
+                color: '#1f2937',
+                margin: [0, 1, 0, 3]
+            };
+        };
+
+        const orientationJustificationCard = this.pdfCard(
+            tpdf('pdf.card.orientationJustification', 'Justification de l\'orientation', 'Orientation rationale'),
+            [
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientation', 'Orientation', 'Orientation')} : ${orientationSummary.label || '—'}`),
+                    fontSize: f.body,
+                    bold: true,
+                    margin: [0, 0, 0, 2]
+                },
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status')} : ${orientationSummary.statusLabel || '—'}`),
+                    fontSize: f.label,
+                    color: '#374151',
+                    margin: [0, 0, 0, 4]
+                },
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects')} (${orientationSummary.activeRejectsItems.length})`),
+                    fontSize: f.label,
+                    bold: true,
+                    color: '#4b5563',
+                    margin: [0, 0, 0, 1]
+                },
+                buildOrientationDriversList(
+                    orientationSummary.activeRejectsItems,
+                    tpdf('pdf.orientation.emptyRejects', 'Aucun rejet actif pour cette orientation.', 'No active reject for this orientation.')
+                ),
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors')} (${orientationSummary.activeVectorsItems.length})`),
+                    fontSize: f.label,
+                    bold: true,
+                    color: '#4b5563',
+                    margin: [0, 1, 0, 1]
+                },
+                buildOrientationDriversList(
+                    orientationSummary.activeVectorsItems,
+                    tpdf('pdf.orientation.emptyVectors', 'Aucun vecteur actif pour cette orientation.', 'No active vector for this orientation.')
+                )
+            ],
+            { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: false }
+        );
+
         const pageWidthPt = 595.28; // A4 width in points
         const usableWidthPt = pageWidthPt - pageMargins[0] - pageMargins[2];
         const columnGapPt = 8;
@@ -38475,6 +38719,7 @@ renderRadar() {
         if (radarCard) visualBlocks.push(radarCard);
 
         const mainLeftStack = [inspectionCard, lotCard];
+        mainLeftStack.push(orientationJustificationCard);
         if (mainLeftStack.length) {
             mainLeftStack[mainLeftStack.length - 1].margin = [0, 0, 0, 0];
         }

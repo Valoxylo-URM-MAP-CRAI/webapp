@@ -9972,95 +9972,296 @@ body.day-mode .lot-group--collapsible summary:hover {
         }
 
         .seuils-body {
-            display: grid;
-            grid-template-columns: repeat(5, minmax(0, 1fr));
+            display: flex;
+            flex-direction: column;
             gap: var(--space-8);
-            align-items: end;
+            align-items: stretch;
+            overflow: visible;
+            padding-bottom: 0;
+            scroll-snap-type: none;
         }
 
         .seuils-item {
-            padding: var(--space-8) var(--space-6);
-            border-radius: var(--radius-base);
-            background-color: rgba(255, 255, 255, 0.06);
+            flex: 0 0 auto;
+            width: 100%;
+            min-width: 0;
+            padding: 10px 10px 9px;
+            border-radius: var(--radius-sm);
+            border: 1px solid rgba(0, 0, 0, 0.14);
+            background-color: #ffffff;
             display: flex;
             flex-direction: column;
-            gap: var(--space-6);
-            justify-content: flex-end;
-            align-items: center;
-            text-align: center;
+            gap: 8px;
+            justify-content: flex-start;
+            align-items: stretch;
+            text-align: left;
+            min-height: 0;
+            scroll-snap-align: start;
         }
 
         .seuils-item-header {
             display: flex;
             align-items: center;
-            justify-content: center;
-            gap: 0;
+            justify-content: space-between;
+            gap: 10px;
             font-size: var(--font-size-sm);
             width: 100%;
+            flex-wrap: nowrap;
         }
 
-        .seuils-label {
+        .seuils-item-title {
+            flex-shrink: 0;
+            white-space: nowrap;
+        }
+
+        .seuils-item-title {
             font-weight: var(--font-weight-medium);
-            font-size: var(--font-size-xs);
+            font-size: var(--font-size-sm);
             line-height: 1.15;
-            min-height: 28px;
+            min-height: 0;
             display: flex;
-            align-items: flex-start;
-            justify-content: center;
-            width: 100%;
+            align-items: center;
+            justify-content: flex-start;
+            flex: 1 1 auto;
+            min-width: 0;
         }
 
-        .seuils-percent {
+        .seuils-item-score {
             font-weight: var(--font-weight-semibold);
+            font-variant-numeric: tabular-nums;
+            flex: 0 0 auto;
+            font-size: var(--font-size-xs);
+            opacity: 0.92;
         }
 
         .seuils-gauge-wrapper {
-            width: 28px;
-            height: 132px;
+            width: 100%;
+            height: auto;
             display: flex;
-            align-items: flex-end;
+            align-items: stretch;
             justify-content: center;
+            gap: 0;
+            padding-left: 16px;
+            padding-right: 16px;
         }
 
-        .seuils-gauge-canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
+        .seuils-gauge-linear {
+            flex: 1 1 auto;
+            min-width: 0;
+            position: relative;
+            padding-top: 16px;
+            padding-bottom: 12px;
         }
 
-        .seuils-score-box {
-            padding: 4px 6px;
-            border-radius: var(--radius-sm);
-            background-color: #E6E6E6;
-            color: var(--color-text);
-            font-size: var(--font-size-xs);
-            font-weight: var(--font-weight-medium);
-            text-align: center;
+        .seuils-gauge-track {
+            position: relative;
             width: 100%;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.08);
+            border: none;
+            overflow: hidden;
+        }
+
+        .seuils-gauge-range-outline {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 0, 0, 0.24);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .seuils-gauge-fill {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            width: 0;
+            border-radius: 999px;
+            transition: left 180ms ease, width 180ms ease;
+            z-index: 0;
+        }
+
+        .seuils-gauge-fill-negative {
+            left: 50%;
+            background: #D55E00;
+        }
+
+        .seuils-gauge-fill-positive {
+            left: 50%;
+            background: #009E73;
+        }
+
+        .seuils-gauge-band {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            width: 0;
+            border-radius: 999px;
+            transition: left 180ms ease, width 180ms ease;
+            z-index: 0;
+        }
+
+        .seuils-gauge-band[data-seuils-band="pos-c"] {
+            background: #9aba89;
+        }
+
+        .seuils-gauge-band[data-seuils-band="pos-b"] {
+            background: #60914b;
+        }
+
+        .seuils-gauge-band[data-seuils-band="pos-a"] {
+            background: #009e73;
+        }
+
+        .seuils-gauge-band[data-seuils-band="neg-d"] {
+            background: #e69f00;
+        }
+
+        .seuils-gauge-band[data-seuils-band="neg-e"] {
+            background: #d55e00;
+        }
+
+        .seuils-pills {
+            display: flex;
+            gap: 0.5em;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            align-items: center;
+            flex-grow: 1;
+        }
+
+        .seuils-pill {
+            display: inline-block;
+            padding: 0.25em 0.5em;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-weight: 600;
+            color: white;
+            background: #ccc;
+        }
+
+        .seuils-pill--a {
+            background: #009e73;
+        }
+
+        .seuils-pill--b {
+            background: #60914b;
+        }
+
+        .seuils-pill--c {
+            background: #9aba89;
+        }
+
+        .seuils-pill--d {
+            background: #e69f00;
+        }
+
+        .seuils-pill--e {
+            background: #d55e00;
+        }
+
+        .seuils-gauge-thumb {
+            position: absolute;
+            top: 1px;
+            bottom: 1px;
+            width: 3px;
+            margin-left: -1.5px;
+            border-radius: 3px;
+            background: #111111;
+            pointer-events: none;
+            z-index: 3;
+        }
+
+        .seuils-gauge-thumb-label {
+            position: absolute;
+            top: -1px;
+            transform: translateX(-50%);
+            color: #111111;
+            font-size: 11px;
+            font-weight: var(--font-weight-semibold);
+            line-height: 1;
+            white-space: nowrap;
+            pointer-events: none;
+            z-index: 4;
+        }
+
+        .seuils-gauge-zero {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            margin-left: -1px;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.85);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .seuils-gauge-bound {
+            position: absolute;
+            top: 21px;
+            font-size: 9px;
+            line-height: 1;
+            font-variant-numeric: tabular-nums;
+            color: #3a3a3a;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+
+        .seuils-gauge-bound--min {
+            transform: translate(-100%, -50%);
+            margin-left: -4px;
+            text-align: right;
+        }
+
+        .seuils-gauge-bound--max {
+            transform: translate(0, -50%);
+            margin-left: 4px;
+            text-align: left;
+        }
+
+        @media (max-width: 1024px) {
+            .seuils-body {
+                flex-direction: column;
+            }
         }
 
         @media (max-width: 768px) {
             .seuils-body {
                 gap: var(--space-6);
+                overflow: visible;
             }
 
             .seuils-item {
-                padding: var(--space-6) 4px;
+                padding: 9px 8px 8px;
+                width: 100%;
             }
 
             .seuils-gauge-wrapper {
-                width: 22px;
-                height: 108px;
+                gap: 4px;
+                padding-left: 12px;
+                padding-right: 12px;
             }
 
-            .seuils-percent,
-            .seuils-score-box,
-            .seuils-label {
+            .seuils-gauge-wrapper {
+                width: 100%;
+                height: auto;
+            }
+
+            .seuils-item-title {
                 font-size: 11px;
             }
 
-            .seuils-label {
-                min-height: 24px;
+            .seuils-gauge-bound {
+                font-size: 9px;
+            }
+
+            .seuils-gauge-thumb-label {
+                font-size: 10px;
             }
         }
 
@@ -10910,7 +11111,8 @@ body.day-mode .provenance-row {
 }
 
 body.day-mode .seuils-item {
-    background-color: rgba(0, 0, 0, 0.04);
+    background-color: #FFFFFF;
+    border: 1px solid var(--color-border);
 }
 
 /* Slider d'inspection : ligne et points blancs → bleu CRAI */
