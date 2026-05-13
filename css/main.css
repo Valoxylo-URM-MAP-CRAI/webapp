@@ -2763,6 +2763,44 @@ body.day-mode .lot-group--collapsible summary::after {
     opacity: 1;
 }
 
+.valobois-matrix-orientation-checkbox.is-reject-locked {
+    position: relative;
+    font-size: 0;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border: 0;
+    border-radius: 0;
+    color: #fff;
+    background: transparent !important;
+}
+
+.valobois-matrix-orientation-checkbox.is-reject-locked::before {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 2px;
+    width: 8px;
+    height: 6px;
+    transform: translateX(-50%);
+    border: 2px solid currentColor;
+    border-bottom: 0;
+    border-radius: 8px 8px 0 0;
+    box-sizing: border-box;
+}
+
+.valobois-matrix-orientation-checkbox.is-reject-locked::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    width: 10px;
+    height: 8px;
+    transform: translateX(-50%);
+    border-radius: 2px;
+    background: currentColor;
+}
+
 .valobois-matrix-vector-cell {
     padding: 4px 6px;
     text-align: left;
@@ -2796,6 +2834,10 @@ body.day-mode .lot-group--collapsible summary::after {
 .valobois-matrix-checkbox-row.is-checked .valobois-matrix-orientation-checkbox {
     background: var(--valobois-checkbox-color, #2563eb);
     color: #fff;
+}
+
+.valobois-matrix-checkbox-row.is-checked .valobois-matrix-orientation-checkbox.is-reject-locked {
+    background: transparent;
 }
 
 .valobois-matrix-checkbox-label {
@@ -9729,7 +9771,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .analysis-confidence-card {
-    margin-top: var(--space-16);
+    margin-top: calc(var(--space-16) - 5px);
     padding-top: var(--space-12);
     border-top: 1px solid var(--color-border);
 }
@@ -9753,10 +9795,13 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .analysis-confidence-overview {
     margin-bottom: var(--space-10);
-    padding: 10px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 10px 10px 4px;
+    border: 1px solid rgba(0, 0, 0, 0.14);
     border-radius: var(--radius-sm);
-    background: rgba(255, 255, 255, 0.75);
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .analysis-confidence-overview-head {
@@ -9985,7 +10030,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             flex: 0 0 auto;
             width: 100%;
             min-width: 0;
-            padding: 10px 10px 9px;
+            padding: 10px 10px 4px;
             border-radius: var(--radius-sm);
             border: 1px solid rgba(0, 0, 0, 0.14);
             background-color: #ffffff;
@@ -10164,6 +10209,11 @@ body.day-mode .lot-group--collapsible summary:hover {
             background: #d55e00;
         }
 
+        .seuils-pill--missing {
+            background: #7c7c7c;
+            color: #ffffff;
+        }
+
         .seuils-gauge-thumb {
             position: absolute;
             top: 1px;
@@ -10219,9 +10269,7 @@ body.day-mode .lot-group--collapsible summary:hover {
         }
 
         .seuils-gauge-bound--max {
-            transform: translate(0, -50%);
-            margin-left: 4px;
-            text-align: left;
+            display: none;
         }
 
         @media (max-width: 1024px) {
@@ -10244,7 +10292,7 @@ body.day-mode .lot-group--collapsible summary:hover {
             .seuils-gauge-wrapper {
                 gap: 4px;
                 padding-left: 12px;
-                padding-right: 12px;
+                padding-right: 20px;
             }
 
             .seuils-gauge-wrapper {
@@ -10612,6 +10660,54 @@ body.day-mode .lot-group--collapsible summary:hover {
             grid-template-columns: repeat(5, minmax(0, 1fr));
             gap: var(--space-12);
             align-items: stretch;
+        }
+
+        .analysis-confidence-detail-panel {
+            margin-top: 8px;
+        }
+
+        .analysis-confidence-detail-table {
+            font-size: 11px;
+            table-layout: fixed;
+        }
+
+        .analysis-confidence-col-criterion {
+            width: 74%;
+        }
+
+        .analysis-confidence-col-level {
+            width: 18%;
+        }
+
+        .analysis-confidence-col-score {
+            width: 8%;
+        }
+
+        .analysis-confidence-detail-row td {
+            border-color: rgba(255, 255, 255, 0.7);
+            vertical-align: top;
+        }
+
+        .analysis-confidence-detail-row td.analysis-confidence-detail-criterion {
+            font-weight: 600;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+            word-break: break-word;
+        }
+
+        .analysis-confidence-detail-level {
+            text-align: center;
+            white-space: normal;
+            overflow: visible;
+            text-overflow: clip;
+        }
+
+        .analysis-confidence-detail-score {
+            text-align: center;
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+            white-space: nowrap;
         }
 
         @media (max-width: 1024px) {
@@ -14200,6 +14296,19 @@ body.day-mode .inspection-ignore-box {
     max-width: 100%;
     min-width: 0;
 }
+.notes-gauge-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+.notes-gauge-extra {
+    padding-left: 16px;
+}
+.notes-gauge-extra .seuils-pill {
+    padding: 1px 6px;
+    font-size: 10px;
+}
 .notes-gauge-letter {
     flex: 0 0 auto;
     min-width: 11px;
@@ -14452,6 +14561,9 @@ body.day-mode .inspection-ignore-box {
     list-style: none;
     user-select: none;
 }
+.orientation-detail-panel:not([open]) > summary {
+    margin-bottom: 10px;
+}
 .orientation-detail-panel > summary::-webkit-details-marker {
     display: none;
 }
@@ -14468,6 +14580,9 @@ body.day-mode .inspection-ignore-box {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
+}
+.orientation-detail-panel[open] .orientation-detail-grid {
+    margin-bottom: 10px;
 }
 .orientation-detail-table {
     width: 100%;
@@ -14530,6 +14645,10 @@ body.day-mode .inspection-ignore-box {
 @media (max-width: 700px) {
     .orientation-detail-grid {
         grid-template-columns: 1fr;
+        gap: 0;
+    }
+    .orientation-detail-table + .orientation-detail-table {
+        margin-top: -1px;
     }
     .orientation-detail-panel > summary,
     .orientation-locks-title,
@@ -15594,7 +15713,7 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-col-criterion {
-    min-width: 220px;
+    min-width: 180px;
 }
 
 .valobois-matrix-table tr.is-family-start td {

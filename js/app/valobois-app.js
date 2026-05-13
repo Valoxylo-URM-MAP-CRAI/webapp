@@ -5903,55 +5903,92 @@ class ValoboisApp {
         const maxScore = Number(confidenceSummary.maxScore) || 24;
         const currentScore = Number(confidenceSummary.score) || 0;
         const progressPct = Math.max(0, Math.min(100, Math.round((currentScore / Math.max(1, maxScore)) * 100)));
-        const counts = {
-            forte: 0,
-            moyenne: 0,
-            faible: 0,
-            missing: 0
-        };
-        entries.forEach((entry) => {
-            const norm = this.normalizeNotationConfidenceLevel(entry.level);
-            if (norm.startsWith('fort')) {
-                counts.forte += 1;
-            } else if (norm.startsWith('moy')) {
-                counts.moyenne += 1;
-            } else if (norm.startsWith('faibl')) {
-                counts.faible += 1;
-            } else {
-                counts.missing += 1;
-            }
-        });
+        const confidenceGaugeMax = 24;
+        const confidenceGaugeScore = Math.max(0, Math.min(confidenceGaugeMax, Math.round(currentScore)));
 
-        const itemHtml = entries.map((entry) => `
-            <div class="analysis-confidence-item">
-                <span class="orientation-field-dot analysis-confidence-dot analysis-confidence-dot--${entry.alertState}" aria-hidden="true"></span>
-                <span class="analysis-confidence-label">${this.escapeHtml(entry.label)}</span>
-                <span class="analysis-confidence-level">${this.escapeHtml(entry.level)}</span>
-            </div>
-        `).join('');
+        let stackPointsA = 0;
+        let stackPointsB = 0;
+        let stackPointsC = 0;
+        entries.forEach((entry) => {
+            const score = this.getNotationConfidenceScoreFromLevel(entry.level);
+            if (score >= 3) stackPointsA += 3;
+            else if (score >= 2) stackPointsB += 2;
+            else if (score >= 1) stackPointsC += 1;
+        });
+        const pctPerPoint = 100 / confidenceGaugeMax;
+        const widthC = Math.max(0, Math.min(100, stackPointsC * pctPerPoint));
+        const widthB = Math.max(0, Math.min(100, stackPointsB * pctPerPoint));
+        const widthA = Math.max(0, Math.min(100, stackPointsA * pctPerPoint));
+        const thumbPct = Math.max(0, Math.min(100, (confidenceGaugeScore / confidenceGaugeMax) * 100));
+        const thumbLabel = `+${confidenceGaugeScore}`;
+        const scoreLabelForLevel = (level) => {
+            const score = this.getNotationConfidenceScoreFromLevel(level);
+            return score > 0 ? `+${score}` : '0';
+        };
+        const scoreLetterClassForLevel = (level) => {
+            const score = this.getNotationConfidenceScoreFromLevel(level);
+            if (score >= 3) return 'orientation-note-letter--a';
+            if (score >= 2) return 'orientation-note-letter--b';
+            if (score >= 1) return 'orientation-note-letter--c';
+            return 'orientation-note-letter--none';
+        };
+        const detailRows = entries.map((entry) => ({
+            label: entry.label,
+            level: entry.level || 'Aucune note',
+            score: scoreLabelForLevel(entry.level),
+            rowClass: scoreLetterClassForLevel(entry.level)
+        }));
+        const colCount = 2;
+        const rowsPerCol = detailRows.length ? Math.ceil(detailRows.length / colCount) : 0;
+        const detailTablesHtml = Array.from({ length: colCount }, (_unused, idx) => {
+            const start = idx * rowsPerCol;
+            const slice = rowsPerCol ? detailRows.slice(start, start + rowsPerCol) : [];
+            return `
+                <table class="orientation-detail-table analysis-confidence-detail-table">
+                    <colgroup>
+                        <col class="analysis-confidence-col-criterion">
+                        <col class="analysis-confidence-col-level">
+                        <col class="analysis-confidence-col-score">
+                    </colgroup>
+                    <tbody>
+                        ${slice.map((row) => `
+                            <tr class="orientation-detail-row analysis-confidence-detail-row ${row.rowClass}">
+                                <td class="analysis-confidence-detail-criterion">${this.escapeHtml(row.label)}</td>
+                                <td class="analysis-confidence-detail-level">${this.escapeHtml(row.level)}</td>
+                                <td class="analysis-confidence-detail-score">${this.escapeHtml(row.score)}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }).join('');
 
         container.innerHTML = `
             <section class="analysis-confidence-card" aria-label="Confiance des sections">
-                <div class="analysis-confidence-header">
-                    <h3 class="analysis-confidence-title">Confiance des sections</h3>
-                    <p class="analysis-confidence-subtitle">Bloc dédié à la confiance (hors barre d'orientation).</p>
+                <div class="analysis-confidence-overview seuils-item">
+                    <div class="seuils-item-header">
+                        <span class="seuils-item-title">Confiance</span>
+                        <span class="seuils-item-score">${currentScore}/${maxScore} pts (${progressPct}%) · Niveau ${this.escapeHtml(confidenceSummary.level)}</span>
+                    </div>
+                    <div class="seuils-gauge-wrapper" role="img" aria-label="Confiance : ${thumbLabel} (de 0 à +24)">
+                        <div class="seuils-gauge-linear" aria-hidden="true">
+                            <div class="seuils-gauge-track" data-seuils-track>
+                                <span class="seuils-gauge-range-outline" style="left:0%;width:100%"></span>
+                                <span class="seuils-gauge-band" data-seuils-band="pos-c" style="left:0%;width:${widthC}%"></span>
+                                <span class="seuils-gauge-band" data-seuils-band="pos-b" style="left:${widthC}%;width:${widthB}%"></span>
+                                <span class="seuils-gauge-band" data-seuils-band="pos-a" style="left:${widthC + widthB}%;width:${widthA}%"></span>
+                                <span class="seuils-gauge-thumb" style="left:${thumbPct}%;"></span>
+                            </div>
+                            <span class="seuils-gauge-thumb-label" style="left:${thumbPct}%">${thumbLabel}</span>
+                            <span class="seuils-gauge-bound seuils-gauge-bound--min" style="left:0%">0</span>
+                            <span class="seuils-gauge-bound seuils-gauge-bound--max" style="left:100%">+24</span>
+                        </div>
+                    </div>
                 </div>
-                <div class="analysis-confidence-overview">
-                    <div class="analysis-confidence-overview-head">
-                        <span class="analysis-confidence-overview-title">Points de confiance renseignés</span>
-                        <span class="analysis-confidence-overview-score">${currentScore}/${maxScore} pts (${progressPct}%) · Niveau ${this.escapeHtml(confidenceSummary.level)}</span>
-                    </div>
-                    <div class="analysis-confidence-overview-track" role="img" aria-label="Progression des points de confiance">
-                        <div class="analysis-confidence-overview-fill" style="width:${progressPct}%"></div>
-                    </div>
-                    <div class="analysis-confidence-overview-meta">
-                        <span>Forte: ${counts.forte}</span>
-                        <span>Moyenne: ${counts.moyenne}</span>
-                        <span>Faible: ${counts.faible}</span>
-                        <span>Non renseignée: ${counts.missing}</span>
-                    </div>
-                </div>
-                <div class="analysis-confidence-grid">${itemHtml}</div>
+                <details class="orientation-detail-panel analysis-confidence-detail-panel">
+                    <summary>Détail de la notation de la confiance</summary>
+                    <div class="orientation-detail-grid analysis-confidence-detail-grid">${detailTablesHtml}</div>
+                </details>
             </section>
         `;
     }
@@ -28951,6 +28988,9 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     const rightLetters = ['D', 'E'];
     const leftColMax = Math.max(...leftLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
     const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const activeMappingsForDetail = this.getValoboisActiveCriteriaMappings(activeMode);
+    const hasUnnotedCriteria = activeMappingsForDetail.some((mapping) => !this.hasValoboisCriterionValue(lot, mapping));
     const makeGauge = (letter) => {
         const cap = Number(letterCapacity[letter]) || 0;
         const countRaw = Number(letterCounts[letter]) || 0;
@@ -28960,15 +29000,21 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         const countLabel = `x${count}`;
         const shouldPlaceCountOutside = ratio < 80;
         const emptyClass = count > 0 ? '' : ' is-empty';
+        const missingPillHtml = (letter === 'E' && hasUnnotedCriteria)
+            ? '<div class="notes-gauge-extra"><span class="seuils-pill seuils-pill--missing">?-1</span></div>'
+            : '';
         return `
-            <div class="notes-gauge notes-gauge--${letter}${emptyClass}" style="--cap:${cap};" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
-                <span class="notes-gauge-letter">${letter}</span>
-                <span class="notes-gauge-track-wrap" style="--cap:${cap};">
-                    <span class="notes-gauge-track" style="--fill-ratio:${ratio.toFixed(2)}%;">
-                        <span class="notes-gauge-fill notes-gauge-fill--${letter}${emptyClass}" style="width:${ratio.toFixed(2)}%;"></span>
-                        <span class="notes-gauge-count${shouldPlaceCountOutside ? ' notes-gauge-count--outside' : ''}">${countLabel}</span>
+            <div class="notes-gauge-row notes-gauge-row--${letter}">
+                <div class="notes-gauge notes-gauge--${letter}${emptyClass}" style="--cap:${cap};" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
+                    <span class="notes-gauge-letter">${letter}</span>
+                    <span class="notes-gauge-track-wrap" style="--cap:${cap};">
+                        <span class="notes-gauge-track" style="--fill-ratio:${ratio.toFixed(2)}%;">
+                            <span class="notes-gauge-fill notes-gauge-fill--${letter}${emptyClass}" style="width:${ratio.toFixed(2)}%;"></span>
+                            <span class="notes-gauge-count${shouldPlaceCountOutside ? ' notes-gauge-count--outside' : ''}">${countLabel}</span>
+                        </span>
                     </span>
-                </span>
+                </div>
+                ${missingPillHtml}
             </div>
         `;
     };
@@ -29151,7 +29197,24 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         `;
     }).join('');
 
-    const rows = Array.isArray(state.notationRows) ? state.notationRows : [];
+    const notedRows = Array.isArray(state.notationRows) ? state.notationRows : [];
+    const notedRankSet = new Set(notedRows.map((row) => Number(row.rang) || 0));
+    const missingRows = activeMappingsForDetail
+        .filter((mapping) => !this.hasValoboisCriterionValue(lot, mapping))
+        .map((mapping) => {
+            const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+            return {
+                rang: Number(mapping.rang) || 0,
+                critere: (matrixEntry && matrixEntry.critere) ? matrixEntry.critere : `${mapping.section}.${mapping.field}`,
+                levelKey: 'Aucune note',
+                noteLetter: '',
+                score: 0,
+                lockedOrientations: [],
+                missing: true
+            };
+        })
+        .filter((row) => !notedRankSet.has(row.rang));
+    const rows = [...notedRows, ...missingRows].sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
     const colCount = 2;
     const rowsPerCol = rows.length ? Math.ceil(rows.length / colCount) : 0;
     const colTables = Array.from({ length: colCount }, (_unused, idx) => {
@@ -29161,8 +29224,8 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             <table class="orientation-detail-table">
                 <tbody>
                     ${slice.map((row) => {
-                        const scoreLabel = `${row.score >= 0 ? '+' : ''}${row.score.toFixed(0)}`;
-                        const levelLabel = toTitleCase(getLevelLabel(row.levelKey, row.critere));
+                        const scoreLabel = row.missing ? '—' : `${row.score >= 0 ? '+' : ''}${row.score.toFixed(0)}`;
+                        const levelLabel = row.missing ? 'Aucune note' : toTitleCase(getLevelLabel(row.levelKey, row.critere));
                         const isLocked = Array.isArray(row.lockedOrientations) && row.lockedOrientations.length;
                         const lockTitle = isLocked
                             ? ` title="Verrou: ${row.lockedOrientations.map((k) => this.getValoboisOrientationLabel(k)).join(', ')}"`
@@ -31711,7 +31774,7 @@ renderMatrice() {
     controlsEl.innerHTML = `
         <label class="valobois-matrix-control-field">Valeurs
             <select id="valoboisMatrixAxisFilter">
-                <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Tous</option>
+                <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Toutes</option>
                 <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
                 <option value="ecologique" ${ui.axis === 'ecologique' ? 'selected' : ''}>Écologique</option>
                 <option value="mecanique" ${ui.axis === 'mecanique' ? 'selected' : ''}>Mécanique</option>
@@ -31719,7 +31782,7 @@ renderMatrice() {
                 <option value="esthetique" ${ui.axis === 'esthetique' ? 'selected' : ''}>Esthétique</option>
             </select>
         </label>
-        <label class="valobois-matrix-control-field">Famille
+        <label class="valobois-matrix-control-field">Catégories
             <select id="valoboisMatrixFamilyFilter">
                 <option value="all">Toutes</option>
                 ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
@@ -31909,11 +31972,14 @@ renderMatrice() {
             const effectiveChecked = isHardDisabledFlow(key) ? false : effectiveCheckedBase;
             const defaultChecked = isHardDisabledFlow(key) ? false : checked;
             const label = formatVariantLabel(variantByLevel[key] || fallbackLabels[key]);
+            const isRejectFlow = flowKind === 'rejects';
+            const checkedIcon = isRejectFlow ? '' : '✓';
             const rowClass = effectiveChecked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
             const editableClass = ui.editMode ? ' is-editable' : '';
+            const rejectLockClass = isRejectFlow && effectiveChecked ? ' is-reject-locked' : '';
             const hardDisabled = isHardDisabledFlow(key);
             return `<div class="${rowClass}" style="--valobois-checkbox-color:${orientationInfo.color};">
-                <button type="button" class="valobois-matrix-orientation-checkbox${editableClass}"
+                <button type="button" class="valobois-matrix-orientation-checkbox${editableClass}${rejectLockClass}"
                     data-valobois-matrix-flow-toggle="1"
                     data-valobois-matrix-flow-rank="${rank}"
                     data-valobois-matrix-flow-kind="${flowKind}"
@@ -31923,7 +31989,7 @@ renderMatrice() {
                     data-valobois-matrix-flow-checked="${effectiveChecked ? '1' : '0'}"
                     aria-label="${orientationInfo.label} ${label}"
                     aria-pressed="${effectiveChecked ? 'true' : 'false'}"
-                    ${ui.editMode && !hardDisabled ? '' : 'disabled'}>${effectiveChecked ? '✓' : ''}</button>
+                    ${ui.editMode && !hardDisabled ? '' : 'disabled'}>${effectiveChecked ? checkedIcon : ''}</button>
                 <span class="valobois-matrix-checkbox-label">${label}</span>
             </div>`;
         }).join('');
@@ -31969,7 +32035,7 @@ renderMatrice() {
                         ${overridden ? '<span class="valobois-matrix-badge valobois-matrix-badge--edited">Modifié</span>' : ''}
                     </div>
                 </td>
-                <td class="valobois-matrix-col-axis"><span class="valobois-matrix-axis-dot valobois-matrix-axis-dot--${entry.axeKey}"></span>${axisLabels[entry.axeKey] || entry.axe}</td>
+                <td class="valobois-matrix-col-axis">${axisLabels[entry.axeKey] || entry.axe}</td>
                 <td class="valobois-matrix-col-family">${entry.famille}</td>
                 <td class="valobois-matrix-col-notation">${(() => { const mapping = this.getValoboisScoreMappingByRank(entry.rang); const hasNotation = mapping && !!this.getNotationDetailSpec(mapping.section, mapping.field); return hasNotation ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--notation valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="notation" aria-label="Ouvrir la fiche de notation">Info</button>` : '<span class="valobois-matrix-cell-empty">—</span>'; })()}</td>
                 <td class="valobois-matrix-col-gate">
@@ -32261,6 +32327,8 @@ renderSeuils() {
         { key: 'historique', label: 'Historique' },
         { key: 'esthetique', label: 'Esthétique' }
     ];
+    const activeMode = this.normalizeNotationMode(this.getValoboisActiveMatrixMode()) || this.getValoboisActiveMatrixMode();
+    const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode);
 
     const formatSignedValue = (value) => {
         const numeric = Number(value);
@@ -32310,11 +32378,15 @@ renderSeuils() {
         // Afficher les pillules de décompte
         const titleEls = root.querySelectorAll(`[data-seuils-pills="${cat.key}"]`);
         titleEls.forEach((titleEl) => {
+            const hasMissingInCategory = activeMappings
+                .filter((mapping) => mapping.category === cat.key)
+                .some((mapping) => !this.hasValoboisCriterionValue(lot, mapping));
             const pillsHtml = ['A', 'B', 'C', 'D', 'E'].map((letter) => {
                 const count = letterCounts[letter] || 0;
                 return count > 0 ? `<span class="seuils-pill seuils-pill--${letter.toLowerCase()}">${letter}-${count}</span>` : '';
             }).filter(h => h).join('');
-            titleEl.innerHTML = pillsHtml;
+            const missingPillHtml = hasMissingInCategory ? '<span class="seuils-pill seuils-pill--missing">?-1</span>' : '';
+            titleEl.innerHTML = `${pillsHtml}${missingPillHtml}`;
         });
 
         const minEls = root.querySelectorAll(`[data-seuils-min="${cat.key}"]`);
