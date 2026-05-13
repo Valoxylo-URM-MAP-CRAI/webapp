@@ -31796,6 +31796,38 @@ renderMatrice() {
 
     thresholdsEl.innerHTML = `
         <div class="valobois-matrix-threshold-card">
+            <h3>Seuils actifs</h3>
+            <p>Recyclage et Combustion restent des filières par défaut (déclassement), pas des priorités positives.</p>
+            <table class="valobois-matrix-threshold-table">
+                <thead>
+                    <tr>
+                        <th>Filière</th>
+                        <th>Fort</th>
+                        <th>Moyen</th>
+                        <th>Faible</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th>Recyclage</th>
+                        <td>${thresholdInput('fort', 'recyclage')}</td>
+                        <td>${thresholdInput('moyen', 'recyclage')}</td>
+                        <td>${thresholdInput('faible', 'recyclage')}</td>
+                    </tr>
+                    <tr>
+                        <th>Réutilisation</th>
+                        <td>${thresholdInput('fort', 'reutilisation')}</td>
+                        <td>${thresholdInput('moyen', 'reutilisation')}</td>
+                        <td>${thresholdInput('faible', 'reutilisation')}</td>
+                    </tr>
+                    <tr>
+                        <th>Réemploi</th>
+                        <td>${thresholdInput('fort', 'reemploi')}</td>
+                        <td>${thresholdInput('moyen', 'reemploi')}</td>
+                        <td>${thresholdInput('faible', 'reemploi')}</td>
+                    </tr>
+                </tbody>
+            </table>
             ${ui.editMode ? `
                 <div class="valobois-matrix-gates-editor">
                     <h4>Verrous par défaut</h4>
