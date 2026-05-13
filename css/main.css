@@ -10324,7 +10324,7 @@ body.day-mode .lot-group--collapsible summary:hover {
         .radar-canvas-wrapper {
             position: relative;
             width: 100%;
-            max-width: 480px;
+            max-width: 600px;
             margin: 0 auto;
             aspect-ratio: 1 / 1;
         }
@@ -13499,20 +13499,83 @@ body.day-mode .inspection-ignore-box {
 }
 .radar-tooltip {
   position: absolute;
-  background: rgba(30, 30, 30, 0.88);
+    background: rgba(30, 30, 30, 0.92);
   color: #fff;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  line-height: 1.5;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.35;
   pointer-events: none;
   z-index: 10;
-  white-space: nowrap;
-  max-width: 180px;
+    white-space: normal;
+    max-width: 280px;
+    box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+}
+.radar-tooltip-title {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 6px;
+}
+.radar-tooltip-net {
+    margin-bottom: 8px;
+}
+.radar-tooltip-net-value {
+    font-weight: 800;
+}
+.radar-tooltip-gross {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    margin-bottom: 5px;
+}
+.radar-tooltip-pos {
+    color: #67cc9b;
+    font-weight: 600;
+}
+.radar-tooltip-neg {
+    color: #f0ab6f;
+    font-weight: 600;
+}
+.radar-tooltip-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+.radar-tooltip-pill {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: var(--pill-bg, #999);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+.radar-tooltip-empty {
+    opacity: 0.65;
+    font-style: italic;
 }
 .radar-tooltip-gate {
-    color: #D55E00;
+    color: #f0ab6f;
   font-weight: 600;
+    margin-top: 5px;
+}
+.radar-tooltip-locks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 4px;
+}
+.radar-tooltip-lock {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 999px;
+    font-size: 11px;
+    line-height: 1.2;
+    color: #ffd9b2;
+    background: rgba(213, 94, 0, 0.18);
+    border: 1px solid rgba(213, 94, 0, 0.35);
 }
 .radar-orientation-position-host {
     margin-top: 5px;

@@ -32217,7 +32217,7 @@ getLetterDistributionForCategory(lot, categoryKey) {
 
         if (letter && /^[A-E]$/.test(letter)) {
             letterCounts[letter] += 1;
-            letterPoints[letter] += Math.abs(rawValue);
+            letterPoints[letter] += Number.isFinite(rawValue) ? rawValue : 0;
         }
     });
 
@@ -32411,13 +32411,6 @@ renderRadar() {
     const lot = this.getCurrentLot();
     if (!lot) return;
 
-    const thresholdLevels = this.getOrientationThresholdConfig().map((threshold) => ({
-        value: threshold.radarValue,
-        label: threshold.radarLabel,
-        color: threshold.color,
-        code: threshold.code
-    }));
-
     const lots = this.data.lots || [];
     const lotIndex = lots.indexOf(lot);
     this.renderAnalysisLotSelector('radar', lot, lotIndex);
@@ -32434,35 +32427,69 @@ renderRadar() {
     const mode = this.getValoboisActiveMatrixMode();
     const hasNotation = this.hasAnyNotationForLot(lot);
 
-    const scores = this.getValueScoresForLot(lot);
-    const toPercent = (score) => Math.min(100, Math.max(0, Math.round((score / 30) * 100)));
-    const axisScores = axisKeys.map((key) => Number(scores[key]) || 0);
-    const data = axisScores.map((score) => toPercent(score));
+    // Échelle unifiée identique aux Seuils : centre = globalMin, bord = globalMax
+    const rawScores = this.getRawValueScoresForLot(lot);
+    const scoreRanges = this.getValueScoreRangesForLot(lot);
+    const globalMinScore = Math.min(...axisMeta.map((cat) => Math.min(0, Number((scoreRanges[cat.key] || {}).min) || 0)));
+    const globalMaxScore = Math.max(...axisMeta.map((cat) => Math.max(1, Number((scoreRanges[cat.key] || {}).max) || 30)), 30);
+    const globalSpan = Math.max(1, globalMaxScore - globalMinScore);
+    const zeroPct = Math.max(0, Math.min(100, ((0 - globalMinScore) / globalSpan) * 100));
+    const toRadar = (value) => Math.max(0, Math.min(100, ((value - globalMinScore) / globalSpan) * 100));
 
-    const confidenceEnvelopeScores = this.getScoreConfidenceEnvelopeForLot(lot);
-    const confidenceEnvelopeData = axisKeys.map((key) => toPercent(confidenceEnvelopeScores[key] || 0));
+    // Répartition lettres par axe (letterPoints conserve les signes)
+    const letterColors = { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
+    const axisLetterDist = {};
+    axisMeta.forEach((cat) => {
+        axisLetterDist[cat.key] = this.getLetterDistributionForCategory(lot, cat.key);
+    });
+
+    // Points bruts positifs et négatifs par axe (pour le tooltip)
+    const grossPositiveRaw = axisKeys.map((key) => {
+        const lp = axisLetterDist[key].letterPoints;
+        return Math.max(0, (lp.A || 0) + (lp.B || 0) + (lp.C || 0));
+    });
+    const grossNegativeRaw = axisKeys.map((key) => {
+        const lp = axisLetterDist[key].letterPoints;
+        return Math.min(0, (lp.D || 0) + (lp.E || 0));
+    });
+
+    // Datasets radar (net + bruts positifs / négatifs)
+    const netData = axisKeys.map((key) => toRadar(Number(rawScores[key]) || 0));
+    const grossPositiveData = grossPositiveRaw.map((value) => toRadar(value));
+    const grossNegativeData = grossNegativeRaw.map((value) => toRadar(value));
 
     const gatesByAxis = { economique: false, ecologique: false, mecanique: false, historique: false, esthetique: false };
+    const gateDetailsByAxis = { economique: [], ecologique: [], mecanique: [], historique: [], esthetique: [] };
     this.getValoboisScoreMappings()
         .filter((mapping) => mapping.gateKey)
         .forEach((mapping) => {
             const entry = this.getValoboisCriterionEntry(lot, mapping);
             if (entry == null) return;
             const score = typeof entry === 'number' ? entry : Number(entry && entry.valeur);
-            if (score === -10) gatesByAxis[mapping.category] = true;
+            if (score === -10) {
+                gatesByAxis[mapping.category] = true;
+                const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+                gateDetailsByAxis[mapping.category].push({
+                    rang: Number(mapping.rang) || 0,
+                    label: (matrixEntry && matrixEntry.critere) ? matrixEntry.critere : `${mapping.section}.${mapping.field}`
+                });
+            }
         });
+    Object.values(gateDetailsByAxis).forEach((list) => list.sort((a, b) => a.rang - b.rang));
 
-    const weakestValue = Math.min(...data);
-    const weakestAxisIndex = data.findIndex((value) => value === weakestValue);
-    const weakestThreshold = this.getOrientationThresholdForPercent(weakestValue);
-    const weakestAxisColor = weakestThreshold?.color || '#D55E00';
-    const gateMarkerColor = '#D55E00';
+    const avg = netData.reduce((acc, v) => acc + v, 0) / (netData.length || 1);
 
-    const avg = data.reduce((acc, v) => acc + v, 0) / (data.length || 1);
-    const fallbackOrientation = this.getOrientationThresholdForPercent(avg);
-    const orientationThreshold = thresholdLevels.find((t) => t.code === lot.orientationCode) || fallbackOrientation;
-    const orientationColor = orientationThreshold?.color || '#009E73';
-    const orientationValue = orientationThreshold?.value || 30;
+    // Couleur d'orientation du lot
+    const orientationResult = this.getValoboisOrientationResult(lot) || this.computeOrientationFromMatrix(lot, mode);
+    const orientationCode = (orientationResult && orientationResult.orientation) || lot.orientationCode || 'none';
+    const orientationColors = {
+        reemploi: '#009E73',
+        reutilisation: '#56B4E9',
+        recyclage: '#E69F00',
+        combustion: '#D55E00',
+        none: '#7A7A7A'
+    };
+    const orientationColor = orientationColors[orientationCode] || orientationColors.none;
 
     const canvas = document.getElementById('radarChart') || document.getElementById('radarChartCanvas');
     if (!canvas) return;
@@ -32478,148 +32505,43 @@ renderRadar() {
         tooltipEl.style.pointerEvents = 'none';
         wrapper.appendChild(tooltipEl);
     }
-    if (tooltipEl) {
-        tooltipEl.style.display = 'none';
-    }
+    if (tooltipEl) tooltipEl.style.display = 'none';
 
-    const thresholdRingsPlugin = {
-        id: 'radarThresholdRings',
-        beforeDatasetsDraw(chart) {
-            const radialScale = chart.scales && chart.scales.r;
-            if (!radialScale || !Array.isArray(thresholdLevels) || !thresholdLevels.length) return;
-
-            const chartContext = chart.ctx;
-            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
-            if (!axisCount) return;
-
-            chartContext.save();
-            thresholdLevels.forEach((level) => {
-                chartContext.beginPath();
-                for (let i = 0; i < axisCount; i += 1) {
-                    const point = radialScale.getPointPositionForValue(i, level.value);
-                    if (i === 0) chartContext.moveTo(point.x, point.y);
-                    else chartContext.lineTo(point.x, point.y);
-                }
-                chartContext.closePath();
-                chartContext.strokeStyle = level.color;
-                chartContext.globalAlpha = 0.4;
-                chartContext.lineWidth = level.value === 30 ? 1.4 : 1.1;
-                chartContext.setLineDash([4, 4]);
-                chartContext.stroke();
-            });
-            chartContext.setLineDash([]);
-            chartContext.restore();
-        }
-    };
-
-    const orientationOverlayPlugin = {
-        id: 'radarOrientationOverlay',
+    // Plugin : contour extérieur (+30) + zone négative teintée + anneau zéro en pointillés
+    const zeroRingPlugin = {
+        id: 'radarZeroRing',
         beforeDatasetsDraw(chart) {
             const radialScale = chart.scales && chart.scales.r;
             if (!radialScale) return;
-
             const chartContext = chart.ctx;
-            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
+            const axisCount = (chart.data && chart.data.labels) ? chart.data.labels.length : 0;
             if (!axisCount) return;
-
             chartContext.save();
+
+            // Contour extérieur (+30 = 100%)
             chartContext.beginPath();
             for (let i = 0; i < axisCount; i += 1) {
-                const point = radialScale.getPointPositionForValue(i, orientationValue);
-                if (i === 0) chartContext.moveTo(point.x, point.y);
-                else chartContext.lineTo(point.x, point.y);
+                const pt = radialScale.getPointPositionForValue(i, 100);
+                if (i === 0) chartContext.moveTo(pt.x, pt.y);
+                else chartContext.lineTo(pt.x, pt.y);
             }
             chartContext.closePath();
-            chartContext.fillStyle = orientationColor;
-            chartContext.globalAlpha = 0.22;
-            chartContext.fill();
-            chartContext.globalAlpha = 0.5;
-            chartContext.strokeStyle = orientationColor;
-            chartContext.lineWidth = 1.4;
-            chartContext.stroke();
-            chartContext.restore();
-        }
-    };
-
-    const confidenceEnvelopePlugin = {
-        id: 'radarConfidenceEnvelope',
-        beforeDatasetsDraw(chart) {
-            if (!hasNotation) return;
-
-            const radialScale = chart.scales && chart.scales.r;
-            if (!radialScale || !Array.isArray(confidenceEnvelopeData) || !confidenceEnvelopeData.length) return;
-
-            const chartContext = chart.ctx;
-            const axisCount = Array.isArray(chart.data && chart.data.labels) ? chart.data.labels.length : 0;
-            if (!axisCount) return;
-
-            chartContext.save();
-            chartContext.beginPath();
-            for (let i = 0; i < axisCount; i += 1) {
-                const point = radialScale.getPointPositionForValue(i, confidenceEnvelopeData[i]);
-                if (i === 0) chartContext.moveTo(point.x, point.y);
-                else chartContext.lineTo(point.x, point.y);
-            }
-            chartContext.closePath();
-            chartContext.fillStyle = 'rgba(86, 180, 233, 0.10)';
-            chartContext.fill();
-            chartContext.strokeStyle = '#56B4E9';
-            chartContext.lineWidth = 0.8;
-            chartContext.setLineDash([3, 3]);
-            chartContext.stroke();
+            chartContext.strokeStyle = 'rgba(0, 0, 0, 0.25)';
+            chartContext.lineWidth = 2.2;
             chartContext.setLineDash([]);
-            chartContext.restore();
-        }
-    };
-
-    const weakestAxisPlugin = {
-        id: 'radarWeakestAxis',
-        afterDatasetsDraw(chart) {
-            const radialScale = chart.scales && chart.scales.r;
-            if (!radialScale || weakestAxisIndex < 0) return;
-
-            const chartContext = chart.ctx;
-            const centerX = radialScale.xCenter;
-            const centerY = radialScale.yCenter;
-            const endPoint = radialScale.getPointPositionForValue(weakestAxisIndex, 100);
-
-            chartContext.save();
-            chartContext.beginPath();
-            chartContext.moveTo(centerX, centerY);
-            chartContext.lineTo(endPoint.x, endPoint.y);
-            chartContext.strokeStyle = weakestAxisColor;
-            chartContext.lineWidth = 3.2;
-            chartContext.globalAlpha = 0.85;
             chartContext.stroke();
-            chartContext.restore();
-        }
-    };
 
-    const gateMarkersPlugin = {
-        id: 'radarGateMarkers',
-        afterDraw(chart) {
-            const radialScale = chart.scales && chart.scales.r;
-            if (!radialScale) return;
+            // Remplissage zone négative (centre → zéro)
+            chartContext.beginPath();
+            for (let i = 0; i < axisCount; i += 1) {
+                const pt = radialScale.getPointPositionForValue(i, zeroPct);
+                if (i === 0) chartContext.moveTo(pt.x, pt.y);
+                else chartContext.lineTo(pt.x, pt.y);
+            }
+            chartContext.closePath();
+            chartContext.fillStyle = 'rgba(100, 100, 100, 0.10)';
+            chartContext.fill();
 
-            const chartContext = chart.ctx;
-            const markerRadius = 82;
-            const halfWidth = 4;
-            const halfHeight = 5;
-
-            chartContext.save();
-            axisKeys.forEach((axisKey, index) => {
-                if (!gatesByAxis[axisKey]) return;
-                const point = radialScale.getPointPositionForValue(index, markerRadius);
-                chartContext.beginPath();
-                chartContext.moveTo(point.x, point.y - halfHeight);
-                chartContext.lineTo(point.x + halfWidth, point.y);
-                chartContext.lineTo(point.x, point.y + halfHeight);
-                chartContext.lineTo(point.x - halfWidth, point.y);
-                chartContext.closePath();
-                chartContext.fillStyle = gateMarkerColor;
-                chartContext.globalAlpha = 0.9;
-                chartContext.fill();
-            });
             chartContext.restore();
         }
     };
@@ -32636,57 +32558,64 @@ renderRadar() {
     }
 
     this.radarChart = new Chart(ctx, {
-        plugins: [thresholdRingsPlugin, orientationOverlayPlugin, confidenceEnvelopePlugin, weakestAxisPlugin, gateMarkersPlugin],
+        plugins: [zeroRingPlugin],
         type: 'radar',
         data: {
             labels,
             datasets: [
                 {
-                    label: 'Valeurs du lot',
-                    data,
-                    backgroundColor: 'rgba(0, 0, 0, 0.14)',
-                    borderColor: '#111111',
-                    borderWidth: 1.2,
-                    pointBackgroundColor: data.map((value, index) => index === weakestAxisIndex ? weakestAxisColor : '#111111'),
-                    pointBorderColor: data.map((value, index) => index === weakestAxisIndex ? weakestAxisColor : '#111111'),
-                    pointRadius: data.map((value, index) => index === weakestAxisIndex ? 4.5 : 3),
-                    pointHoverRadius: data.map((value, index) => index === weakestAxisIndex ? 6 : 4)
+                    label: 'Bruts negatifs / nuls',
+                    data: grossNegativeData,
+                    borderColor: 'rgba(120, 120, 120, 0.65)',
+                    borderWidth: 2.1,
+                    borderDash: [4, 3],
+                    backgroundColor: 'rgba(120, 120, 120, 0.04)',
+                    pointBackgroundColor: 'rgba(120, 120, 120, 0)',
+                    pointBorderColor: 'rgba(120, 120, 120, 0.82)',
+                    pointBorderWidth: 1.4,
+                    pointRadius: 4.5,
+                    pointHoverRadius: 4.5,
+                    pointHitRadius: 6
+                },
+                {
+                    label: 'Bruts positifs',
+                    data: grossPositiveData,
+                    borderColor: 'rgba(95, 95, 95, 0.75)',
+                    borderWidth: 2.2,
+                    backgroundColor: 'rgba(95, 95, 95, 0.05)',
+                    pointBackgroundColor: 'rgba(95, 95, 95, 0)',
+                    pointBorderColor: 'rgba(95, 95, 95, 0.9)',
+                    pointBorderWidth: 1.4,
+                    pointRadius: 4.5,
+                    pointHoverRadius: 4.5,
+                    pointHitRadius: 6
+                },
+                {
+                    label: 'Score net',
+                    data: netData,
+                    backgroundColor: orientationColor + '28',
+                    borderColor: orientationColor,
+                    borderWidth: 2.8,
+                    pointBackgroundColor: orientationColor,
+                    pointBorderColor: orientationColor,
+                    pointRadius: 3,
+                    pointHoverRadius: 6
                 }
             ]
         },
         options: {
             responsive: true,
-            layout: {
-                padding: {
-                    top: 10,
-                    right: 20,
-                    bottom: 10,
-                    left: 20
-                }
-            },
+            layout: { padding: { top: 10, right: 20, bottom: 10, left: 20 } },
             scales: {
                 r: {
                     min: 0,
                     max: 100,
-                    ticks: {
-                        display: false
-                    },
-                    grid: {
-                        color: 'rgba(0,0,0,0.15)'
-                    },
-                    angleLines: {
-                        color: 'rgba(0,0,0,0.15)'
-                    },
+                    ticks: { display: false },
+                    grid: { display: false },
+                    angleLines: { color: 'rgba(0,0,0,0.10)', lineWidth: 2 },
                     pointLabels: {
-                        color(context) {
-                            return context.index === weakestAxisIndex ? weakestAxisColor : 'rgba(0,0,0,0.65)';
-                        },
-                        font(context) {
-                            return {
-                                size: context.index === weakestAxisIndex ? 16 : 13,
-                                weight: context.index === weakestAxisIndex ? '700' : '400'
-                            };
-                        },
+                        color: 'rgba(0,0,0,0.65)',
+                        font: { size: 13, weight: '400' },
                         padding: 8
                     }
                 }
@@ -32706,78 +32635,85 @@ renderRadar() {
     const onRadarMouseMove = (event) => {
         if (!tooltipEl || !this.radarChart) return;
         const active = this.radarChart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
-        if (!active || !active.length) {
-            hideRadarTooltip();
-            return;
-        }
+        if (!active || !active.length) { hideRadarTooltip(); return; }
 
         const hit = active[0];
-        if (hit.datasetIndex !== 0 || hit.index < 0 || hit.index >= axisMeta.length) {
-            hideRadarTooltip();
-            return;
-        }
+        if (hit.index < 0 || hit.index >= axisMeta.length) { hideRadarTooltip(); return; }
 
         const axis = axisMeta[hit.index];
-        const scoreValue = Math.round(axisScores[hit.index] || 0);
-        const percentValue = Math.round(data[hit.index] || 0);
+        const rawNet = Number(rawScores[axis.key]) || 0;
+        const gp = grossPositiveRaw[hit.index];
+        const gn = Math.abs(grossNegativeRaw[hit.index]);
+        const dist = axisLetterDist[axis.key];
+        const lp = dist.letterPoints;
+        const lc = dist.letterCounts;
         const gateActive = gatesByAxis[axis.key] === true;
+        const gateDetails = gateDetailsByAxis[axis.key] || [];
+        const positiveLabel = `+${gp}`;
+        const negativeLabel = gn > 0 ? `-${gn}` : '0';
 
-        tooltipEl.innerHTML = `<strong>${axis.label}</strong><br>${scoreValue} / 30 &nbsp; <em>${percentValue}%</em>${gateActive ? '<br><span class="radar-tooltip-gate">⚠ Gate déclenché</span>' : ''}`;
+        const pillsHtml = ['A', 'B', 'C', 'D', 'E']
+            .filter((l) => (lc[l] || 0) > 0)
+            .map((l) => {
+                const pts = lp[l] || 0;
+                return `<span class="radar-tooltip-pill" style="--pill-bg:${letterColors[l]}">${l}x${lc[l]} (${pts > 0 ? '+' : ''}${pts}pts)</span>`;
+            })
+            .join('');
 
-        const rect = wrapper ? wrapper.getBoundingClientRect() : canvas.getBoundingClientRect();
-        tooltipEl.style.left = `${event.clientX - rect.left + 12}px`;
-        tooltipEl.style.top = `${event.clientY - rect.top - 10}px`;
+        tooltipEl.innerHTML = `
+            <div class="radar-tooltip-title">${this.escapeHtml(axis.label)}</div>
+            <div class="radar-tooltip-net">Net : <span class="radar-tooltip-net-value">${rawNet > 0 ? '+' : ''}${rawNet}</span></div>
+            <div class="radar-tooltip-gross">
+                <span class="radar-tooltip-pos">▲ Bruts + : ${positiveLabel}</span>
+                <span class="radar-tooltip-neg">▼ Bruts -/0 : ${negativeLabel}</span>
+            </div>
+            <div class="radar-tooltip-pills">${pillsHtml || '<span class="radar-tooltip-empty">Aucune note</span>'}</div>
+            ${gateActive ? `
+                <div class="radar-tooltip-gate">Verrou${gateDetails.length > 1 ? 's' : ''} actif${gateDetails.length > 1 ? 's' : ''}</div>
+                <div class="radar-tooltip-locks">${gateDetails.map((item) => `<span class="radar-tooltip-lock">R${item.rang} ${this.escapeHtml(item.label)}</span>`).join('')}</div>
+            ` : ''}
+        `;
+
+        const host = wrapper || canvas.parentElement || canvas;
+        const hostRect = host.getBoundingClientRect();
+        const margin = 8;
+        const cursorOffset = 12;
+
+        tooltipEl.style.display = 'block';
+        tooltipEl.style.visibility = 'hidden';
+
+        const tooltipRect = tooltipEl.getBoundingClientRect();
+        let left = event.clientX - hostRect.left + cursorOffset;
+        let top = event.clientY - hostRect.top - tooltipRect.height - cursorOffset;
+
+        if ((left + tooltipRect.width) > (hostRect.width - margin)) {
+            left = hostRect.width - tooltipRect.width - margin;
+        }
+        if (left < margin) left = margin;
+
+        if (top < margin) {
+            top = event.clientY - hostRect.top + cursorOffset;
+        }
+        if ((top + tooltipRect.height) > (hostRect.height - margin)) {
+            top = hostRect.height - tooltipRect.height - margin;
+        }
+        if (top < margin) top = margin;
+
+        tooltipEl.style.left = `${Math.round(left)}px`;
+        tooltipEl.style.top = `${Math.round(top)}px`;
+        tooltipEl.style.visibility = 'visible';
         tooltipEl.style.display = 'block';
     };
 
     canvas.addEventListener('mousemove', onRadarMouseMove);
     canvas.addEventListener('mouseleave', hideRadarTooltip);
-    this._radarTooltipHandlers = {
-        canvas,
-        onMove: onRadarMouseMove,
-        onLeave: hideRadarTooltip
-    };
+    this._radarTooltipHandlers = { canvas, onMove: onRadarMouseMove, onLeave: hideRadarTooltip };
 
     const legendId = 'radar-legend';
-    let legendEl = document.getElementById(legendId);
-    if (!legendEl) {
-        legendEl = document.createElement('div');
-        legendEl.id = legendId;
-        legendEl.className = 'radar-legend';
-        if (wrapper) wrapper.appendChild(legendEl);
-    }
+    const legacyLegend = document.getElementById(legendId);
+    if (legacyLegend) legacyLegend.remove();
+
     const activeMappings = this.getValoboisActiveCriteriaMappings(mode);
-    if (legendEl) {
-        legendEl.innerHTML = '';
-        axisMeta.forEach((axis, index) => {
-            const item = document.createElement('div');
-            item.className = 'radar-legend-item';
-            if (index === weakestAxisIndex) item.classList.add('weakest');
-            if (index === weakestAxisIndex) {
-                item.style.color = weakestAxisColor;
-                item.style.fontWeight = '700';
-            }
-
-            const dot = document.createElement('span');
-            dot.className = 'radar-legend-dot';
-            dot.style.background = index === weakestAxisIndex ? weakestAxisColor : 'rgba(0, 0, 0, 0.45)';
-            item.appendChild(dot);
-
-            const labelNode = document.createElement('span');
-            labelNode.textContent = axis.label;
-            item.appendChild(labelNode);
-
-            const axisMappings = activeMappings.filter((mapping) => mapping.category === axis.key);
-            const noted = axisMappings.filter((mapping) => this.hasValoboisCriterionValue(lot, mapping)).length;
-            const total = axisMappings.length;
-            const completion = document.createElement('span');
-            completion.className = 'radar-legend-completion';
-            completion.textContent = `${noted}/${total}`;
-            item.appendChild(completion);
-
-            legendEl.appendChild(item);
-        });
-    }
 
     const radarBody = wrapper ? wrapper.closest('.radar-body') : null;
     if (radarBody) {
@@ -32804,7 +32740,7 @@ renderRadar() {
         } else if (completionRate < 0.4) {
             synth = `Notation partielle (${notedMappings}/${totalMappings} critères). Profil provisoire.`;
         } else if (hasActiveGate) {
-            synth = 'Gate déclenché - orientation contrainte indépendamment du score global.';
+            synth = 'Verrou actif - orientation contrainte indépendamment du score global.';
         } else if (avg < 33) {
             synth = `Profil globalement faible (${notedMappings}/${totalMappings} critères notés).`;
         } else if (avg < 66) {
