@@ -15552,6 +15552,11 @@ body.day-mode .inspection-ignore-box {
     align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
+    flex-wrap: wrap;
+}
+
+.valobois-matrix-header-actions {
+    min-width: 0;
 }
 
 .valobois-matrix-subtitle {
@@ -15593,6 +15598,8 @@ body.day-mode .inspection-ignore-box {
     border-radius: 8px;
     padding: 6px 8px;
     font-size: 13px;
+    width: 100%;
+    min-width: 0;
 }
 
 .valobois-matrix-control-field--search {
@@ -15601,10 +15608,11 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-control-check-row {
     display: flex;
-    flex-wrap: nowrap;
+    flex-wrap: wrap;
     gap: 8px;
     align-items: center;
     flex: 1 1 100%;
+    min-width: 0;
 }
 
 .valobois-matrix-control-check {
@@ -15617,6 +15625,8 @@ body.day-mode .inspection-ignore-box {
     padding: 6px 10px;
     border-radius: 8px;
     background: var(--bleu-crai, #1d3d96);
+    max-width: 100%;
+    min-width: 0;
 }
 
 .valobois-matrix-control-check input[type="checkbox"] {
@@ -15706,6 +15716,66 @@ body.day-mode .inspection-ignore-box {
     font-weight: 600;
 }
 
+.valobois-matrix-gates-editor {
+    display: grid;
+    gap: 10px;
+}
+
+.valobois-matrix-gates-editor h4 {
+    margin: 2px 0 0;
+    font-size: 14px;
+}
+
+.valobois-matrix-gates-list {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+.valobois-matrix-gates-editor .valobois-matrix-control-check {
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
+.valobois-matrix-gate-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 6px 8px;
+    border: 1px solid #e2e6f0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 12px;
+}
+
+.valobois-matrix-gate-add {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) 90px auto;
+    gap: 8px;
+    align-items: center;
+}
+
+.valobois-matrix-gate-add input[type="text"],
+.valobois-matrix-gate-add input[type="number"] {
+    min-height: 32px;
+    border: 1px solid #ced4da;
+    border-radius: 8px;
+    padding: 6px 8px;
+    font-size: 13px;
+}
+
+.valobois-matrix-gate-add #valoboisMatrixAddGate {
+    min-height: 32px;
+    white-space: nowrap;
+}
+
+.valobois-matrix-empty {
+    margin: 0;
+}
+
 .valobois-matrix-table-wrap {
     overflow: auto;
     max-height: 72vh;
@@ -15723,6 +15793,7 @@ body.day-mode .inspection-ignore-box {
     border-collapse: collapse;
     font-size: 12px;
     min-width: 1080px;
+    --valobois-matrix-head-row1-height: 41px;
 }
 
 .valobois-matrix-table th,
@@ -15741,6 +15812,12 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-table thead tr:first-child th {
+    top: 0;
+    z-index: 8;
+}
+
+.valobois-matrix-table thead tr:nth-child(2) th {
+    top: var(--valobois-matrix-head-row1-height);
     z-index: 7;
 }
 
@@ -15757,6 +15834,14 @@ body.day-mode .inspection-ignore-box {
     background: var(--bleu-crai, #1d3d96);
 }
 
+.valobois-matrix-table thead tr:first-child th:first-child {
+    z-index: 12;
+}
+
+.valobois-matrix-table thead tr:nth-child(2) th:first-child {
+    z-index: 11;
+}
+
 .valobois-matrix-table th:nth-child(2),
 .valobois-matrix-table td:nth-child(2) {
     position: sticky;
@@ -15770,12 +15855,17 @@ body.day-mode .inspection-ignore-box {
     background: var(--bleu-crai, #1d3d96);
 }
 
+.valobois-matrix-table thead tr:nth-child(2) th:nth-child(2) {
+    z-index: 11;
+}
+
 .valobois-matrix-col-rank {
     min-width: 60px;
 }
 
 .valobois-matrix-col-criterion {
-    min-width: 180px;
+    min-width: 80px;
+    max-width: 140px;
 }
 
 .valobois-matrix-table tr.is-family-start td {
@@ -16035,12 +16125,59 @@ body.day-mode .inspection-ignore-box {
     }
     .valobois-matrix-controls {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr;
     }
 
     .valobois-matrix-control-field--search {
         min-width: 0;
-        grid-column: 1 / -1;
+        grid-column: auto;
+    }
+
+    .valobois-matrix-control-check-row {
+        grid-column: auto;
+    }
+
+    .valobois-matrix-gate-add {
+        grid-template-columns: 1fr;
+    }
+
+    .valobois-matrix-gate-add #valoboisMatrixAddGate {
+        grid-column: auto;
+    }
+
+    .valobois-matrix-table {
+        min-width: 860px;
+    }
+
+    .valobois-matrix-vector-cell {
+        width: 80px;
+        min-width: 80px;
+        max-width: 80px;
+    }
+
+    .valobois-matrix-checkbox-label {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+}
+
+@media (max-width: 700px) {
+    .valobois-matrix-table {
+        min-width: 760px;
+    }
+}
+
+@media (max-width: 760px) {
+    .valobois-matrix-gate-add {
+        grid-template-columns: 1fr;
+    }
+
+    .valobois-matrix-gate-add #valoboisMatrixAddGate {
+        grid-column: auto;
+    }
+
+    .valobois-matrix-gate-row {
+        flex-wrap: wrap;
     }
 }
 

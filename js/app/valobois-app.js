@@ -5551,11 +5551,46 @@ class ValoboisApp {
     hasValoboisMatrixCustomConfig() {
         const defaults = this.getDefaultValoboisMatrixConfig();
         const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-        if (JSON.stringify(defaults.thresholds) !== JSON.stringify(current.thresholds)) return true;
-        if (Array.isArray(current.gates.disabled) && current.gates.disabled.length) return true;
-        if (Array.isArray(current.gates.added) && current.gates.added.length) return true;
-        if (Object.keys(current.flowOverrides || {}).length > 0) return true;
-        return Object.keys(current.weights || {}).length > 0;
+        const stable = (value) => {
+            if (Array.isArray(value)) {
+                return value.map((item) => stable(item));
+            }
+            if (!value || typeof value !== 'object') return value;
+            const out = {};
+            Object.keys(value).sort().forEach((key) => {
+                out[key] = stable(value[key]);
+            });
+            return out;
+        };
+        const sortPrimitiveArray = (arr) => (Array.isArray(arr)
+            ? arr.map((v) => (v == null ? '' : String(v))).sort()
+            : []);
+        const sortGateEntries = (arr) => (Array.isArray(arr)
+            ? arr
+                .map((entry) => ({
+                    critere: entry && entry.critere != null ? String(entry.critere) : '',
+                    scoreThreshold: entry ? Number(entry.scoreThreshold) : null
+                }))
+                .filter((entry) => entry.critere && Number.isFinite(entry.scoreThreshold))
+                .sort((a, b) => {
+                    if (a.critere !== b.critere) return a.critere.localeCompare(b.critere);
+                    return a.scoreThreshold - b.scoreThreshold;
+                })
+            : []);
+
+        if (JSON.stringify(stable(defaults.thresholds)) !== JSON.stringify(stable(current.thresholds))) return true;
+
+        const defaultDisabled = sortPrimitiveArray(defaults.gates && defaults.gates.disabled);
+        const currentDisabled = sortPrimitiveArray(current.gates && current.gates.disabled);
+        if (JSON.stringify(defaultDisabled) !== JSON.stringify(currentDisabled)) return true;
+
+        const defaultAdded = sortGateEntries(defaults.gates && defaults.gates.added);
+        const currentAdded = sortGateEntries(current.gates && current.gates.added);
+        if (JSON.stringify(defaultAdded) !== JSON.stringify(currentAdded)) return true;
+
+        if (JSON.stringify(stable(defaults.flowOverrides || {})) !== JSON.stringify(stable(current.flowOverrides || {}))) return true;
+
+        return JSON.stringify(stable(defaults.weights || {})) !== JSON.stringify(stable(current.weights || {}));
     }
 
     getValoboisActiveMatrixMode() {
@@ -32000,7 +32035,13 @@ renderMatrice() {
         <table class="valobois-matrix-table">
             <thead>
                 <tr>
-                    <th colspan="7"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
+                    <th class="valobois-matrix-head-spacer" aria-hidden="true"></th>
                     <th colspan="2">Note forte</th>
                     <th colspan="2">Note moyenne</th>
                     <th colspan="2">Note faible</th>
