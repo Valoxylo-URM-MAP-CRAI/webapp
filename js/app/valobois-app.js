@@ -2,25 +2,33 @@
 // Ces utilitaires restent stockés dans le code mais ne pilotent plus l'UI
 // active ni les fonctionnalités métier courantes.
 // Métriques archivées: CV, σ, EIq, EIqAbs, MAD, Tukey.
-
-// ── Utilitaires : Coefficient de Variation dimensionnel ───────
-const _vbMoyenne = vals =>
-  vals.reduce((acc, v) => acc + v, 0) / vals.length;
-
-const _vbEcartType = vals => {
-  const m = _vbMoyenne(vals);
-  return Math.sqrt(
-    vals.reduce((acc, v) => acc + Math.pow(v - m, 2), 0) / vals.length
-  );
+const _vbMoyenne = (vals) => {
+    const vv = vals.filter((v) => Number.isFinite(v) && v > 0);
+    if (!vv.length) return null;
+    return vv.reduce((sum, v) => sum + v, 0) / vv.length;
 };
 
-const _vbCV = vals => {
-  const vv = vals.filter(v => Number.isFinite(v) && v > 0);
-  if (vv.length < 2) return null;
-  const m = _vbMoyenne(vv);
-  if (m === 0) return null;
-  return _vbEcartType(vv) / m;
+const _vbEcartType = (vals) => {
+    const vv = vals.filter((v) => Number.isFinite(v) && v > 0);
+    if (vv.length < 2) return null;
+    const m = _vbMoyenne(vv);
+    if (!Number.isFinite(m) || m === 0) return null;
+    const variance = vv.reduce((acc, v) => acc + ((v - m) ** 2), 0) / vv.length;
+    return Math.sqrt(variance);
 };
+
+const _vbCoefVariation = (vals) => {
+    const vv = vals.filter((v) => Number.isFinite(v) && v > 0);
+    if (vv.length < 2) return null;
+    const m = _vbMoyenne(vv);
+    if (!Number.isFinite(m) || m === 0) return null;
+    const sd = _vbEcartType(vv);
+    if (!Number.isFinite(sd)) return null;
+    return sd / m;
+};
+
+const _vbCV = _vbCoefVariation;
+
 
 // ── Utilitaires : Écart Inter-Quartile normalisé ──────────────
 // Interpolation linéaire au percentile p (0-100) sur tableau trié.
@@ -621,7 +629,7 @@ class ValoboisApp {
         this._analysisLotSelectorOpenSectionKey = null;
         /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
         this._accordionOpenStates = new Map();
-        /** Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage). */
+        // Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage).
         this._detailLotActiveCardByLot = {};
         this._geoFranceHandlersBound = false;
         this._geoFranceSuggestedCantonCodes = [];
@@ -28641,50 +28649,8 @@ getRadarOrientationPositionData(lot, mode = null) {
     const scoreMax = 150;
     const clampedScore = Math.max(0, Math.min(scoreMax, scoreSum));
 
-    const thresholdSource = this.ensureNotationModeOrientationThresholds();
-    const thresholdDefaults = this.getDefaultNotationModeOrientationThresholds();
-    const readThreshold = (key) => {
-        const raw = Number(thresholdSource && thresholdSource[key] && thresholdSource[key][activeMode]);
-        if (Number.isFinite(raw)) return Math.max(0, Math.min(30, raw));
-        const fallback = Number(thresholdDefaults && thresholdDefaults[key] && thresholdDefaults[key][activeMode]);
-        return Number.isFinite(fallback) ? Math.max(0, Math.min(30, fallback)) : 0;
-    };
-
-    const seuils = {
-        recyclage: readThreshold('recyclage') * 5,
-        reutilisation: readThreshold('reutilisation') * 5,
-        reemploi: readThreshold('reemploi') * 5
-    };
     const orientationResult = this.getValoboisOrientationResult(lot) || this.computeOrientationFromMatrix(lot, activeMode);
     const currentOrientation = (orientationResult && orientationResult.orientation) || lot?.orientationCode || 'none';
-    const nextOrientationByCurrent = {
-        none: 'recyclage',
-        combustion: 'recyclage',
-        recyclage: 'reutilisation',
-        reutilisation: 'reemploi',
-        reemploi: null
-    };
-    const nextOrientation = Object.prototype.hasOwnProperty.call(nextOrientationByCurrent, currentOrientation)
-        ? nextOrientationByCurrent[currentOrientation]
-        : 'recyclage';
-
-    const rawBlocking = (nextOrientation && orientationResult && orientationResult.activeRejets && orientationResult.activeRejets[nextOrientation]) || [];
-    const dedup = [];
-    const seen = new Set();
-    rawBlocking.forEach((entry) => {
-        const key = `${entry && entry.rang}:${entry && entry.levelKey}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-        dedup.push(entry);
-    });
-    dedup.sort((a, b) => (Number(a && a.rang) || 0) - (Number(b && b.rang) || 0));
-
-    const topBlocking = dedup.slice(0, 3).map((entry) => ({
-        rang: Number(entry && entry.rang) || 0,
-        critere: (entry && (entry.critere || entry.criterionKey)) || 'Critère',
-        levelKey: (entry && entry.levelKey) || '',
-        noteLetter: (entry && entry.noteLetter) || ''
-    }));
 
     const activeModeMappings = this.getValoboisActiveCriteriaMappings(activeMode);
     const activeMappings = activeModeMappings
@@ -28819,13 +28785,6 @@ getRadarOrientationPositionData(lot, mode = null) {
 
     const netScoreRaw = positiveNoConfidence - negativeNoConfidenceAbs;
     const netScore = Math.max(axisMin, Math.min(axisMax, netScoreRaw));
-    const targetByOrientation = {
-        recyclage: seuils.recyclage,
-        reutilisation: seuils.reutilisation,
-        reemploi: seuils.reemploi
-    };
-    const nextTarget = nextOrientation ? (targetByOrientation[nextOrientation] || 0) : null;
-    const deltaToNext = nextTarget == null ? 0 : Math.max(0, nextTarget - positiveNoConfidence);
 
     return {
         hasScore,
@@ -28836,21 +28795,9 @@ getRadarOrientationPositionData(lot, mode = null) {
         netScore,
         positiveScore: positiveNoConfidence,
         positiveScoreMax: axisMax,
-        seuils,
-        positions: {
-            lot: toAxisPct(netScore),
-            zero: toAxisPct(0),
-            recyclage: toAxisPct(seuils.recyclage),
-            reutilisation: toAxisPct(seuils.reutilisation),
-            reemploi: toAxisPct(seuils.reemploi)
-        },
+        negativeScoreMin: axisMin,
         currentOrientation,
         currentOrientationLabel: this.getValoboisOrientationLabel(currentOrientation),
-        nextOrientation,
-        nextOrientationLabel: nextOrientation ? this.getValoboisOrientationLabel(nextOrientation) : '',
-        deltaToNext,
-        topBlocking,
-        blockingCount: dedup.length,
         rejectsByOrientation,
         letterCounts,
         notationRows,
@@ -28990,7 +28937,12 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
     const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
     const activeMappingsForDetail = this.getValoboisActiveCriteriaMappings(activeMode);
-    const hasUnnotedCriteria = activeMappingsForDetail.some((mapping) => !this.hasValoboisCriterionValue(lot, mapping));
+    const unnotedCriteriaCount = activeMappingsForDetail
+        .filter((mapping) => !this.hasValoboisCriterionValue(lot, mapping)).length;
+    const hasUnnotedCriteria = unnotedCriteriaCount > 0;
+    const unnotedCriteriaRatio = activeMappingsForDetail.length > 0
+        ? Math.min(100, (unnotedCriteriaCount / activeMappingsForDetail.length) * 100)
+        : 0;
     const makeGauge = (letter) => {
         const cap = Number(letterCapacity[letter]) || 0;
         const countRaw = Number(letterCounts[letter]) || 0;
@@ -29000,9 +28952,6 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         const countLabel = `x${count}`;
         const shouldPlaceCountOutside = ratio < 80;
         const emptyClass = count > 0 ? '' : ' is-empty';
-        const missingPillHtml = (letter === 'E' && hasUnnotedCriteria)
-            ? '<div class="notes-gauge-extra"><span class="seuils-pill seuils-pill--missing">?-1</span></div>'
-            : '';
         return `
             <div class="notes-gauge-row notes-gauge-row--${letter}">
                 <div class="notes-gauge notes-gauge--${letter}${emptyClass}" style="--cap:${cap};" title="${this.escapeHtml(`${letter}: ${count}/${cap} (${ratio.toFixed(0)}%)`)}">
@@ -29014,12 +28963,31 @@ buildOrientationPositionBarHtml(lot, mode = null) {
                         </span>
                     </span>
                 </div>
-                ${missingPillHtml}
+            </div>
+        `;
+    };
+    const makeMissingGauge = () => {
+        const missingPillLabel = `Notes manquantes : ${unnotedCriteriaCount}`;
+        const missingCap = Number(letterCapacity.E) || 5;
+        const missingRatio = hasUnnotedCriteria ? Math.min(100, (unnotedCriteriaCount / Math.max(1, activeMappingsForDetail.length)) * 100) : 0;
+        const shouldPlaceLabelOutside = missingRatio < 50;
+
+        return `
+            <div class="notes-gauge-row notes-gauge-row--missing">
+                <div class="notes-gauge notes-gauge--missing${hasUnnotedCriteria ? '' : ' is-empty'}" style="--cap:${missingCap};" title="${this.escapeHtml(missingPillLabel)}">
+                    <span class="notes-gauge-letter"></span>
+                    <span class="notes-gauge-track-wrap notes-gauge-track-wrap--missing" style="--cap:${missingCap};">
+                        <span class="notes-gauge-track notes-gauge-track--missing" style="--missing-ratio:${missingRatio.toFixed(2)}%; --fill-ratio:${missingRatio.toFixed(2)}%;">
+                            <span class="notes-gauge-fill notes-missing-gauge-fill"></span>
+                            <span class="notes-gauge-count${shouldPlaceLabelOutside ? ' notes-gauge-count--outside' : ''}">${this.escapeHtml(missingPillLabel)}</span>
+                        </span>
+                    </span>
+                </div>
             </div>
         `;
     };
     const repartitionLeftHtml = leftLetters.map((letter) => makeGauge(letter)).join('');
-    const repartitionRightHtml = rightLetters.map((letter) => makeGauge(letter)).join('');
+    const repartitionRightHtml = `${rightLetters.map((letter) => makeGauge(letter)).join('')}${makeMissingGauge()}`;
     const repartitionHtml = `
         <div class="notes-distribution-columns" style="grid-template-columns:minmax(0, ${leftColMax}fr) minmax(0, ${rightColMax}fr);">
             <div class="notes-distribution-column notes-distribution-column--left" style="--col-max:${leftColMax};">
@@ -30008,7 +29976,7 @@ openValoboisMatrixFlowConflictModal(rank, flowKind, orientationKey, levelKey) {
 
     return this.openValoboisMatrixDetailModal(
         'Conflit vecteur / rejet',
-        `Une même note ne peut pas être à la fois vecteur et facteur de rejet pour la même orientation.\n\nCritère : ${criterionLabel}\nOrientation : ${orientationLabel}\nNiveau : ${levelLabels[levelKey] || levelKey}\n\nDécochez d'abord le ${flowLabels[oppositeKind]} avant de cocher le ${flowLabels[flowKind]}.`
+        `Action bloquée : vous essayez de cocher le ${flowLabels[flowKind]}.\n\nRègle appliquée : pour une même orientation et un même niveau, une note ne peut pas être à la fois vecteur et facteur de rejet.\n\nContexte\nCritère : ${criterionLabel}\nOrientation : ${orientationLabel}\nNiveau : ${levelLabels[levelKey] || levelKey}\nÉtat actuel : ${flowLabels[oppositeKind]} déjà coché\n\nPour continuer\n1. Décochez d'abord le ${flowLabels[oppositeKind]}.\n2. Cochez ensuite le ${flowLabels[flowKind]}.\n\nRésultat attendu : la modification sera prise en compte immédiatement dans la matrice.`
     );
 }
 
@@ -31788,15 +31756,17 @@ renderMatrice() {
                 ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
             </select>
         </label>
-        <label class="valobois-matrix-control-check">
-            <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Verrous uniquement
-        </label>
-        <label class="valobois-matrix-control-check">
-            <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
-        </label>
-        <label class="valobois-matrix-control-check">
-            <input type="checkbox" id="valoboisMatrixShowRejects" ${ui.showRejects ? 'checked' : ''}> Rejets
-        </label>
+        <div class="valobois-matrix-control-check-row">
+            <label class="valobois-matrix-control-check">
+                <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Verrous uniquement
+            </label>
+            <label class="valobois-matrix-control-check">
+                <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
+            </label>
+            <label class="valobois-matrix-control-check">
+                <input type="checkbox" id="valoboisMatrixShowRejects" ${ui.showRejects ? 'checked' : ''}> Rejets
+            </label>
+        </div>
         <label class="valobois-matrix-control-field valobois-matrix-control-field--search">Recherche
             <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Nom du critère">
         </label>
@@ -38326,6 +38296,77 @@ renderRadar() {
     </g>`;
     }
 
+    generatePdfCategoryGaugeSvg(categoryData, width = 240, height = 16) {
+        if (!categoryData) return '';
+        
+        const { letterPoints, letterColors, minScore, maxScore, rawScore, zeroPct } = categoryData;
+        if (!letterPoints || !letterColors || !Number.isFinite(minScore) || !Number.isFinite(maxScore)) {
+            return '';
+        }
+        
+        const scoreSpan = Math.max(1, maxScore - minScore);
+        const barHeight = Math.round(height * 0.7);
+        const barY = (height - barHeight) / 2;
+        const radius = 1;
+        
+        // Positions des bandes négatives (D à gauche de zéro, E plus à gauche)
+        const pctPerPoint = 100 / scoreSpan;
+        const negativeDWidth = Math.abs(letterPoints.D || 0) * pctPerPoint;
+        const negativeEWidth = Math.abs(letterPoints.E || 0) * pctPerPoint;
+        const positiveCWidth = (letterPoints.C || 0) * pctPerPoint;
+        const positiveBWidth = (letterPoints.B || 0) * pctPerPoint;
+        const positiveAWidth = (letterPoints.A || 0) * pctPerPoint;
+        
+        // Zéro position en %
+        const zeroPixels = (zeroPct / 100) * width;
+        
+        // Générer les bandes
+        let bandsHtml = '';
+        
+        // Bande E (à gauche du D)
+        if (negativeEWidth > 0) {
+            const xPos = Math.max(0, zeroPixels - negativeDWidth - negativeEWidth);
+            const w = Math.min(negativeEWidth, zeroPixels - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.E || '#d55e00'}" stroke="none"/>`;
+        }
+        
+        // Bande D
+        if (negativeDWidth > 0) {
+            const xPos = Math.max(0, zeroPixels - negativeDWidth);
+            const w = Math.min(negativeDWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.D || '#e69f00'}" stroke="none"/>`;
+        }
+        
+        // Bande C
+        if (positiveCWidth > 0) {
+            const xPos = zeroPixels;
+            const w = Math.min(positiveCWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.C || '#9aba89'}" stroke="none"/>`;
+        }
+        
+        // Bande B
+        if (positiveBWidth > 0) {
+            const xPos = Math.min(width, zeroPixels + positiveCWidth);
+            const w = Math.min(positiveBWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.B || '#60914b'}" stroke="none"/>`;
+        }
+        
+        // Bande A
+        if (positiveAWidth > 0) {
+            const xPos = Math.min(width, zeroPixels + positiveCWidth + positiveBWidth);
+            const w = Math.min(positiveAWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.A || '#009e73'}" stroke="none"/>`;
+        }
+        
+        // Contour global
+        const bgHtml = `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="none" stroke="#999999" stroke-width="0.5" rx="${radius}" ry="${radius}"/>`;
+        
+        // Ligne zéro (pointillés gris)
+        const zeroLineHtml = `<line x1="${zeroPixels.toFixed(1)}" y1="${barY}" x2="${zeroPixels.toFixed(1)}" y2="${barY + barHeight}" stroke="#cccccc" stroke-width="0.5" stroke-dasharray="2,2"/>`;
+        
+        return `<g>${bandsHtml}${bgHtml}${zeroLineHtml}</g>`;
+    }
+
     escapeSvgText(value) {
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;')
@@ -38406,6 +38447,81 @@ renderRadar() {
             : '';
 
         return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}<polygon points="${polygonPoints}" fill="#000000" fill-opacity="0.15" stroke="#000000" stroke-width="1.5"/>${dataPoints}${labels}${thresholdLabels}</g></svg>`;
+    }
+
+    generatePdfRadarSvg(data) {
+        // Génère un radar SVG avec 3 datasets: net (couleur), bruts positifs (gris), bruts négatifs (gris pointillé)
+        if (!data || !Array.isArray(data.labels) || !Array.isArray(data.netValues) || data.labels.length !== data.netValues.length) {
+            return '';
+        }
+        
+        const width = 280;
+        const height = 260;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 90;
+        const labelRadius = 105;
+        const pointRadius = 3;
+        const gridLevels = [25, 50, 75, 100];
+        const axisCount = data.labels.length;
+        const startAngle = -Math.PI / 2;
+        const angleStep = (Math.PI * 2) / axisCount;
+        
+        const toPoint = (value, axisIndex, scaleRadius = radius) => {
+            const angle = startAngle + axisIndex * angleStep;
+            const scaledRadius = (Math.max(0, Math.min(100, value)) / 100) * scaleRadius;
+            return {
+                x: Math.cos(angle) * scaledRadius,
+                y: Math.sin(angle) * scaledRadius
+            };
+        };
+        
+        // Grille de cercles concentriques
+        const circles = gridLevels.map((level) => {
+            const ringRadius = (level / 100) * radius;
+            const stroke = level === 100 ? '#333333' : '#d9d4ca';
+            const strokeWidth = level === 100 ? 1.2 : 0.8;
+            return `<circle cx="0" cy="0" r="${ringRadius.toFixed(2)}" fill="none" stroke="${stroke}" stroke-opacity="0.4" stroke-width="${strokeWidth}"/>`;
+        }).join('');
+        
+        // Axes radiaux
+        const axes = data.labels.map((_, axisIndex) => {
+            const point = toPoint(100, axisIndex);
+            return `<line x1="0" y1="0" x2="${point.x.toFixed(2)}" y2="${point.y.toFixed(2)}" stroke="#000000" stroke-opacity="0.12" stroke-width="0.8"/>`;
+        }).join('');
+        
+        // Dataset 1: Bruts négatifs (pointillés gris)
+        const negPoints = data.grossNegativeValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const negPolygon = negPoints.length > 0 ? `<polygon points="${negPoints}" fill="none" stroke="rgba(120,120,120,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>` : '';
+        
+        // Dataset 2: Bruts positifs (gris)
+        const posPoints = data.grossPositiveValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const posPolygon = posPoints.length > 0 ? `<polygon points="${posPoints}" fill="none" stroke="rgba(95,95,95,0.5)" stroke-width="1.4"/>` : '';
+        
+        // Dataset 3: Net (couleur orientation)
+        const netPoints = data.netValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const netColor = data.netColor || '#7A7A7A';
+        const netPolygon = netPoints.length > 0 ? `<polygon points="${netPoints}" fill="${netColor}22" stroke="${netColor}" stroke-width="2.0"/><polygon points="${netPoints}" fill="none" stroke="${netColor}" stroke-width="0" />` : '';
+        
+        // Points sur le net
+        const dataPoints = data.netValues.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="${netColor}" stroke="${netColor}" stroke-width="0.5"/>`;
+        }).join('');
+        
+        // Labels des axes
+        const labels = data.labels.map((label, axisIndex) => {
+            const point = toPoint(100, axisIndex, labelRadius);
+            const textAnchor = Math.abs(point.x) < 15 ? 'middle' : (point.x > 0 ? 'start' : 'end');
+            let textY = point.y;
+            if (point.y < -15) textY -= 6;
+            else if (point.y > 15) textY += 12;
+            else textY += 4;
+            const textStr = this.escapeSvgText(label);
+            return `<text x="${point.x.toFixed(2)}" y="${textY.toFixed(2)}" font-size="10" font-weight="500" fill="#3a3a3a" text-anchor="${textAnchor}">${textStr}</text>`;
+        }).join('');
+        
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}${negPolygon}${posPolygon}${netPolygon}${dataPoints}${labels}</g></svg>`;
     }
 
     buildPdfActiveLotDocDef(lotIndex) {
@@ -38542,21 +38658,33 @@ renderRadar() {
         const categoryDefs = this.getPdfCategoryDefinitions();
         const categoryScores = this.getValueScoresForLot(currentLot);
         if (Array.isArray(categoryDefs) && categoryDefs.length) {
+            const rawScores = this.getRawValueScoresForLot(currentLot);
+            const scoreRanges = this.getValueScoreRangesForLot(currentLot);
+            const letterColors = { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
+            
             jaugesData = categoryDefs.map((category) => {
-                const rawScore = parseFloat(categoryScores[category.key]);
-                const safeScore = Number.isFinite(rawScore) ? Math.max(0, rawScore) : 0;
-                const percentVal = Math.max(0, Math.min(100, Math.round((safeScore / 30) * 100)));
-                let color = '#cccccc';
-                if (percentVal > 0) {
-                    const threshold = this.getOrientationThresholdForPercent(percentVal);
-                    if (threshold && threshold.color) color = threshold.color;
-                }
+                const rawScore = parseFloat(rawScores[category.key]) || 0;
+                const score = parseFloat(categoryScores[category.key]) || 0;
+                const range = scoreRanges[category.key] || { min: 0, max: 30 };
+                const { letterCounts, letterPoints } = this.getLetterDistributionForCategory(currentLot, category.key);
+                
+                const minScore = Math.min(0, Number(range.min) || 0);
+                const maxScore = Math.max(1, Number(range.max) || 30);
+                const scoreSpan = Math.max(1, maxScore - minScore);
+                const zeroPct = Math.max(0, Math.min(100, ((0 - minScore) / scoreSpan) * 100));
+                const scorePct = Math.max(0, Math.min(100, ((rawScore - minScore) / scoreSpan) * 100));
+                
                 return {
                     labelStr: category.label,
-                    percentStr: this.formatPdfDecimal(percentVal, 0, 0) + '%',
-                    scoreStr: this.formatPdfDecimal(safeScore, 0, 0) + '/30',
-                    percentVal,
-                    color
+                    scoreStr: this.formatPdfDecimal(score, 0, 0) + '/30',
+                    letterCounts,
+                    letterPoints,
+                    letterColors,
+                    scorePct,
+                    zeroPct,
+                    minScore,
+                    maxScore,
+                    rawScore
                 };
             });
         }
@@ -38578,15 +38706,48 @@ renderRadar() {
             toRadarPercent(radarScores.historique),
             toRadarPercent(radarScores.esthetique)
         ];
-        const radarThresholdLevels = this.getOrientationThresholdConfig().map((threshold) => ({
-            value: threshold.radarValue,
-            label: threshold.radarLabel,
-            color: threshold.color
-        }));
-        const radarSvg = this.generateRadarSvg({
+        
+        // Calculer les 3 datasets radar : net + bruts +/-
+        const axisKeys = ['economique', 'ecologique', 'mecanique', 'historique', 'esthetique'];
+        const rawScores = this.getRawValueScoresForLot(currentLot);
+        const scoreRanges = this.getValueScoreRangesForLot(currentLot);
+        
+        const globalMinScore = Math.min(...axisKeys.map(key => Math.min(0, Number((scoreRanges[key] || {}).min) || 0)));
+        const globalMaxScore = Math.max(...axisKeys.map(key => Math.max(1, Number((scoreRanges[key] || {}).max) || 30)), 30);
+        const globalSpan = Math.max(1, globalMaxScore - globalMinScore);
+        const toRadarScale = (value) => Math.max(0, Math.min(100, ((value - globalMinScore) / globalSpan) * 100));
+        
+        const netDataset = axisKeys.map(key => toRadarScale(Number(rawScores[key]) || 0));
+        const grossPositiveDataset = [];
+        const grossNegativeDataset = [];
+        
+        axisKeys.forEach(key => {
+            const dist = this.getLetterDistributionForCategory(currentLot, key);
+            const lp = dist.letterPoints || {};
+            const posTotal = Math.max(0, (lp.A || 0) + (lp.B || 0) + (lp.C || 0));
+            const negTotal = Math.min(0, (lp.D || 0) + (lp.E || 0));
+            grossPositiveDataset.push(toRadarScale(posTotal));
+            grossNegativeDataset.push(toRadarScale(negTotal));
+        });
+        
+        // Couleur d'orientation du lot
+        const orientationResult = this.getValoboisOrientationResult(currentLot) || this.computeOrientationFromMatrix(currentLot, this.getValoboisActiveMatrixMode());
+        const orientationCode = (orientationResult && orientationResult.orientation) || currentLot.orientationCode || 'none';
+        const orientationColors = {
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#D55E00',
+            none: '#7A7A7A'
+        };
+        const netColor = orientationColors[orientationCode] || orientationColors.none;
+        
+        const radarSvg = this.generatePdfRadarSvg({
             labels: radarLabels,
-            values: radarValues,
-            thresholdLevels: radarThresholdLevels
+            netValues: netDataset,
+            grossPositiveValues: grossPositiveDataset,
+            grossNegativeValues: grossNegativeDataset,
+            netColor: netColor
         });
 
         const inspectionCard = this.pdfCard(tpdf('pdf.card.inspection', 'Inspection', 'Inspection'), [
@@ -38675,19 +38836,27 @@ renderRadar() {
         const buildGaugesStacked = (totalAvailableWidth) => {
             const gaugeThickness = 12; // Thin horizontal bars
             const labelWidth = 65;
-            const valueWidth = 45;
+            const valueWidth = 55;
             const gap = 5;
-            const barWidth = Math.max(50, totalAvailableWidth - labelWidth - valueWidth - (gap * 2));
+            const barWidth = Math.max(80, totalAvailableWidth - labelWidth - valueWidth - (gap * 2));
 
             const rows = jaugesData.map(g => {
-                const svgContent = this.generateHorizontalGaugeSvg(g.percentVal, barWidth, gaugeThickness, g.color);
-                const svgString = `<svg width="${barWidth}" height="${gaugeThickness}" viewBox="0 0 ${barWidth} ${gaugeThickness}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`;
+                const svgContent = this.generatePdfCategoryGaugeSvg(g, barWidth, gaugeThickness);
+                const svgString = svgContent ? `<svg width="${barWidth}" height="${gaugeThickness}" viewBox="0 0 ${barWidth} ${gaugeThickness}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>` : '';
+                
+                // Format: "Net: +12 (X2, B1)"
+                const netStr = g.rawScore > 0 ? `+${Math.round(g.rawScore)}` : `${Math.round(g.rawScore)}`;
+                const letterList = ['A', 'B', 'C', 'D', 'E']
+                    .filter(l => (g.letterCounts[l] || 0) > 0)
+                    .map(l => `${l}${g.letterCounts[l]}`)
+                    .join(', ');
+                const valueStr = letterList ? `${netStr} (${letterList})` : `${netStr}`;
                 
                 return {
                     columns: [
                         { width: labelWidth, text: g.labelStr, bold: true, fontSize: f.gaugeLabel, alignment: 'right', margin: [0, 1.5, 0, 0] },
                         { width: barWidth, svg: svgString, margin: [0, 1.5, 0, 0] },
-                        { width: valueWidth, text: `${g.percentStr} (${g.scoreStr})`, fontSize: f.gaugeLabel, bold: true, alignment: 'left', margin: [0, 1.5, 0, 0] }
+                        { width: valueWidth, text: valueStr, fontSize: f.gaugeLabel, bold: false, alignment: 'left', margin: [0, 1.5, 0, 0] }
                     ],
                     columnGap: gap,
                     margin: [0, 0, 0, 6] // vertical gap between gauges
