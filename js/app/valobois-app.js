@@ -29149,6 +29149,384 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     `;
 }
 
+buildSyntheseLotsPositionBarHtml(mode = null) {
+    const lots = Array.isArray(this.data && this.data.lots) ? this.data.lots : [];
+    if (!lots.length) {
+        return `
+            <section class="orientation-position-bar orientation-position-bar--empty" aria-label="Positions des lots">
+                <p class="orientation-bar-hint">Aucun lot disponible.</p>
+            </section>
+        `;
+    }
+
+    const SCORE_MIN = -76;
+    const SCORE_MAX = 126;
+    const RANGE = SCORE_MAX - SCORE_MIN || 1;
+    const toPctNumber = (v) => ((v - SCORE_MIN) / RANGE * 100);
+    const toPct = (v) => `${Math.max(0, Math.min(100, toPctNumber(v))).toFixed(3)}%`;
+    const clampPct = (v) => Math.max(0, Math.min(100, toPctNumber(v)));
+    const formatSigned = (value) => {
+        const n = Number(value) || 0;
+        return n > 0 ? `+${n.toFixed(0)}` : `${n.toFixed(0)}`;
+    };
+
+    const scaleMarkers = [
+        { value: SCORE_MIN, label: '-76', edge: 'start', key: 'min' },
+        { value: -10, label: '-10', key: 'minus10' },
+        { value: 0, label: '0', key: 'zero' },
+        { value: SCORE_MAX, label: '+126', edge: 'end', key: 'max' }
+    ];
+
+    const laneDefs = [
+        {
+            key: 'reemploi',
+            label: 'Réemploi',
+            color: '#009E73',
+            segments: [
+                { start: -21, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
+                { start: 29, end: 126, color: '#53a57a', roundLeft: true, roundRight: true }
+            ]
+        },
+        {
+            key: 'reutilisation',
+            label: 'Réutilisation',
+            color: '#56B4E9',
+            segments: [
+                { start: -42, end: 122, color: '#56B4E9', roundLeft: true, roundRight: true }
+            ]
+        },
+        {
+            key: 'recyclage',
+            label: 'Recyclage',
+            color: '#E69F00',
+            segments: [
+                { start: -37, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
+            ]
+        },
+        {
+            key: 'combustion',
+            label: 'Combustion',
+            color: '#d95f0e',
+            segments: [
+                { start: -76, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
+            ]
+        }
+    ];
+
+    const normalizeOrientationKey = (lot) => {
+        const code = String((lot && lot.orientationCode) || '').trim().toLowerCase();
+        if (laneDefs.some((lane) => lane.key === code)) return code;
+        const label = String((lot && lot.orientationLabel) || '').trim().toLowerCase();
+        if (label === 'réemploi' || label === 'reemploi') return 'reemploi';
+        if (label === 'réutilisation' || label === 'reutilisation') return 'reutilisation';
+        if (label === 'recyclage') return 'recyclage';
+        if (label === 'combustion') return 'combustion';
+        return 'reutilisation';
+    };
+
+    const orientationOrder = ['reemploi', 'reutilisation', 'recyclage', 'combustion'];
+    const orientationLabelMap = {
+        reemploi: 'Réemploi',
+        reutilisation: 'Réutilisation',
+        recyclage: 'Recyclage',
+        combustion: 'Combustion'
+    };
+    const formatNumber = (value, maxFractionDigits = 0) => {
+        const num = Number(value);
+        if (!Number.isFinite(num)) return '-';
+        return num.toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: maxFractionDigits
+        });
+    };
+    const formatVolumeLabel = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) return '-';
+        return `${formatNumber(num, 3)} m³`;
+    };
+    const formatPriceLabel = (value) => {
+        const num = Number(value);
+        if (!Number.isFinite(num) || num <= 0) return '-';
+        return `${formatNumber(num, 0)} €`;
+    };
+    const getUniqueLotPieceTypes = (lot) => {
+        const values = new Set();
+        (Array.isArray(lot && lot.pieces) ? lot.pieces : []).forEach((piece) => {
+            const type = String((piece && piece.typePiece) || '').trim();
+            if (type) values.add(type);
+        });
+        this.ensureDefaultPiecesData(lot, { createIfEmpty: false }).forEach((piece) => {
+            const type = String((piece && piece.typePiece) || '').trim();
+            if (type) values.add(type);
+        });
+        return Array.from(values);
+    };
+
+    const lotEntries = [];
+    lots.forEach((lot, index) => {
+        const state = this.getRadarOrientationPositionData(lot, mode);
+        if (!state || !state.hasScore) return;
+
+        const decomposition = state.decomposition || {};
+        const positive = Number(decomposition.positiveNoConfidence) || 0;
+        const negativeAbs = Math.abs(Number(decomposition.negativeNoConfidenceAbs) || 0);
+        const net = Number(decomposition.netNoConfidence) || 0;
+        const hasNegative = negativeAbs > 0.01;
+        const lotScore = hasNegative ? net : positive;
+        const laneKey = normalizeOrientationKey(lot);
+        const lotNameRaw = String((lot && (lot.nomLot || lot.nom)) || '').trim();
+        const lotLabel = lotNameRaw || `Lot ${index + 1}`;
+        const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
+        const notesDistribution = `A:${Number(letterCounts.A) || 0} · B:${Number(letterCounts.B) || 0} · C:${Number(letterCounts.C) || 0} · D:${Number(letterCounts.D) || 0} · E:${Number(letterCounts.E) || 0}`;
+        const lockDistribution = orientationOrder
+            .map((orientationKey) => {
+                const count = ((state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || []).length;
+                return `${orientationLabelMap[orientationKey]}:${count}`;
+            })
+            .join(' · ');
+        const piecesCount = Math.max(0, Number(this.getLotQuantityFromDetail(lot)) || 0);
+        const allotissement = lot && lot.allotissement ? lot.allotissement : {};
+        const volumeLabel = formatVolumeLabel(parseFloat(allotissement.volumeLot));
+        const priceLabel = formatPriceLabel(parseFloat(allotissement.prixLot));
+        const pieceTypes = getUniqueLotPieceTypes(lot);
+        const pieceTypesLabel = pieceTypes.length ? pieceTypes.join(', ') : '-';
+
+        lotEntries.push({
+            laneKey,
+            lotScore,
+            lotNumber: index + 1,
+            lotLabel,
+            netLabel: formatSigned(lotScore),
+            positiveLabel: formatSigned(positive),
+            negativeLabel: formatSigned(-negativeAbs),
+            notesDistribution,
+            lockDistribution,
+            piecesCountLabel: formatNumber(piecesCount, 0),
+            volumeLabel,
+            priceLabel,
+            pieceTypesLabel
+        });
+    });
+
+    if (!lotEntries.length) {
+        return `
+            <section class="orientation-position-bar orientation-position-bar--empty" aria-label="Positions des lots">
+                <p class="orientation-bar-hint">Aucun score exploitable pour positionner les lots.</p>
+            </section>
+        `;
+    }
+
+    const lotsByLane = {};
+    laneDefs.forEach((lane) => { lotsByLane[lane.key] = []; });
+    lotEntries.forEach((entry) => {
+        if (!lotsByLane[entry.laneKey]) lotsByLane[entry.laneKey] = [];
+        lotsByLane[entry.laneKey].push(entry);
+    });
+    laneDefs.forEach((lane) => {
+        lotsByLane[lane.key].sort((a, b) => clampPct(a.lotScore) - clampPct(b.lotScore));
+    });
+    const maxStack = Math.max(0, ...laneDefs.map((lane) => Math.max(0, lotsByLane[lane.key].length - 1)));
+
+    const laneRowsHtml = laneDefs.map((lane, laneIndex) => {
+        const segmentHtml = lane.segments.map((segment) => {
+            const left = clampPct(Math.min(segment.start, segment.end));
+            const width = Math.abs(clampPct(segment.end) - clampPct(segment.start));
+            const radius = `${segment.roundLeft ? '999px' : '0'} ${segment.roundRight ? '999px' : '0'} ${segment.roundRight ? '999px' : '0'} ${segment.roundLeft ? '999px' : '0'}`;
+            return `<span class="lot-position-segment" style="left:${left.toFixed(3)}%;width:${width.toFixed(3)}%;background:${segment.color};border-radius:${radius};"></span>`;
+        }).join('');
+
+        const flagsHtml = lotsByLane[lane.key].map((entry, stackIndex) => {
+            return `
+                <span
+                    class="lot-position-point lot-position-point--lot lot-position-point--synthese synthese-lot-thumb"
+                    data-tooltip-lot-label="${this.escapeHtml(entry.lotLabel)}"
+                    data-tooltip-positive="${this.escapeHtml(entry.positiveLabel)}"
+                    data-tooltip-negative="${this.escapeHtml(entry.negativeLabel)}"
+                    data-tooltip-net="${this.escapeHtml(entry.netLabel)}"
+                    data-tooltip-notes-distribution="${this.escapeHtml(entry.notesDistribution)}"
+                    data-tooltip-locks-distribution="${this.escapeHtml(entry.lockDistribution)}"
+                    data-tooltip-pieces-count="${this.escapeHtml(entry.piecesCountLabel)}"
+                    data-tooltip-volume="${this.escapeHtml(entry.volumeLabel)}"
+                    data-tooltip-price="${this.escapeHtml(entry.priceLabel)}"
+                    data-tooltip-piece-types="${this.escapeHtml(entry.pieceTypesLabel)}"
+                    style="left:${toPct(entry.lotScore)};--lot-stack-index:${stackIndex};"
+                >${entry.lotNumber}</span>
+            `;
+        }).join('');
+
+        return `
+            <div class="lot-position-lane lot-position-lane--synthese" style="--lane-color:${lane.color};">
+                <div class="lot-position-track">
+                    <span class="lot-position-track-label">${this.escapeHtml(lane.label)}</span>
+                    ${segmentHtml}
+                    ${flagsHtml}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    return `
+        <section class="orientation-position-bar lot-position-section lot-position-section--synthese" aria-label="Positions des lots">
+            <div class="lot-position-chart lot-position-chart--synthese" style="--lot-stack-max:${maxStack};">
+                <div class="lot-position-grid-lines" aria-hidden="true">
+                    ${scaleMarkers
+                        .filter((marker) => !marker.edge)
+                        .map((marker) => `<span class="lot-position-grid-line lot-position-grid-line--${marker.key}" style="left:${toPct(marker.value)};"></span>`)
+                        .join('')}
+                </div>
+                <div class="lot-position-lanes">
+                    ${laneRowsHtml}
+                </div>
+                <div class="lot-position-axis-labels" aria-hidden="true">
+                    ${scaleMarkers.map((marker) => {
+                        const edgeClass = marker.edge === 'start'
+                            ? ' lot-position-axis-label--start'
+                            : (marker.edge === 'end' ? ' lot-position-axis-label--end' : '');
+                        return `<span class="lot-position-axis-label lot-position-axis-label--${marker.key}${edgeClass}" style="left:${toPct(marker.value)};">${this.escapeHtml(marker.label)}</span>`;
+                    }).join('')}
+                </div>
+            </div>
+        </section>
+    `;
+}
+
+renderSyntheseLotsPositionPanel() {
+    const section = document.getElementById('syntheseLotsPositionSection');
+    const host = document.getElementById('syntheseLotsPositionHost');
+    if (!section || !host) return;
+    const mode = this.getValoboisActiveMatrixMode();
+    host.innerHTML = this.buildSyntheseLotsPositionBarHtml(mode);
+    section.style.display = 'block';
+    this.initSyntheseLotsTooltips();
+}
+
+initSyntheseLotsTooltips() {
+    const host = document.getElementById('syntheseLotsPositionHost');
+    if (!host) return;
+    const flags = host.querySelectorAll('.synthese-lot-thumb');
+    let currentTooltip = null;
+
+    const removeTooltip = () => {
+        document.querySelectorAll('.lot-position-lot-tooltip').forEach((el) => {
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        });
+        if (currentTooltip && currentTooltip.parentNode) {
+            currentTooltip.parentNode.removeChild(currentTooltip);
+        }
+        currentTooltip = null;
+    };
+
+    const positionTooltip = (tooltip, anchorRect) => {
+        const margin = 8;
+        const tooltipRect = tooltip.getBoundingClientRect();
+        const anchorCenterX = anchorRect.left + (anchorRect.width / 2);
+        let placeBelow = false;
+
+        let top = anchorRect.top - tooltipRect.height - margin;
+        let left = anchorCenterX - (tooltipRect.width / 2);
+
+        if (top < margin) {
+            top = anchorRect.bottom + margin;
+            placeBelow = true;
+        }
+        if (left < margin) {
+            left = margin;
+        } else if ((left + tooltipRect.width) > (window.innerWidth - margin)) {
+            left = window.innerWidth - tooltipRect.width - margin;
+        }
+
+        tooltip.style.left = `${Math.round(left)}px`;
+        tooltip.style.top = `${Math.round(top)}px`;
+
+        const caretMin = 12;
+        const caretMax = Math.max(caretMin, tooltipRect.width - 12);
+        const caretLeft = Math.max(caretMin, Math.min(caretMax, anchorCenterX - left));
+        tooltip.style.setProperty('--lot-tooltip-caret-left', `${Math.round(caretLeft)}px`);
+        tooltip.classList.toggle('lot-position-lot-tooltip--below', placeBelow);
+        tooltip.classList.toggle('lot-position-lot-tooltip--above', !placeBelow);
+    };
+
+    flags.forEach((flag) => {
+        flag.addEventListener('mouseenter', () => {
+            removeTooltip();
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'lot-position-lot-tooltip';
+
+            const lotLabel = flag.getAttribute('data-tooltip-lot-label') || 'Lot';
+            const positive = flag.getAttribute('data-tooltip-positive') || '+0';
+            const negative = flag.getAttribute('data-tooltip-negative') || '0';
+            const net = flag.getAttribute('data-tooltip-net') || '0';
+            const notesDistribution = flag.getAttribute('data-tooltip-notes-distribution') || '-';
+            const locksDistribution = flag.getAttribute('data-tooltip-locks-distribution') || '-';
+            const piecesCount = flag.getAttribute('data-tooltip-pieces-count') || '0';
+            const volume = flag.getAttribute('data-tooltip-volume') || '-';
+            const price = flag.getAttribute('data-tooltip-price') || '-';
+            const pieceTypes = flag.getAttribute('data-tooltip-piece-types') || '-';
+
+            const title = document.createElement('div');
+            title.className = 'lot-position-lot-tooltip-title';
+            title.textContent = lotLabel;
+
+            const body = document.createElement('div');
+            body.className = 'lot-position-lot-tooltip-body';
+
+            const compactMetrics = [
+                { label: 'Somme +', value: positive },
+                { label: 'Somme -', value: negative },
+                { label: 'Score net', value: net },
+                { label: 'Nb pièces', value: piecesCount },
+                { label: 'Volume lot', value: volume },
+                { label: 'Prix lot', value: price }
+            ];
+            const detailMetrics = [
+                { label: 'Répartition notes', value: notesDistribution },
+                { label: 'Verrous / orientation', value: locksDistribution },
+                { label: 'Types de pièces', value: pieceTypes }
+            ];
+
+            const compactHtml = compactMetrics.map((metric) => `
+                <div class="lot-position-lot-tooltip-metric">
+                    <span class="lot-position-lot-tooltip-metric-label">${this.escapeHtml(metric.label)}</span>
+                    <span class="lot-position-lot-tooltip-metric-value">${this.escapeHtml(metric.value)}</span>
+                </div>
+            `).join('');
+            const detailHtml = detailMetrics.map((metric) => `
+                <div class="lot-position-lot-tooltip-line">
+                    <span class="lot-position-lot-tooltip-line-label">${this.escapeHtml(metric.label)}</span>
+                    <span class="lot-position-lot-tooltip-line-value">${this.escapeHtml(metric.value)}</span>
+                </div>
+            `).join('');
+
+            body.innerHTML = `
+                <div class="lot-position-lot-tooltip-metrics-grid">${compactHtml}</div>
+                <div class="lot-position-lot-tooltip-details">${detailHtml}</div>
+            `;
+
+            tooltip.appendChild(title);
+            tooltip.appendChild(body);
+
+            document.body.appendChild(tooltip);
+            positionTooltip(tooltip, flag.getBoundingClientRect());
+            currentTooltip = tooltip;
+        });
+
+        flag.addEventListener('mouseleave', () => {
+            removeTooltip();
+        });
+
+        flag.addEventListener('focus', () => {
+            removeTooltip();
+            const hoverEvent = new MouseEvent('mouseenter');
+            flag.dispatchEvent(hoverEvent);
+        });
+
+        flag.addEventListener('blur', () => {
+            removeTooltip();
+        });
+    });
+}
+
 getOrientationThresholdConfig() {
     const thresholdsByOrientation = this.ensureNotationModeOrientationThresholds();
     const mode = this.getValoboisActiveMatrixMode();
@@ -34346,6 +34724,8 @@ renderRadar() {
     scroller.addEventListener('scroll', updateThumb);
     window.addEventListener('resize', updateThumb);
     updateThumb();
+
+    this.renderSyntheseLotsPositionPanel();
     }
 
     computeOrientation(lot) {
