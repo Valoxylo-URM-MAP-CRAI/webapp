@@ -20244,34 +20244,34 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             {
                 label: 'Combustion',
                 color: '#D55E00',
-                faible: { type: 'gate', label: 'Verrou', text: 'Verrous.' },
-                moyen: { type: 'gate', label: 'Verrou', text: 'Verrous.' },
-                fort: { type: 'gate', label: 'Verrou', text: 'Verrous.' }
+                faible: { type: 'gate', label: 'Verrou', text: 'Un ou plusieurs critères critiques documentés attestent d\u2019un état disqualifiant : contamination grave, altération irréversible, double perte d\u2019intégrité. Ces seuils critiques (−10) priment sur toute autre valorisation. Consultez l\u2019onglet Matrice pour le détail des vecteurs activés.' },
+                moyen: { type: 'gate', label: 'Verrou', text: 'Un ou plusieurs critères critiques documentés attestent d\u2019un état disqualifiant : contamination grave, altération irréversible, double perte d\u2019intégrité. Ces seuils critiques (−10) priment sur toute autre valorisation. Consultez l\u2019onglet Matrice pour le détail des vecteurs activés.' },
+                fort: { type: 'gate', label: 'Verrou', text: 'Un ou plusieurs critères critiques documentés attestent d\u2019un état disqualifiant : contamination grave, altération irréversible, double perte d\u2019intégrité. Ces seuils critiques (−10) priment sur toute autre valorisation. Consultez l\u2019onglet Matrice pour le détail des vecteurs activés.' }
             },
             {
                 label: 'Recyclage',
                 color: '#E69F00',
-                faible: { type: 'default', label: 'Défaut', text: 'Orientation par défaut si aucun verrou.' },
-                moyen: { type: 'gate', label: 'Verrou', text: 'Verrou si contaminé ou durabilité conférée non dépollué.' },
-                fort: { type: 'gate', label: 'Verrou', text: 'Verrou si contaminé ou durabilité conférée non dépollué.' }
+                faible: { type: 'accessible', label: 'Accessible', text: 'Orientation particulière : le bois est sain (absence de contamination, de traitements incompatibles, d\u2019infestation), mais son état mécanique documenté est très dégradé. La valeur matière reste exploitable (panneaux, composites), mais l\u2019état ne permet pas d\u2019envisager une réutilisation ou un réemploi.' },
+                moyen: { type: 'accessible', label: 'Accessible', text: 'Orientation particulière : le bois est sain (absence de contamination, de traitements incompatibles, d\u2019infestation), mais son état mécanique documenté est très dégradé. La valeur matière reste exploitable (panneaux, composites), mais l\u2019état ne permet pas d\u2019envisager une réutilisation ou un réemploi.' },
+                fort: { type: 'accessible', label: 'Accessible', text: 'Orientation particulière : le bois est sain (absence de contamination, de traitements incompatibles, d\u2019infestation), mais son état mécanique documenté est très dégradé. La valeur matière reste exploitable (panneaux, composites), mais l\u2019état ne permet pas d\u2019envisager une réutilisation ou un réemploi.' }
             },
             {
                 label: 'Réutilisation',
                 color: '#56B4E9',
-                faible: { type: 'seuil', label: 'Seuil', text: 'Seuil unique ≥ seuil Recyclage (filière circulaire).' },
-                moyen: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réutilisation.' },
-                fort: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réutilisation.' }
+                faible: { type: 'accessible', label: 'Accessible', text: 'Orientation la plus courante. La documentation de ce mode couvre les critères permettant d\u2019écarter Combustion et Recyclage. L\u2019état documenté ne justifie pas d\u2019exclure une valorisation en usage secondaire.' },
+                moyen: { type: 'accessible', label: 'Accessible', text: 'Orientation la plus courante. La documentation atteste l\u2019absence de critères disqualifiant la réutilisation. L\u2019état des propriétés d\u2019usage et de la durabilité est documenté, sans atteindre le niveau d\u2019exigence requis pour le réemploi.' },
+                fort: { type: 'accessible', label: 'Accessible', text: 'Orientation la plus courante. La documentation exhaustive ne relève aucun critère disqualifiant pour la réutilisation, mais identifie des caractéristiques insuffisantes pour le réemploi (ex : traçabilité, classement mécanique, durabilité confirmée).' }
             },
             {
                 label: 'Réemploi',
                 color: '#009E73',
-                faible: { type: 'unavailable', label: '—', text: 'Non disponible.' },
-                moyen: { type: 'indicative', label: 'Indicatif', text: 'Indicatif, confirmation mode Fort requise.' },
-                fort: { type: 'seuil', label: 'Seuil', text: 'Seuil score ≥ seuil Réemploi.' }
+                faible: { type: 'indicative', label: 'Indicatif', text: "La documentation disponible ne signale aucune disqualification, mais les critères évalués sont insuffisants pour attester la valeur du lot pour un réemploi. L\u2019orientation est provisoire — seul le mode Fort permet de la confirmer." },
+                moyen: { type: 'indicative', label: 'Indicatif', text: "La documentation ne révèle aucun critère disqualifiant, mais certaines propriétés exigeantes du réemploi ne sont pas couvertes par ce mode. L\u2019orientation reste provisoire — la confirmation en mode Fort est conseillée." },
+                fort: { type: 'accessible', label: 'Accessible', text: "L\u2019ensemble des critères du mode Fort a été évalué et documente la valeur du lot pour le réemploi : absence de toute disqualification, et propriétés attestées sur les dimensions structurelles, sanitaires et de traçabilité." }
             }
         ];
 
-        const cell = (entry) => `${badge(entry.type, entry.label)}<span class="orientation-logic-text">${entry.text}</span>`;
+        const cell = (entry) => `<div class="orientation-logic-cell">${badge(entry.type, entry.label)}<span class="orientation-logic-text">${entry.text}</span></div>`;
         const bodyRows = rows.map((row) => `
             <tr>
                 <th scope="row"><span class="detail-modal-seuil-dot" style="background:${row.color}"></span>${row.label}</th>
@@ -20284,7 +20284,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         return `<section class="detail-modal-matrix-section">
             <h3 class="detail-modal-subtitle">Logique d'orientation par mode</h3>
             <div class="detail-modal-matrix-scroll">
-                <table class="detail-modal-matrix-table">
+                <table class="detail-modal-matrix-table orientation-logic-table">
                     <thead>
                         <tr>
                             <th scope="col">Orientation</th>
@@ -20298,7 +20298,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     </tbody>
                 </table>
             </div>
-            <p class="detail-modal-paragraph orientation-logic-note">Cette matrice décrit la logique d'orientation cible. <strong>Verrous</strong> : critères disqualifiants indépendants du score (actifs dans tous les modes). <strong>Seuils</strong> : score minimum à atteindre pour accéder à l'orientation. <strong>Indicatif</strong> : orientation provisoire, à confirmer par une évaluation en mode Fort.</p>
+            <p class="detail-modal-paragraph orientation-logic-note"><strong>Verrou</strong> : au moins un critère critique documente un état disqualifiant (→ Onglet Matrice). <strong>Accessible</strong> : l'état documenté permet cette orientation. <strong>Indicatif</strong> : orientation provisoire — documentation insuffisante pour l'attester ; confirmation en mode Fort recommandée.</p>
         </section>`;
     }
 
@@ -20346,29 +20346,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             return `${head.join(', ')}${suffix}`;
         };
 
-        const thresholds = this.ensureNotationModeOrientationThresholds();
-
-        const seuilRows = [
-            { key: 'recyclage',    label: 'Recyclage',     percent: '≥30 %', color: '#E69F00' },
-            { key: 'reutilisation', label: 'Réutilisation', percent: '≥50 %', color: '#56B4E9' },
-            { key: 'reemploi',     label: 'Réemploi',      percent: '≥70 %', color: '#009E73' }
-        ];
-
-        const seuilInput = (key, mode) => {
-            const defaults = this.getDefaultNotationModeOrientationThresholds();
-            const val = thresholds[key]?.[mode] ?? defaults[key][mode];
-            return `<input type="number" class="notation-mode-seuil-input" data-orientation="${key}" data-mode="${mode}" value="${val}" min="0" max="30" aria-label="Seuil ${key} ${mode}"><span class="notation-mode-seuil-denom">/30</span>`;
-        };
-
-        const seuilBodyRows = seuilRows.map(({ key, label, percent, color }) =>
-            `<tr class="detail-modal-matrix-seuil-row">
-                <th scope="row"><span class="detail-modal-seuil-dot" style="background:${color}"></span>${label}</th>
-                <td class="detail-modal-matrix-value-cell">${percent}</td>
-                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'fort')}</td>
-                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'moyen')}</td>
-                <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score">${seuilInput(key, 'faible')}</td>
-            </tr>`
-        ).join('');
 
         return `<section class="detail-modal-matrix-section">
             <h3 class="detail-modal-subtitle">Récapitulatif</h3>
@@ -20426,14 +20403,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                             <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${criticalPreview(modeStats.moyen.criticalLabels)}</td>
                             <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">${criticalPreview(modeStats.faible.criticalLabels)}</td>
                         </tr>
-                        <tr class="detail-modal-matrix-seuil-header-row">
-                            <th scope="col" colspan="5">Seuils par axe d’orientation</th>
-                        </tr>
-                        ${seuilBodyRows}
-                        <tr class="detail-modal-matrix-combustion-row">
-                            <th scope="row">Logique combustion</th>
-                            <td class="detail-modal-matrix-value-cell">Repère métier</td>
-                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-seuil-score" colspan="3">Combustion (ou valorisation énergétique) à considérer prioritairement si un axe est ≤ 0 / 30, et tout particulièrement en cas de contamination forte (classe C / assimilée).</td>
+                        <tr>
+                            <th scope="row">Contexte d'usage du mode</th>
+                            <td class="detail-modal-matrix-value-cell">Usage</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">Documentation exhaustive de toutes les propriétés du lot. Seul mode permettant d'attester le réemploi de façon fiable.</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">Documentation intermédiaire. Permet d'identifier Combustion, Recyclage et Réutilisation ; le réemploi reste indicatif.</td>
+                            <td class="detail-modal-matrix-check-cell detail-modal-matrix-info-cell">Documentation minimale. Permet d'orienter rapidement le lot vers Combustion, Recyclage ou Réutilisation.</td>
                         </tr>
                     </tbody>
                 </table>
@@ -20444,8 +20419,11 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     renderNotationModeDetailModal(contentEl) {
         if (!contentEl) return;
 
-        const introHtml = `<div class="detail-modal-instruction"><p>Sélectionner le mode de notation pour l'évaluation.</p></div>
-            <div class="detail-modal-paragraph"><p>La matrice suivante indique les critères activables selon le mode choisi (Fort, Moyen, Faible).</p></div>`;
+        const introHtml = `<div class="detail-modal-instruction">
+            <p>Le mode de notation détermine l'ensemble des critères actifs pour l'évaluation du lot.</p>
+            <p>Plus les critères sont nombreux, plus la documentation est exhaustive — et plus l'orientation calculée est précise et fiable. En mode Faible ou Moyen, certaines propriétés exigeantes ne sont pas évaluées : l'orientation Réemploi reste indicative.</p>
+            <p>L'orientation est calculée par une <strong>cascade vecteurs / rejets</strong> (→ Onglet Matrice), et non par un seuil de score.</p>
+        </div>`;
         const matrixHtml = this.buildNotationModeMatrixHtml();
         const orientationLogicHtml = this.buildOrientationLogicMatrixHtml();
         const summaryHtml = `<div class="detail-modal-mode-summary-root">${this.buildNotationModeSummaryHtml()}</div>`;
@@ -20463,27 +20441,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 this.resetNotationModeMatrixConfig();
             });
         }
-
-        contentEl.addEventListener('change', (event) => {
-            const input = event.target?.closest?.('.notation-mode-seuil-input');
-            if (!input) return;
-            const orientation = input.dataset.orientation;
-            const mode = input.dataset.mode;
-            if (!orientation || !mode) return;
-            const val = parseInt(input.value, 10);
-            const clamped = Number.isFinite(val) && val >= 0 && val <= 30 ? val : null;
-            if (clamped === null) {
-                // restore previous value
-                const thresholds = this.ensureNotationModeOrientationThresholds();
-                input.value = thresholds[orientation]?.[mode] ?? this.getDefaultNotationModeOrientationThresholds()[orientation][mode];
-                return;
-            }
-            const thresholds = this.ensureNotationModeOrientationThresholds();
-            if (!thresholds[orientation]) thresholds[orientation] = {};
-            thresholds[orientation][mode] = clamped;
-            this.data.notationModeOrientationThresholds = thresholds;
-            this.saveData();
-        });
     }
 
     openInspectionDetailModal(fieldKey) {
@@ -21927,9 +21884,98 @@ closeProvenanceDetailModal() {
     openRadarModal() {
         const b = document.getElementById('radarModalBackdrop');
         if (b) {
+            this.renderRadarModalContent();
             b.classList.remove('hidden');
             b.setAttribute('aria-hidden', 'false');
         }
+    }
+
+    renderRadarModalContent() {
+        const container = document.getElementById('radarModalContent');
+        if (!container) return;
+
+        container.innerHTML = `
+            <p class="detail-modal-paragraph">Le radar superpose trois tracés sur cinq axes de valeur du lot. Il visualise la force du profil, la répartition par dimension et la tension entre contributions favorables et défavorables.</p>
+
+            <section class="detail-modal-matrix-section">
+                <h3 class="detail-modal-subtitle">Schéma de lecture</h3>
+                <div class="radar-modal-schema-wrap">
+                    <svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" class="radar-modal-schema" role="img" aria-label="Schéma annoté du radar à cinq axes">
+                        <!-- Zone négative (centre) -->
+                        <polygon points="150,91 166,103 160,122 140,122 134,103" fill="rgba(100,100,100,0.13)" stroke="none"/>
+                        <!-- Spokes -->
+                        <line x1="150" y1="108" x2="150" y2="38" stroke="rgba(0,0,0,0.10)" stroke-width="1.5"/>
+                        <line x1="150" y1="108" x2="217" y2="86" stroke="rgba(0,0,0,0.10)" stroke-width="1.5"/>
+                        <line x1="150" y1="108" x2="191" y2="165" stroke="rgba(0,0,0,0.10)" stroke-width="1.5"/>
+                        <line x1="150" y1="108" x2="109" y2="165" stroke="rgba(0,0,0,0.10)" stroke-width="1.5"/>
+                        <line x1="150" y1="108" x2="83" y2="86" stroke="rgba(0,0,0,0.10)" stroke-width="1.5"/>
+                        <!-- Outer max reference -->
+                        <polygon points="150,38 217,86 191,165 109,165 83,86" fill="none" stroke="rgba(0,0,0,0.20)" stroke-width="1.5"/>
+                        <!-- Bruts négatifs (dashed, inner zone boundary) -->
+                        <polygon points="150,91 166,103 160,122 140,122 134,103" fill="none" stroke="rgba(120,120,120,0.65)" stroke-width="2" stroke-dasharray="4,3"/>
+                        <!-- Bruts positifs (solid gray) -->
+                        <polygon points="150,54 201,91 182,152 118,152 99,91" fill="rgba(95,95,95,0.06)" stroke="rgba(95,95,95,0.75)" stroke-width="2.2"/>
+                        <!-- Score net (coloré orientation) -->
+                        <polygon points="150,68 188,96 174,140 127,140 112,96" fill="rgba(0,158,115,0.18)" stroke="#009E73" stroke-width="2.8"/>
+                        <circle cx="150" cy="68" r="3" fill="#009E73"/>
+                        <circle cx="188" cy="96" r="3" fill="#009E73"/>
+                        <circle cx="174" cy="140" r="3" fill="#009E73"/>
+                        <circle cx="127" cy="140" r="3" fill="#009E73"/>
+                        <circle cx="112" cy="96" r="3" fill="#009E73"/>
+                        <!-- Axis labels -->
+                        <text x="150" y="17" text-anchor="middle" font-size="9.5" fill="rgba(0,0,0,0.55)" font-family="inherit">Économique</text>
+                        <text x="234" y="81" text-anchor="start" font-size="9.5" fill="rgba(0,0,0,0.55)" font-family="inherit">Historique</text>
+                        <text x="200" y="188" text-anchor="middle" font-size="9.5" fill="rgba(0,0,0,0.55)" font-family="inherit">Esthétique</text>
+                        <text x="100" y="188" text-anchor="middle" font-size="9.5" fill="rgba(0,0,0,0.55)" font-family="inherit">Mécanique</text>
+                        <text x="66" y="81" text-anchor="end" font-size="9.5" fill="rgba(0,0,0,0.55)" font-family="inherit">Écologique</text>
+                    </svg>
+                    <div class="radar-modal-schema-legend">
+                        <div class="radar-modal-trace-row">
+                            <span class="radar-modal-trace-sample radar-modal-trace-sample--net" aria-hidden="true"></span>
+                            <div class="radar-modal-trace-text">
+                                <strong>Score net</strong>
+                                <span class="radar-modal-trace-desc">Balance nette des contributions positives (A,B,C) et négatives (D,E). Coloré selon l'orientation détectée.</span>
+                            </div>
+                        </div>
+                        <div class="radar-modal-trace-row">
+                            <span class="radar-modal-trace-sample radar-modal-trace-sample--pos" aria-hidden="true"></span>
+                            <div class="radar-modal-trace-text">
+                                <strong>Bruts positifs</strong>
+                                <span class="radar-modal-trace-desc">Plafond des points favorables. Plus l'écart avec le net est grand, plus les rejets pèsent.</span>
+                            </div>
+                        </div>
+                        <div class="radar-modal-trace-row">
+                            <span class="radar-modal-trace-sample radar-modal-trace-sample--neg" aria-hidden="true"></span>
+                            <div class="radar-modal-trace-text">
+                                <strong>Bruts négatifs</strong>
+                                <span class="radar-modal-trace-desc">Plancher des points défavorables (D,E). La zone grisée au centre matérialise ce territoire négatif.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="detail-modal-matrix-section">
+                <h3 class="detail-modal-subtitle">Couleur du tracé net</h3>
+                <div class="radar-modal-orientations">
+                    <div class="radar-modal-orientation-row"><span class="radar-legend-dot" style="background:#009E73"></span><span><strong>Réemploi</strong></span></div>
+                    <div class="radar-modal-orientation-row"><span class="radar-legend-dot" style="background:#56B4E9"></span><span><strong>Réutilisation</strong></span></div>
+                    <div class="radar-modal-orientation-row"><span class="radar-legend-dot" style="background:#E69F00"></span><span><strong>Recyclage</strong></span></div>
+                    <div class="radar-modal-orientation-row"><span class="radar-legend-dot" style="background:#D55E00"></span><span><strong>Combustion / Déchet</strong></span></div>
+                    <div class="radar-modal-orientation-row"><span class="radar-legend-dot" style="background:#7A7A7A"></span><span><strong>Non déterminé</strong></span></div>
+                </div>
+            </section>
+
+            <section class="detail-modal-matrix-section">
+                <h3 class="detail-modal-subtitle">Les cinq axes d'analyse</h3>
+                <dl class="radar-modal-axes">
+                    <div class="radar-modal-axis-row"><dt>Économique</dt><dd>Valeur marchande, état structurel et potentiel de valorisation commerciale.</dd></div>
+                    <div class="radar-modal-axis-row"><dt>Écologique</dt><dd>Durabilité naturelle, origine, traçabilité et empreinte environnementale.</dd></div>
+                    <div class="radar-modal-axis-row"><dt>Mécanique</dt><dd>Résistance, rigidité et aptitude aux usages structurels.</dd></div>
+                    <div class="radar-modal-axis-row"><dt>Historique</dt><dd>Ancienneté, provenance patrimoniale et maturité du matériau.</dd></div>
+                    <div class="radar-modal-axis-row"><dt>Esthétique</dt><dd>Qualité de surface, texture et aspect visuel valorisable.</dd></div>
+                </dl>
+            </section>`;
     }
 
     closeRadarModal() {
@@ -31776,25 +31822,26 @@ renderMatrice() {
 
     controlsEl.innerHTML = `
         <div class="valobois-matrix-controls-col valobois-matrix-controls-col--filters">
-            <label class="valobois-matrix-control-field">Valeurs
-                <select id="valoboisMatrixAxisFilter">
-                    <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Toutes</option>
+            <div class="valobois-matrix-control-field">
+                <select id="valoboisMatrixAxisFilter" class="valobois-matrix-select ${ui.axis === 'all' ? 'is-placeholder' : ''}" aria-label="Tri par valeurs">
+                    <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Tri par valeurs</option>
                     <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
                     <option value="ecologique" ${ui.axis === 'ecologique' ? 'selected' : ''}>Écologique</option>
                     <option value="mecanique" ${ui.axis === 'mecanique' ? 'selected' : ''}>Mécanique</option>
                     <option value="historique" ${ui.axis === 'historique' ? 'selected' : ''}>Historique</option>
                     <option value="esthetique" ${ui.axis === 'esthetique' ? 'selected' : ''}>Esthétique</option>
                 </select>
-            </label>
-            <label class="valobois-matrix-control-field">Catégories
-                <select id="valoboisMatrixFamilyFilter">
-                    <option value="all">Toutes</option>
+            </div>
+            <div class="valobois-matrix-control-field">
+                <select id="valoboisMatrixFamilyFilter" class="valobois-matrix-select ${ui.family === 'all' ? 'is-placeholder' : ''}" aria-label="Tri par catégories">
+                    <option value="all">Tri par catégories</option>
                     ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
                 </select>
-            </label>
-            <label class="valobois-matrix-control-field valobois-matrix-control-field--search">Recherche
-                <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Nom du critère">
-            </label>
+            </div>
+            <div class="valobois-matrix-control-field valobois-matrix-control-field--search">
+                <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Recherche" aria-label="Recherche">
+            </div>
+            <div class="valobois-matrix-control-placeholder" aria-hidden="true"></div>
         </div>
         <div class="valobois-matrix-controls-col valobois-matrix-controls-col--checks">
             <div class="valobois-matrix-control-check-row">

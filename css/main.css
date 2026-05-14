@@ -2201,13 +2201,40 @@ body.day-mode .accueil-collapsible-summary:hover {
             color: var(--color-text-secondary, #6B7280);
         }
 
+        .orientation-logic-badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 11px;
+            line-height: 1.2;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+
+        .orientation-logic-badge--gate {
+            background: rgba(213, 94, 0, 0.16);
+            color: #8A4B08;
+        }
+
         .orientation-logic-badge--indicative {
             background: rgba(86, 180, 233, 0.15);
             color: #1A7AAD;
         }
 
+        .orientation-logic-badge--accessible {
+            background: rgba(0, 158, 115, 0.12);
+            color: #007A5A;
+        }
+
+        .orientation-logic-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+        }
+
         .orientation-logic-text {
-            display: inline;
+            display: block;
             color: var(--color-text, #1F2937);
             font-size: 11px;
             line-height: 1.35;
@@ -2217,9 +2244,39 @@ body.day-mode .accueil-collapsible-summary:hover {
             margin-top: var(--space-8);
         }
 
+        .orientation-logic-table thead th:nth-child(1),
+        .orientation-logic-table tbody th {
+            width: 24%;
+            min-width: 150px;
+            white-space: nowrap;
+        }
+
+        .orientation-logic-table thead th:nth-child(2),
+        .orientation-logic-table thead th:nth-child(3),
+        .orientation-logic-table thead th:nth-child(4),
+        .orientation-logic-table td:nth-child(2),
+        .orientation-logic-table td:nth-child(3),
+        .orientation-logic-table td:nth-child(4) {
+            width: 25.33%;
+        }
+
+        .orientation-logic-table thead th,
+        .orientation-logic-table tbody th,
+        .orientation-logic-table td,
+        .orientation-logic-table .detail-modal-matrix-check-cell,
+        .orientation-logic-table td:nth-child(2),
+        .orientation-logic-table td:nth-child(3),
+        .orientation-logic-table td:nth-child(4) {
+            text-align: left;
+        }
+
         @media (max-width: 720px) {
             .detail-modal-matrix-table {
                 min-width: 340px;
+            }
+
+            .orientation-logic-table {
+                min-width: 560px;
             }
 
             .detail-modal-matrix-table th,
@@ -13593,6 +13650,110 @@ body.day-mode .inspection-ignore-box {
 .radar-legend-item.weakest .radar-legend-completion {
   color: inherit;
 }
+
+/* --- Radar Modal: schéma pédagogique --- */
+.radar-modal-schema-wrap {
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+.radar-modal-schema {
+    flex: 0 0 auto;
+    width: 240px;
+    max-width: 100%;
+    border: 1px solid #E8EDF2;
+    border-radius: var(--radius-sm);
+    background: #FAFBFC;
+}
+.radar-modal-schema-legend {
+    flex: 1 1 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+}
+.radar-modal-trace-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+.radar-modal-trace-sample {
+    flex-shrink: 0;
+    width: 36px;
+    margin-top: 6px;
+}
+.radar-modal-trace-sample--net {
+    height: 3px;
+    background: #009E73;
+    border-radius: 2px;
+    box-shadow: 0 0 0 1px rgba(0, 158, 115, 0.30);
+}
+.radar-modal-trace-sample--pos {
+    height: 3px;
+    background: rgba(95, 95, 95, 0.75);
+    border-radius: 2px;
+}
+.radar-modal-trace-sample--neg {
+    height: 0;
+    border-top: 2px dashed rgba(120, 120, 120, 0.65);
+    margin-top: 7px;
+}
+.radar-modal-trace-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--font-size-sm);
+}
+.radar-modal-trace-desc {
+    color: var(--color-text-secondary, #666);
+    font-size: 12px;
+    line-height: 1.4;
+}
+.radar-modal-orientations {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    padding: 8px 10px;
+    background: #FAFBFC;
+    border: 1px solid #E8EDF2;
+    border-radius: var(--radius-sm);
+}
+.radar-modal-orientation-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: var(--font-size-sm);
+}
+.radar-modal-axes {
+    border: 1px solid #D4DBE2;
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    background: #fff;
+    margin: 0;
+}
+.radar-modal-axis-row {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    font-size: var(--font-size-sm);
+    border-bottom: 1px solid #E8EDF2;
+}
+.radar-modal-axis-row:last-child {
+    border-bottom: none;
+}
+.radar-modal-axis-row dt {
+    padding: 7px 10px;
+    font-weight: var(--font-weight-semibold);
+    background: #FAFBFC;
+    border-right: 1px solid #E8EDF2;
+    margin: 0;
+}
+.radar-modal-axis-row dd {
+    padding: 7px 10px;
+    margin: 0;
+    color: var(--color-text-secondary, #666);
+}
+
 .radar-tooltip {
   position: absolute;
     background: rgba(30, 30, 30, 0.92);
@@ -15615,6 +15776,19 @@ body.day-mode .inspection-ignore-box {
     color: #495362;
 }
 
+.valobois-matrix-controls-col--filters .valobois-matrix-control-field {
+    width: 100%;
+    min-width: 0;
+}
+
+.valobois-matrix-control-placeholder {
+    min-height: 32px;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    pointer-events: none;
+}
+
 .valobois-matrix-control-field select,
 .valobois-matrix-control-field input[type="search"] {
     min-height: 32px;
@@ -15628,6 +15802,21 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-control-field--search {
     min-width: 0;
+}
+
+.valobois-matrix-select.is-placeholder {
+    color: #98a2b3;
+    font-style: italic;
+}
+
+.valobois-matrix-select option {
+    color: #111111;
+    font-style: normal;
+}
+
+.valobois-matrix-control-field input[type="search"]::placeholder {
+    color: #98a2b3;
+    font-style: italic;
 }
 
 .valobois-matrix-control-check-row {
