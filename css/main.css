@@ -15578,10 +15578,34 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-controls {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 8px;
-    align-items: end;
+    align-items: stretch;
+}
+
+.valobois-matrix-controls-col {
+    min-width: 0;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+}
+
+.valobois-matrix-controls-col--checks .valobois-matrix-control-check-row {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    flex: 0 0 auto;
+    align-content: flex-start;
+}
+
+.valobois-matrix-controls-col--checks .valobois-matrix-control-check {
+    width: 100%;
+}
+
+.valobois-matrix-controls-col--actions .btn {
+    width: 100%;
 }
 
 .valobois-matrix-control-field {
@@ -15603,14 +15627,14 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-control-field--search {
-    min-width: 230px;
+    min-width: 0;
 }
 
 .valobois-matrix-control-check-row {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
-    align-items: center;
+    align-items: flex-start;
     flex: 1 1 100%;
     min-width: 0;
 }
@@ -15803,6 +15827,11 @@ body.day-mode .inspection-ignore-box {
     vertical-align: top;
 }
 
+.valobois-matrix-table tbody td:nth-child(-n+13) {
+    text-align: center;
+    vertical-align: middle;
+}
+
 .valobois-matrix-table thead th {
     position: sticky;
     top: 0;
@@ -15905,6 +15934,10 @@ body.day-mode .inspection-ignore-box {
     display: flex;
     gap: 4px;
     flex-wrap: wrap;
+}
+
+.valobois-matrix-table tbody td:nth-child(2) .valobois-matrix-badges {
+    justify-content: center;
 }
 
 .valobois-matrix-badge {
@@ -16125,7 +16158,7 @@ body.day-mode .inspection-ignore-box {
     }
     .valobois-matrix-controls {
         display: grid;
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .valobois-matrix-control-field--search {
@@ -16150,9 +16183,9 @@ body.day-mode .inspection-ignore-box {
     }
 
     .valobois-matrix-vector-cell {
-        width: 80px;
-        min-width: 80px;
-        max-width: 80px;
+        width: 96px;
+        min-width: 96px;
+        max-width: 96px;
     }
 
     .valobois-matrix-checkbox-label {

@@ -214,7 +214,7 @@
             },
             matrix: {
                 title: 'Matrice Valoxylo',
-                subtitle: 'Transparence des critères, vecteurs d’orientation et rejets par filière.',
+                subtitle: 'Critères de notation par ordre d’impact, vecteurs et rejets d’orientation.',
                 customActive: 'Configuration personnalisée active',
             },
             lot: {

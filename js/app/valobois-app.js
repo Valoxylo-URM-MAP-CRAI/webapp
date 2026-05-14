@@ -20244,9 +20244,9 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             {
                 label: 'Combustion',
                 color: '#D55E00',
-                faible: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' },
-                moyen: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' },
-                fort: { type: 'gate', label: 'Verrou', text: 'Verrous uniquement.' }
+                faible: { type: 'gate', label: 'Verrou', text: 'Verrous.' },
+                moyen: { type: 'gate', label: 'Verrou', text: 'Verrous.' },
+                fort: { type: 'gate', label: 'Verrou', text: 'Verrous.' }
             },
             {
                 label: 'Recyclage',
@@ -31775,42 +31775,48 @@ renderMatrice() {
     });
 
     controlsEl.innerHTML = `
-        <label class="valobois-matrix-control-field">Valeurs
-            <select id="valoboisMatrixAxisFilter">
-                <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Toutes</option>
-                <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
-                <option value="ecologique" ${ui.axis === 'ecologique' ? 'selected' : ''}>Écologique</option>
-                <option value="mecanique" ${ui.axis === 'mecanique' ? 'selected' : ''}>Mécanique</option>
-                <option value="historique" ${ui.axis === 'historique' ? 'selected' : ''}>Historique</option>
-                <option value="esthetique" ${ui.axis === 'esthetique' ? 'selected' : ''}>Esthétique</option>
-            </select>
-        </label>
-        <label class="valobois-matrix-control-field">Catégories
-            <select id="valoboisMatrixFamilyFilter">
-                <option value="all">Toutes</option>
-                ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
-            </select>
-        </label>
-        <div class="valobois-matrix-control-check-row">
-            <label class="valobois-matrix-control-check">
-                <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Verrous uniquement
+        <div class="valobois-matrix-controls-col valobois-matrix-controls-col--filters">
+            <label class="valobois-matrix-control-field">Valeurs
+                <select id="valoboisMatrixAxisFilter">
+                    <option value="all" ${ui.axis === 'all' ? 'selected' : ''}>Toutes</option>
+                    <option value="economique" ${ui.axis === 'economique' ? 'selected' : ''}>Économique</option>
+                    <option value="ecologique" ${ui.axis === 'ecologique' ? 'selected' : ''}>Écologique</option>
+                    <option value="mecanique" ${ui.axis === 'mecanique' ? 'selected' : ''}>Mécanique</option>
+                    <option value="historique" ${ui.axis === 'historique' ? 'selected' : ''}>Historique</option>
+                    <option value="esthetique" ${ui.axis === 'esthetique' ? 'selected' : ''}>Esthétique</option>
+                </select>
             </label>
-            <label class="valobois-matrix-control-check">
-                <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
+            <label class="valobois-matrix-control-field">Catégories
+                <select id="valoboisMatrixFamilyFilter">
+                    <option value="all">Toutes</option>
+                    ${families.map((family) => `<option value="${family}" ${ui.family === family ? 'selected' : ''}>${family}</option>`).join('')}
+                </select>
             </label>
-            <label class="valobois-matrix-control-check">
-                <input type="checkbox" id="valoboisMatrixShowRejects" ${ui.showRejects ? 'checked' : ''}> Rejets
+            <label class="valobois-matrix-control-field valobois-matrix-control-field--search">Recherche
+                <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Nom du critère">
             </label>
         </div>
-        <label class="valobois-matrix-control-field valobois-matrix-control-field--search">Recherche
-            <input type="search" id="valoboisMatrixSearch" value="${(ui.query || '').replace(/"/g, '&quot;')}" placeholder="Nom du critère">
-        </label>
-        <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
-        <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
-        ${ui.editMode ? '<button type="button" class="btn" id="valoboisMatrixResetConfig">Réinitialiser la configuration</button>' : ''}
-        <button type="button" class="btn" id="valoboisMatrixExportConfig">Exporter la configuration</button>
-        <button type="button" class="btn" id="valoboisMatrixImportConfig">Importer une configuration</button>
-        <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden>
+        <div class="valobois-matrix-controls-col valobois-matrix-controls-col--checks">
+            <div class="valobois-matrix-control-check-row">
+                <label class="valobois-matrix-control-check">
+                    <input type="checkbox" id="valoboisMatrixGatesOnly" ${ui.gatesOnly ? 'checked' : ''}> Verrous
+                </label>
+                <label class="valobois-matrix-control-check">
+                    <input type="checkbox" id="valoboisMatrixShowVectors" ${ui.showVectors ? 'checked' : ''}> Vecteurs
+                </label>
+                <label class="valobois-matrix-control-check">
+                    <input type="checkbox" id="valoboisMatrixShowRejects" ${ui.showRejects ? 'checked' : ''}> Rejets
+                </label>
+            </div>
+        </div>
+        <div class="valobois-matrix-controls-col valobois-matrix-controls-col--actions">
+            <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
+            <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
+            ${ui.editMode ? '<button type="button" class="btn" id="valoboisMatrixResetConfig">Réinitialiser la configuration</button>' : ''}
+            <button type="button" class="btn" id="valoboisMatrixExportConfig">Exporter la configuration</button>
+            <button type="button" class="btn" id="valoboisMatrixImportConfig">Importer une configuration</button>
+            <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden>
+        </div>
     `;
 
     const thresholdInput = (mode, orientation) => `
