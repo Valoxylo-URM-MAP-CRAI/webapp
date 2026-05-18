@@ -3936,6 +3936,7 @@ class ValoboisApp {
             defaultPiece,
             defaultPieces: [defaultPiece],
             pieces: [],
+            customScores: {},
             criteres: [],
             poidsSimilarite: { longueur: 0, largeur: 0, epaisseur: 0, diametre: 0 },
             seuilsDestination: {
@@ -5204,6 +5205,17 @@ class ValoboisApp {
         data.lots.forEach((lot) => {
             this.normalizeLotEssenceFields(lot);
             this.normalizeLotAllotissementFields(lot);
+            if (!lot.customScores || typeof lot.customScores !== 'object' || Array.isArray(lot.customScores)) {
+                lot.customScores = {};
+            } else {
+                const normalizedCustomScores = {};
+                Object.entries(lot.customScores).forEach(([criterionId, value]) => {
+                    const id = String(criterionId || '').trim();
+                    if (!id) return;
+                    normalizedCustomScores[id] = this.normalizeValoboisFixedScoreValue(value, 1);
+                });
+                lot.customScores = normalizedCustomScores;
+            }
             lot.locked = lot.locked || { reason: null, ignoredBy: null, alterationIgnoredBy: null, alterationForcedOrientation: null };
             lot.locked.alterationIgnoredBy        = lot.locked.alterationIgnoredBy        ?? null;
             lot.locked.alterationForcedOrientation = lot.locked.alterationForcedOrientation ?? null;
@@ -5336,10 +5348,11 @@ class ValoboisApp {
                 }
             },
             gates: {
-                disabled: ['demontabilite'],
-                added: []
+                disabled: ['demontabilite']
             },
             weights: {},
+            customCriteria: {},
+            customFreeCriteria: [],
             flowOverrides: {
                 r16: {
                     vectors: {
@@ -5405,6 +5418,774 @@ class ValoboisApp {
         return nextCriterion;
     }
 
+    getValoboisFixedScoreValues() {
+        return [-10, -3, 1, 2, 3];
+    }
+
+    normalizeValoboisFixedScoreValue(rawValue, fallback = 1) {
+        const allowed = this.getValoboisFixedScoreValues();
+        const fallbackValue = allowed.includes(Number(fallback)) ? Number(fallback) : 1;
+        const numeric = Number(rawValue);
+        if (!Number.isFinite(numeric)) return fallbackValue;
+        if (allowed.includes(numeric)) return numeric;
+        return allowed.reduce((best, candidate) => {
+            const bestDiff = Math.abs(best - numeric);
+            const candidateDiff = Math.abs(candidate - numeric);
+            return candidateDiff < bestDiff ? candidate : best;
+        }, allowed[0]);
+    }
+
+    getValoboisFixedLetterForScore(rawScore) {
+        const score = this.normalizeValoboisFixedScoreValue(rawScore, 1);
+        if (score >= 3) return 'A';
+        if (score >= 2) return 'B';
+        if (score >= 1) return 'C';
+        if (score >= -3) return 'D';
+        return 'E';
+    }
+
+    getValoboisFixedScoreForLetter(rawLetter, fallback = 1) {
+        const letter = String(rawLetter || '').trim().toUpperCase();
+        if (letter === 'A') return 3;
+        if (letter === 'B') return 2;
+        if (letter === 'C') return 1;
+        if (letter === 'D') return -3;
+        if (letter === 'E') return -10;
+        return this.normalizeValoboisFixedScoreValue(fallback, 1);
+    }
+
+    normalizeValoboisCriterionFlowBlock(rawBlock, fallbackBlock) {
+        const out = {};
+        ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+            const fallbackOrientation = fallbackBlock && fallbackBlock[orientationKey] ? fallbackBlock[orientationKey] : {};
+            const rawOrientation = rawBlock && rawBlock[orientationKey] ? rawBlock[orientationKey] : null;
+            const nextOrientation = {};
+            ['fort', 'moyen', 'faible'].forEach((levelKey) => {
+                if (typeof rawOrientation?.[levelKey] === 'boolean') nextOrientation[levelKey] = rawOrientation[levelKey];
+                else if (typeof fallbackOrientation?.[levelKey] === 'boolean') nextOrientation[levelKey] = fallbackOrientation[levelKey];
+            });
+            if (Object.keys(nextOrientation).length) out[orientationKey] = nextOrientation;
+        });
+        return out;
+    }
+
+    normalizeValoboisCustomFreeCriterionId(rawId, rank, usedIds) {
+        const rankValue = Number.isFinite(Number(rank)) ? Number(rank) : 51;
+        const base = String(rawId == null ? '' : rawId).trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+        let candidate = base || `cf${rankValue}`;
+        let suffix = 2;
+        while (usedIds.has(candidate)) {
+            candidate = `${base || `cf${rankValue}`}-${suffix}`;
+            suffix += 1;
+        }
+        usedIds.add(candidate);
+        return candidate;
+    }
+
+    getValoboisNextCustomFreeCriterionRank(criteriaList) {
+        const usedRanks = new Set(
+            (Array.isArray(criteriaList) ? criteriaList : [])
+                .map((entry) => parseInt(entry && entry.rank, 10))
+                .filter((value) => Number.isFinite(value) && value >= 51)
+        );
+        let rank = 51;
+        while (usedRanks.has(rank)) rank += 1;
+        return rank;
+    }
+
+    buildValoboisDefaultCustomFreeCriterion(rank) {
+        const safeRank = Number.isFinite(Number(rank)) && Number(rank) >= 1 ? Number(rank) : 51;
+        const defaultScore = 1;
+        const defaultLetter = this.getValoboisFixedLetterForScore(defaultScore);
+        return {
+            id: `cf${safeRank}`,
+            rank: safeRank,
+            critere: `Critère personnalisé ${safeRank}`,
+            axeKey: 'personnalise',
+            axe: 'Critère custom',
+            famille: 'Critères custom',
+            enabled: true,
+            enabledModes: { fort: true, moyen: true, faible: true },
+            criticite: false,
+            alerte: false,
+            scores: {
+                fort: { value: defaultScore, letter: defaultLetter },
+                moyen: { value: defaultScore, letter: defaultLetter },
+                faible: { value: defaultScore, letter: defaultLetter }
+            },
+            vectors: {},
+            rejects: {},
+            notation: { title: '', message: '' }
+        };
+    }
+
+    normalizeValoboisCustomFreeCriterionEntry(raw, fallbackRank, usedIds) {
+        const rankRaw = parseInt(raw && raw.rank, 10);
+        const rankFallback = Number.isFinite(Number(fallbackRank)) && Number(fallbackRank) >= 1 ? Number(fallbackRank) : 51;
+        const rank = Number.isFinite(rankRaw) && rankRaw >= 1 ? rankRaw : rankFallback;
+        const defaults = this.buildValoboisDefaultCustomFreeCriterion(rank);
+        const source = raw && typeof raw === 'object' ? raw : {};
+
+        const id = this.normalizeValoboisCustomFreeCriterionId(source.id, rank, usedIds);
+        const toText = (value, fallback) => {
+            const text = String(value == null ? '' : value).trim();
+            return text || fallback;
+        };
+
+        const next = {
+            ...defaults,
+            id,
+            rank,
+            critere: toText(source.critere, defaults.critere),
+            axeKey: toText(source.axeKey, defaults.axeKey),
+            axe: toText(source.axe, defaults.axe),
+            famille: toText(source.famille, defaults.famille),
+            enabled: typeof source.enabled === 'boolean' ? source.enabled : defaults.enabled,
+            enabledModes: {
+                fort: typeof source.enabledModes?.fort === 'boolean' ? source.enabledModes.fort : defaults.enabledModes.fort,
+                moyen: typeof source.enabledModes?.moyen === 'boolean' ? source.enabledModes.moyen : defaults.enabledModes.moyen,
+                faible: typeof source.enabledModes?.faible === 'boolean' ? source.enabledModes.faible : defaults.enabledModes.faible
+            },
+            criticite: typeof source.criticite === 'boolean' ? source.criticite : defaults.criticite,
+            alerte: typeof source.alerte === 'boolean' ? source.alerte : defaults.alerte,
+            notation: {
+                title: String(source.notation?.title ?? source.notationTitle ?? defaults.notation.title).trim(),
+                message: String(source.notation?.message ?? source.notationMessage ?? defaults.notation.message).trim()
+            }
+        };
+
+        if (/^personnalisee?$/i.test(String(next.famille || '').trim())) {
+            next.famille = 'Personnalisée';
+        } else if (/^criteres? custom$/i.test(String(next.famille || '').trim())) {
+            next.famille = 'Critères custom';
+        }
+
+        if (/^economique$/i.test(String(next.axe || '').trim())) next.axe = 'Économique';
+        if (/^ecologique$/i.test(String(next.axe || '').trim())) next.axe = 'Écologique';
+        if (/^mecanique$/i.test(String(next.axe || '').trim())) next.axe = 'Mécanique';
+        if (/^esthetique$/i.test(String(next.axe || '').trim())) next.axe = 'Esthétique';
+
+        ['fort', 'moyen', 'faible'].forEach((mode) => {
+            const normalizedValue = this.normalizeValoboisFixedScoreValue(source.scores?.[mode]?.value, defaults.scores[mode].value);
+            const explicitLetter = String(source.scores?.[mode]?.letter || '').trim().toUpperCase();
+            next.scores[mode] = {
+                value: normalizedValue,
+                letter: /^[A-E]$/.test(explicitLetter) ? explicitLetter : this.getValoboisFixedLetterForScore(normalizedValue)
+            };
+        });
+
+        next.vectors = this.normalizeValoboisCriterionFlowBlock(source.vectors, defaults.vectors);
+        next.rejects = this.normalizeValoboisCriterionFlowBlock(source.rejects, defaults.rejects);
+        return next;
+    }
+
+    normalizeValoboisCustomFreeCriteria(raw) {
+        const source = Array.isArray(raw)
+            ? raw
+            : (raw && typeof raw === 'object' ? Object.values(raw) : []);
+        const normalized = [];
+        const usedIds = new Set();
+        const usedRanks = new Set();
+
+        source.forEach((entry, index) => {
+            let fallbackRank = 51 + index;
+            while (usedRanks.has(fallbackRank)) fallbackRank += 1;
+            const normalizedEntry = this.normalizeValoboisCustomFreeCriterionEntry(entry, fallbackRank, usedIds);
+            if (usedRanks.has(normalizedEntry.rank)) {
+                normalizedEntry.rank = this.getValoboisNextCustomFreeCriterionRank(normalized);
+                if (!normalizedEntry.id || usedIds.has(normalizedEntry.id)) {
+                    normalizedEntry.id = this.normalizeValoboisCustomFreeCriterionId('', normalizedEntry.rank, usedIds);
+                }
+            }
+            usedRanks.add(normalizedEntry.rank);
+            normalized.push(normalizedEntry);
+        });
+
+        normalized.sort((a, b) => Number(a.rank) - Number(b.rank));
+        return normalized;
+    }
+
+    getValoboisCustomFreeCriteriaList() {
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        return Array.isArray(config.customFreeCriteria) ? config.customFreeCriteria : [];
+    }
+
+    getValoboisCustomFreeCriteriaMap() {
+        const map = {};
+        this.getValoboisCustomFreeCriteriaList().forEach((entry) => {
+            if (!entry || !entry.id) return;
+            map[String(entry.id)] = entry;
+        });
+        return map;
+    }
+
+    getValoboisActiveCustomFreeCriteria(mode) {
+        const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+        return this.getValoboisCustomFreeCriteriaList().filter((entry) => {
+            if (!entry || entry.enabled === false) return false;
+            const modes = entry.enabledModes && typeof entry.enabledModes === 'object' ? entry.enabledModes : {};
+            return modes[activeMode] !== false;
+        });
+    }
+
+    createValoboisCustomFreeCriterion(seed = {}) {
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const nextRank = this.getValoboisNextCustomFreeCriterionRank(criteria);
+        const usedIds = new Set(criteria.map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        const nextEntry = this.normalizeValoboisCustomFreeCriterionEntry({ ...seed, rank: nextRank }, nextRank, usedIds);
+
+        criteria.push(nextEntry);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        return nextEntry;
+    }
+
+    duplicateValoboisCustomFreeCriterion(id) {
+        const targetId = String(id || '').trim();
+        if (!targetId) return null;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const source = criteria.find((entry) => String(entry && entry.id || '') === targetId);
+        if (!source) return null;
+
+        const nextRank = this.getValoboisNextCustomFreeCriterionRank(criteria);
+        const usedIds = new Set(criteria.map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        const cloneSeed = JSON.parse(JSON.stringify(source));
+        cloneSeed.id = '';
+        cloneSeed.rank = nextRank;
+        cloneSeed.critere = `${String(source.critere || '').trim() || 'Critère personnalisé'} (copie)`;
+        const nextEntry = this.normalizeValoboisCustomFreeCriterionEntry(cloneSeed, nextRank, usedIds);
+
+        criteria.push(nextEntry);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        return nextEntry;
+    }
+
+    getValoboisCriterionDuplicationOptions() {
+        const baseOptions = this.getValoboisMatrixBaseDataset().map((entry) => ({
+            value: `base:r${entry.rang}`,
+            label: `${entry.rang} - ${entry.critere}`,
+            sourceType: 'base',
+            sourceId: `r${entry.rang}`
+        }));
+        const freeOptions = this.getValoboisCustomFreeCriteriaList().map((entry) => ({
+            value: `free:${String(entry.id || '').trim()}`,
+            label: `${entry.rank} - ${entry.critere || entry.id}`,
+            sourceType: 'free',
+            sourceId: String(entry.id || '').trim()
+        })).filter((entry) => entry.sourceId);
+        return { baseOptions, freeOptions };
+    }
+
+    duplicateValoboisExistingCriterionAsFree(sourceRef) {
+        const normalizedRef = String(sourceRef || '').trim();
+        if (!normalizedRef) return null;
+
+        if (normalizedRef.startsWith('free:')) {
+            const criterionId = normalizedRef.slice('free:'.length).trim();
+            if (!criterionId) return null;
+            return this.duplicateValoboisCustomFreeCriterion(criterionId);
+        }
+
+        if (!normalizedRef.startsWith('base:')) return null;
+        const rawBaseRef = normalizedRef.slice('base:'.length).trim();
+        const mapping = this.resolveValoboisGateCriterionToMapping(rawBaseRef);
+        if (!mapping || !Number.isFinite(Number(mapping.rang))) return null;
+
+        const rank = Number(mapping.rang);
+        const baseEntry = this.getValoboisBaseMatrixEntryByRank(rank);
+        if (!baseEntry) return null;
+
+        return this.createValoboisCustomFreeCriterion({
+            critere: `${baseEntry.critere || `Critère ${rank}`} (copie)`,
+            axeKey: baseEntry.axeKey,
+            axe: baseEntry.axe,
+            famille: baseEntry.famille,
+            criticite: !!baseEntry.criticite,
+            alerte: !!baseEntry.alerte,
+            scores: JSON.parse(JSON.stringify(baseEntry.scores || {})),
+            vectors: JSON.parse(JSON.stringify(baseEntry.vectors || {})),
+            rejects: JSON.parse(JSON.stringify(baseEntry.rejects || {})),
+            notation: JSON.parse(JSON.stringify(baseEntry.notation || {}))
+        });
+    }
+
+    convertValoboisLegacyCustomCriteriaToCustomFreeList(rawCustomCriteria) {
+        const legacy = this.normalizeValoboisCustomCriteria(rawCustomCriteria);
+        if (!legacy || typeof legacy !== 'object') return [];
+
+        return Object.entries(legacy).map(([criterionKey, entry]) => {
+            const rankMatch = /^r(\d+)$/i.exec(String(criterionKey || '').trim());
+            const rankSuffix = rankMatch ? rankMatch[1] : String(entry && entry.sourceRank || '').trim();
+            const sourceRank = Number(rankSuffix);
+            const sourceLabel = Number.isFinite(sourceRank) ? `${sourceRank}` : 'legacy';
+            return {
+                id: `legacy-r${sourceLabel}`,
+                critere: `${entry.critere || `Critère ${sourceLabel}`} (import legacy)`,
+                axeKey: entry.axeKey,
+                axe: entry.axe,
+                famille: entry.famille,
+                enabled: true,
+                enabledModes: { fort: true, moyen: true, faible: true },
+                criticite: !!entry.criticite,
+                alerte: !!entry.alerte,
+                scores: JSON.parse(JSON.stringify(entry.scores || {})),
+                vectors: JSON.parse(JSON.stringify(entry.vectors || {})),
+                rejects: JSON.parse(JSON.stringify(entry.rejects || {})),
+                notation: JSON.parse(JSON.stringify(entry.notation || {}))
+            };
+        });
+    }
+
+    updateValoboisCustomFreeCriterionRank(id, rawRank, { forceReassign = false } = {}) {
+        const targetId = String(id || '').trim();
+        const desiredRank = parseInt(rawRank, 10);
+        if (!targetId || !Number.isFinite(desiredRank) || desiredRank < 1) {
+            return { ok: false, reason: 'invalid-rank' };
+        }
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const index = criteria.findIndex((entry) => String(entry && entry.id || '') === targetId);
+        if (index < 0) return { ok: false, reason: 'not-found' };
+
+        const current = criteria[index];
+        const currentRank = parseInt(current && current.rank, 10);
+        if (currentRank === desiredRank) return { ok: true, changed: false };
+
+        const conflict = criteria.find((entry, i) => i !== index && parseInt(entry && entry.rank, 10) === desiredRank);
+        if (conflict && !forceReassign) {
+            return {
+                ok: false,
+                reason: 'rank-conflict',
+                desiredRank,
+                conflictId: String(conflict.id || '').trim(),
+                conflictLabel: String(conflict.critere || conflict.id || '').trim() || `Critère ${desiredRank}`
+            };
+        }
+
+        const target = JSON.parse(JSON.stringify(current));
+        target.rank = desiredRank;
+
+        const others = criteria
+            .filter((_, i) => i !== index)
+            .map((entry) => JSON.parse(JSON.stringify(entry)))
+            .sort((a, b) => Number(a.rank) - Number(b.rank));
+
+        const next = [target];
+        const usedRanks = new Set([desiredRank]);
+
+        others.forEach((entry) => {
+            let nextRank = parseInt(entry && entry.rank, 10);
+            if (!Number.isFinite(nextRank) || nextRank < 1) nextRank = 1;
+            while (usedRanks.has(nextRank)) nextRank += 1;
+            entry.rank = nextRank;
+            usedRanks.add(nextRank);
+            next.push(entry);
+        });
+
+        const usedIds = new Set();
+        const normalized = next
+            .sort((a, b) => Number(a.rank) - Number(b.rank))
+            .map((entry) => this.normalizeValoboisCustomFreeCriterionEntry(entry, entry.rank, usedIds));
+
+        config.customFreeCriteria = normalized;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        return { ok: true, changed: true };
+    }
+
+    updateValoboisCustomFreeCriterionField(id, fieldPath, rawValue) {
+        const targetId = String(id || '').trim();
+        const path = String(fieldPath || '').trim();
+        if (!targetId || !path) return false;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const index = criteria.findIndex((entry) => String(entry && entry.id || '') === targetId);
+        if (index < 0) return false;
+
+        const next = JSON.parse(JSON.stringify(criteria[index]));
+        switch (path) {
+        case 'critere':
+        case 'axe':
+        case 'famille':
+            next[path] = String(rawValue || '').trim();
+            break;
+        case 'axeKey': {
+            const nextKey = String(rawValue || '').trim();
+            const axisLabels = {
+                economique: 'Économique',
+                ecologique: 'Écologique',
+                mecanique: 'Mécanique',
+                historique: 'Historique',
+                esthetique: 'Esthétique',
+                personnalise: 'Critère custom'
+            };
+            next.axeKey = nextKey;
+            next.axe = axisLabels[nextKey] || (next.axe || nextKey || 'Critère custom');
+            break;
+        }
+        case 'enabled':
+        case 'criticite':
+        case 'alerte':
+            next[path] = !!rawValue;
+            break;
+        case 'notation.title':
+            if (!next.notation || typeof next.notation !== 'object') next.notation = { title: '', message: '' };
+            next.notation.title = String(rawValue || '').trim();
+            break;
+        case 'notation.message':
+            if (!next.notation || typeof next.notation !== 'object') next.notation = { title: '', message: '' };
+            next.notation.message = String(rawValue || '').trim();
+            break;
+        default: {
+            const modeMatch = /^enabledModes\.(fort|moyen|faible)$/.exec(path);
+            if (modeMatch) {
+                if (!next.enabledModes || typeof next.enabledModes !== 'object') next.enabledModes = { fort: true, moyen: true, faible: true };
+                next.enabledModes[modeMatch[1]] = !!rawValue;
+                break;
+            }
+
+            const scoreMatch = /^scores\.(fort|moyen|faible)\.(value|letter)$/.exec(path);
+            if (scoreMatch) {
+                const [, mode, prop] = scoreMatch;
+                if (!next.scores || typeof next.scores !== 'object') next.scores = {};
+                if (!next.scores[mode] || typeof next.scores[mode] !== 'object') next.scores[mode] = { value: 1, letter: 'C' };
+                if (prop === 'value') {
+                    const value = this.normalizeValoboisFixedScoreValue(rawValue, next.scores[mode].value);
+                    next.scores[mode].value = value;
+                    next.scores[mode].letter = this.getValoboisFixedLetterForScore(value);
+                } else {
+                    const letter = String(rawValue || '').trim().toUpperCase();
+                    if (!/^[A-E]$/.test(letter)) return false;
+                    next.scores[mode].letter = letter;
+                    next.scores[mode].value = this.getValoboisFixedScoreForLetter(letter, next.scores[mode].value);
+                }
+                break;
+            }
+
+            const flowMatch = /^(vectors|rejects)\.(reemploi|reutilisation|recyclage|combustion)\.(fort|moyen|faible)$/.exec(path);
+            if (flowMatch) {
+                const [, kind, orientationKey, levelKey] = flowMatch;
+                if (!next[kind] || typeof next[kind] !== 'object') next[kind] = {};
+                if (!next[kind][orientationKey] || typeof next[kind][orientationKey] !== 'object') {
+                    next[kind][orientationKey] = { fort: false, moyen: false, faible: false };
+                }
+                next[kind][orientationKey][levelKey] = !!rawValue;
+                break;
+            }
+            return false;
+        }
+        }
+
+        const usedIds = new Set(criteria.filter((_, i) => i !== index).map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        criteria[index] = this.normalizeValoboisCustomFreeCriterionEntry(next, next.rank, usedIds);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        return true;
+    }
+
+    removeValoboisCustomFreeCriterion(id) {
+        const targetId = String(id || '').trim();
+        if (!targetId) return;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const next = criteria.filter((entry) => String(entry && entry.id || '') !== targetId);
+        if (next.length === criteria.length) return;
+
+        config.customFreeCriteria = next;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+    }
+
+    getValoboisMatrixBaseDataset() {
+        const payload = window.VALOBOIS_MATRICE_VECTEURS_REJETS;
+        if (!payload || !Array.isArray(payload.entries)) return [];
+        const gateByRank = new Map(this.getValoboisDefaultGateDefinitions().map((gate) => [Number(gate.rang), gate.id]));
+        return payload.entries.map((entry) => {
+            const rank = Number(entry && entry.rang);
+            const defaultGateType = Number.isFinite(rank) ? (gateByRank.get(rank) || null) : null;
+            return {
+                ...entry,
+                defaultGateType
+            };
+        });
+    }
+
+    getValoboisCustomCriterionKey(rank) {
+        const numericRank = Number(rank);
+        return Number.isFinite(numericRank) ? `r${numericRank}` : '';
+    }
+
+    getValoboisCustomCriteriaMap() {
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        return config.customCriteria || {};
+    }
+
+    normalizeValoboisCustomCriterionEntry(raw, baseEntry, sourceKey) {
+        if (!raw || typeof raw !== 'object' || !baseEntry) return null;
+
+        const sourceRank = Number.isFinite(Number(sourceKey))
+            ? Number(sourceKey)
+            : Number(raw.sourceRank ?? raw.rang ?? baseEntry.rang);
+        if (!Number.isFinite(sourceRank)) return null;
+
+        const mergeScore = (fallback, scoreRaw) => {
+            const fallbackValue = fallback && Number.isFinite(Number(fallback.value)) ? Number(fallback.value) : 0;
+            const fallbackLetter = fallback && fallback.letter != null ? String(fallback.letter).trim().toUpperCase() : '';
+            const value = Number(scoreRaw && scoreRaw.value);
+            const letter = scoreRaw && scoreRaw.letter != null ? String(scoreRaw.letter).trim().toUpperCase() : fallbackLetter;
+            return {
+                value: Number.isFinite(value) && value >= -30 && value <= 30 ? value : fallbackValue,
+                letter: /^[A-E]$/.test(letter) ? letter : fallbackLetter
+            };
+        };
+
+        const next = JSON.parse(JSON.stringify(baseEntry));
+        next.sourceRank = sourceRank;
+        next.sourceKey = this.getValoboisCustomCriterionKey(sourceRank);
+        next.isCustomCriterion = true;
+        next.customCriterionId = this.getValoboisCustomCriterionKey(sourceRank);
+        next.disabledSource = true;
+
+        if (typeof raw.critere === 'string' && raw.critere.trim()) next.critere = raw.critere.trim();
+        if (typeof raw.axeKey === 'string' && raw.axeKey.trim()) next.axeKey = raw.axeKey.trim();
+        if (typeof raw.axe === 'string' && raw.axe.trim()) next.axe = raw.axe.trim();
+        if (typeof raw.famille === 'string' && raw.famille.trim()) next.famille = raw.famille.trim();
+        if (typeof raw.criticite === 'boolean') next.criticite = raw.criticite;
+        if (typeof raw.alerte === 'boolean') next.alerte = raw.alerte;
+
+        if (raw.scores && typeof raw.scores === 'object') {
+            next.scores = next.scores && typeof next.scores === 'object' ? JSON.parse(JSON.stringify(next.scores)) : {};
+            ['fort', 'moyen', 'faible'].forEach((mode) => {
+                next.scores[mode] = mergeScore(next.scores[mode], raw.scores[mode]);
+            });
+        }
+
+        if (raw.vectors && typeof raw.vectors === 'object') {
+            next.vectors = this.normalizeValoboisCriterionFlowBlock(raw.vectors, next.vectors || {});
+        }
+        if (raw.rejects && typeof raw.rejects === 'object') {
+            next.rejects = this.normalizeValoboisCriterionFlowBlock(raw.rejects, next.rejects || {});
+        }
+
+        const notationTitle = typeof raw.notationTitle === 'string' ? raw.notationTitle.trim() : '';
+        const notationMessage = typeof raw.notationMessage === 'string' ? raw.notationMessage.trim() : '';
+        const notation = raw.notation && typeof raw.notation === 'object' ? raw.notation : {};
+        next.notation = {
+            title: notationTitle || (typeof notation.title === 'string' ? notation.title.trim() : ''),
+            message: notationMessage || (typeof notation.message === 'string' ? notation.message.trim() : '')
+        };
+
+        return next;
+    }
+
+    normalizeValoboisCustomCriteria(raw) {
+        const baseEntries = this.getValoboisMatrixBaseDataset();
+        const baseByKey = new Map(baseEntries.map((entry) => [this.getValoboisCustomCriterionKey(entry.rang), entry]));
+        if (!raw || typeof raw !== 'object') return {};
+
+        const sourceEntries = Array.isArray(raw)
+            ? raw.map((entry) => [this.getValoboisCustomCriterionKey(entry && (entry.sourceRank ?? entry.rang)), entry])
+            : Object.entries(raw);
+        const normalized = {};
+
+        sourceEntries.forEach(([key, entry]) => {
+            const sourceKey = this.getValoboisCustomCriterionKey(entry && (entry.sourceRank ?? entry.rang)) || this.getValoboisCustomCriterionKey(key.replace(/^r/i, ''));
+            const baseEntry = baseByKey.get(sourceKey);
+            if (!baseEntry) return;
+            const customEntry = this.normalizeValoboisCustomCriterionEntry(entry, baseEntry, sourceKey);
+            if (!customEntry) return;
+            normalized[sourceKey] = customEntry;
+        });
+
+        return normalized;
+    }
+
+    getValoboisBaseMatrixEntryByRank(rank) {
+        const numericRank = Number(rank);
+        if (!Number.isFinite(numericRank)) return null;
+        return this.getValoboisMatrixBaseDataset().find((entry) => Number(entry.rang) === numericRank) || null;
+    }
+
+    getValoboisMatrixCustomEntryByRank(rank) {
+        const key = this.getValoboisCustomCriterionKey(rank);
+        if (!key) return null;
+        const customCriteria = this.getValoboisCustomCriteriaMap();
+        return customCriteria[key] || null;
+    }
+
+    getValoboisMergedMatrixEntryByRank(rank) {
+        const baseEntry = this.getValoboisBaseMatrixEntryByRank(rank);
+        if (!baseEntry) return null;
+        const customEntry = this.getValoboisMatrixCustomEntryByRank(rank);
+        if (!customEntry) return { ...baseEntry };
+        return {
+            ...baseEntry,
+            ...customEntry,
+            scores: customEntry.scores ? JSON.parse(JSON.stringify(customEntry.scores)) : JSON.parse(JSON.stringify(baseEntry.scores || {})),
+            vectors: customEntry.vectors ? JSON.parse(JSON.stringify(customEntry.vectors)) : JSON.parse(JSON.stringify(baseEntry.vectors || {})),
+            rejects: customEntry.rejects ? JSON.parse(JSON.stringify(customEntry.rejects)) : JSON.parse(JSON.stringify(baseEntry.rejects || {})),
+            notation: customEntry.notation ? JSON.parse(JSON.stringify(customEntry.notation)) : JSON.parse(JSON.stringify(baseEntry.notation || {})),
+            defaultGateType: baseEntry.defaultGateType,
+            isCustomCriterion: true,
+            customCriterionId: this.getValoboisCustomCriterionKey(rank),
+            disabledSource: true,
+            sourceRank: Number(baseEntry.rang)
+        };
+    }
+
+    getValoboisCustomCriterionOptions() {
+        return this.getValoboisMatrixBaseDataset().map((entry) => ({
+            value: this.getValoboisCustomCriterionKey(entry.rang),
+            label: `${entry.rang} - ${entry.critere}`,
+            entry,
+            isCustomized: false
+        }));
+    }
+
+    createValoboisCustomCriterionFromRank(rank) {
+        const baseEntry = this.getValoboisBaseMatrixEntryByRank(rank);
+        if (!baseEntry) return null;
+        const key = this.getValoboisCustomCriterionKey(rank);
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        if (!config.customCriteria || typeof config.customCriteria !== 'object') config.customCriteria = {};
+        if (config.customCriteria[key]) return config.customCriteria[key];
+
+        const customEntry = this.normalizeValoboisCustomCriterionEntry({
+            sourceRank: baseEntry.rang,
+            critere: baseEntry.critere,
+            axeKey: baseEntry.axeKey,
+            axe: baseEntry.axe,
+            famille: baseEntry.famille,
+            criticite: !!baseEntry.criticite,
+            alerte: !!baseEntry.alerte,
+            scores: baseEntry.scores,
+            vectors: baseEntry.vectors,
+            rejects: baseEntry.rejects,
+            notation: baseEntry.notation || {}
+        }, baseEntry, key);
+
+        if (!customEntry) return null;
+        config.customCriteria[key] = customEntry;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        return customEntry;
+    }
+
+    updateValoboisCustomCriterionField(rank, fieldPath, rawValue) {
+        const key = this.getValoboisCustomCriterionKey(rank);
+        if (!key || !fieldPath) return false;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const current = config.customCriteria && config.customCriteria[key];
+        if (!current) return false;
+
+        const next = JSON.parse(JSON.stringify(current));
+        const path = String(fieldPath || '').trim();
+        const setScore = (mode, prop, value) => {
+            if (!next.scores || typeof next.scores !== 'object') next.scores = {};
+            if (!next.scores[mode] || typeof next.scores[mode] !== 'object') next.scores[mode] = { value: null, letter: '' };
+            next.scores[mode][prop] = value;
+        };
+
+        const setFlow = (kind, orientationKey, levelKey, value) => {
+            if (!next[kind] || typeof next[kind] !== 'object') next[kind] = {};
+            if (!next[kind][orientationKey] || typeof next[kind][orientationKey] !== 'object') next[kind][orientationKey] = { fort: false, moyen: false, faible: false };
+            next[kind][orientationKey][levelKey] = value;
+        };
+
+        switch (path) {
+        case 'critere':
+        case 'axeKey':
+        case 'axe':
+        case 'famille':
+        case 'notation.title':
+        case 'notation.message':
+            if (!next.notation || typeof next.notation !== 'object') next.notation = { title: '', message: '' };
+            if (path === 'notation.title') next.notation.title = String(rawValue || '').trim();
+            else if (path === 'notation.message') next.notation.message = String(rawValue || '').trim();
+            else next[path] = String(rawValue || '').trim();
+            break;
+        case 'criticite':
+        case 'alerte':
+            next[path] = !!rawValue;
+            break;
+        case 'rang':
+            return false;
+        default: {
+            const scoreMatch = /^scores\.(fort|moyen|faible)\.(value|letter)$/.exec(path);
+            if (scoreMatch) {
+                const [, mode, prop] = scoreMatch;
+                if (prop === 'value') {
+                    const parsed = Number(rawValue);
+                    if (!Number.isFinite(parsed)) return false;
+                    const isDefaultGate = Number(rank) >= 1 && Number(rank) <= 5;
+                    const allowed = isDefaultGate
+                        ? this.getValoboisFixedScoreValues()
+                        : this.getValoboisFixedScoreValues().filter((value) => Number(value) !== -10);
+                    if (!allowed.includes(parsed)) return false;
+                    setScore(mode, 'value', parsed);
+                    setScore(mode, 'letter', this.getValoboisFixedLetterForScore(parsed));
+                } else {
+                    const letter = String(rawValue || '').trim().toUpperCase();
+                    if (!/^[A-E]$/.test(letter)) return false;
+                    setScore(mode, 'letter', letter);
+                }
+                break;
+            }
+
+            const flowMatch = /^(vectors|rejects)\.(reemploi|reutilisation|recyclage|combustion)\.(fort|moyen|faible)$/.exec(path);
+            if (flowMatch) {
+                const [, kind, orientationKey, levelKey] = flowMatch;
+                setFlow(kind, orientationKey, levelKey, !!rawValue);
+                break;
+            }
+
+            return false;
+        }
+        }
+
+        config.customCriteria[key] = this.normalizeValoboisCustomCriterionEntry(next, this.getValoboisBaseMatrixEntryByRank(rank), key);
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.renderMatrice();
+        return true;
+    }
+
+    removeValoboisCustomCriterion(rank) {
+        const key = this.getValoboisCustomCriterionKey(rank);
+        if (!key) return;
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        if (!config.customCriteria || typeof config.customCriteria !== 'object') return;
+        if (!config.customCriteria[key]) return;
+        delete config.customCriteria[key];
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.renderMatrice();
+    }
+
     normalizeValoboisMatrixConfig(raw) {
         const defaults = this.getDefaultValoboisMatrixConfig();
         if (!raw || typeof raw !== 'object') return defaults;
@@ -5417,10 +6198,11 @@ class ValoboisApp {
                 faible: { ...defaults.thresholds.faible }
             },
             gates: {
-                disabled: [],
-                added: []
+                disabled: []
             },
             weights: {},
+            customCriteria: {},
+            customFreeCriteria: [],
             flowOverrides: JSON.parse(JSON.stringify(defaults.flowOverrides || {}))
         };
 
@@ -5439,14 +6221,6 @@ class ValoboisApp {
             out.gates.disabled = Array.isArray(raw.gates.disabled)
                 ? raw.gates.disabled.map((v) => (v == null ? '' : String(v).trim())).filter(Boolean)
                 : [];
-            out.gates.added = Array.isArray(raw.gates.added)
-                ? raw.gates.added
-                    .map((entry) => ({
-                        critere: entry && entry.critere != null ? String(entry.critere).trim() : '',
-                        scoreThreshold: entry ? Number(entry.scoreThreshold) : null
-                    }))
-                    .filter((entry) => entry.critere && Number.isFinite(entry.scoreThreshold))
-                : [];
         }
 
         if (raw.weights && typeof raw.weights === 'object') {
@@ -5460,6 +6234,9 @@ class ValoboisApp {
                 if (Object.keys(next).length) out.weights[criterionKey] = next;
             });
         }
+
+        out.customCriteria = this.normalizeValoboisCustomCriteria(raw.customCriteria || {});
+        out.customFreeCriteria = this.normalizeValoboisCustomFreeCriteria(raw.customFreeCriteria || []);
 
         if (raw.flowOverrides && typeof raw.flowOverrides === 'object') {
             Object.entries(raw.flowOverrides).forEach(([criterionKey, criterionBlock]) => {
@@ -5495,7 +6272,18 @@ class ValoboisApp {
             const raw = localStorage.getItem(this.matrixConfigStorageKey);
             if (!raw) return this.getDefaultValoboisMatrixConfig();
             const parsed = JSON.parse(raw);
-            return this.normalizeValoboisMatrixConfig(parsed);
+            const normalized = this.normalizeValoboisMatrixConfig(parsed);
+            const convertedLegacyCustomCriteria = this.convertValoboisLegacyCustomCriteriaToCustomFreeList(normalized.customCriteria);
+            normalized.customFreeCriteria = this.normalizeValoboisCustomFreeCriteria([
+                ...(normalized.customFreeCriteria || []),
+                ...convertedLegacyCustomCriteria
+            ]);
+
+            // Les critères socle sont en lecture seule: on neutralise les reliquats legacy.
+            normalized.customCriteria = {};
+            normalized.weights = {};
+            normalized.flowOverrides = {};
+            return normalized;
         } catch (error) {
             console.warn('Impossible de charger valobois_matrix_config.', error);
             return this.getDefaultValoboisMatrixConfig();
@@ -5565,32 +6353,15 @@ class ValoboisApp {
         const sortPrimitiveArray = (arr) => (Array.isArray(arr)
             ? arr.map((v) => (v == null ? '' : String(v))).sort()
             : []);
-        const sortGateEntries = (arr) => (Array.isArray(arr)
-            ? arr
-                .map((entry) => ({
-                    critere: entry && entry.critere != null ? String(entry.critere) : '',
-                    scoreThreshold: entry ? Number(entry.scoreThreshold) : null
-                }))
-                .filter((entry) => entry.critere && Number.isFinite(entry.scoreThreshold))
-                .sort((a, b) => {
-                    if (a.critere !== b.critere) return a.critere.localeCompare(b.critere);
-                    return a.scoreThreshold - b.scoreThreshold;
-                })
-            : []);
-
         if (JSON.stringify(stable(defaults.thresholds)) !== JSON.stringify(stable(current.thresholds))) return true;
 
         const defaultDisabled = sortPrimitiveArray(defaults.gates && defaults.gates.disabled);
         const currentDisabled = sortPrimitiveArray(current.gates && current.gates.disabled);
         if (JSON.stringify(defaultDisabled) !== JSON.stringify(currentDisabled)) return true;
 
-        const defaultAdded = sortGateEntries(defaults.gates && defaults.gates.added);
-        const currentAdded = sortGateEntries(current.gates && current.gates.added);
-        if (JSON.stringify(defaultAdded) !== JSON.stringify(currentAdded)) return true;
+        if (JSON.stringify(stable(defaults.customFreeCriteria || [])) !== JSON.stringify(stable(current.customFreeCriteria || []))) return true;
 
-        if (JSON.stringify(stable(defaults.flowOverrides || {})) !== JSON.stringify(stable(current.flowOverrides || {}))) return true;
-
-        return JSON.stringify(stable(defaults.weights || {})) !== JSON.stringify(stable(current.weights || {}));
+        return false;
     }
 
     getValoboisActiveMatrixMode() {
@@ -20086,7 +20857,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const mode = (input.dataset.matrixMode || '').trim();
         const section = (input.dataset.matrixSection || '').trim();
         const field = this.getNotationModeNormalizedField(section, (input.dataset.matrixField || '').trim());
-        const isCustomActive = !!input.checked && this.isNotationModeCriterionCustomAdded(section, field, mode);
+        const isCustomSection = section === 'customFree';
+        const isCustomActive = !!input.checked && (isCustomSection || this.isNotationModeCriterionCustomAdded(section, field, mode));
 
         cell.classList.toggle('is-active', !!input.checked);
         cell.classList.toggle('is-inactive', !input.checked);
@@ -20126,6 +20898,15 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const field = this.getNotationModeNormalizedField(section, (input.dataset.matrixField || '').trim());
 
         if (!['moyen', 'faible'].includes(mode) || !section || !field) return;
+
+        if (section === 'customFree') {
+            const updated = this.updateValoboisCustomFreeCriterionField(field, `enabledModes.${mode}`, !!input.checked);
+            if (!updated) return;
+            this.saveData();
+            this.updateNotationModeMatrixCheckboxCell(input);
+            this.refreshNotationModeSummary();
+            return;
+        }
 
         const customConfig = this.ensureNotationModeCustomConfig();
         if (!customConfig[mode] || typeof customConfig[mode] !== 'object') customConfig[mode] = {};
@@ -20229,11 +21010,61 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             </section>`;
         }).join('');
 
+        const customFreeCriteria = this.getValoboisCustomFreeCriteriaList();
+        // Filtrage strict des critères invalides (null, undefined, objets vides, sans id)
+        const validCustomFreeCriteria = Array.isArray(customFreeCriteria)
+            ? customFreeCriteria.filter(c => c && typeof c === 'object' && Object.keys(c).length > 0 && c.id)
+            : [];
+        const customFreeTable = validCustomFreeCriteria.length
+            ? (() => {
+                const bodyRows = validCustomFreeCriteria.map((criterion) => {
+                    const criterionId = String(criterion && criterion.id || '').trim();
+                    const criterionLabel = this.escapeHtml(criterion.critere || criterionId || 'Critère personnalisé');
+                    const valueLabel = this.escapeHtml(criterion.axe || criterion.axeKey || 'Personnalisé');
+                    const fortActive = criterion.enabled !== false && criterion.enabledModes && criterion.enabledModes.fort !== false;
+                    const moyenActive = criterion.enabled !== false && criterion.enabledModes && criterion.enabledModes.moyen !== false;
+                    const faibleActive = criterion.enabled !== false && criterion.enabledModes && criterion.enabledModes.faible !== false;
+                    return `<tr class="detail-modal-matrix-row">
+                        <th scope="row">${criterionLabel}</th>
+                        <td class="detail-modal-matrix-value-cell">${valueLabel}</td>
+                        <td class="detail-modal-matrix-check-cell ${fortActive ? 'is-active' : 'is-inactive'}">
+                            <input class="detail-modal-matrix-checkbox" type="checkbox" ${fortActive ? 'checked' : ''} disabled aria-label="${criterionLabel} actif en mode Fort" />
+                        </td>
+                        <td class="detail-modal-matrix-check-cell ${moyenActive ? 'is-active is-custom-active' : 'is-inactive'}">
+                            <input class="detail-modal-matrix-checkbox" type="checkbox" ${moyenActive ? 'checked' : ''} data-matrix-mode="moyen" data-matrix-section="customFree" data-matrix-field="${criterionId}" aria-label="${criterionLabel} actif en mode Moyen" />
+                        </td>
+                        <td class="detail-modal-matrix-check-cell ${faibleActive ? 'is-active is-custom-active' : 'is-inactive'}">
+                            <input class="detail-modal-matrix-checkbox" type="checkbox" ${faibleActive ? 'checked' : ''} data-matrix-mode="faible" data-matrix-section="customFree" data-matrix-field="${criterionId}" aria-label="${criterionLabel} actif en mode Faible" />
+                        </td>
+                    </tr>`;
+                }).join('');
+
+                return `<section class="detail-modal-matrix-section">
+                    <h3 class="detail-modal-subtitle">Critères personnalisés</h3>
+                    <div class="detail-modal-matrix-scroll">
+                        <table class="detail-modal-matrix-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Critères</th>
+                                    <th scope="col">Valeurs</th>
+                                    <th scope="col">Fort</th>
+                                    <th scope="col">Moyen</th>
+                                    <th scope="col">Faible</th>
+                                </tr>
+                            </thead>
+                            <tbody>${bodyRows}</tbody>
+                        </table>
+                    </div>
+                </section>`;
+            })()
+            : '';
+
         return `<div class="detail-modal-matrix">
             <div class="detail-modal-matrix-toolbar">
                 <button type="button" class="detail-modal-matrix-reset-btn">Réinitialiser les modes par défaut</button>
             </div>
             ${sectionTables}
+            ${customFreeTable}
         </div>`;
     }
 
@@ -20309,6 +21140,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             faible: { count: 0, min: 0, max: 0, minSansCritique: 0, criticalCount: 0, criticalLabels: [] }
         };
 
+        const customModeCounts = { fort: 0, moyen: 0, faible: 0 };
+
         NOTATION_MODE_SECTION_SELECTORS.forEach(({ section, rowSelector, fieldAttr }) => {
             document.querySelectorAll(rowSelector).forEach((row) => {
                 const rawField = (row.getAttribute(fieldAttr) || '').trim();
@@ -20335,6 +21168,25 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                         modeStats[mode].minSansCritique += bounds.min;
                     }
                 });
+            });
+        });
+
+        this.getValoboisCustomFreeCriteriaList().forEach((criterion) => {
+            if (!criterion || criterion.enabled === false) return;
+            ['fort', 'moyen', 'faible'].forEach((mode) => {
+                if (criterion.enabledModes && criterion.enabledModes[mode] === false) return;
+                const scoreValue = Number(criterion.scores && criterion.scores[mode] && criterion.scores[mode].value);
+                if (!Number.isFinite(scoreValue)) return;
+                customModeCounts[mode] += 1;
+                modeStats[mode].count += 1;
+                modeStats[mode].min += scoreValue;
+                modeStats[mode].max += scoreValue;
+                if (scoreValue <= -10) {
+                    modeStats[mode].criticalCount += 1;
+                    modeStats[mode].criticalLabels.push(this.escapeHtml(criterion.critere || criterion.id || 'Critère personnalisé'));
+                } else {
+                    modeStats[mode].minSansCritique += scoreValue;
+                }
             });
         });
 
@@ -20367,6 +21219,13 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                             <td class="detail-modal-matrix-check-cell">${modeStats.fort.count}</td>
                             <td class="detail-modal-matrix-check-cell">${modeStats.moyen.count}</td>
                             <td class="detail-modal-matrix-check-cell">${modeStats.faible.count}</td>
+                        </tr>
+                        <tr>
+                            <th scope="row">Critères personnalisés actifs</th>
+                            <td class="detail-modal-matrix-value-cell">Nombre</td>
+                            <td class="detail-modal-matrix-check-cell">${customModeCounts.fort}</td>
+                            <td class="detail-modal-matrix-check-cell">${customModeCounts.moyen}</td>
+                            <td class="detail-modal-matrix-check-cell">${customModeCounts.faible}</td>
                         </tr>
                         <tr>
                             <th scope="row">Note min</th>
@@ -21865,12 +22724,320 @@ closeProvenanceDetailModal() {
         };
     }
 
+
     openSeuilsModal() {
         const b = document.getElementById('seuilsModalBackdrop');
         if (b) {
+            this.renderSeuilsModalContent();
             b.classList.remove('hidden');
             b.setAttribute('aria-hidden', 'false');
         }
+    }
+
+    renderSeuilsModalContent() {
+        const container = document.querySelector('#seuilsModalBackdrop .modal-body');
+        if (!container) return;
+
+        const lot = this.getCurrentLot && this.getCurrentLot();
+        const axisMeta = [
+            { key: 'economique', label: 'Économique' },
+            { key: 'ecologique', label: 'Écologique' },
+            { key: 'mecanique', label: 'Mécanique' },
+            { key: 'historique', label: 'Historique' },
+            { key: 'esthetique', label: 'Esthétique' }
+        ];
+
+        // Synthèse confiance globale
+        const confidence = this.getNotationConfidenceGeneralSummary(lot);
+        const studyStatusRaw = this.data && this.data.meta ? this.data.meta.statutEtude : '';
+        const studyStatusLabels = ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
+        const numericStatus = Number(studyStatusRaw);
+        const studyStatus = Number.isFinite(numericStatus) && numericStatus >= 0 && numericStatus < studyStatusLabels.length
+            ? studyStatusLabels[numericStatus]
+            : (studyStatusRaw || 'Pré-diagnostic');
+        const normalizedStudyStatus = this.normalizeConfidenceAlertText(studyStatus);
+
+        const getStudyPhase = () => {
+            if (normalizedStudyStatus === 'pre-diagnostic' || normalizedStudyStatus === 'brouillon') {
+                return {
+                    code: 'pre',
+                    label: 'Préparation',
+                    guidance: 'Objectif: fiabiliser rapidement les observations avant arbitrage.'
+                };
+            }
+            if (normalizedStudyStatus === 'en cours') {
+                return {
+                    code: 'progress',
+                    label: 'Analyse active',
+                    guidance: 'Objectif: réduire les incertitudes et consolider les axes critiques.'
+                };
+            }
+            if (normalizedStudyStatus === 'revision') {
+                return {
+                    code: 'revision',
+                    label: 'Révision',
+                    guidance: 'Objectif: traiter les écarts et documenter les arbitrages mis à jour.'
+                };
+            }
+            if (normalizedStudyStatus === 'finalise' || normalizedStudyStatus === 'cloture' || normalizedStudyStatus === 'valide') {
+                return {
+                    code: 'final',
+                    label: 'Validation',
+                    guidance: 'Objectif: sécuriser la décision finale et justifier les points sensibles.'
+                };
+            }
+            return {
+                code: 'progress',
+                label: 'Analyse active',
+                guidance: 'Objectif: réduire les incertitudes et consolider les axes critiques.'
+            };
+        };
+
+        const studyPhase = getStudyPhase();
+        const confidenceEntries = this.getNotationConfidenceSummaryEntries(lot);
+        const confidenceActions = confidenceEntries
+            .filter((entry) => entry && entry.action && entry.action !== 'à confirmer')
+            .slice(0, 2)
+            .map((entry) => `${entry.label} ${entry.action}`);
+
+        const axisImpactByKey = {
+            economique: 'effet potentiel sur la valeur et l\'arbitrage de destination',
+            ecologique: 'risque de déclassement des voies de valorisation bas-carbone',
+            mecanique: 'incertitude sur l\'aptitude structurelle et la sécurité d\'usage',
+            historique: 'robustesse patrimoniale moins défendable sans preuves convergentes',
+            esthetique: 'variabilité perçue de la qualité finale pour les usages visibles'
+        };
+
+        const axisActionByKey = {
+            economique: 'préciser les critères qui pénalisent le rendement matière',
+            ecologique: 'prioriser la réduction des notes D/E liées aux impacts environnementaux',
+            mecanique: 'renforcer les vérifications critiques avant orientation finale',
+            historique: 'compléter les preuves documentaires et la traçabilité',
+            esthetique: 'consolider les observations de surface et homogénéiser les appréciations'
+        };
+
+        const getStatusAwareAction = (axisKey, verdict, totalNotes, negativeCount) => {
+            const baseAction = axisActionByKey[axisKey] || 'consolider les critères les moins favorables';
+            if (studyPhase.code === 'pre') {
+                if (!totalNotes) return `Pré-diagnostic: renseigner les critères minimums avant interprétation (${baseAction}).`;
+                return `Pré-diagnostic: confirmer les constats terrain et ${baseAction}.`;
+            }
+            if (studyPhase.code === 'progress') {
+                return `En cours: prioriser les points à impact et ${baseAction}.`;
+            }
+            if (studyPhase.code === 'revision') {
+                return `Révision: cibler les écarts ${verdict === 'Sous vigilance' ? 'bloquants' : 'résiduels'} et ${baseAction}.`;
+            }
+            if (negativeCount > 0) {
+                return `Validation: lever les notes D/E restantes avant clôture puis ${baseAction}.`;
+            }
+            return `Validation: formaliser la justification de l'axe et ${baseAction}.`;
+        };
+
+        const getAxisConfidenceLevel = (totalNotes, counts) => {
+            if (!totalNotes) return 'Faible';
+            const negative = (counts.D || 0) + (counts.E || 0);
+            const cOnly = counts.C || 0;
+            if (totalNotes >= 8 && negative === 0 && cOnly / totalNotes < 0.5) return 'Forte';
+            if (totalNotes >= 4) return 'Moyenne';
+            return 'Faible';
+        };
+
+        const getTensionState = (totalNotes, counts) => {
+            if (!totalNotes) return { level: 'Faible', className: 'faible' };
+            const positiveStrong = (counts.A || 0) + (counts.B || 0);
+            const negative = (counts.D || 0) + (counts.E || 0);
+            const strongPositiveShare = positiveStrong / totalNotes;
+            const negativeShare = negative / totalNotes;
+            if (positiveStrong > 0 && negative > 0 && strongPositiveShare >= 0.35 && negativeShare >= 0.2) {
+                return { level: 'Forte', className: 'forte' };
+            }
+            if (negative > 0 || ((counts.C || 0) / totalNotes > 0.5 && positiveStrong > 0)) {
+                return { level: 'Moyenne', className: 'moyenne' };
+            }
+            return { level: 'Faible', className: 'faible' };
+        };
+
+        const toPlural = (value, word) => `${value} ${word}${value > 1 ? 's' : ''}`;
+
+        const axisRows = [];
+
+        let html = `<section class="seuils-modal-overview">
+            <article class="seuils-modal-overview-card">
+                <h4 class="seuils-modal-overview-title">Niveau de confiance</h4>
+                <p class="seuils-modal-overview-line">
+                    <span class="seuils-modal-badge seuils-modal-badge--conf-${confidence.level.toLowerCase()}">${confidence.level}</span>
+                </p>
+                <p class="seuils-modal-overview-text">
+                    ${confidence.level === 'Forte' ? 'Beaucoup de critères renseignés, interprétation fiable.' : confidence.level === 'Moyenne' ? 'Nombre de critères renseignés correct, interprétation possible avec prudence.' : 'Peu de critères renseignés, prudence sur l’interprétation.'}
+                </p>
+            </article>
+            <article class="seuils-modal-overview-card">
+                <h4 class="seuils-modal-overview-title">Statut d'étude</h4>
+                <p class="seuils-modal-overview-line">
+                    <span class="seuils-modal-badge seuils-modal-badge--study-${studyPhase.code}">${this.escapeHtml(studyStatus)}</span>
+                </p>
+                <p class="seuils-modal-overview-text">${this.escapeHtml(studyPhase.guidance)}</p>
+            </article>
+        </section>`;
+
+        if (confidenceActions.length) {
+            html += `<div class="seuils-modal-priority">
+                <h4 class="seuils-modal-priority-title">Priorités d'amélioration</h4>
+                <ol class="seuils-modal-priority-list">
+                    ${confidenceActions.map((item) => `<li>${this.escapeHtml(item)}</li>`).join('')}
+                </ol>
+            </div>`;
+        }
+
+        // Analyse par axe
+        html += `<section class="detail-modal-matrix-section">
+            <h3 class="detail-modal-subtitle">Qualité de la notation par axe</h3>
+            <div class="seuils-modal-table-scroll">
+                <table class="seuils-modal-table">
+                    <thead>
+                        <tr>
+                            <th>Axe</th>
+                            <th>Notes</th>
+                            <th>Score net</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+        axisMeta.forEach(axis => {
+            const dist = this.getLetterDistributionForCategory(lot, axis.key);
+            const pills = ['A', 'B', 'C', 'D', 'E'].map((l) => dist.letterCounts[l] > 0 ? `<span class="seuils-pill seuils-pill--${l.toLowerCase()}">${l}<sub>${dist.letterCounts[l]}</sub></span>` : '').join('');
+            const total = Object.values(dist.letterCounts).reduce((a, b) => a + b, 0);
+            const net = Object.values(dist.letterPoints).reduce((a, b) => a + b, 0);
+
+            const countStrong = dist.letterCounts.A + dist.letterCounts.B;
+            const countNeutral = dist.letterCounts.C;
+            const countNegative = dist.letterCounts.D + dist.letterCounts.E;
+            const axisConfidenceLevel = getAxisConfidenceLevel(total, dist.letterCounts);
+            const axisConfidenceClass = axisConfidenceLevel.toLowerCase();
+            const tension = getTensionState(total, dist.letterCounts);
+
+            let diagBadgeClass = 'info';
+            let verdict = 'Profil mixte';
+            let cause = '';
+            let action = axisActionByKey[axis.key] || 'consolider les critères les moins favorables';
+
+            if (total === 0) {
+                diagBadgeClass = 'absent';
+                verdict = 'Aucune note';
+                cause = 'Axe non documenté, interprétation non fiable.';
+                action = 'renseigner au moins les critères clés de cet axe';
+            } else if (countNegative > 0) {
+                diagBadgeClass = 'fail';
+                verdict = 'Sous vigilance';
+                cause = `${toPlural(countNegative, 'note')} D/E pèse(nt) sur l'axe malgré ${toPlural(countStrong, 'note')} A/B.`;
+            } else if (countNeutral / total > 0.5) {
+                diagBadgeClass = 'warn';
+                verdict = 'Zone d\'incertitude';
+                cause = `${toPlural(countNeutral, 'note')} C sur ${total}, profil encore peu discriminant.`;
+            } else if (countStrong >= total * 0.7) {
+                diagBadgeClass = 'ok';
+                verdict = 'Profil fort';
+                cause = `${toPlural(countStrong, 'note')} A/B sur ${total}, axe favorable et cohérent.`;
+            } else {
+                diagBadgeClass = 'info';
+                verdict = 'Profil mixte';
+                cause = `Répartition équilibrée: ${toPlural(countStrong, 'note')} A/B et ${toPlural(countNeutral, 'note')} C.`;
+            }
+
+            action = getStatusAwareAction(axis.key, verdict, total, countNegative);
+
+            const impact = axisImpactByKey[axis.key] || 'impact opérationnel à préciser selon le contexte du lot';
+
+            const diag = `<div class="seuils-modal-diagnostic">
+                <div class="seuils-modal-diagnostic-content-col">
+                    <div class="seuils-modal-diagnostic-list">
+                        <p class="seuils-modal-diagnostic-line"><span class="seuils-modal-diagnostic-key">Cause</span><span class="seuils-modal-diagnostic-value">${this.escapeHtml(cause)}</span></p>
+                        <p class="seuils-modal-diagnostic-line"><span class="seuils-modal-diagnostic-key">Impact</span><span class="seuils-modal-diagnostic-value">${this.escapeHtml(impact)}</span></p>
+                        <p class="seuils-modal-diagnostic-line"><span class="seuils-modal-diagnostic-key">Action</span><span class="seuils-modal-diagnostic-value">${this.escapeHtml(action)}</span></p>
+                    </div>
+                </div>
+                <div class="seuils-modal-diagnostic-pills-col">
+                    <span class="seuils-modal-badge seuils-modal-badge--${diagBadgeClass}">${verdict}</span>
+                    <span class="seuils-modal-badge seuils-modal-badge--conf-${axisConfidenceClass}">Confiance axe ${axisConfidenceLevel}</span>
+                    <span class="seuils-modal-badge seuils-modal-badge--tension-${tension.className}">Tension ${tension.level}</span>
+                </div>
+            </div>`;
+
+            const priorityScore = (countNegative * 4) + countNeutral + (total === 0 ? 6 : 0) - (countStrong * 0.5);
+            axisRows.push({
+                label: axis.label,
+                priorityScore,
+                action,
+                verdict
+            });
+
+            html += `<tr class="seuils-modal-main-row">
+                <th>${axis.label}</th>
+                <td>${pills || '-'}</td>
+                <td><span class="seuils-modal-badge">${net > 0 ? '+' : ''}${net}</span></td>
+            </tr>
+            <tr class="seuils-modal-diagnostic-row">
+                <td colspan="3" class="seuils-modal-diagnostic-cell">
+                    <div class="seuils-modal-diagnostic-title">Diagnostic</div>
+                    ${diag}
+                </td>
+            </tr>`;
+        });
+        html += `</tbody></table></div></section>`;
+
+        const topAxisActions = axisRows
+            .sort((a, b) => b.priorityScore - a.priorityScore)
+            .filter((row) => row.priorityScore > 0)
+            .slice(0, 2);
+
+        if (topAxisActions.length) {
+            html += `<section class="seuils-modal-priority seuils-modal-priority--axes">
+                <h4 class="seuils-modal-priority-title">Actions recommandées sur les axes (${this.escapeHtml(studyStatus)})</h4>
+                <ol class="seuils-modal-priority-list">
+                    ${topAxisActions.map((row) => `<li><strong>${this.escapeHtml(row.label)}</strong> (${this.escapeHtml(row.verdict)}) : ${this.escapeHtml(row.action)}</li>`).join('')}
+                </ol>
+            </section>`;
+        }
+
+        // Légende
+        html += `<section class="seuils-modal-legend" aria-label="Légende de lecture des seuils">
+            <h4 class="seuils-modal-legend-title">Légende de lecture</h4>
+            <div class="seuils-modal-legend-grid">
+                <div class="seuils-modal-legend-group">
+                    <p class="seuils-modal-legend-group-title">Distribution des notes</p>
+                    <div class="seuils-modal-legend-chips">
+                        <span class="seuils-pill seuils-pill--a">A</span>
+                        <span class="seuils-pill seuils-pill--b">B</span>
+                        <span class="seuils-pill seuils-pill--c">C</span>
+                        <span class="seuils-pill seuils-pill--d">D</span>
+                        <span class="seuils-pill seuils-pill--e">E</span>
+                    </div>
+                    <p class="seuils-modal-legend-text">Chaque pilule indique le nombre de notes par niveau de performance pour l'axe analysé.</p>
+                </div>
+                <div class="seuils-modal-legend-group">
+                    <p class="seuils-modal-legend-group-title">Verdict d'axe</p>
+                    <div class="seuils-modal-legend-chips">
+                        <span class="seuils-modal-badge seuils-modal-badge--ok">Profil fort</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--warn">Zone d'incertitude</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--fail">Sous vigilance</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--info">Profil mixte</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--absent">Aucune note</span>
+                    </div>
+                    <p class="seuils-modal-legend-text">Le verdict résume la qualité globale de la notation en combinant équilibre des notes et niveau de risque.</p>
+                </div>
+                <div class="seuils-modal-legend-group seuils-modal-legend-group--full">
+                    <p class="seuils-modal-legend-group-title">Niveau de tension</p>
+                    <div class="seuils-modal-legend-chips">
+                        <span class="seuils-modal-badge seuils-modal-badge--tension-faible">Tension faible</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--tension-moyenne">Tension moyenne</span>
+                        <span class="seuils-modal-badge seuils-modal-badge--tension-forte">Tension forte</span>
+                    </div>
+                    <p class="seuils-modal-legend-text">La tension mesure la coexistence de signaux favorables et défavorables sur un même axe et oriente la priorisation des vérifications.</p>
+                </div>
+            </div>
+        </section>`;
+
+        container.innerHTML = html;
     }
 
     closeSeuilsModal() {
@@ -22055,6 +23222,97 @@ closeEvalOpModal() {
             backdrop.classList.remove('hidden');
             backdrop.setAttribute('aria-hidden', 'false');
         }
+    }
+
+    openValoboisDuplicateCriterionModal(options = {}) {
+        const {
+            title = 'Dupliquer un critère existant',
+            confirmLabel = 'Dupliquer',
+            onConfirm = () => {},
+            selectedSource = ''
+        } = options;
+
+        const backdrop = document.getElementById('valoboisDuplicateCriterionModalBackdrop');
+        const titleEl = document.getElementById('valoboisDuplicateCriterionModalTitle');
+        const contentEl = document.getElementById('valoboisDuplicateCriterionModalContent');
+        const confirmBtn = document.getElementById('btnConfirmValoboisDuplicateCriterion');
+        const cancelBtn = document.getElementById('btnCancelValoboisDuplicateCriterion');
+        const closeBtn = document.getElementById('btnCloseValoboisDuplicateCriterionModal');
+
+        if (!backdrop || !contentEl) return;
+
+        const duplicationSources = this.getValoboisCriterionDuplicationOptions();
+        const allDuplicationOptions = [...duplicationSources.baseOptions, ...duplicationSources.freeOptions];
+        if (!allDuplicationOptions.length) return;
+
+        const fallbackSource = allDuplicationOptions[0].value;
+        const stateSource = this._valoboisMatrixUiState && this._valoboisMatrixUiState.selectedDuplicateSource;
+        const initialSource = allDuplicationOptions.some((option) => option.value === selectedSource)
+            ? selectedSource
+            : (allDuplicationOptions.some((option) => option.value === stateSource) ? stateSource : fallbackSource);
+        const updateSelection = (value) => {
+            const normalizedValue = String(value || '').trim();
+            if (!this._valoboisMatrixUiState) this._valoboisMatrixUiState = {};
+            this._valoboisMatrixUiState.selectedDuplicateSource = normalizedValue;
+            contentEl.querySelectorAll('.valobois-matrix-duplicate-option').forEach((label) => {
+                const input = label.querySelector('input[type="radio"]');
+                const isActive = input && input.value === normalizedValue;
+                label.classList.toggle('is-selected', isActive);
+                if (input) input.checked = isActive;
+            });
+        };
+
+        if (titleEl) titleEl.textContent = title;
+        contentEl.innerHTML = `
+            <p class="valobois-matrix-duplicate-modal__intro">Choisissez le critère source à copier dans la liste ci-dessous.</p>
+            <div class="valobois-matrix-duplicate-options">
+                ${allDuplicationOptions.map((option) => {
+                    const isSelected = option.value === initialSource;
+                    const sourceTypeLabel = option.value.startsWith('free:') ? 'Critère libre' : 'Critère par défaut';
+                    return `
+                        <label class="valobois-matrix-duplicate-option ${isSelected ? 'is-selected' : ''}">
+                            <input type="radio" name="valoboisDuplicateCriterionSource" value="${option.value}" ${isSelected ? 'checked' : ''}>
+                            <span class="valobois-matrix-duplicate-option__body">
+                                <span class="valobois-matrix-duplicate-option__label">${option.label}</span>
+                                <span class="valobois-matrix-duplicate-option__meta">${sourceTypeLabel}</span>
+                            </span>
+                        </label>
+                    `;
+                }).join('')}
+            </div>
+        `;
+
+        if (confirmBtn) confirmBtn.textContent = confirmLabel;
+        if (cancelBtn) cancelBtn.textContent = 'Annuler';
+        this._valoboisMatrixUiState.selectedDuplicateSource = initialSource;
+
+        contentEl.querySelectorAll('input[type="radio"][name="valoboisDuplicateCriterionSource"]').forEach((input) => {
+            input.addEventListener('change', () => updateSelection(input.value));
+        });
+
+        const closeModal = () => {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+        };
+
+        const confirmSelection = () => {
+            const selectedInput = contentEl.querySelector('input[type="radio"][name="valoboisDuplicateCriterionSource"]:checked');
+            const sourceRef = String(selectedInput ? selectedInput.value : this._valoboisMatrixUiState.selectedDuplicateSource || '').trim();
+            if (!sourceRef) return;
+            this._valoboisMatrixUiState.selectedDuplicateSource = sourceRef;
+            onConfirm(sourceRef);
+            closeModal();
+        };
+
+        if (confirmBtn) confirmBtn.onclick = confirmSelection;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+        if (closeBtn) closeBtn.onclick = closeModal;
+        backdrop.onclick = (event) => {
+            if (event.target === backdrop) closeModal();
+        };
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
     }
 
     openCreatePieceDeductionModal(options = {}) {
@@ -24966,6 +26224,9 @@ closeEvalOpModal() {
         section.style.display = '';
         const lotIndex = this.data.lots.indexOf(lot);
         if (lotLabel) lotLabel.textContent = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot';
+
+        const customScoresMount = document.getElementById('detailLotCustomScoresMount');
+        if (customScoresMount) customScoresMount.remove();
 
         const formatGrouped = (value, digits = 0) => (parseFloat(value) || 0).toLocaleString(getValoboisIntlLocale(), {
             minimumFractionDigits: digits,
@@ -28590,6 +29851,39 @@ getValoboisRawCriterionValue(entry) {
     return 0;
 }
 
+getValoboisCategoryFromAxeKey(axeKey) {
+    const normalized = String(axeKey || '').trim().toLowerCase();
+    const map = {
+        economique: 'economique',
+        ecologique: 'ecologique',
+        mecanique: 'mecanique',
+        historique: 'historique',
+        esthetique: 'esthetique'
+    };
+    return map[normalized] || 'economique';
+}
+
+getValoboisLotCustomScoreValue(lot, criterionId) {
+    if (!lot || !criterionId) return null;
+    const score = lot.customScores && Object.prototype.hasOwnProperty.call(lot.customScores, criterionId)
+        ? Number(lot.customScores[criterionId])
+        : NaN;
+    return Number.isFinite(score) ? this.normalizeValoboisFixedScoreValue(score, 1) : null;
+}
+
+setValoboisLotCustomScoreValue(lot, criterionId, scoreValue) {
+    if (!lot || !criterionId) return;
+    if (!lot.customScores || typeof lot.customScores !== 'object' || Array.isArray(lot.customScores)) {
+        lot.customScores = {};
+    }
+    const numeric = Number(scoreValue);
+    if (!Number.isFinite(numeric)) {
+        delete lot.customScores[criterionId];
+        return;
+    }
+    lot.customScores[criterionId] = this.normalizeValoboisFixedScoreValue(numeric, 1);
+}
+
 getValoboisEffectiveCriterionScore(lot, mapping, mode = null) {
     const sectionData = lot && lot[mapping.section];
     const baseValue = this.getValoboisRawCriterionValue(sectionData && sectionData[mapping.field]);
@@ -28622,6 +29916,18 @@ getRawValueScoresForLot(lot) {
             }
         });
     }
+
+    const activeMode = this.getValoboisActiveMatrixMode();
+    this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+        const criterionId = String(criterion && criterion.id || '').trim();
+        if (!criterionId) return;
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (!Number.isFinite(score)) return;
+        const category = this.getValoboisCategoryFromAxeKey(criterion.axeKey);
+        if (Object.prototype.hasOwnProperty.call(totals, category)) {
+            totals[category] += score;
+        }
+    });
 
     return totals;
 }
@@ -28691,6 +29997,17 @@ getValueScoreRangesForLot(_lot, mode = null) {
 
         categoryRange.min += Math.min(0, minScore);
         categoryRange.max += Math.max(0, maxScore);
+    });
+
+    this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+        const category = this.getValoboisCategoryFromAxeKey(criterion.axeKey);
+        const categoryRange = ranges[category];
+        if (!categoryRange) return;
+        const scoreValue = Number(criterion && criterion.scores && criterion.scores[activeMode] && criterion.scores[activeMode].value);
+        if (!Number.isFinite(scoreValue)) return;
+        categoryRange.count += 1;
+        categoryRange.min += Math.min(0, scoreValue);
+        categoryRange.max += Math.max(0, scoreValue);
     });
 
     Object.keys(ranges).forEach((categoryKey) => {
@@ -29781,6 +31098,12 @@ hasAnyNotationForLot(lot) {
         if (typeof entry === 'object' && entry.valeur != null) return true;
     }
 
+    const activeMode = this.getValoboisActiveMatrixMode();
+    const activeCustom = this.getValoboisActiveCustomFreeCriteria(activeMode);
+    if (activeCustom.some((criterion) => Number.isFinite(this.getValoboisLotCustomScoreValue(lot, criterion.id)))) {
+        return true;
+    }
+
     if (Array.isArray(lot.criteres) && lot.criteres.length > 0) return true;
     return false;
 }
@@ -29805,21 +31128,17 @@ hasNotationForCategory(lot, category) {
         }
     }
 
+    const activeMode = this.getValoboisActiveMatrixMode();
+    const hasCustomForCategory = this.getValoboisActiveCustomFreeCriteria(activeMode)
+        .filter((criterion) => this.getValoboisCategoryFromAxeKey(criterion.axeKey) === category)
+        .some((criterion) => Number.isFinite(this.getValoboisLotCustomScoreValue(lot, criterion.id)));
+    if (hasCustomForCategory) return true;
+
     return false;
 }
 
 getValoboisMatrixDataset() {
-    const payload = window.VALOBOIS_MATRICE_VECTEURS_REJETS;
-    if (!payload || !Array.isArray(payload.entries)) return [];
-    const gateByRank = new Map(this.getValoboisDefaultGateDefinitions().map((gate) => [Number(gate.rang), gate.id]));
-    return payload.entries.map((entry) => {
-        const rank = Number(entry && entry.rang);
-        const defaultGateType = Number.isFinite(rank) ? (gateByRank.get(rank) || null) : null;
-        return {
-            ...entry,
-            defaultGateType
-        };
-    });
+    return this.getValoboisMatrixBaseDataset().map((entry) => ({ ...entry }));
 }
 
 normalizeValoboisGateId(value) {
@@ -29878,6 +31197,22 @@ getValoboisMatrixEntryByRank(rank) {
     const numericRank = Number(rank);
     if (!Number.isFinite(numericRank)) return null;
     return this.getValoboisMatrixDataset().find((entry) => Number(entry.rang) === numericRank) || null;
+}
+
+getValoboisMatrixNotationSpec(entry) {
+    if (!entry) return null;
+    const customTitle = entry.notation && typeof entry.notation.title === 'string' ? entry.notation.title.trim() : '';
+    const customMessage = entry.notation && typeof entry.notation.message === 'string' ? entry.notation.message.trim() : '';
+    if (customTitle || customMessage) {
+        return {
+            title: customTitle || entry.critere || `r${entry.rang}`,
+            message: customMessage || entry.critere || 'Aucune information disponible.'
+        };
+    }
+
+    const mapping = this.getValoboisScoreMappingByRank(entry.rang);
+    if (!mapping) return null;
+    return this.getNotationDetailSpec(mapping.section, mapping.field);
 }
 
 getValoboisScoreMappingByCriterionKey(criterionKey) {
@@ -30078,6 +31413,18 @@ getValoboisCurrentLevelKeyForCriterion(lot, criterionKey) {
     return this.getValoboisCriterionLevelKey(this.getValoboisCriterionEntry(lot, mapping));
 }
 
+getValoboisCustomFreeLevelKeyForScore(criterion, scoreValue, activeMode = null) {
+    const mode = this.normalizeNotationMode(activeMode) || this.getValoboisActiveMatrixMode();
+    const numericScore = Number(scoreValue);
+    if (!Number.isFinite(numericScore)) return '';
+    const scores = criterion && criterion.scores && typeof criterion.scores === 'object' ? criterion.scores : {};
+    if (Number(scores.fort && scores.fort.value) === numericScore) return 'fort';
+    if (Number(scores.moyen && scores.moyen.value) === numericScore) return 'moyen';
+    if (Number(scores.faible && scores.faible.value) === numericScore) return 'faible';
+    if (mode === 'fort' || mode === 'moyen' || mode === 'faible') return mode;
+    return '';
+}
+
 getValoboisOrientationLabel(code) {
     const labels = {
         reemploi: 'Réemploi',
@@ -30128,7 +31475,8 @@ getValoboisOrientationUiState(lot) {
 }
 
 collectValoboisMatrixActiveFlows(lot, mode = null) {
-    const activeMappings = this.getValoboisActiveCriteriaMappings(mode);
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode);
     const activeRejets = { reemploi: [], reutilisation: [], recyclage: [], combustion: [] };
     const activeVectors = { reemploi: [], reutilisation: [], recyclage: [], combustion: [] };
 
@@ -30158,6 +31506,45 @@ collectValoboisMatrixActiveFlows(lot, mode = null) {
                 numericScore: typeof this.getValoboisCriterionEntry(lot, mapping) === 'number'
                     ? this.getValoboisCriterionEntry(lot, mapping)
                     : Number(this.getValoboisCriterionEntry(lot, mapping)?.valeur),
+            };
+
+            if (vectorLevels[levelKey]) activeVectors[orientationKey].push(payload);
+            if (rejectLevels[levelKey]) activeRejets[orientationKey].push(payload);
+        });
+    });
+
+    this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+        const criterionId = String(criterion && criterion.id || '').trim();
+        if (!criterionId) return;
+        const numericScore = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (!Number.isFinite(numericScore)) return;
+
+        const levelKey = this.getValoboisCustomFreeLevelKeyForScore(criterion, numericScore, activeMode);
+        if (!levelKey) return;
+
+        ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+            const vectorLevels = criterion.vectors && criterion.vectors[orientationKey]
+                ? criterion.vectors[orientationKey]
+                : { fort: false, moyen: false, faible: false };
+            const rejectLevels = criterion.rejects && criterion.rejects[orientationKey]
+                ? criterion.rejects[orientationKey]
+                : { fort: false, moyen: false, faible: false };
+
+            const letter = (criterion.scores && criterion.scores[levelKey] && criterion.scores[levelKey].letter)
+                ? String(criterion.scores[levelKey].letter).trim().toUpperCase()
+                : this.getValoboisFixedLetterForScore(numericScore);
+            const payload = {
+                rang: Number(criterion.rank) || 0,
+                section: 'customFree',
+                field: criterionId,
+                criterionKey: `customFree.${criterionId}`,
+                critere: criterion.critere || criterionId,
+                famille: criterion.famille || 'Critères custom',
+                orientation: orientationKey,
+                levelKey,
+                noteLetter: /^[A-E]$/.test(letter) ? letter : '',
+                numericScore,
+                customCriterionId: criterionId,
             };
 
             if (vectorLevels[levelKey]) activeVectors[orientationKey].push(payload);
@@ -30257,19 +31644,6 @@ closeValoboisMatrixDetailModal() {
     if (!backdrop) return;
     backdrop.classList.add('hidden');
     backdrop.setAttribute('aria-hidden', 'true');
-}
-
-getValoboisAddedGateThresholdsForRank(rank) {
-    const numericRank = Number(rank);
-    if (!Number.isFinite(numericRank)) return [];
-    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-    return (config.gates?.added || [])
-        .filter((gate) => {
-            const mapping = this.resolveValoboisGateCriterionToMapping(gate && gate.critere);
-            return mapping && Number(mapping.rang) === numericRank;
-        })
-        .map((gate) => Number(gate.scoreThreshold))
-        .filter((value) => Number.isFinite(value));
 }
 
 buildValoboisMatrixGenericIntegriteBioAlertModalMessage() {
@@ -31231,23 +32605,7 @@ getValoboisMatrixGenericModalSpec(mapping, badgeType = 'alert') {
 
     const rank = Number(mapping.rang);
     const entry = this.getValoboisMatrixEntryByRank(rank);
-    const customGateThresholds = this.getValoboisAddedGateThresholdsForRank(rank);
     const key = `${mapping.section}.${mapping.field}`;
-
-    if (badgeType === 'gate' && customGateThresholds.length && !mapping.gateKey) {
-        return {
-            title: `Verrou personnalisé — ${entry?.critere || 'Critère'}`,
-            message: [
-                `Le critère « ${entry?.critere || 'Critère'} » porte un verrou personnalisé dans la matrice.`,
-                '',
-                'Logique appliquée :',
-                `- si le score effectif du critère descend à un seuil de verrou configuré (${customGateThresholds.join(', ')}), l’orientation est forcée vers Combustion.`,
-                '- cette règle est une personnalisation de matrice, indépendante du lot courant affiché.',
-                '',
-                'Cette modale expose la règle générique du verrou, pas les contributeurs d’un lot particulier.'
-            ].join('\n')
-        };
-    }
 
     const specs = {
         'bio.purge': {
@@ -31430,8 +32788,9 @@ getNotationDetailSpec(section, field) {
 openValoboisMatrixCriterionModal(rank, badgeType = 'alert') {
     const mapping = this.getValoboisScoreMappingByRank(rank);
     if (!mapping) return false;
+    const matrixEntry = this.getValoboisMatrixEntryByRank(rank);
     if (badgeType === 'notation') {
-        const spec = this.getNotationDetailSpec(mapping.section, mapping.field);
+        const spec = this.getValoboisMatrixNotationSpec(matrixEntry || mapping);
         if (!spec) return false;
         return this.openValoboisMatrixDetailModal(spec.title, spec.message);
     }
@@ -31486,6 +32845,9 @@ setValoboisMatrixWeightValue(entry, mode, rawValue) {
     }
     if (!targetEntry || typeof targetEntry !== 'object') return;
 
+    // Lecture seule sur le socle: ne plus autoriser d'override de score.
+    return;
+
     const isDefaultGate = Number(targetEntry.rang) >= 1 && Number(targetEntry.rang) <= 5;
     const allowedValues = isDefaultGate ? new Set([-10, -3, 1, 2, 3]) : new Set([-3, 1, 2, 3]);
     if (!allowedValues.has(nextValue)) return;
@@ -31517,6 +32879,9 @@ setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, che
     if (!['reemploi', 'reutilisation', 'recyclage', 'combustion'].includes(orientationKey)) return;
     if (!['fort', 'moyen', 'faible'].includes(levelKey)) return;
     if (typeof checked !== 'boolean' || typeof defaultChecked !== 'boolean') return;
+
+        // Lecture seule sur le socle: ne plus autoriser d'override de flux.
+        return;
 
     if (
         Number(rank) === 16
@@ -31563,37 +32928,9 @@ resetValoboisMatrixConfig() {
     this.renderMatrice();
 }
 
-addValoboisCustomGate(criterionRef, scoreThreshold) {
-    const mapping = this.resolveValoboisGateCriterionToMapping(criterionRef);
-    const threshold = Number(scoreThreshold);
-    if (!mapping || !Number.isFinite(threshold)) return;
-
-    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-    const criterionKey = `r${mapping.rang}`;
-    const alreadyExists = config.gates.added.some((entry) => String(entry.critere) === criterionKey && Number(entry.scoreThreshold) === threshold);
-    if (alreadyExists) return;
-
-    config.gates.added.push({ critere: criterionKey, scoreThreshold: threshold });
-    this.valoboisMatrixConfig = config;
-    this.saveValoboisMatrixConfig();
-    this.computeOrientation(this.getCurrentLot());
-    this.renderMatrice();
-}
-
-removeValoboisCustomGate(index) {
-    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-    if (!Array.isArray(config.gates.added) || index < 0 || index >= config.gates.added.length) return;
-    config.gates.added.splice(index, 1);
-    this.valoboisMatrixConfig = config;
-    this.saveValoboisMatrixConfig();
-    this.computeOrientation(this.getCurrentLot());
-    this.renderMatrice();
-}
-
 getValoboisGateTriggerInfo(lot) {
     const mode = this.getValoboisActiveMatrixMode();
     const defaultTriggered = [];
-    const customTriggered = [];
 
     this.getValoboisDefaultGateDefinitions().forEach((gate) => {
         if (!this.isValoboisDefaultGateEnabled(gate.id)) return;
@@ -31606,23 +32943,10 @@ getValoboisGateTriggerInfo(lot) {
         }
     });
 
-    const added = this.valoboisMatrixConfig && this.valoboisMatrixConfig.gates && Array.isArray(this.valoboisMatrixConfig.gates.added)
-        ? this.valoboisMatrixConfig.gates.added
-        : [];
-    added.forEach((gate) => {
-        const mapping = this.resolveValoboisGateCriterionToMapping(gate.critere);
-        if (!mapping) return;
-        const score = this.getValoboisEffectiveCriterionScore(lot, mapping, mode);
-        const threshold = Number(gate.scoreThreshold);
-        if (Number.isFinite(threshold) && Number(score) <= threshold) {
-            customTriggered.push({ mapping, score, threshold });
-        }
-    });
-
     return {
-        triggered: defaultTriggered.length > 0 || customTriggered.length > 0,
+        triggered: defaultTriggered.length > 0,
         defaultTriggered,
-        customTriggered
+        customTriggered: []
     };
 }
 
@@ -31690,26 +33014,12 @@ buildValoboisMatrixConfigExportDiff() {
     });
     if (Object.keys(thresholds).length) payload.thresholds = thresholds;
 
-    const gates = { disabled: [], added: [] };
+    const gates = { disabled: [] };
     if (current.gates.disabled.length) gates.disabled = [...current.gates.disabled];
-    if (current.gates.added.length) gates.added = [...current.gates.added];
-    if (gates.disabled.length || gates.added.length) payload.gates = gates;
+    if (gates.disabled.length) payload.gates = gates;
 
-    const weights = {};
-    Object.entries(current.weights).forEach(([criterionKey, values]) => {
-        const defaultValues = defaults.weights[criterionKey] || {};
-        const nextValues = {};
-        ['fort', 'moyen', 'faible'].forEach((mode) => {
-            if (values[mode] !== undefined && values[mode] !== defaultValues[mode]) {
-                nextValues[mode] = values[mode];
-            }
-        });
-        if (Object.keys(nextValues).length) weights[criterionKey] = nextValues;
-    });
-    if (Object.keys(weights).length) payload.weights = weights;
-
-    if (Object.keys(current.flowOverrides || {}).length) {
-        payload.flowOverrides = current.flowOverrides;
+    if (Array.isArray(current.customFreeCriteria) && current.customFreeCriteria.length) {
+        payload.customFreeCriteria = current.customFreeCriteria;
     }
 
     return payload;
@@ -31727,15 +33037,22 @@ handleValoboisMatrixConfigImport(file) {
             }
 
             const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+            const convertedLegacyCustomCriteria = this.convertValoboisLegacyCustomCriteriaToCustomFreeList(parsed.customCriteria);
             const mergedRaw = {
                 ...current,
                 thresholds: {
                     ...current.thresholds,
                     ...(parsed.thresholds || {})
                 },
-                gates: parsed.gates ? { ...current.gates, ...parsed.gates } : current.gates,
-                weights: parsed.weights ? { ...current.weights, ...parsed.weights } : current.weights,
-                flowOverrides: parsed.flowOverrides ? { ...current.flowOverrides, ...parsed.flowOverrides } : current.flowOverrides
+                gates: parsed.gates
+                    ? { ...current.gates, disabled: Array.isArray(parsed.gates.disabled) ? parsed.gates.disabled : current.gates.disabled }
+                    : current.gates,
+                weights: {},
+                customCriteria: current.customCriteria,
+                customFreeCriteria: parsed.customFreeCriteria
+                    ? [...(current.customFreeCriteria || []), ...parsed.customFreeCriteria, ...convertedLegacyCustomCriteria]
+                    : [...(current.customFreeCriteria || []), ...convertedLegacyCustomCriteria],
+                flowOverrides: {}
             };
             const flowConflictCount = this.getValoboisFlowOverrideConflicts(mergedRaw.flowOverrides).length;
             const merged = this.normalizeValoboisMatrixConfig(mergedRaw);
@@ -31746,8 +33063,8 @@ handleValoboisMatrixConfigImport(file) {
             const changes = [];
             if (parsed.thresholds) changes.push('seuils');
             if (parsed.gates) changes.push('verrous');
-            if (parsed.weights) changes.push('pondérations');
-            if (parsed.flowOverrides) changes.push('vecteurs/rejets');
+            if (parsed.customCriteria) changes.push('critères personnalisés (legacy convertis en libres)');
+            if (parsed.customFreeCriteria) changes.push('critères personnalisés (libres)');
             const summary = changes.length ? changes.join(', ') : 'aucune différence détectée';
 
             const conflictSuffix = flowConflictCount > 0
@@ -31790,10 +33107,6 @@ renderMatrice() {
     const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
     const entries = this.getValoboisMatrixDataset();
     const thresholdConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
-    const addedGateSet = new Set((thresholdConfig.gates?.added || []).map((item) => {
-        const mapping = this.resolveValoboisGateCriterionToMapping(item && item.critere);
-        return mapping ? `r${mapping.rang}` : '';
-    }).filter(Boolean));
 
     if (!entries.length) {
         controlsEl.innerHTML = '';
@@ -31815,7 +33128,7 @@ renderMatrice() {
     const filtered = entries.filter((entry) => {
         if (ui.axis !== 'all' && entry.axeKey !== ui.axis) return false;
         if (ui.family !== 'all' && entry.famille !== ui.family) return false;
-        if (ui.gatesOnly && !(entry.criticite || addedGateSet.has(`r${entry.rang}`))) return false;
+        if (ui.gatesOnly && !entry.defaultGateType) return false;
         if (query && !entry.critere.toLowerCase().includes(query)) return false;
         return true;
     });
@@ -31858,11 +33171,9 @@ renderMatrice() {
         </div>
         <div class="valobois-matrix-controls-col valobois-matrix-controls-col--actions">
             <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
-            <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
-            ${ui.editMode ? '<button type="button" class="btn" id="valoboisMatrixResetConfig">Réinitialiser la configuration</button>' : ''}
-            <button type="button" class="btn" id="valoboisMatrixExportConfig">Exporter la configuration</button>
-            <button type="button" class="btn" id="valoboisMatrixImportConfig">Importer une configuration</button>
-            <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden>
+            <button type="button" class="btn" id="valoboisMatrixExportConfig" ${ui.editMode ? '' : 'disabled'}>Exporter la configuration</button>
+            <button type="button" class="btn" id="valoboisMatrixImportConfig" ${ui.editMode ? '' : 'disabled'}>Importer une configuration</button>
+            <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden ${ui.editMode ? '' : 'disabled'}>
         </div>
     `;
 
@@ -31871,48 +33182,18 @@ renderMatrice() {
         <span>/30</span>
         <span class="valobois-matrix-threshold-percent">(${Math.round((thresholdConfig.thresholds[mode][orientation] / 30) * 100)}%)</span>
     `;
-    const defaultGateLabels = {
-        expansion: 'Expansion biologique forte',
-        contamination: 'Contamination forte',
-        alteration: 'Altération des traces forte',
-        integrite_biologique: 'Intégrité biologique faible',
-        integrite_mecanique: 'Intégrité mécanique faible',
-        demontabilite: 'Démontabilité faible'
-    };
-    const defaultGates = this.getValoboisDefaultGateDefinitions();
-    const customGates = thresholdConfig.gates?.added || [];
+    const customFreeCriteria = this.getValoboisCustomFreeCriteriaList();
+    const duplicationSources = this.getValoboisCriterionDuplicationOptions();
 
     thresholdsEl.innerHTML = `
-        <div class="valobois-matrix-threshold-card">
-            ${ui.editMode ? `
-                <div class="valobois-matrix-gates-editor">
-                    <h4>Verrous par défaut</h4>
-                    <div class="valobois-matrix-gates-list">
-                        ${defaultGates.map((gate) => `
-                            <label class="valobois-matrix-control-check">
-                                <input type="checkbox" data-valobois-default-gate-toggle="${gate.id}" ${this.isValoboisDefaultGateEnabled(gate.id) ? 'checked' : ''}>
-                                ${defaultGateLabels[gate.id] || gate.label || gate.id}
-                            </label>
-                        `).join('')}
-                    </div>
-                    <h4>Verrous personnalisés</h4>
-                    <div class="valobois-matrix-gates-list">
-                        ${customGates.length ? customGates.map((gate, index) => `
-                            <div class="valobois-matrix-gate-row">
-                                <span>${gate.critere || 'Critère inconnu'} ≤ ${gate.scoreThreshold}</span>
-                                <button type="button" class="btn" data-valobois-added-gate-remove="${index}">Supprimer</button>
-                            </div>
-                        `).join('') : '<p class="valobois-matrix-empty">Aucun verrou personnalisé.</p>'}
-                    </div>
-                    <div class="valobois-matrix-gate-add">
-                        <input type="text" id="valoboisMatrixGateCriterion" placeholder="Critère (ex: r8, contamination)">
-                        <input type="number" id="valoboisMatrixGateThreshold" min="-30" max="30" step="1" value="-10" placeholder="Seuil score">
-                        <button type="button" class="btn" id="valoboisMatrixAddGate">Ajouter un verrou</button>
-                    </div>
-                </div>
-            ` : ''}
+        <div class="valobois-matrix-threshold-card ${ui.editMode ? 'is-active' : 'is-inactive'}">
+            <div class="valobois-matrix-threshold-actions">
+                <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
+                <button type="button" class="btn" id="valoboisMatrixResetConfig" ${ui.editMode ? '' : 'disabled'}>Réinitialiser la configuration</button>
+            </div>
             ${this._valoboisMatrixLastThresholdError ? `<p class="valobois-matrix-threshold-error">${this._valoboisMatrixLastThresholdError}</p>` : ''}
             ${this._valoboisMatrixLastFlowWarning ? `<p class="valobois-matrix-threshold-warning">${this._valoboisMatrixLastFlowWarning}</p>` : ''}
+            <div id="valoboisMatrixFreeEditorWrap"></div>
         </div>
     `;
 
@@ -31923,7 +33204,7 @@ renderMatrice() {
         combustion: { label: 'Combustion', color: '#D55E00' }
     };
 
-    const buildOrientationCheckbox = (flowData, orientationKey, orientationInfo, rank, flowKind) => {
+    const buildOrientationCheckbox = (flowData, orientationKey, orientationInfo, rank, flowKind, canEdit = false) => {
         const terms = (flowData && flowData.terms) || '';
         const matches = Array.from(terms.matchAll(/\b(Fortes?|Forts?|Moyennes?|Moyens?|Faibles?)\b/gi));
         const variantByLevel = { fort: '', moyen: '', faible: '' };
@@ -32001,7 +33282,7 @@ renderMatrice() {
             const isRejectFlow = flowKind === 'rejects';
             const checkedIcon = isRejectFlow ? '' : '✓';
             const rowClass = effectiveChecked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
-            const editableClass = ui.editMode ? ' is-editable' : '';
+            const editableClass = canEdit ? ' is-editable' : '';
             const rejectLockClass = isRejectFlow && effectiveChecked ? ' is-reject-locked' : '';
             const hardDisabled = isHardDisabledFlow(key);
             return `<div class="${rowClass}" style="--valobois-checkbox-color:${orientationInfo.color};">
@@ -32015,7 +33296,7 @@ renderMatrice() {
                     data-valobois-matrix-flow-checked="${effectiveChecked ? '1' : '0'}"
                     aria-label="${orientationInfo.label} ${label}"
                     aria-pressed="${effectiveChecked ? 'true' : 'false'}"
-                    ${ui.editMode && !hardDisabled ? '' : 'disabled'}>${effectiveChecked ? checkedIcon : ''}</button>
+                    ${canEdit && !hardDisabled ? '' : 'disabled'}>${effectiveChecked ? checkedIcon : ''}</button>
                 <span class="valobois-matrix-checkbox-label">${label}</span>
             </div>`;
         }).join('');
@@ -32033,7 +33314,8 @@ renderMatrice() {
         const overridden = this.valoboisMatrixConfig.weights && (this.valoboisMatrixConfig.weights[weightKey] || this.valoboisMatrixConfig.weights[entry.critereKey]);
         const familyMark = previousFamily !== entry.famille ? 'is-family-start' : '';
         const defaultGateEnabled = !entry.defaultGateType || this.isValoboisDefaultGateEnabled(entry.defaultGateType);
-        const hasAddedGate = addedGateSet.has(`r${entry.rang}`);
+        const hasDefaultGate = !!entry.defaultGateType;
+        const rowIsCustom = !!entry.isCustomCriterion;
         previousFamily = entry.famille;
 
         const buildScoreCells = (mode) => {
@@ -32044,30 +33326,31 @@ renderMatrice() {
             const letterValue = String(scoreBlock.letter || '').trim().toUpperCase();
             const letterClass = /^[A-E]$/.test(letterValue) ? ` valobois-matrix-col-score--letter-${letterValue.toLowerCase()}` : '';
             const numericCell = `<td class="valobois-matrix-col-score ${scoreClass}${letterClass}">
-                ${ui.editMode
-                    ? `<input type="number" min="-30" max="30" step="0.5" value="${Number.isFinite(scoreValue) ? scoreValue : 0}" data-valobois-score-edit-key="${weightKey}" data-valobois-score-edit-mode="${mode}">`
-                    : `${scoreValue > 0 ? '+' : ''}${scoreValue}`}
+                ${scoreValue > 0 ? '+' : ''}${scoreValue}
             </td>`;
             const letterCell = `<td class="valobois-matrix-col-score ${scoreClass}${letterClass}">${scoreBlock.letter || '—'}</td>`;
             return `${numericCell}${letterCell}`;
         };
 
         return `
-            <tr class="${familyMark}">
+            <tr class="${familyMark}${rowIsCustom ? ' is-customized' : ''}">
                 <td class="valobois-matrix-col-rank"><span class="valobois-matrix-rank">${entry.rang}</span></td>
                 <td class="valobois-matrix-col-criterion">
                     <div class="valobois-matrix-criterion-name">${entry.critere}</div>
                     <div class="valobois-matrix-badges">
                         ${overridden ? '<span class="valobois-matrix-badge valobois-matrix-badge--edited">Modifié</span>' : ''}
+                        ${rowIsCustom ? '<span class="valobois-matrix-badge valobois-matrix-badge--custom">Personnalisé</span>' : ''}
                     </div>
                 </td>
                 <td class="valobois-matrix-col-axis">${axisLabels[entry.axeKey] || entry.axe}</td>
                 <td class="valobois-matrix-col-family">${entry.famille}</td>
                 <td class="valobois-matrix-col-notation">${(() => { const mapping = this.getValoboisScoreMappingByRank(entry.rang); const hasNotation = mapping && !!this.getNotationDetailSpec(mapping.section, mapping.field); return hasNotation ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--notation valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="notation" aria-label="Ouvrir la fiche de notation">Info</button>` : '<span class="valobois-matrix-cell-empty">—</span>'; })()}</td>
                 <td class="valobois-matrix-col-gate">
-                    ${entry.criticite
-                        ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail verrou">${defaultGateEnabled ? 'Verrou' : 'Verrou désactivé'}</button>`
-                        : (hasAddedGate ? `<button type="button" class="valobois-matrix-badge valobois-matrix-badge--gate valobois-matrix-badge--interactive" data-valobois-matrix-modal-rang="${entry.rang}" data-valobois-matrix-modal-type="gate" aria-label="Ouvrir le détail verrou personnalisé">Verrou perso</button>` : '<span class="valobois-matrix-cell-empty">—</span>')}
+                    ${hasDefaultGate
+                        ? (ui.editMode
+                            ? `<label class="valobois-matrix-control-check valobois-matrix-inline-gate-toggle"><input type="checkbox" data-valobois-inline-default-gate-toggle="${entry.defaultGateType}" ${defaultGateEnabled ? 'checked' : ''}> ${defaultGateEnabled ? 'Verrou' : 'Verrou désactivé'}</label>`
+                            : `<span class="valobois-matrix-badge valobois-matrix-badge--gate">${defaultGateEnabled ? 'Verrou' : 'Verrou désactivé'}</span>`)
+                        : '<span class="valobois-matrix-cell-empty">—</span>'}
                 </td>
                 <td class="valobois-matrix-col-alert">
                     ${entry.alerte
@@ -32077,11 +33360,197 @@ renderMatrice() {
                 ${buildScoreCells('fort')}
                 ${buildScoreCells('moyen')}
                 ${buildScoreCells('faible')}
-                ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.vectors[key], key, orientationMeta[key], entry.rang, 'vectors')}</div></td>`).join('') : ''}
-                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.rejects[key], key, orientationMeta[key], entry.rang, 'rejects')}</div></td>`).join('') : ''}
+                ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.vectors[key], key, orientationMeta[key], entry.rang, 'vectors', false)}</div></td>`).join('') : ''}
+                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.rejects[key], key, orientationMeta[key], entry.rang, 'rejects', false)}</div></td>`).join('') : ''}
             </tr>
         `;
     }).join('');
+
+    const freeEditorHtml = `
+        <div class="valobois-matrix-free-editor">
+            <div class="valobois-matrix-free-editor__head">
+                <h4>Critères personnalisés (libres)</h4>
+                <div class="valobois-matrix-custom-selector-row">
+                    <button type="button" class="btn" id="valoboisMatrixDuplicateExisting" ${ui.editMode ? '' : 'disabled'}>Dupliquer un critère existant</button>
+                    <button type="button" class="btn" id="valoboisMatrixAddFreeCriterion" ${ui.editMode ? '' : 'disabled'}>+ Ajouter un critère personnalisé</button>
+                </div>
+            </div>
+            <div class="valobois-matrix-free-editor__table-wrap">
+            <table class="valobois-matrix-table valobois-matrix-free-editor__table">
+                <colgroup>
+                    <col style="width:50px">
+                    <col style="width:100px">
+                    <col style="width:110px">
+                    <col style="width:100px">
+                    <col style="width:59.484375px">
+                    <col style="width:60.234375px">
+                    <col style="width:56.765625px">
+                    <col style="width:76px">
+                    <col style="width:44.859375px">
+                    <col style="width:76px">
+                    <col style="width:44.859375px">
+                    <col style="width:76px">
+                    <col style="width:44.859375px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                    <col style="width:96px">
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Critère</th>
+                        <th>Valeur</th>
+                        <th>Catégorie</th>
+                        <th>Notation</th>
+                        <th>Verrou</th>
+                        <th>Alerte</th>
+                        <th>Score max</th>
+                        <th>Lettre max</th>
+                        <th>Score med</th>
+                        <th>Lettre med</th>
+                        <th>Score min</th>
+                        <th>Lettre min</th>
+                        <th>Réemploi</th>
+                        <th>Réutilisation</th>
+                        <th>Recyclage</th>
+                        <th>Combustion</th>
+                        <th>Réemploi</th>
+                        <th>Réutilisation</th>
+                        <th>Recyclage</th>
+                        <th>Combustion</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${customFreeCriteria.filter(
+                        c => c && typeof c === 'object' && Object.keys(c).length > 0 && c.id
+                    ).length ? customFreeCriteria.filter(
+                        c => c && typeof c === 'object' && Object.keys(c).length > 0 && c.id
+                    ).map((criterion) => {
+            const criterionId = String(criterion.id || '').trim();
+            const flowCell = (flowKind, orientationKey) => {
+                const flowBlock = criterion[flowKind] && criterion[flowKind][orientationKey] ? criterion[flowKind][orientationKey] : {};
+                const orientationColor = orientationMeta[orientationKey] ? orientationMeta[orientationKey].color : '#1d3d96';
+                const levelLabels = { fort: 'Forte', moyen: 'Moyenne', faible: 'Faible' };
+                return `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">
+                    ${['fort', 'moyen', 'faible'].map((levelKey) => {
+        const checked = !!flowBlock[levelKey];
+        const rowClass = checked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
+        const rejectLockClass = flowKind === 'rejects' && checked ? ' is-reject-locked' : '';
+        const icon = flowKind === 'rejects' ? '' : '✓';
+        return `<div class="${rowClass}" style="--valobois-checkbox-color:${orientationColor};">
+            <button type="button" class="valobois-matrix-orientation-checkbox is-editable${rejectLockClass}"
+                data-valobois-custom-free-flow-toggle="1"
+                data-valobois-custom-free-id="${criterionId}"
+                data-valobois-custom-free-field="${flowKind}.${orientationKey}.${levelKey}"
+                data-valobois-custom-free-flow-checked="${checked ? '1' : '0'}"
+                aria-pressed="${checked ? 'true' : 'false'}"
+                aria-label="${orientationMeta[orientationKey].label} ${levelLabels[levelKey]}"
+                ${ui.editMode ? '' : 'disabled'}>${checked ? icon : ''}</button>
+            <span class="valobois-matrix-checkbox-label">${levelLabels[levelKey]}</span>
+        </div>`;
+    }).join('')}
+                </div></td>`;
+            };
+            const buildScoreCells = (mode) => {
+                const scoreValue = Number(criterion.scores && criterion.scores[mode] && criterion.scores[mode].value);
+                const letterValue = String(criterion.scores && criterion.scores[mode] && criterion.scores[mode].letter || '').trim().toUpperCase();
+                const scoreClass = scoreValue <= -10 ? 'is-gate' : scoreValue < 0 ? 'is-negative' : scoreValue >= 2 ? 'is-positive' : 'is-neutral';
+                const letterClass = /^[A-E]$/.test(letterValue) ? ` valobois-matrix-col-score--letter-${letterValue.toLowerCase()}` : '';
+                const scoreInputId = `valoboisCustomScore-${criterionId}-${mode}`;
+                return `
+                    <td class="valobois-matrix-col-score ${scoreClass}${letterClass}">
+                        <div class="valobois-matrix-inline-stepper">
+                            <button
+                                type="button"
+                                class="valobois-matrix-inline-stepper__btn"
+                                data-valobois-custom-step-target="${scoreInputId}"
+                                data-valobois-custom-step-dir="-1"
+                                aria-label="Diminuer le score ${mode}"
+                                ${ui.editMode ? '' : 'disabled'}>-</button>
+                            <input
+                                id="${scoreInputId}"
+                                type="number"
+                                class="valobois-matrix-inline-stepper__input"
+                                value="${Number.isFinite(scoreValue) ? scoreValue : 1}"
+                                data-valobois-custom-free-id="${criterionId}"
+                                data-valobois-custom-free-field="scores.${mode}.value"
+                                ${ui.editMode ? '' : 'disabled'}
+                                min="-10"
+                                max="3"
+                                step="1">
+                            <button
+                                type="button"
+                                class="valobois-matrix-inline-stepper__btn"
+                                data-valobois-custom-step-target="${scoreInputId}"
+                                data-valobois-custom-step-dir="1"
+                                aria-label="Augmenter le score ${mode}"
+                                ${ui.editMode ? '' : 'disabled'}>+</button>
+                        </div>
+                    </td>
+                    <td class="valobois-matrix-col-score ${scoreClass}${letterClass}">
+                        <input type="text" value="${letterValue || 'C'}" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="scores.${mode}.letter" ${ui.editMode ? '' : 'disabled'} maxlength="1" style="width: 27px; text-transform: uppercase;">
+                    </td>
+                `;
+            };
+            return `
+                <tr data-valobois-custom-free-item="${criterionId}">
+                    <td class="valobois-matrix-col-rank valobois-matrix-free-editor__cell-rank">
+                        <input type="text" inputmode="numeric" pattern="[0-9]*" class="valobois-matrix-free-editor__input valobois-matrix-free-editor__input--rank" value="${Number(criterion.rank) || 51}" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="rank" ${ui.editMode ? '' : 'disabled'}>
+                    </td>
+                    <td class="valobois-matrix-col-criterion valobois-matrix-free-editor__cell-criterion">
+                        <textarea class="valobois-matrix-free-editor__input valobois-matrix-free-editor__input--multiline" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="critere" ${ui.editMode ? '' : 'disabled'} placeholder="Nom du critère" rows="2">${this.escapeHtml(criterion.critere || '')}</textarea>
+                    </td>
+                    <td class="valobois-matrix-col-axis valobois-matrix-free-editor__cell-axis">
+                        <select class="valobois-matrix-free-editor__input" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="axeKey" ${ui.editMode ? '' : 'disabled'}>
+                            <option value="personnalise" ${criterion.axeKey === 'personnalise' ? 'selected' : ''}>Critère custom</option>
+                            <option value="economique" ${criterion.axeKey === 'economique' ? 'selected' : ''}>Économique</option>
+                            <option value="ecologique" ${criterion.axeKey === 'ecologique' ? 'selected' : ''}>Écologique</option>
+                            <option value="mecanique" ${criterion.axeKey === 'mecanique' ? 'selected' : ''}>Mécanique</option>
+                            <option value="historique" ${criterion.axeKey === 'historique' ? 'selected' : ''}>Historique</option>
+                            <option value="esthetique" ${criterion.axeKey === 'esthetique' ? 'selected' : ''}>Esthétique</option>
+                        </select>
+                    </td>
+                    <td class="valobois-matrix-col-family valobois-matrix-free-editor__cell-family">
+                        <textarea class="valobois-matrix-free-editor__input valobois-matrix-free-editor__input--multiline" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="famille" ${ui.editMode ? '' : 'disabled'} placeholder="Critères custom" rows="2">${this.escapeHtml(criterion.famille || 'Critères custom')}</textarea>
+                    </td>
+                    <td class="valobois-matrix-col-notation">—</td>
+                    <td class="valobois-matrix-col-gate"><input type="checkbox" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="criticite" ${criterion.criticite ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}></td>
+                    <td class="valobois-matrix-col-alert">—</td>
+                    ${buildScoreCells('fort')}
+                    ${buildScoreCells('moyen')}
+                    ${buildScoreCells('faible')}
+                    ${flowCell('vectors', 'reemploi')}
+                    ${flowCell('vectors', 'reutilisation')}
+                    ${flowCell('vectors', 'recyclage')}
+                    ${flowCell('vectors', 'combustion')}
+                    ${flowCell('rejects', 'reemploi')}
+                    ${flowCell('rejects', 'reutilisation')}
+                    ${flowCell('rejects', 'recyclage')}
+                    ${flowCell('rejects', 'combustion')}
+                    <td class="valobois-matrix-free-editor__cell-actions">
+                        <button type="button" class="btn btn-sm" data-valobois-custom-free-remove="${criterionId}" ${ui.editMode ? '' : 'disabled'}>Supprimer</button>
+                    </td>
+                </tr>
+            `;
+        }).join('') : `<tr><td colspan="22" style="padding: 20px; text-align: center; color: #999;">Aucun critère libre — créez-en un ci-dessus</td></tr>`}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    `;
+
+    const freeEditorWrapEl = document.getElementById('valoboisMatrixFreeEditorWrap');
+    if (freeEditorWrapEl) {
+        freeEditorWrapEl.innerHTML = freeEditorHtml;
+    }
+    const freeEditorScopeEl = freeEditorWrapEl || document;
 
     tableWrapEl.innerHTML = `
         <div class="valobois-matrix-results">${filtered.length} / ${entries.length} critères affichés</div>
@@ -32184,7 +33653,7 @@ renderMatrice() {
     const resetFiltersBtn = document.getElementById('valoboisMatrixResetFilters');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
-            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode };
+            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode, selectedDuplicateSource: ui.selectedDuplicateSource };
             this.renderMatrice();
         });
     }
@@ -32214,60 +33683,12 @@ renderMatrice() {
         });
     });
 
-    thresholdsEl.querySelectorAll('[data-valobois-default-gate-toggle]').forEach((input) => {
+    tableWrapEl.querySelectorAll('[data-valobois-inline-default-gate-toggle]').forEach((input) => {
         input.addEventListener('change', () => {
-            const gateType = input.getAttribute('data-valobois-default-gate-toggle');
+            if (!ui.editMode) return;
+            const gateType = input.getAttribute('data-valobois-inline-default-gate-toggle');
             if (!gateType) return;
             this.setValoboisDefaultGateEnabled(gateType, !!input.checked);
-        });
-    });
-
-    thresholdsEl.querySelectorAll('[data-valobois-added-gate-remove]').forEach((button) => {
-        button.addEventListener('click', () => {
-            const index = Number(button.getAttribute('data-valobois-added-gate-remove'));
-            if (!Number.isFinite(index)) return;
-            this.removeValoboisCustomGate(index);
-        });
-    });
-
-    const addGateBtn = document.getElementById('valoboisMatrixAddGate');
-    const addGateCriterion = document.getElementById('valoboisMatrixGateCriterion');
-    const addGateThreshold = document.getElementById('valoboisMatrixGateThreshold');
-    if (addGateBtn && addGateCriterion && addGateThreshold) {
-        addGateBtn.addEventListener('click', () => {
-            const criterionRef = String(addGateCriterion.value || '').trim();
-            const scoreThreshold = Number(addGateThreshold.value);
-            if (!criterionRef || !Number.isFinite(scoreThreshold)) return;
-            this.addValoboisCustomGate(criterionRef, scoreThreshold);
-        });
-    }
-
-    tableWrapEl.querySelectorAll('[data-valobois-score-edit-key]').forEach((input) => {
-        input.addEventListener('change', () => {
-            const key = input.getAttribute('data-valobois-score-edit-key');
-            const mode = input.getAttribute('data-valobois-score-edit-mode');
-            if (!key || !mode) return;
-            this.setValoboisMatrixWeightValue(key, mode, input.value);
-        });
-    });
-
-    tableWrapEl.querySelectorAll('[data-valobois-matrix-flow-toggle]').forEach((button) => {
-        button.addEventListener('click', () => {
-            if (!ui.editMode) return;
-            const rank = Number(button.getAttribute('data-valobois-matrix-flow-rank'));
-            const flowKind = button.getAttribute('data-valobois-matrix-flow-kind') || '';
-            const orientationKey = button.getAttribute('data-valobois-matrix-flow-orientation') || '';
-            const levelKey = button.getAttribute('data-valobois-matrix-flow-level') || '';
-            const defaultChecked = button.getAttribute('data-valobois-matrix-flow-default') === '1';
-            const checked = button.getAttribute('data-valobois-matrix-flow-checked') === '1';
-            const nextChecked = !checked;
-            const oppositeKind = flowKind === 'vectors' ? 'rejects' : 'vectors';
-
-            if (nextChecked && this.getValoboisEffectiveFlowCheckedState(rank, oppositeKind, orientationKey, levelKey)) {
-                this.openValoboisMatrixFlowConflictModal(rank, flowKind, orientationKey, levelKey);
-                return;
-            }
-            this.setValoboisMatrixFlowOverrideValue(rank, flowKind, orientationKey, levelKey, nextChecked, defaultChecked);
         });
     });
 
@@ -32297,6 +33718,111 @@ renderMatrice() {
             importInput.value = '';
         });
     }
+
+    const addFreeCriterionBtn = document.getElementById('valoboisMatrixAddFreeCriterion');
+    if (addFreeCriterionBtn) {
+        addFreeCriterionBtn.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            this.createValoboisCustomFreeCriterion();
+        });
+    }
+
+    const duplicateExistingBtn = document.getElementById('valoboisMatrixDuplicateExisting');
+    if (duplicateExistingBtn) {
+        duplicateExistingBtn.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            this.openValoboisDuplicateCriterionModal({
+                selectedSource: ui.selectedDuplicateSource,
+                onConfirm: (sourceRef) => this.duplicateValoboisExistingCriterionAsFree(sourceRef)
+            });
+        });
+    }
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-step-target]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const targetId = String(button.getAttribute('data-valobois-custom-step-target') || '').trim();
+            if (!targetId) return;
+            const input = freeEditorScopeEl.querySelector(`#${targetId}`);
+            if (!input || input.disabled) return;
+
+            const direction = Number(button.getAttribute('data-valobois-custom-step-dir'));
+            if (!Number.isFinite(direction) || direction === 0) return;
+
+            const step = Number(input.getAttribute('step'));
+            const min = Number(input.getAttribute('min'));
+            const max = Number(input.getAttribute('max'));
+            const rawCurrent = Number(input.value);
+            const current = Number.isFinite(rawCurrent)
+                ? rawCurrent
+                : (Number.isFinite(min) ? min : 0);
+            const stepValue = Number.isFinite(step) && step > 0 ? step : 1;
+
+            let next = current + (direction * stepValue);
+            if (Number.isFinite(min)) next = Math.max(min, next);
+            if (Number.isFinite(max)) next = Math.min(max, next);
+            if (next === current) return;
+
+            input.value = String(next);
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-free-field]').forEach((control) => {
+        control.addEventListener('change', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(control.getAttribute('data-valobois-custom-free-id') || '').trim();
+            const fieldPath = String(control.getAttribute('data-valobois-custom-free-field') || '').trim();
+            if (!criterionId || !fieldPath) return;
+
+            if (fieldPath === 'rank') {
+                const rankResult = this.updateValoboisCustomFreeCriterionRank(criterionId, control.value, { forceReassign: false });
+                if (rankResult && rankResult.reason === 'rank-conflict') {
+                    const desired = Number(rankResult.desiredRank);
+                    const conflictLabel = rankResult.conflictLabel || 'ce critère';
+                    this.openResetConfirmModal({
+                        title: 'Conflit de numéro de critère',
+                        message: `Le numéro ${desired} est déjà utilisé par "${conflictLabel}". Voulez-vous réattribuer automatiquement les numéros des critères personnalisés ?`,
+                        confirmLabel: 'Oui, réattribuer',
+                        onConfirm: () => this.updateValoboisCustomFreeCriterionRank(criterionId, desired, { forceReassign: true })
+                    });
+                }
+                return;
+            }
+
+            const value = control.type === 'checkbox' ? !!control.checked : control.value;
+            this.updateValoboisCustomFreeCriterionField(criterionId, fieldPath, value);
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-free-duplicate]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(button.getAttribute('data-valobois-custom-free-duplicate') || '').trim();
+            if (!criterionId) return;
+            this.duplicateValoboisCustomFreeCriterion(criterionId);
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-free-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(button.getAttribute('data-valobois-custom-free-remove') || '').trim();
+            if (!criterionId) return;
+            this.removeValoboisCustomFreeCriterion(criterionId);
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-free-flow-toggle]').forEach((button) => {
+        button.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(button.getAttribute('data-valobois-custom-free-id') || '').trim();
+            const fieldPath = String(button.getAttribute('data-valobois-custom-free-field') || '').trim();
+            const isChecked = String(button.getAttribute('data-valobois-custom-free-flow-checked') || '0') === '1';
+            if (!criterionId || !fieldPath) return;
+            this.updateValoboisCustomFreeCriterionField(criterionId, fieldPath, !isChecked);
+        });
+    });
 }
 
 getLetterDistributionForCategory(lot, categoryKey) {

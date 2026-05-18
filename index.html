@@ -1343,7 +1343,6 @@
 
             </div>
             <div class="editor-tab-panel" role="tabpanel" id="editor-tabpanel-notation" hidden aria-labelledby="editor-tab-notation">
-
             <!-- INSPECTION -->
             <!-- Group: Inspection + Notation (grid responsive) -->
             <div class="cards-grid">
@@ -3533,12 +3532,27 @@
 
             <div class="valobois-matrix-controls" id="valoboisMatrixControls"></div>
             <div class="valobois-matrix-thresholds" id="valoboisMatrixThresholds"></div>
+
             <div class="valobois-matrix-table-wrap" id="valoboisMatrixTableWrap"></div>
         </section>
             </div>
             </div>
 
             <div id="editor-modals-root" class="editor-modals-root">
+            <div class="modal-backdrop hidden" id="valoboisDuplicateCriterionModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="valoboisDuplicateCriterionModalTitle">
+                    <header class="modal-header">
+                        <h2 id="valoboisDuplicateCriterionModalTitle" class="text-center">Dupliquer un critère existant</h2>
+                        <button class="modal-close" type="button" id="btnCloseValoboisDuplicateCriterionModal">×</button>
+                    </header>
+                    <div class="modal-body" id="valoboisDuplicateCriterionModalContent"></div>
+                    <footer class="modal-footer">
+                        <button class="btn" type="button" id="btnCancelValoboisDuplicateCriterionModal">Annuler</button>
+                        <button class="btn btn-primary" type="button" id="btnConfirmValoboisDuplicateCriterion">Dupliquer</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale alerte pièces non détaillées -->
             <div class="modal-backdrop hidden" id="alertPiecesModalBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertPiecesModalTitle">
