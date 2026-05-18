@@ -5707,6 +5707,22 @@ class ValoboisApp {
         const baseEntry = this.getValoboisBaseMatrixEntryByRank(rank);
         if (!baseEntry) return null;
 
+        const buildFlowSeed = (flowKind) => {
+            const out = {};
+            ['reemploi', 'reutilisation', 'recyclage', 'combustion'].forEach((orientationKey) => {
+                const flowData = baseEntry[flowKind] && baseEntry[flowKind][orientationKey]
+                    ? baseEntry[flowKind][orientationKey]
+                    : null;
+                const levels = this.getValoboisEffectiveFlowLevels(rank, flowKind, orientationKey, flowData);
+                out[orientationKey] = {
+                    fort: !!levels.fort,
+                    moyen: !!levels.moyen,
+                    faible: !!levels.faible
+                };
+            });
+            return out;
+        };
+
         return this.createValoboisCustomFreeCriterion({
             critere: `${baseEntry.critere || `Critère ${rank}`} (copie)`,
             axeKey: baseEntry.axeKey,
@@ -5715,8 +5731,8 @@ class ValoboisApp {
             criticite: !!baseEntry.criticite,
             alerte: !!baseEntry.alerte,
             scores: JSON.parse(JSON.stringify(baseEntry.scores || {})),
-            vectors: JSON.parse(JSON.stringify(baseEntry.vectors || {})),
-            rejects: JSON.parse(JSON.stringify(baseEntry.rejects || {})),
+            vectors: buildFlowSeed('vectors'),
+            rejects: buildFlowSeed('rejects'),
             notation: JSON.parse(JSON.stringify(baseEntry.notation || {}))
         });
     }
@@ -33190,6 +33206,8 @@ renderMatrice() {
             <div class="valobois-matrix-threshold-actions">
                 <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
                 <button type="button" class="btn" id="valoboisMatrixResetConfig" ${ui.editMode ? '' : 'disabled'}>Réinitialiser la configuration</button>
+                <button type="button" class="btn" id="valoboisMatrixDuplicateExisting" ${ui.editMode ? '' : 'disabled'}>Dupliquer un critère existant</button>
+                <button type="button" class="btn" id="valoboisMatrixAddFreeCriterion" ${ui.editMode ? '' : 'disabled'}>+ Ajouter un critère personnalisé</button>
             </div>
             ${this._valoboisMatrixLastThresholdError ? `<p class="valobois-matrix-threshold-error">${this._valoboisMatrixLastThresholdError}</p>` : ''}
             ${this._valoboisMatrixLastFlowWarning ? `<p class="valobois-matrix-threshold-warning">${this._valoboisMatrixLastFlowWarning}</p>` : ''}
@@ -33368,13 +33386,6 @@ renderMatrice() {
 
     const freeEditorHtml = `
         <div class="valobois-matrix-free-editor">
-            <div class="valobois-matrix-free-editor__head">
-                <h4>Critères personnalisés (libres)</h4>
-                <div class="valobois-matrix-custom-selector-row">
-                    <button type="button" class="btn" id="valoboisMatrixDuplicateExisting" ${ui.editMode ? '' : 'disabled'}>Dupliquer un critère existant</button>
-                    <button type="button" class="btn" id="valoboisMatrixAddFreeCriterion" ${ui.editMode ? '' : 'disabled'}>+ Ajouter un critère personnalisé</button>
-                </div>
-            </div>
             <div class="valobois-matrix-free-editor__table-wrap">
             <table class="valobois-matrix-table valobois-matrix-free-editor__table">
                 <colgroup>

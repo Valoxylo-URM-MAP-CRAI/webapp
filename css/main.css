@@ -16183,9 +16183,11 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-controls {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr);
     gap: 8px;
     align-items: stretch;
+    --valobois-matrix-control-height: 32px;
+    --valobois-matrix-control-font-size: 15px;
 }
 
 .valobois-matrix-controls-col {
@@ -16206,16 +16208,30 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-controls-col--checks .valobois-matrix-control-check {
     width: 100%;
+    min-height: var(--valobois-matrix-control-height);
+    padding: 5px 8px;
+    font-size: var(--valobois-matrix-control-font-size);
 }
 
 .valobois-matrix-controls-col--actions .btn {
     width: 100%;
+    font-size: var(--valobois-matrix-control-font-size);
+    line-height: 1.2;
+    padding: 7px 10px;
+    min-height: var(--valobois-matrix-control-height);
+    max-height: var(--valobois-matrix-control-height);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .valobois-matrix-control-field {
     display: grid;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--valobois-matrix-control-font-size);
     color: #495362;
 }
 
@@ -16225,7 +16241,7 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-control-placeholder {
-    min-height: 32px;
+    min-height: var(--valobois-matrix-control-height);
     border-radius: 8px;
     border: 1px solid transparent;
     background: transparent;
@@ -16234,13 +16250,20 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-control-field select,
 .valobois-matrix-control-field input[type="search"] {
-    min-height: 32px;
+    min-height: var(--valobois-matrix-control-height);
+    max-height: var(--valobois-matrix-control-height);
     border: 1px solid #ced4da;
     border-radius: 8px;
     padding: 6px 8px;
-    font-size: 13px;
+    font-size: var(--valobois-matrix-control-font-size);
     width: 100%;
     min-width: 0;
+}
+
+@media (max-width: 1024px) {
+    .valobois-matrix-controls {
+        --valobois-matrix-control-font-size: 13px;
+    }
 }
 
 .valobois-matrix-control-field--search {
@@ -16327,6 +16350,45 @@ body.day-mode .inspection-ignore-box {
 
 .valobois-matrix-threshold-actions .btn {
     width: 100%;
+    font-size: 12px;
+}
+
+@media (min-width: 769px) {
+    .valobois-matrix-threshold-actions .btn {
+        font-size: 13px;
+    }
+}
+
+@media (min-width: 700px) {
+    .valobois-matrix-threshold-actions {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .valobois-matrix-threshold-actions .btn {
+        font-size: 14px;
+    }
+}
+
+.valobois-matrix-threshold-card.is-inactive .valobois-matrix-threshold-actions .btn {
+    cursor: not-allowed;
+}
+
+.valobois-matrix-custom-selector-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.valobois-matrix-custom-selector-row .btn {
+    font-size: 14px;
+}
+
+/* Mobile: taille de police réduite */
+@media (max-width: 768px) {
+    .valobois-matrix-custom-selector-row .btn {
+        font-size: 12px;
+    }
 }
 
 .valobois-matrix-custom-selector {
@@ -16339,13 +16401,6 @@ body.day-mode .inspection-ignore-box {
     font-size: 12px;
     font-weight: 600;
     color: #344054;
-}
-
-.valobois-matrix-custom-selector-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
 }
 
 .valobois-matrix-criterion-scope-note {
@@ -16829,17 +16884,52 @@ body.day-mode .inspection-ignore-box {
     background: #fff;
     display: grid;
     gap: 10px;
+    --valobois-matrix-free-action-font-size: 15px;
 }
 
 .valobois-matrix-free-editor__head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
     gap: 10px;
 }
 
 .valobois-matrix-free-editor__head h4 {
     margin: 0;
+}
+
+.valobois-matrix-free-editor__actions {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.valobois-matrix-free-editor__actions .btn {
+    width: 100%;
+    min-width: 0;
+    min-height: 32px;
+    font-size: var(--valobois-matrix-free-action-font-size);
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    text-wrap: balance;
+}
+
+.valobois-matrix-free-editor__actions #valoboisMatrixToggleEdit {
+    background: var(--bleu-crai, #1d3d96) !important;
+    color: #fff !important;
+    border: 1px solid transparent !important;
+    opacity: 1 !important;
+    filter: none !important;
+}
+
+.valobois-matrix-free-editor__actions #valoboisMatrixToggleEdit:hover {
+    background: #152d6e !important;
+}
+
+.valobois-matrix-free-editor__actions #valoboisMatrixToggleEdit:disabled {
+    background: var(--bleu-crai, #1d3d96) !important;
+    color: #fff !important;
+    opacity: 1 !important;
+    filter: none !important;
 }
 
 .valobois-matrix-free-editor__table-wrap {
@@ -17093,18 +17183,20 @@ body.day-mode .inspection-ignore-box {
     gap: 8px;
 }
 
-.valobois-matrix-free-editor__actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-}
-
 .valobois-matrix-cell-empty,
 .valobois-matrix-empty {
     color: #98a2b3;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
+    .valobois-matrix-free-editor__actions {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .valobois-matrix-free-editor {
+        --valobois-matrix-free-action-font-size: 13px;
+    }
+
     .orientation-position-bar {
         --orientation-chart-horizontal-pad: 2px;
     }
@@ -17211,7 +17303,7 @@ body.day-mode .inspection-ignore-box {
     }
     .valobois-matrix-controls {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr);
     }
 
     .valobois-matrix-control-field--search {
@@ -17223,8 +17315,8 @@ body.day-mode .inspection-ignore-box {
         grid-column: auto;
     }
 
-    .valobois-matrix-threshold-actions {
-        grid-template-columns: 1fr;
+    .valobois-matrix-controls-col--actions .btn {
+        padding: 6px 8px;
     }
 
     .valobois-matrix-table {
@@ -17244,6 +17336,20 @@ body.day-mode .inspection-ignore-box {
 }
 
 @media (max-width: 700px) {
+    .valobois-matrix-free-editor__actions {
+        grid-template-columns: 1fr;
+    }
+
+    .valobois-matrix-free-editor {
+        --valobois-matrix-free-action-font-size: 11px;
+    }
+}
+
+@media (max-width: 700px) {
+    .valobois-matrix-controls {
+        --valobois-matrix-control-font-size: 11px;
+    }
+
     .valobois-matrix-table {
         min-width: 760px;
     }
