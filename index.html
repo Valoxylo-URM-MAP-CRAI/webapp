@@ -3508,7 +3508,7 @@
                 </div>
             </div>
             <div class="evalop-gauge-wrap" data-eval-gauge-wrap>
-                <div class="evalop-gauge-title">Répartition de l'orientation</div>
+                <div class="evalop-gauge-title">Répartition de l'orientation en volume</div>
                 <div class="evalop-gauge-track" data-eval-gauge role="img" aria-label="Répartition des orientations par volume"></div>
                 <div class="evalop-gauge-legend" data-eval-gauge-legend aria-live="polite"></div>
             </div>
@@ -4979,6 +4979,57 @@
                             <button class="btn btn-primary btn-full" type="button" id="btnCloseValoboisMatrixDetailModalFooter">
                                 J’ai compris
                             </button>
+                        </footer>
+                    </div>
+                </div>
+
+                <div class="modal-backdrop hidden" id="valoboisCustomNotationEditModalBackdrop" aria-hidden="true">
+                    <div class="modal modal--notation-edit" role="dialog" aria-modal="true" aria-labelledby="valoboisCustomNotationEditModalTitle">
+                        <header class="modal-header">
+                            <h2 id="valoboisCustomNotationEditModalTitle" class="text-center">Fiche de notation</h2>
+                            <button class="modal-close" type="button" id="btnCloseValoboisCustomNotationEditModal">×</button>
+                        </header>
+                        <div class="modal-body custom-notation-edit-body">
+                            <input type="hidden" id="valoboisCustomNotationEditCriterionId">
+                            <div class="custom-notation-edit-form">
+                                <div class="custom-notation-edit-form__row">
+                                    <label class="custom-notation-edit-form__label" for="valoboisCustomNotationEditTitle">Titre de la fiche</label>
+                                    <input type="text" id="valoboisCustomNotationEditTitle" class="custom-notation-edit-form__input" placeholder="Ex : Expansion">
+                                </div>
+                                <div class="custom-notation-edit-form__row">
+                                    <label class="custom-notation-edit-form__label" for="valoboisCustomNotationEditIntro">Introduction <span class="custom-notation-edit-form__opt">(optionnel)</span></label>
+                                    <textarea id="valoboisCustomNotationEditIntro" class="custom-notation-edit-form__textarea" rows="2" placeholder="Texte d'introduction…"></textarea>
+                                </div>
+                                <div class="custom-notation-edit-form__level">
+                                    <div class="custom-notation-edit-form__level-header">
+                                        <input type="text" id="valoboisCustomNotationEditLabelFort" class="custom-notation-edit-form__pill-input detail-modal-scale-pill detail-modal-scale-pill--forte" value="forte" aria-label="Libellé fort">
+                                        <span class="custom-notation-edit-form__score" id="valoboisCustomNotationEditScoreFort"></span>
+                                    </div>
+                                    <textarea id="valoboisCustomNotationEditFort" class="custom-notation-edit-form__textarea" rows="2" placeholder="Description du niveau fort…"></textarea>
+                                </div>
+                                <div class="custom-notation-edit-form__level">
+                                    <div class="custom-notation-edit-form__level-header">
+                                        <input type="text" id="valoboisCustomNotationEditLabelMoyen" class="custom-notation-edit-form__pill-input detail-modal-scale-pill detail-modal-scale-pill--moyenne" value="moyenne" aria-label="Libellé moyen">
+                                        <span class="custom-notation-edit-form__score" id="valoboisCustomNotationEditScoreMoyen"></span>
+                                    </div>
+                                    <textarea id="valoboisCustomNotationEditMoyen" class="custom-notation-edit-form__textarea" rows="2" placeholder="Description du niveau moyen…"></textarea>
+                                </div>
+                                <div class="custom-notation-edit-form__level">
+                                    <div class="custom-notation-edit-form__level-header">
+                                        <input type="text" id="valoboisCustomNotationEditLabelFaible" class="custom-notation-edit-form__pill-input detail-modal-scale-pill detail-modal-scale-pill--faible" value="faible" aria-label="Libellé faible">
+                                        <span class="custom-notation-edit-form__score" id="valoboisCustomNotationEditScoreFaible"></span>
+                                    </div>
+                                    <textarea id="valoboisCustomNotationEditFaible" class="custom-notation-edit-form__textarea" rows="2" placeholder="Description du niveau faible…"></textarea>
+                                </div>
+                                <div class="custom-notation-edit-form__row">
+                                    <label class="custom-notation-edit-form__label" for="valoboisCustomNotationEditReferences">Références <span class="custom-notation-edit-form__opt">(optionnel)</span></label>
+                                    <textarea id="valoboisCustomNotationEditReferences" class="custom-notation-edit-form__textarea" rows="2" placeholder="Références bibliographiques, normes…"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <footer class="modal-footer modal-footer--notation-edit">
+                            <button class="btn btn-secondary" type="button" id="btnCancelValoboisCustomNotationEdit">Fermer</button>
+                            <button class="btn btn-primary" type="button" id="btnSaveValoboisCustomNotationEdit">Enregistrer</button>
                         </footer>
                     </div>
                 </div>

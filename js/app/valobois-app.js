@@ -5516,7 +5516,7 @@ class ValoboisApp {
             },
             vectors: {},
             rejects: {},
-            notation: { title: '', message: '' }
+            notation: { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' } }
         };
     }
 
@@ -5551,7 +5551,20 @@ class ValoboisApp {
             alerte: typeof source.alerte === 'boolean' ? source.alerte : defaults.alerte,
             notation: {
                 title: String(source.notation?.title ?? source.notationTitle ?? defaults.notation.title).trim(),
-                message: String(source.notation?.message ?? source.notationMessage ?? defaults.notation.message).trim()
+                message: String(source.notation?.message ?? source.notationMessage ?? defaults.notation.message).trim(),
+                fields: {
+                    intro: String(source.notation?.fields?.intro ?? defaults.notation.fields.intro).trim(),
+                    grammaticalGender: String(source.notation?.fields?.grammaticalGender ?? defaults.notation.fields.grammaticalGender).trim() || defaults.notation.fields.grammaticalGender,
+                    grammaticalNumber: String(source.notation?.fields?.grammaticalNumber ?? defaults.notation.fields.grammaticalNumber).trim() || defaults.notation.fields.grammaticalNumber,
+                    article: String(source.notation?.fields?.article ?? defaults.notation.fields.article).trim() || defaults.notation.fields.article,
+                    labelFort: String(source.notation?.fields?.labelFort ?? defaults.notation.fields.labelFort).trim() || defaults.notation.fields.labelFort,
+                    labelMoyen: String(source.notation?.fields?.labelMoyen ?? defaults.notation.fields.labelMoyen).trim() || defaults.notation.fields.labelMoyen,
+                    labelFaible: String(source.notation?.fields?.labelFaible ?? defaults.notation.fields.labelFaible).trim() || defaults.notation.fields.labelFaible,
+                    fort: String(source.notation?.fields?.fort ?? defaults.notation.fields.fort).trim(),
+                    moyen: String(source.notation?.fields?.moyen ?? defaults.notation.fields.moyen).trim(),
+                    faible: String(source.notation?.fields?.faible ?? defaults.notation.fields.faible).trim(),
+                    references: String(source.notation?.fields?.references ?? defaults.notation.fields.references).trim()
+                }
             }
         };
 
@@ -5578,6 +5591,45 @@ class ValoboisApp {
         next.vectors = this.normalizeValoboisCriterionFlowBlock(source.vectors, defaults.vectors);
         next.rejects = this.normalizeValoboisCriterionFlowBlock(source.rejects, defaults.rejects);
         return next;
+    }
+
+    buildNotationMessageFromFields(criterion) {
+        if (!criterion) return '';
+        const fields = criterion.notation?.fields || {};
+        const critere = String(criterion.critere || 'critère').trim();
+        const scores = criterion.scores || {};
+        const toLabel = (value, fallback) => {
+            const raw = String(value || '').trim() || fallback;
+            if (!raw) return '';
+            return raw.charAt(0).toUpperCase() + raw.slice(1);
+        };
+        const toArticle = () => {
+            const explicit = String(fields.article || '').trim();
+            if (explicit) return explicit;
+            const source = String(criterion.notation?.title || critere || '').trim().toLowerCase();
+            const normalized = source.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const masculinePrefixes = ['amortissement', 'vieillissement', 'debit', 'transport', 'feu', 'aspect', 'classement', 'etiquetage', 'reemploi', 'recyclage'];
+            return masculinePrefixes.some((prefix) => normalized.startsWith(prefix)) ? 'Un' : 'Une';
+        };
+        const formatScore = (val) => {
+            const n = Number(val);
+            if (!Number.isFinite(n)) return '[0]';
+            return n > 0 ? `[+${n}]` : `[${n}]`;
+        };
+        const scoreFort = formatScore(scores.fort?.value);
+        const scoreMoyen = formatScore(scores.moyen?.value);
+        const scoreFaible = formatScore(scores.faible?.value);
+        const article = toArticle();
+        const labelFort = toLabel(fields.labelFort, 'Forte');
+        const labelMoyen = toLabel(fields.labelMoyen, 'Moyenne');
+        const labelFaible = toLabel(fields.labelFaible, 'Faible');
+        const lines = [];
+        if (fields.intro) lines.push(fields.intro.trim(), '');
+        lines.push(`${article} ${critere} ${labelFort} ${scoreFort}${fields.fort ? '. ' + fields.fort.trim() : '.'}`);
+        lines.push(`${article} ${critere} ${labelMoyen} ${scoreMoyen}${fields.moyen ? '. ' + fields.moyen.trim() : '.'}`);
+        lines.push(`${article} ${critere} ${labelFaible} ${scoreFaible}${fields.faible ? '. ' + fields.faible.trim() : '.'}`);
+        if (fields.references) lines.push('', fields.references.trim());
+        return lines.join('\n').trim();
     }
 
     normalizeValoboisCustomFreeCriteria(raw) {
@@ -30835,8 +30887,18 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
         `;
     }
 
-    const SCORE_MIN = -76;
-    const SCORE_MAX = 126;
+    // Bornes dynamiques (prennent en compte les critères personnalisés)
+    const displayBounds = this.getValoboisOrientationDisplayBounds(mode);
+    let SCORE_MIN = -76;
+    let SCORE_MAX = 126;
+    for (const lot of lots) {
+        const s = this.getRadarOrientationPositionData(lot, mode);
+        if (s && s.hasScore) {
+            SCORE_MIN = Math.min(-1, Math.round(Number(s.negativeScoreMin) || -76));
+            SCORE_MAX = Math.max(1, Math.round(Number(s.positiveScoreMax) || 126));
+            break;
+        }
+    }
     const RANGE = SCORE_MAX - SCORE_MIN || 1;
     const toPctNumber = (v) => ((v - SCORE_MIN) / RANGE * 100);
     const toPct = (v) => `${Math.max(0, Math.min(100, toPctNumber(v))).toFixed(3)}%`;
@@ -30846,11 +30908,12 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
         return n > 0 ? `+${n.toFixed(0)}` : `${n.toFixed(0)}`;
     };
 
+    const gateThreshold = displayBounds.gateThreshold;
     const scaleMarkers = [
-        { value: SCORE_MIN, label: '-76', edge: 'start', key: 'min' },
-        { value: -10, label: '-10', key: 'minus10' },
+        { value: SCORE_MIN, label: String(SCORE_MIN), edge: 'start', key: 'min' },
+        { value: gateThreshold, label: String(gateThreshold), key: 'minus10' },
         { value: 0, label: '0', key: 'zero' },
-        { value: SCORE_MAX, label: '+126', edge: 'end', key: 'max' }
+        { value: SCORE_MAX, label: `+${SCORE_MAX}`, edge: 'end', key: 'max' }
     ];
 
     const laneDefs = [
@@ -30859,8 +30922,8 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
             label: 'Réemploi',
             color: '#009E73',
             segments: [
-                { start: -21, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
-                { start: 29, end: 126, color: '#53a57a', roundLeft: true, roundRight: true }
+                { start: displayBounds.negative.reemploi, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
+                { start: displayBounds.reemploiPositiveMin, end: SCORE_MAX, color: '#53a57a', roundLeft: true, roundRight: true }
             ]
         },
         {
@@ -30868,7 +30931,7 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
             label: 'Réutilisation',
             color: '#56B4E9',
             segments: [
-                { start: -42, end: 122, color: '#56B4E9', roundLeft: true, roundRight: true }
+                { start: displayBounds.negative.reutilisation, end: SCORE_MAX, color: '#56B4E9', roundLeft: true, roundRight: true }
             ]
         },
         {
@@ -30876,7 +30939,7 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
             label: 'Recyclage',
             color: '#E69F00',
             segments: [
-                { start: -37, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
+                { start: displayBounds.negative.recyclage, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
             ]
         },
         {
@@ -30884,7 +30947,7 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
             label: 'Combustion',
             color: '#d95f0e',
             segments: [
-                { start: -76, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
+                { start: SCORE_MIN, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
             ]
         }
     ];
@@ -30949,7 +31012,9 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
         const net = Number(decomposition.netNoConfidence) || 0;
         const hasNegative = negativeAbs > 0.01;
         const lotScore = hasNegative ? net : positive;
-        const laneKey = normalizeOrientationKey(lot);
+        const laneKey = (state.currentOrientation && laneDefs.some((l) => l.key === state.currentOrientation))
+            ? state.currentOrientation
+            : normalizeOrientationKey(lot);
         const lotNameRaw = String((lot && (lot.nomLot || lot.nom)) || '').trim();
         const lotLabel = lotNameRaw || `Lot ${index + 1}`;
         const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
@@ -31226,6 +31291,33 @@ initOrientationLaneInfoTooltips(host) {
         hideTimer = setTimeout(removeTooltip, 150);
     };
 
+    const _normalizeToken = (value) => String(value || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+    const _masculinePrefixes = ['amortissement', 'vieillissement', 'debit', 'transport', 'feu', 'aspect', 'classement', 'etiquetage', 'reemploi', 'recyclage'];
+    const _femininePrefixes = [
+        'exposition', 'expansion', 'integrite', 'humidite', 'purge', 'inclusivite', 'demontabilite',
+        'naturalite', 'stabilite', 'depollution', 'micro-histoire', 'durabilite', 'contamination',
+        'singularite', 'rarete', 'artisanalite', 'rusticite', 'adaptabilite', 'massivite',
+        'deformation', 'industrialite', 'volumetrie', 'regularite'
+    ];
+    const _getCriterionGender = (critere) => {
+        const norm = _normalizeToken(critere);
+        if (_masculinePrefixes.some((p) => norm.startsWith(p))) return 'm';
+        if (_femininePrefixes.some((p) => norm.startsWith(p))) return 'f';
+        return 'f';
+    };
+    const _getLevelLabel = (levelKey, critere) => {
+        const norm = _normalizeToken(levelKey);
+        if (norm.includes('faib')) return 'faible';
+        const gender = _getCriterionGender(critere);
+        if (norm.includes('fort')) return gender === 'f' ? 'forte' : 'fort';
+        if (norm.includes('moy')) return gender === 'f' ? 'moyenne' : 'moyen';
+        return String(levelKey || '').toLowerCase();
+    };
+
     const positionTooltip = (tooltip, anchorRect) => {
         const margin = 8;
         tooltip.style.visibility = 'hidden';
@@ -31297,7 +31389,7 @@ initOrientationLaneInfoTooltips(host) {
                         const li = document.createElement('li');
                         li.className = 'lane-info-tooltip-contributor';
                         const nameSpan = document.createElement('span');
-                        nameSpan.textContent = `${c.critere}${c.levelKey ? ` (${c.levelKey})` : ''}`;
+                        nameSpan.textContent = `${c.critere}${c.levelKey ? ` (${_getLevelLabel(c.levelKey, c.critere)})` : ''}`;
                         const valSpan = document.createElement('span');
                         const sign = c.contribution > 0 ? '+' : '';
                         valSpan.textContent = `${sign}${Math.round(c.contribution)}`;
@@ -31945,6 +32037,122 @@ closeValoboisMatrixDetailModal() {
     if (!backdrop) return;
     backdrop.classList.add('hidden');
     backdrop.setAttribute('aria-hidden', 'true');
+}
+
+ensureCustomNotationEditModalBindings() {
+    if (this._customNotationEditModalBindingsReady) return;
+    const backdrop = document.getElementById('valoboisCustomNotationEditModalBackdrop');
+    const closeBtn = document.getElementById('btnCloseValoboisCustomNotationEditModal');
+    const cancelBtn = document.getElementById('btnCancelValoboisCustomNotationEdit');
+    const saveBtn = document.getElementById('btnSaveValoboisCustomNotationEdit');
+    if (!backdrop || !closeBtn || !cancelBtn || !saveBtn) return;
+    const close = () => this.closeValoboisCustomNotationEditModal();
+    closeBtn.addEventListener('click', close);
+    cancelBtn.addEventListener('click', close);
+    saveBtn.addEventListener('click', () => this.saveValoboisCustomNotationEdit());
+    backdrop.addEventListener('click', (event) => {
+        if (event.target === backdrop) close();
+    });
+    const capitalizeLabelInput = (event) => {
+        const input = event && event.target;
+        if (!input) return;
+        const raw = String(input.value || '').trimStart();
+        if (!raw) {
+            input.value = '';
+            return;
+        }
+        input.value = raw.charAt(0).toUpperCase() + raw.slice(1);
+    };
+    ['valoboisCustomNotationEditLabelFort', 'valoboisCustomNotationEditLabelMoyen', 'valoboisCustomNotationEditLabelFaible'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('blur', capitalizeLabelInput);
+    });
+    this._customNotationEditModalBindingsReady = true;
+}
+
+openValoboisCustomNotationEditModal(criterionId) {
+    this.ensureCustomNotationEditModalBindings();
+    const backdrop = document.getElementById('valoboisCustomNotationEditModalBackdrop');
+    const idInput = document.getElementById('valoboisCustomNotationEditCriterionId');
+    const titleInput = document.getElementById('valoboisCustomNotationEditTitle');
+    const introInput = document.getElementById('valoboisCustomNotationEditIntro');
+    const fortInput = document.getElementById('valoboisCustomNotationEditFort');
+    const moyenInput = document.getElementById('valoboisCustomNotationEditMoyen');
+    const faibleInput = document.getElementById('valoboisCustomNotationEditFaible');
+    const referencesInput = document.getElementById('valoboisCustomNotationEditReferences');
+    const labelFortInput = document.getElementById('valoboisCustomNotationEditLabelFort');
+    const labelMoyenInput = document.getElementById('valoboisCustomNotationEditLabelMoyen');
+    const labelFaibleInput = document.getElementById('valoboisCustomNotationEditLabelFaible');
+    const scoreFortEl = document.getElementById('valoboisCustomNotationEditScoreFort');
+    const scoreMoyenEl = document.getElementById('valoboisCustomNotationEditScoreMoyen');
+    const scoreFaibleEl = document.getElementById('valoboisCustomNotationEditScoreFaible');
+    if (!backdrop || !idInput) return false;
+    const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+    if (!criterion) return false;
+    const fields = criterion.notation?.fields || {};
+    const formatScore = (val) => { const n = Number(val); return Number.isFinite(n) && n > 0 ? `+${n}` : `${Number.isFinite(Number(val)) ? Number(val) : 0}`; };
+    idInput.value = criterionId;
+    if (titleInput) titleInput.value = criterion.notation?.title || '';
+    if (introInput) introInput.value = fields.intro || '';
+    if (fortInput) fortInput.value = fields.fort || '';
+    if (moyenInput) moyenInput.value = fields.moyen || '';
+    if (faibleInput) faibleInput.value = fields.faible || '';
+    if (referencesInput) referencesInput.value = fields.references || '';
+    if (labelFortInput) labelFortInput.value = String(fields.labelFort || 'Forte').replace(/^./, (c) => c.toUpperCase());
+    if (labelMoyenInput) labelMoyenInput.value = String(fields.labelMoyen || 'Moyenne').replace(/^./, (c) => c.toUpperCase());
+    if (labelFaibleInput) labelFaibleInput.value = String(fields.labelFaible || 'Faible').replace(/^./, (c) => c.toUpperCase());
+    if (scoreFortEl) scoreFortEl.textContent = `[${formatScore(criterion.scores?.fort?.value)}]`;
+    if (scoreMoyenEl) scoreMoyenEl.textContent = `[${formatScore(criterion.scores?.moyen?.value)}]`;
+    if (scoreFaibleEl) scoreFaibleEl.textContent = `[${formatScore(criterion.scores?.faible?.value)}]`;
+    backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden', 'false');
+    if (titleInput) titleInput.focus();
+    return true;
+}
+
+closeValoboisCustomNotationEditModal() {
+    const backdrop = document.getElementById('valoboisCustomNotationEditModalBackdrop');
+    if (!backdrop) return;
+    backdrop.classList.add('hidden');
+    backdrop.setAttribute('aria-hidden', 'true');
+}
+
+saveValoboisCustomNotationEdit() {
+    const idInput = document.getElementById('valoboisCustomNotationEditCriterionId');
+    if (!idInput) return;
+    const criterionId = idInput.value.trim();
+    if (!criterionId) return;
+    const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const criteria = Array.isArray(config.customFreeCriteria) ? config.customFreeCriteria : [];
+    const criterion = criteria.find((c) => String(c && c.id || '') === criterionId);
+    if (!criterion) return;
+    if (!criterion.notation || typeof criterion.notation !== 'object') {
+        criterion.notation = { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' } };
+    }
+    if (!criterion.notation.fields || typeof criterion.notation.fields !== 'object') {
+        criterion.notation.fields = { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' };
+    }
+    const g = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+    const labelValue = (id, fallback) => {
+        const value = g(id);
+        if (!value) return fallback;
+        return value.charAt(0).toUpperCase() + value.slice(1);
+    };
+    criterion.notation.title = g('valoboisCustomNotationEditTitle');
+    criterion.notation.fields.intro = g('valoboisCustomNotationEditIntro');
+    criterion.notation.fields.labelFort = labelValue('valoboisCustomNotationEditLabelFort', 'Forte');
+    criterion.notation.fields.labelMoyen = labelValue('valoboisCustomNotationEditLabelMoyen', 'Moyenne');
+    criterion.notation.fields.labelFaible = labelValue('valoboisCustomNotationEditLabelFaible', 'Faible');
+    criterion.notation.fields.fort = g('valoboisCustomNotationEditFort');
+    criterion.notation.fields.moyen = g('valoboisCustomNotationEditMoyen');
+    criterion.notation.fields.faible = g('valoboisCustomNotationEditFaible');
+    criterion.notation.fields.references = g('valoboisCustomNotationEditReferences');
+    criterion.notation.message = this.buildNotationMessageFromFields(criterion);
+    this.valoboisMatrixConfig = config;
+    this.saveValoboisMatrixConfig();
+    this.renderMatrice();
+    this.closeValoboisCustomNotationEditModal();
 }
 
 buildValoboisMatrixGenericIntegriteBioAlertModalMessage() {
@@ -33487,13 +33695,13 @@ renderMatrice() {
     const duplicationSources = this.getValoboisCriterionDuplicationOptions();
 
     thresholdsEl.innerHTML = `
+        <div class="valobois-matrix-threshold-actions">
+            <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
+            <button type="button" class="btn" id="valoboisMatrixResetConfig" ${ui.editMode ? '' : 'disabled'}>Réinitialiser la configuration</button>
+            <button type="button" class="btn" id="valoboisMatrixDuplicateExisting" ${ui.editMode ? '' : 'disabled'}>Dupliquer un critère existant</button>
+            <button type="button" class="btn" id="valoboisMatrixAddFreeCriterion" ${ui.editMode ? '' : 'disabled'}>+ Ajouter un critère personnalisé</button>
+        </div>
         <div class="valobois-matrix-threshold-card ${ui.editMode ? 'is-active' : 'is-inactive'}">
-            <div class="valobois-matrix-threshold-actions">
-                <button type="button" class="btn ${ui.editMode ? 'btn-primary' : ''}" id="valoboisMatrixToggleEdit">${ui.editMode ? 'Quitter la personnalisation' : 'Personnaliser la matrice'}</button>
-                <button type="button" class="btn" id="valoboisMatrixResetConfig" ${ui.editMode ? '' : 'disabled'}>Réinitialiser la configuration</button>
-                <button type="button" class="btn" id="valoboisMatrixDuplicateExisting" ${ui.editMode ? '' : 'disabled'}>Dupliquer un critère existant</button>
-                <button type="button" class="btn" id="valoboisMatrixAddFreeCriterion" ${ui.editMode ? '' : 'disabled'}>+ Ajouter un critère personnalisé</button>
-            </div>
             ${this._valoboisMatrixLastThresholdError ? `<p class="valobois-matrix-threshold-error">${this._valoboisMatrixLastThresholdError}</p>` : ''}
             ${this._valoboisMatrixLastFlowWarning ? `<p class="valobois-matrix-threshold-warning">${this._valoboisMatrixLastFlowWarning}</p>` : ''}
             <div id="valoboisMatrixFreeEditorWrap"></div>
@@ -33664,7 +33872,7 @@ renderMatrice() {
                 ${buildScoreCells('moyen')}
                 ${buildScoreCells('faible')}
                 ${ui.showVectors ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.vectors[key], key, orientationMeta[key], entry.rang, 'vectors', false)}</div></td>`).join('') : ''}
-                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.rejects[key], key, orientationMeta[key], entry.rang, 'rejects', false)}</div></td>`).join('') : ''}
+                ${ui.showRejects ? Object.keys(orientationMeta).map((key) => `<td class="valobois-matrix-vector-cell valobois-matrix-reject-cell"><div class="valobois-matrix-vector-inner">${buildOrientationCheckbox(entry.rejects[key], key, orientationMeta[key], entry.rang, 'rejects', false)}</div></td>`).join('') : ''}
             </tr>
         `;
     }).join('');
@@ -33734,7 +33942,7 @@ renderMatrice() {
                 const flowBlock = criterion[flowKind] && criterion[flowKind][orientationKey] ? criterion[flowKind][orientationKey] : {};
                 const orientationColor = orientationMeta[orientationKey] ? orientationMeta[orientationKey].color : '#1d3d96';
                 const levelLabels = { fort: 'Forte', moyen: 'Moyenne', faible: 'Faible' };
-                return `<td class="valobois-matrix-vector-cell"><div class="valobois-matrix-vector-inner">
+                return `<td class="valobois-matrix-vector-cell${flowKind === 'rejects' ? ' valobois-matrix-reject-cell' : ''}"><div class="valobois-matrix-vector-inner">
                     ${['fort', 'moyen', 'faible'].map((levelKey) => {
         const checked = !!flowBlock[levelKey];
         const rowClass = checked ? 'valobois-matrix-checkbox-row is-checked' : 'valobois-matrix-checkbox-row';
@@ -33816,7 +34024,12 @@ renderMatrice() {
                     <td class="valobois-matrix-col-family valobois-matrix-free-editor__cell-family">
                         <textarea class="valobois-matrix-free-editor__input valobois-matrix-free-editor__input--multiline" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="famille" ${ui.editMode ? '' : 'disabled'} placeholder="Critères custom" rows="2">${this.escapeHtml(criterion.famille || 'Critères custom')}</textarea>
                     </td>
-                    <td class="valobois-matrix-col-notation">—</td>
+                    <td class="valobois-matrix-col-notation">${(() => {
+                        const hasNotation = !!(criterion.notation?.title || criterion.notation?.message || criterion.notation?.fields?.fort || criterion.notation?.fields?.moyen || criterion.notation?.fields?.faible);
+                        const badgeExtraClass = hasNotation ? 'valobois-matrix-badge--notation' : 'valobois-matrix-badge--notation valobois-matrix-badge--notation-empty';
+                        const label = hasNotation ? 'Info' : 'Notation';
+                        return `<button type="button" class="valobois-matrix-badge ${badgeExtraClass} valobois-matrix-badge--interactive" data-valobois-custom-notation-id="${criterionId}" aria-label="Fiche de notation">${label}</button>`;
+                    })()}</td>
                     <td class="valobois-matrix-col-gate"><input type="checkbox" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="criticite" ${criterion.criticite ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}></td>
                     <td class="valobois-matrix-col-alert">—</td>
                     ${buildScoreCells('fort')}
@@ -34129,6 +34342,21 @@ renderMatrice() {
             const isChecked = String(button.getAttribute('data-valobois-custom-free-flow-checked') || '0') === '1';
             if (!criterionId || !fieldPath) return;
             this.updateValoboisCustomFreeCriterionField(criterionId, fieldPath, !isChecked);
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-notation-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const criterionId = String(btn.getAttribute('data-valobois-custom-notation-id') || '').trim();
+            if (!criterionId) return;
+            if (ui.editMode) {
+                this.openValoboisCustomNotationEditModal(criterionId);
+            } else {
+                const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+                const title = criterion?.notation?.title || criterion?.critere || 'Notation';
+                const message = criterion?.notation?.message || '';
+                this.openValoboisMatrixDetailModal(title, message || 'À renseigner');
+            }
         });
     });
 }
