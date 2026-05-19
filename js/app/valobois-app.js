@@ -4028,6 +4028,7 @@ class ValoboisApp {
         exported.meta.geoFrance = this.getDefaultGeoFrance(exported.meta.geoFrance || {});
         exported.meta.geoFrance.conditionClimatiqueHumidification = this.getGeoFranceClimateExportData(exported.meta.geoFrance);
         exported.meta.geoFrance.ventPluieDominant = this.getGeoFranceWindExportData(exported.meta.geoFrance);
+        exported.valoboisMatrixConfig = JSON.parse(JSON.stringify(this.valoboisMatrixConfig));
         return exported;
     }
 
@@ -5642,6 +5643,7 @@ class ValoboisApp {
         this.saveValoboisMatrixConfig();
         this.computeOrientation(this.getCurrentLot());
         this.renderMatrice();
+        this.renderCustomFreeCriteria();
         return nextEntry;
     }
 
@@ -5669,6 +5671,7 @@ class ValoboisApp {
         this.saveValoboisMatrixConfig();
         this.computeOrientation(this.getCurrentLot());
         this.renderMatrice();
+        this.renderCustomFreeCriteria();
         return nextEntry;
     }
 
@@ -5916,6 +5919,8 @@ class ValoboisApp {
         this.saveValoboisMatrixConfig();
         this.computeOrientation(this.getCurrentLot());
         this.renderMatrice();
+        this.renderSeuils();
+        this.renderCustomFreeCriteria();
         return true;
     }
 
@@ -23582,6 +23587,7 @@ closeEvalOpModal() {
                 slider.__refreshActiveSliderLabel();
             }
         });
+        this.renderCustomFreeCriteria();
     }
 
     renderAccueilMeta() {
@@ -29784,6 +29790,17 @@ renderProvenance() {
     });
 }
 
+    renderCustomFreeCriteria() {
+        const panel = document.getElementById('editor-tabpanel-notation');
+        if (!panel || panel.hasAttribute('hidden')) return;
+        const hook = typeof window !== 'undefined'
+            && window.ValoboisEditorTabPanels
+            && window.ValoboisEditorTabPanels.notation;
+        if (typeof hook === 'function') {
+            try { hook(); } catch (e) { console.warn('renderCustomFreeCriteria', e); }
+        }
+    }
+
     /* ---- Calculs valeurs + Seuils ---- */
 
 getValoboisScoreMappings() {
@@ -30019,18 +30036,23 @@ getValueScoreRangesForLot(_lot, mode = null) {
         const category = this.getValoboisCategoryFromAxeKey(criterion.axeKey);
         const categoryRange = ranges[category];
         if (!categoryRange) return;
-        const scoreValue = Number(criterion && criterion.scores && criterion.scores[activeMode] && criterion.scores[activeMode].value);
-        if (!Number.isFinite(scoreValue)) return;
+        const levelValues = ['fort', 'moyen', 'faible']
+            .map((level) => Number(criterion && criterion.scores && criterion.scores[level] && criterion.scores[level].value))
+            .filter((v) => Number.isFinite(v));
+        if (!levelValues.length) return;
+        const minValue = Math.min(...levelValues);
+        const maxValue = Math.max(...levelValues);
         categoryRange.count += 1;
-        categoryRange.min += Math.min(0, scoreValue);
-        categoryRange.max += Math.max(0, scoreValue);
+        categoryRange.min += Math.min(0, minValue);
+        categoryRange.max += Math.max(0, maxValue);
     });
 
     Object.keys(ranges).forEach((categoryKey) => {
         const range = ranges[categoryKey];
         const fallbackMax = range.count > 0 ? range.count * 3 : 30;
         range.min = Math.min(0, range.min);
-        range.max = Math.max(1, range.max, fallbackMax);
+        // Utiliser le fallback seulement si aucun score positif n'a été calculé
+        range.max = range.max > 0 ? range.max : Math.max(1, fallbackMax);
         delete range.count;
     });
 
@@ -30070,20 +30092,32 @@ getRadarOrientationPositionData(lot, mode = null) {
     const activeMappings = activeModeMappings
         .filter((mapping) => this.hasValoboisCriterionValue(lot, mapping));
     const isConfidenceField = (field) => typeof field === 'string' && field.startsWith('confiance');
+    // Altération (alterationTraces) : score -10 non-cumulable → exclu de la borne min
+    const isNonCumulativeNegativeField = (field) => field === 'alterationTraces';
 
     const nonConfidenceMappings = activeModeMappings.filter((mapping) => !isConfidenceField(mapping.field));
-    const positiveScoreMaxNoConfidence = nonConfidenceMappings.reduce((sum, mapping) => {
+    const nonCumulativeMinMappings = nonConfidenceMappings.filter((mapping) => !isNonCumulativeNegativeField(mapping.field));
+    let positiveScoreMaxNoConfidence = nonConfidenceMappings.reduce((sum, mapping) => {
         const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
         if (!Array.isArray(steps) || !steps.length) return sum;
         const maxStep = Math.max(...steps.map((v) => Number(v)).filter((v) => Number.isFinite(v)));
         return sum + (Number.isFinite(maxStep) ? Math.max(0, maxStep) : 0);
     }, 0);
-    const negativeScoreMinNoConfidence = nonConfidenceMappings.reduce((sum, mapping) => {
+    let negativeScoreMinNoConfidence = nonCumulativeMinMappings.reduce((sum, mapping) => {
         const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
         if (!Array.isArray(steps) || !steps.length) return sum;
         const minStep = Math.min(...steps.map((v) => Number(v)).filter((v) => Number.isFinite(v)));
         return sum + (Number.isFinite(minStep) ? Math.min(0, minStep) : 0);
     }, 0);
+    // Inclure les critères perso dans l'échelle radar
+    this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+        const levels = ['fort', 'moyen', 'faible']
+            .map((lk) => Number(criterion && criterion.scores && criterion.scores[lk] && criterion.scores[lk].value))
+            .filter((v) => Number.isFinite(v));
+        if (!levels.length) return;
+        positiveScoreMaxNoConfidence += Math.max(0, Math.max(...levels));
+        negativeScoreMinNoConfidence += Math.min(0, Math.min(...levels));
+    });
 
     const axisMin = Math.min(0, negativeScoreMinNoConfidence);
     const axisMax = Math.max(1, positiveScoreMaxNoConfidence);
@@ -30118,6 +30152,41 @@ getRadarOrientationPositionData(lot, mode = null) {
             negativeNoConfidenceAbs += Math.abs(score);
             negativeNoConfidenceItems.push(payload);
         }
+    });
+
+    /* Include custom free criteria in notation table */
+    const activeCustom = this.getValoboisActiveCustomFreeCriteria(activeMode);
+    let nextRang = 51;
+    activeCustom.forEach((criterion) => {
+        const criterionId = String(criterion && criterion.id || '').trim();
+        if (!criterionId) return;
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (!Number.isFinite(score)) return;
+        
+        const criterionLabel = criterion.critere || criterion.axe || 'Critère personnalisé';
+        const levelKey = (score === (criterion.scores && criterion.scores.fort ? criterion.scores.fort.value : 1))
+            ? 'fort'
+            : (score === (criterion.scores && criterion.scores.faible ? criterion.scores.faible.value : 1))
+            ? 'faible'
+            : 'moyen';
+        
+        const payload = {
+            rang: nextRang,
+            critere: criterionLabel,
+            score,
+            levelKey,
+            noteLetter: this.getValoboisFixedLetterForScore(score)
+        };
+        
+        if (score >= 0) {
+            positiveNoConfidence += score;
+            positiveNoConfidenceItems.push(payload);
+        } else {
+            negativeNoConfidenceAbs += Math.abs(score);
+            negativeNoConfidenceItems.push(payload);
+        }
+        
+        nextRang += 1;
     });
 
     const confidenceMappings = this.getValoboisScoreMappings()
@@ -30241,6 +30310,8 @@ getValoboisOrientationDisplayBounds(mode = null) {
         combustion: 0
     };
     let reemploiPositiveMin = 0;
+    const breakdownByOrientation = { reemploi: [], reutilisation: [], recyclage: [], combustion: [] };
+    const reemploiPositiveBreakdown = [];
 
     activeMappings.forEach((mapping) => {
         const steps = NOTATION_CRITERION_SCORE_STEPS[mapping.field];
@@ -30261,27 +30332,44 @@ getValoboisOrientationDisplayBounds(mode = null) {
                 matrixEntry.rejects && matrixEntry.rejects[orientationKey]
             );
 
+            // Le critère doit avoir au moins un niveau impliqué (vecteur ou rejet) dans cette orientation
+            const hasInvolvement = levelOrder.some((levelKey) => vectorLevels[levelKey] || rejectLevels[levelKey]);
+            if (!hasInvolvement) return;
+
+            // Zone négative survivable : niveaux vecteurs ET neutres (pas les rejets qui éliminent l'orientation)
             let minNegative = Infinity;
+            let minNegativeLevelKey = null;
             levelOrder.forEach((levelKey, index) => {
-                if (!vectorLevels[levelKey] && !rejectLevels[levelKey]) return;
+                if (rejectLevels[levelKey]) return; // niveau rejet → élimine l'orientation, hors zone
                 const value = Number(steps[index]);
                 if (!Number.isFinite(value) || value >= 0) return;
-                if (value < minNegative) minNegative = value;
+                if (value < minNegative) { minNegative = value; minNegativeLevelKey = levelKey; }
             });
             if (Number.isFinite(minNegative) && minNegative < 0) {
                 negativeByOrientation[orientationKey] += minNegative;
+                breakdownByOrientation[orientationKey].push({
+                    critere: matrixEntry.critere || `r${mapping.rang}`,
+                    contribution: minNegative,
+                    levelKey: minNegativeLevelKey
+                });
             }
 
             if (orientationKey === 'reemploi') {
                 let minPositive = Infinity;
+                let minPositiveLevelKey = null;
                 levelOrder.forEach((levelKey, index) => {
                     if (!vectorLevels[levelKey]) return;
                     const value = Number(steps[index]);
                     if (!Number.isFinite(value) || value <= 0) return;
-                    if (value < minPositive) minPositive = value;
+                    if (value < minPositive) { minPositive = value; minPositiveLevelKey = levelKey; }
                 });
                 if (Number.isFinite(minPositive) && minPositive > 0) {
                     reemploiPositiveMin += minPositive;
+                    reemploiPositiveBreakdown.push({
+                        critere: matrixEntry.critere || `r${mapping.rang}`,
+                        contribution: minPositive,
+                        levelKey: minPositiveLevelKey
+                    });
                 }
             }
         });
@@ -30304,7 +30392,9 @@ getValoboisOrientationDisplayBounds(mode = null) {
             combustion: clampNeg(negativeByOrientation.combustion || -76)
         },
         reemploiPositiveMin: clampPos(reemploiPositiveMin || 29),
-        gateThreshold: clampNeg(gateThreshold)
+        gateThreshold: clampNeg(gateThreshold),
+        breakdownByOrientation,
+        reemploiPositiveBreakdown
     };
 }
 
@@ -30323,9 +30413,10 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     const negativeNoConfidenceAbs = Number(decomposition.negativeNoConfidenceAbs) || 0;
     const netNoConfidence = Number(decomposition.netNoConfidence) || 0;
 
-    // === Component 1 : barre de position (bornes fixes) ===
-    const SCORE_MIN = -76;
-    const SCORE_MAX = 126;
+    // === Component 1 : barre de position (bornes dynamiques) ===
+    const displayBounds = this.getValoboisOrientationDisplayBounds(mode);
+    const SCORE_MIN = Math.min(-1, Math.round(Number(state.negativeScoreMin) || -76));
+    const SCORE_MAX = Math.max(1, Math.round(Number(state.positiveScoreMax) || 126));
     const SCORE_NEG = -Math.abs(negativeNoConfidenceAbs);
     const SCORE_POS = Number(positiveNoConfidence) || 0;
     const SCORE_NET = Number(netNoConfidence) || 0;
@@ -30347,15 +30438,34 @@ buildOrientationPositionBarHtml(lot, mode = null) {
     const letterCapacity = { A: 41, B: 26, C: 39, D: 14, E: 5 };
     const leftLetters = ['A', 'B', 'C'];
     const rightLetters = ['D', 'E'];
-    const leftColMax = Math.max(...leftLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
-    const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
     const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
     const activeMappingsForDetail = this.getValoboisActiveCriteriaMappings(activeMode);
-    const unnotedCriteriaCount = activeMappingsForDetail
+    const activeCustomForDetail = this.getValoboisActiveCustomFreeCriteria(activeMode);
+    // Étendre letterCapacity avec les lettres possibles des critères personnalisés actifs
+    activeCustomForDetail.forEach((criterion) => {
+        const seenLetters = new Set();
+        ['fort', 'moyen', 'faible'].forEach((lk) => {
+            const score = Number(criterion && criterion.scores && criterion.scores[lk] && criterion.scores[lk].value);
+            if (!Number.isFinite(score)) return;
+            const letter = this.getValoboisFixedLetterForScore(score);
+            if (letter && !seenLetters.has(letter) && Object.prototype.hasOwnProperty.call(letterCapacity, letter)) {
+                letterCapacity[letter] += 1;
+                seenLetters.add(letter);
+            }
+        });
+    });
+    const leftColMax = Math.max(...leftLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+    const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+    const unnotedStandardCount = activeMappingsForDetail
         .filter((mapping) => !this.hasValoboisCriterionValue(lot, mapping)).length;
+    const unnotedCustomCount = activeCustomForDetail
+        .filter((criterion) => !Number.isFinite(this.getValoboisLotCustomScoreValue(lot, String((criterion && criterion.id) || '').trim())))
+        .length;
+    const unnotedCriteriaCount = unnotedStandardCount + unnotedCustomCount;
+    const totalCriteriaCount = activeMappingsForDetail.length + activeCustomForDetail.length;
     const hasUnnotedCriteria = unnotedCriteriaCount > 0;
-    const unnotedCriteriaRatio = activeMappingsForDetail.length > 0
-        ? Math.min(100, (unnotedCriteriaCount / activeMappingsForDetail.length) * 100)
+    const unnotedCriteriaRatio = totalCriteriaCount > 0
+        ? Math.min(100, (unnotedCriteriaCount / totalCriteriaCount) * 100)
         : 0;
     const makeGauge = (letter) => {
         const cap = Number(letterCapacity[letter]) || 0;
@@ -30417,12 +30527,33 @@ buildOrientationPositionBarHtml(lot, mode = null) {
         const n = Number(value) || 0;
         return n > 0 ? `+${n.toFixed(0)}` : `${n.toFixed(0)}`;
     };
+    const gateThreshold = displayBounds.gateThreshold;
     const scaleMarkers = [
-        { value: SCORE_MIN, label: '-76', edge: 'start', key: 'min' },
-        { value: -10, label: '-10', key: 'minus10' },
+        { value: SCORE_MIN, label: String(SCORE_MIN), edge: 'start', key: 'min' },
+        { value: gateThreshold, label: String(gateThreshold), key: 'minus10' },
         { value: 0, label: '0', key: 'zero' },
-        { value: SCORE_MAX, label: '+126', edge: 'end', key: 'max' }
+        { value: SCORE_MAX, label: `+${SCORE_MAX}`, edge: 'end', key: 'max' }
     ];
+
+    const levelKeyLabel = (lk) => ({ fort: 'fort', moyen: 'moyen', faible: 'faible' }[String(lk || '')] || lk);
+    const buildNegZone = (orientationKey, negBound) => ({
+        title: 'Zone négative',
+        left: negBound,
+        right: 0,
+        description: 'Cumul des pires notes non-rejet (vecteur ou neutre) par critère impliqué dans cette orientation. Un lot dans cette plage reste éligible.',
+        contributors: ((displayBounds.breakdownByOrientation && displayBounds.breakdownByOrientation[orientationKey]) || []).map((c) => ({
+            critere: c.critere, contribution: c.contribution, levelKey: levelKeyLabel(c.levelKey)
+        }))
+    });
+    const buildPosZone = () => ({
+        title: 'Zone positive',
+        left: displayBounds.reemploiPositiveMin,
+        right: SCORE_MAX,
+        description: 'Cumul des notes positives minimales par critère vecteur Réemploi. Le lot atteint cette zone quand ses scores positifs franchissent ce seuil.',
+        contributors: (displayBounds.reemploiPositiveBreakdown || []).map((c) => ({
+            critere: c.critere, contribution: c.contribution, levelKey: levelKeyLabel(c.levelKey)
+        }))
+    });
 
     const laneDefs = [
         {
@@ -30430,33 +30561,43 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             label: 'Réemploi',
             color: '#009E73',
             segments: [
-                { start: -21, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
-                { start: 29, end: 126, color: '#53a57a', roundLeft: true, roundRight: true }
-            ]
+                { start: displayBounds.negative.reemploi, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
+                { start: displayBounds.reemploiPositiveMin, end: SCORE_MAX, color: '#53a57a', roundLeft: true, roundRight: true }
+            ],
+            infoZones: [buildNegZone('reemploi', displayBounds.negative.reemploi), buildPosZone()]
         },
         {
             key: 'reutilisation',
             label: 'Réutilisation',
             color: '#56B4E9',
             segments: [
-                { start: -42, end: 122, color: '#56B4E9', roundLeft: true, roundRight: true }
-            ]
+                { start: displayBounds.negative.reutilisation, end: SCORE_MAX, color: '#56B4E9', roundLeft: true, roundRight: true }
+            ],
+            infoZones: [buildNegZone('reutilisation', displayBounds.negative.reutilisation)]
         },
         {
             key: 'recyclage',
             label: 'Recyclage',
             color: '#E69F00',
             segments: [
-                { start: -37, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
-            ]
+                { start: displayBounds.negative.recyclage, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
+            ],
+            infoZones: [buildNegZone('recyclage', displayBounds.negative.recyclage)]
         },
         {
             key: 'combustion',
             label: 'Combustion',
             color: '#d95f0e',
             segments: [
-                { start: -76, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
-            ]
+                { start: SCORE_MIN, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
+            ],
+            infoZones: [{
+                title: 'Zone',
+                left: SCORE_MIN,
+                right: 0,
+                description: `Plage de combustion : du score minimal théorique de l'évaluation (${SCORE_MIN}) jusqu'à 0. Regroupe tous les lots à score négatif non attribués à une autre orientation.`,
+                contributors: []
+            }]
         }
     ];
 
@@ -30537,9 +30678,10 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             <span class="lot-position-lot-bubble${lotFlagClass}" style="left:${toPct(lotScore)};--lane-index:${activeLaneIndex};"><strong>${this.escapeHtml(lotBubbleLabel)}</strong><em>${this.escapeHtml(lotScoreLabel)}</em></span>
         ` : '';
 
+        const infoData = JSON.stringify({ label: lane.label, color: lane.color, zones: lane.infoZones || [] });
         return `
             <div class="lot-position-lane ${isActive ? `is-active is-active--${lane.key}` : ''}" style="--lane-color:${lane.color};">
-                <div class="lot-position-track">
+                <div class="lot-position-track" data-lane-info="${this.escapeHtml(infoData)}">
                     <span class="${trackLabelClass}">${this.escapeHtml(lane.label)}</span>
                     ${segmentHtml}
                     ${activeOverlay}
@@ -30596,6 +30738,25 @@ buildOrientationPositionBarHtml(lot, mode = null) {
             };
         })
         .filter((row) => !notedRankSet.has(row.rang));
+    // Ajouter les critères personnalisés non-notés comme lignes manquantes
+    let nextCustomRang = 51;
+    this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+        const criterionId = String((criterion && criterion.id) || '').trim();
+        const rang = nextCustomRang++;
+        if (!criterionId) return;
+        if (notedRankSet.has(rang)) return; // déjà dans notedRows
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (Number.isFinite(score)) return; // noté, déjà dans notedRows
+        missingRows.push({
+            rang,
+            critere: (criterion && (criterion.critere || criterion.axe)) || 'Critère personnalisé',
+            levelKey: 'Aucune note',
+            noteLetter: '',
+            score: 0,
+            lockedOrientations: [],
+            missing: true
+        });
+    });
     const rows = [...notedRows, ...missingRows].sort((a, b) => (Number(a.rang) || 0) - (Number(b.rang) || 0));
     const colCount = 2;
     const rowsPerCol = rows.length ? Math.ceil(rows.length / colCount) : 0;
@@ -31039,6 +31200,130 @@ initSyntheseLotsTooltips() {
         flag.addEventListener('blur', () => {
             removeTooltip();
         });
+    });
+}
+
+initOrientationLaneInfoTooltips(host) {
+    if (!host) return;
+    const buttons = host.querySelectorAll('.lot-position-track[data-lane-info]');
+    let currentTooltip = null;
+    let hideTimer = null;
+
+    const cancelHide = () => {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    };
+
+    const removeTooltip = () => {
+        cancelHide();
+        document.querySelectorAll('.lane-info-tooltip').forEach((el) => {
+            if (el && el.parentNode) el.parentNode.removeChild(el);
+        });
+        currentTooltip = null;
+    };
+
+    const scheduleRemove = () => {
+        cancelHide();
+        hideTimer = setTimeout(removeTooltip, 150);
+    };
+
+    const positionTooltip = (tooltip, anchorRect) => {
+        const margin = 8;
+        tooltip.style.visibility = 'hidden';
+        tooltip.style.left = '0px';
+        tooltip.style.top = '0px';
+        document.body.appendChild(tooltip);
+        const tooltipRect = tooltip.getBoundingClientRect();
+        tooltip.style.visibility = '';
+        const anchorCenterX = anchorRect.left + (anchorRect.width / 2);
+        let placeBelow = false;
+        let top = anchorRect.top - tooltipRect.height - margin;
+        let left = anchorCenterX - (tooltipRect.width / 2);
+        if (top < margin) { top = anchorRect.bottom + margin; placeBelow = true; }
+        if (left < margin) { left = margin; }
+        else if ((left + tooltipRect.width) > (window.innerWidth - margin)) { left = window.innerWidth - tooltipRect.width - margin; }
+        tooltip.style.left = `${Math.round(left)}px`;
+        tooltip.style.top = `${Math.round(top)}px`;
+        const caretMin = 12;
+        const caretMax = Math.max(caretMin, tooltipRect.width - 12);
+        const caretLeft = Math.max(caretMin, Math.min(caretMax, anchorCenterX - left));
+        tooltip.style.setProperty('--lot-tooltip-caret-left', `${Math.round(caretLeft)}px`);
+        tooltip.classList.toggle('lane-info-tooltip--below', placeBelow);
+        tooltip.classList.toggle('lane-info-tooltip--above', !placeBelow);
+    };
+
+    buttons.forEach((btn) => {
+        const showTooltip = () => {
+            removeTooltip();
+            const raw = btn.getAttribute('data-lane-info');
+            if (!raw) return;
+            let data;
+            try { data = JSON.parse(raw); } catch (e) { return; }
+
+            const tooltip = document.createElement('div');
+            tooltip.className = 'lane-info-tooltip';
+            tooltip.style.setProperty('--lane-color', data.color || '#333');
+
+            const titleEl = document.createElement('div');
+            titleEl.className = 'lane-info-tooltip-title';
+            titleEl.textContent = data.label || '';
+            tooltip.appendChild(titleEl);
+
+            const zones = Array.isArray(data.zones) ? data.zones : [];
+            zones.forEach((zone, zoneIdx) => {
+                if (zoneIdx > 0) {
+                    const sep = document.createElement('div');
+                    sep.className = 'lane-info-tooltip-zone-sep';
+                    tooltip.appendChild(sep);
+                }
+                const zoneEl = document.createElement('div');
+                zoneEl.className = 'lane-info-tooltip-zone';
+
+                const rangeSign = (v) => (v > 0 ? `+${v}` : String(v));
+                const zoneTitleEl = document.createElement('div');
+                zoneTitleEl.className = 'lane-info-tooltip-zone-title';
+                zoneTitleEl.textContent = `${zone.title}\u2002[${rangeSign(zone.left)}\u2026${rangeSign(zone.right)}]`;
+                zoneEl.appendChild(zoneTitleEl);
+
+                const descEl = document.createElement('div');
+                descEl.className = 'lane-info-tooltip-zone-desc';
+                descEl.textContent = zone.description || '';
+                zoneEl.appendChild(descEl);
+
+                const contributors = Array.isArray(zone.contributors) ? zone.contributors : [];
+                if (contributors.length) {
+                    const listEl = document.createElement('ul');
+                    listEl.className = 'lane-info-tooltip-contributors';
+                    contributors.forEach((c) => {
+                        const li = document.createElement('li');
+                        li.className = 'lane-info-tooltip-contributor';
+                        const nameSpan = document.createElement('span');
+                        nameSpan.textContent = `${c.critere}${c.levelKey ? ` (${c.levelKey})` : ''}`;
+                        const valSpan = document.createElement('span');
+                        const sign = c.contribution > 0 ? '+' : '';
+                        valSpan.textContent = `${sign}${Math.round(c.contribution)}`;
+                        li.appendChild(nameSpan);
+                        li.appendChild(valSpan);
+                        listEl.appendChild(li);
+                    });
+                    zoneEl.appendChild(listEl);
+
+                    const totalEl = document.createElement('div');
+                    totalEl.className = 'lane-info-tooltip-zone-total';
+                    const total = contributors.reduce((acc, c) => acc + (Number(c.contribution) || 0), 0);
+                    totalEl.textContent = `Total : ${total > 0 ? '+' : ''}${Math.round(total)}`;
+                    zoneEl.appendChild(totalEl);
+                }
+                tooltip.appendChild(zoneEl);
+            });
+
+            currentTooltip = tooltip;
+            positionTooltip(tooltip, btn.getBoundingClientRect());
+            tooltip.addEventListener('mouseenter', cancelHide);
+            tooltip.addEventListener('mouseleave', scheduleRemove);
+        };
+
+        btn.addEventListener('mouseenter', showTooltip);
+        btn.addEventListener('mouseleave', scheduleRemove);
     });
 }
 
@@ -33760,19 +34045,31 @@ renderMatrice() {
             const direction = Number(button.getAttribute('data-valobois-custom-step-dir'));
             if (!Number.isFinite(direction) || direction === 0) return;
 
-            const step = Number(input.getAttribute('step'));
-            const min = Number(input.getAttribute('min'));
-            const max = Number(input.getAttribute('max'));
             const rawCurrent = Number(input.value);
-            const current = Number.isFinite(rawCurrent)
-                ? rawCurrent
-                : (Number.isFinite(min) ? min : 0);
-            const stepValue = Number.isFinite(step) && step > 0 ? step : 1;
+            const fieldPath = String(input.getAttribute('data-valobois-custom-free-field') || '');
+            const isScoreValue = /^scores\.(fort|moyen|faible)\.value$/.test(fieldPath);
 
-            let next = current + (direction * stepValue);
-            if (Number.isFinite(min)) next = Math.max(min, next);
-            if (Number.isFinite(max)) next = Math.min(max, next);
-            if (next === current) return;
+            let next;
+            if (isScoreValue) {
+                const allowedValues = this.getValoboisFixedScoreValues().slice().sort((a, b) => a - b);
+                const normalized = this.normalizeValoboisFixedScoreValue(rawCurrent, allowedValues[0]);
+                const currentIdx = allowedValues.indexOf(normalized);
+                const nextIdx = Math.max(0, Math.min(allowedValues.length - 1, currentIdx + direction));
+                if (nextIdx === currentIdx) return;
+                next = allowedValues[nextIdx];
+            } else {
+                const step = Number(input.getAttribute('step'));
+                const min = Number(input.getAttribute('min'));
+                const max = Number(input.getAttribute('max'));
+                const current = Number.isFinite(rawCurrent)
+                    ? rawCurrent
+                    : (Number.isFinite(min) ? min : 0);
+                const stepValue = Number.isFinite(step) && step > 0 ? step : 1;
+                next = current + (direction * stepValue);
+                if (Number.isFinite(min)) next = Math.max(min, next);
+                if (Number.isFinite(max)) next = Math.min(max, next);
+                if (next === current) return;
+            }
 
             input.value = String(next);
             input.dispatchEvent(new Event('change', { bubbles: true }));
@@ -33855,6 +34152,26 @@ getLetterDistributionForCategory(lot, categoryKey) {
             letterPoints[letter] += Number.isFinite(rawValue) ? rawValue : 0;
         }
     });
+
+    // Inclure les critères personnalisés actifs pour cette catégorie
+    const activeMode = this.normalizeNotationMode(this.getValoboisActiveMatrixMode());
+    this.getValoboisActiveCustomFreeCriteria(activeMode)
+        .filter((c) => this.getValoboisCategoryFromAxeKey(c.axeKey) === categoryKey)
+        .forEach((criterion) => {
+            const criterionId = String(criterion && criterion.id || '').trim();
+            if (!criterionId) return;
+            const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+            if (!Number.isFinite(score) || score === 0) return;
+            const fortValue = criterion.scores && criterion.scores.fort ? Number(criterion.scores.fort.value) : null;
+            let letter;
+            if (score > 0) {
+                letter = (fortValue !== null && score >= fortValue) ? 'A' : 'C';
+            } else {
+                letter = 'D';
+            }
+            letterCounts[letter] += 1;
+            letterPoints[letter] += score;
+        });
 
     return { letterCounts, letterPoints };
 }
@@ -33949,7 +34266,10 @@ renderSeuils() {
         titleEls.forEach((titleEl) => {
             const hasMissingInCategory = activeMappings
                 .filter((mapping) => mapping.category === cat.key)
-                .some((mapping) => !this.hasValoboisCriterionValue(lot, mapping));
+                .some((mapping) => !this.hasValoboisCriterionValue(lot, mapping))
+                || this.getValoboisActiveCustomFreeCriteria(activeMode)
+                    .filter((criterion) => this.getValoboisCategoryFromAxeKey(criterion && criterion.axeKey) === cat.key)
+                    .some((criterion) => !Number.isFinite(this.getValoboisLotCustomScoreValue(lot, String((criterion && criterion.id) || '').trim())));
             const pillsHtml = ['A', 'B', 'C', 'D', 'E'].map((letter) => {
                 const count = letterCounts[letter] || 0;
                 return count > 0 ? `<span class="seuils-pill seuils-pill--${letter.toLowerCase()}">${letter}-${count}</span>` : '';
@@ -34365,7 +34685,13 @@ renderRadar() {
             positionHost.className = 'radar-orientation-position-host';
             radarBody.insertBefore(positionHost, wrapper.nextSibling);
         }
+        const detailsWasOpen = (positionHost.querySelector('details.orientation-detail-panel') || {}).open || false;
         positionHost.innerHTML = this.buildOrientationPositionBarHtml(lot, mode);
+        this.initOrientationLaneInfoTooltips(positionHost);
+        if (detailsWasOpen) {
+            const newDetails = positionHost.querySelector('details.orientation-detail-panel');
+            if (newDetails) newDetails.open = true;
+        }
     }
 
     const bodyText = document.getElementById('radarBodyText');
@@ -36722,7 +37048,14 @@ renderRadar() {
         this.data.lots.forEach((lot) => {
             this.normalizeLotEssenceFields(lot);
             this.normalizeLotAllotissementFields(lot);
+            if (!lot.customScores || typeof lot.customScores !== 'object' || Array.isArray(lot.customScores)) {
+                lot.customScores = {};
+            }
         });
+        if (parsed.valoboisMatrixConfig && typeof parsed.valoboisMatrixConfig === 'object') {
+            this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(parsed.valoboisMatrixConfig);
+            this.saveValoboisMatrixConfig();
+        }
         const n = this.data.lots.length;
         if (typeof this.currentLotIndex === 'number' && this.currentLotIndex >= n) {
             this.currentLotIndex = Math.max(0, n - 1);
