@@ -17470,6 +17470,11 @@ body.day-mode .inspection-ignore-box {
     line-height: 1.1;
 }
 
+.valobois-custom-alert-cell__btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
 .valobois-custom-alert-cell__meta {
     font-size: 10px;
     line-height: 1.1;

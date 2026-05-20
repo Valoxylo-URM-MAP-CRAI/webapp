@@ -4,6 +4,7 @@
   "scripts": {
     "build:standalone": "node scripts/build-standalone.mjs",
     "check:climate-table": "node scripts/check-climate-table.mjs",
+    "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "serve": "npx --yes serve .",
     "import:france-geojson": "node scripts/import-france-geojson.mjs"
   }

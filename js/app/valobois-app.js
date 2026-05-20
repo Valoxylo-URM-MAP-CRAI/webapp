@@ -640,7 +640,7 @@ class ValoboisApp {
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this._locSitInfoDictionaryBound = false;
-        this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
+        this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false, importReplaceCustom: false };
         this._valoboisMatrixLastThresholdError = '';
         this._valoboisMatrixLastFlowWarning = '';
         this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
@@ -4028,7 +4028,9 @@ class ValoboisApp {
         exported.meta.geoFrance = this.getDefaultGeoFrance(exported.meta.geoFrance || {});
         exported.meta.geoFrance.conditionClimatiqueHumidification = this.getGeoFranceClimateExportData(exported.meta.geoFrance);
         exported.meta.geoFrance.ventPluieDominant = this.getGeoFranceWindExportData(exported.meta.geoFrance);
-        exported.valoboisMatrixConfig = JSON.parse(JSON.stringify(this.valoboisMatrixConfig));
+        const normalizedMatrixConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        exported.valoboisMatrixConfig = JSON.parse(JSON.stringify(normalizedMatrixConfig));
+        exported.valoboisMatrixConfigExport = this.buildValoboisMatrixConfigExportDiff();
         return exported;
     }
 
@@ -5678,6 +5680,13 @@ class ValoboisApp {
             alertConfig: this.normalizeValoboisCustomFreeAlertConfig(source.alertConfig, defaults.alertConfig)
         };
 
+        // Le mode "Héritée" n'est pertinent que pour un critère issu d'une duplication
+        // (présence d'un sourceRank valide vers un critère originel).
+        if (!(Number.isFinite(Number(next.sourceRank)) && Number(next.sourceRank) >= 1) && next.alertConfig && next.alertConfig.mode === 'inherited') {
+            next.alertConfig.mode = 'disabled';
+            next.alertConfig.inheritedRank = null;
+        }
+
         if (/^personnalisee?$/i.test(String(next.famille || '').trim())) {
             next.famille = 'Personnalisée';
         } else if (/^criteres? custom$/i.test(String(next.famille || '').trim())) {
@@ -6162,6 +6171,7 @@ class ValoboisApp {
                 next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
             }
             if (!['disabled', 'inherited', 'custom'].includes(mode)) return false;
+            if (mode === 'inherited' && !(Number.isFinite(Number(next.sourceRank)) && Number(next.sourceRank) >= 1)) return false;
             next.alertConfig.mode = mode;
             if (mode === 'inherited' && !Number.isFinite(Number(next.alertConfig.inheritedRank))) {
                 next.alertConfig.inheritedRank = Number.isFinite(Number(next.sourceRank)) ? Number(next.sourceRank) : null;
@@ -34674,10 +34684,18 @@ setValoboisMatrixThresholdValue(mode, orientation, nextValue) {
 buildValoboisMatrixConfigExportDiff() {
     const defaults = this.getDefaultValoboisMatrixConfig();
     const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+    const defaultCriteriaSnapshot = this.getValoboisMatrixBaseDataset().map((entry) => JSON.parse(JSON.stringify(entry)));
+    const customFreeCriteriaSnapshot = Array.isArray(current.customFreeCriteria)
+        ? JSON.parse(JSON.stringify(current.customFreeCriteria))
+        : [];
     const payload = {
         version: '1.0',
         exportDate: new Date().toISOString(),
-        source: 'Valoxylo'
+        source: 'Valoxylo',
+        criteriaSnapshot: {
+            defaultCriteria: defaultCriteriaSnapshot,
+            customFreeCriteria: customFreeCriteriaSnapshot
+        }
     };
 
     const thresholds = {};
@@ -34704,8 +34722,9 @@ buildValoboisMatrixConfigExportDiff() {
     return payload;
 }
 
-handleValoboisMatrixConfigImport(file) {
+handleValoboisMatrixConfigImport(file, options = {}) {
     if (!file) return;
+    const replaceCustomFreeCriteria = !!(options && options.replaceCustomFreeCriteria);
     const reader = new FileReader();
     reader.onload = () => {
         try {
@@ -34716,6 +34735,13 @@ handleValoboisMatrixConfigImport(file) {
             }
 
             const current = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+            const importedCustomFreeCriteria = [];
+            if (Array.isArray(parsed.customFreeCriteria)) {
+                importedCustomFreeCriteria.push(...parsed.customFreeCriteria);
+            }
+            if (parsed.criteriaSnapshot && typeof parsed.criteriaSnapshot === 'object' && Array.isArray(parsed.criteriaSnapshot.customFreeCriteria)) {
+                importedCustomFreeCriteria.push(...parsed.criteriaSnapshot.customFreeCriteria);
+            }
             const convertedLegacyCustomCriteria = this.convertValoboisLegacyCustomCriteriaToCustomFreeList(parsed.customCriteria);
             const mergedRaw = {
                 ...current,
@@ -34728,9 +34754,13 @@ handleValoboisMatrixConfigImport(file) {
                     : current.gates,
                 weights: {},
                 customCriteria: current.customCriteria,
-                customFreeCriteria: parsed.customFreeCriteria
-                    ? [...(current.customFreeCriteria || []), ...parsed.customFreeCriteria, ...convertedLegacyCustomCriteria]
-                    : [...(current.customFreeCriteria || []), ...convertedLegacyCustomCriteria],
+                customFreeCriteria: importedCustomFreeCriteria.length
+                    ? (replaceCustomFreeCriteria
+                        ? [...importedCustomFreeCriteria, ...convertedLegacyCustomCriteria]
+                        : [...(current.customFreeCriteria || []), ...importedCustomFreeCriteria, ...convertedLegacyCustomCriteria])
+                    : (replaceCustomFreeCriteria
+                        ? [...convertedLegacyCustomCriteria]
+                        : [...(current.customFreeCriteria || []), ...convertedLegacyCustomCriteria]),
                 flowOverrides: {}
             };
             const flowConflictCount = this.getValoboisFlowOverrideConflicts(mergedRaw.flowOverrides).length;
@@ -34743,7 +34773,13 @@ handleValoboisMatrixConfigImport(file) {
             if (parsed.thresholds) changes.push('seuils');
             if (parsed.gates) changes.push('verrous');
             if (parsed.customCriteria) changes.push('critères personnalisés (legacy convertis en libres)');
-            if (parsed.customFreeCriteria) changes.push('critères personnalisés (libres)');
+            if (Array.isArray(parsed.customFreeCriteria) || (parsed.criteriaSnapshot && Array.isArray(parsed.criteriaSnapshot.customFreeCriteria))) {
+                changes.push('critères personnalisés (libres)');
+            }
+            if (parsed.criteriaSnapshot && Array.isArray(parsed.criteriaSnapshot.defaultCriteria)) {
+                changes.push('snapshot des critères socle');
+            }
+            changes.push(replaceCustomFreeCriteria ? 'mode remplacement des critères libres' : 'mode fusion des critères libres');
             const summary = changes.length ? changes.join(', ') : 'aucune différence détectée';
 
             const conflictSuffix = flowConflictCount > 0
@@ -34783,7 +34819,8 @@ renderMatrice() {
         customBadgeEl.classList.toggle('hidden', !this.hasValoboisMatrixCustomConfig());
     }
 
-    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
+    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false, importReplaceCustom: false });
+    if (typeof ui.importReplaceCustom !== 'boolean') ui.importReplaceCustom = false;
     const entries = this.getValoboisMatrixDataset();
     const thresholdConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
 
@@ -34852,6 +34889,9 @@ renderMatrice() {
             <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
             <button type="button" class="btn" id="valoboisMatrixExportConfig" ${ui.editMode ? '' : 'disabled'}>Exporter la configuration</button>
             <button type="button" class="btn" id="valoboisMatrixImportConfig" ${ui.editMode ? '' : 'disabled'}>Importer une configuration</button>
+            <label class="valobois-matrix-control-check">
+                <input type="checkbox" id="valoboisMatrixImportReplaceCustom" ${ui.importReplaceCustom ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}> Remplacer les critères personnalisés
+            </label>
             <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden ${ui.editMode ? '' : 'disabled'}>
         </div>
     `;
@@ -35204,14 +35244,21 @@ renderMatrice() {
                     <td class="valobois-matrix-col-gate"><input type="checkbox" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="criticite" ${criterion.criticite ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}></td>
                     <td class="valobois-matrix-col-alert">${(() => {
                         const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion.rank).alertConfig);
+                        const supportsInheritedAlert = Number.isFinite(Number(criterion && criterion.sourceRank)) && Number(criterion && criterion.sourceRank) >= 1;
+                        const effectiveMode = (!supportsInheritedAlert && alertConfig.mode === 'inherited')
+                            ? 'disabled'
+                            : alertConfig.mode;
                         const resolved = currentLotForCustomAlerts
                             ? this.resolveValoboisCustomFreeAlertState(currentLotForCustomAlerts, criterion)
                             : { state: 'none' };
-                        const stateLabel = resolved.state === 'active'
-                            ? 'Active'
-                            : resolved.state === 'missing-config'
-                                ? 'À configurer'
-                                : 'Inactive';
+                        const isInheritedMode = effectiveMode === 'inherited';
+                        const stateLabel = isInheritedMode
+                            ? 'Héritée'
+                            : resolved.state === 'active'
+                                ? 'Active'
+                                : resolved.state === 'missing-config'
+                                    ? 'À configurer'
+                                    : 'Inactive';
                         const recommendationProfiles = alertConfig && alertConfig.recommendations && typeof alertConfig.recommendations === 'object'
                             ? alertConfig.recommendations
                             : this.getValoboisDefaultAlertRecommendationProfiles();
@@ -35224,16 +35271,17 @@ renderMatrice() {
                         if (!ui.editMode) {
                             return `<span class="valobois-matrix-badge ${resolved.state === 'active' ? 'valobois-matrix-badge--alert' : 'valobois-matrix-badge--neutral'}">${stateLabel}</span>`;
                         }
+                        const disableInheritedActions = effectiveMode === 'inherited';
                         return `
                             <div class="valobois-custom-alert-cell">
                                 <select class="valobois-matrix-free-editor__input valobois-custom-alert-cell__mode" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="alertConfig.mode" ${ui.editMode ? '' : 'disabled'}>
-                                    <option value="disabled" ${alertConfig.mode === 'disabled' ? 'selected' : ''}>Désactivée</option>
-                                    <option value="inherited" ${alertConfig.mode === 'inherited' ? 'selected' : ''}>Héritée</option>
-                                    <option value="custom" ${alertConfig.mode === 'custom' ? 'selected' : ''}>Personnalisée</option>
+                                    <option value="disabled" ${effectiveMode === 'disabled' ? 'selected' : ''}>Désactivée</option>
+                                    ${supportsInheritedAlert ? `<option value="inherited" ${effectiveMode === 'inherited' ? 'selected' : ''}>Héritée</option>` : ''}
+                                    <option value="custom" ${effectiveMode === 'custom' ? 'selected' : ''}>Personnalisée</option>
                                 </select>
                                 <div class="valobois-custom-alert-cell__actions">
-                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-config-id="${criterionId}" ${ui.editMode ? '' : 'disabled'}>Configurer</button>
-                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-remove-rule-id="${criterionId}" ${ui.editMode ? '' : 'disabled'}>Retirer règle</button>
+                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-config-id="${criterionId}" ${ui.editMode && !disableInheritedActions ? '' : 'disabled'} title="${disableInheritedActions ? 'Indisponible en mode Héritée' : 'Configurer les règles'}">Configurer</button>
+                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-remove-rule-id="${criterionId}" ${ui.editMode && !disableInheritedActions ? '' : 'disabled'} title="${disableInheritedActions ? 'Indisponible en mode Héritée' : 'Retirer une règle'}">Retirer règle</button>
                                 </div>
                                 <div class="valobois-custom-alert-cell__meta">${stateLabel} • ${conditionCount} règle(s)</div>
                             </div>
@@ -35369,7 +35417,7 @@ renderMatrice() {
     const resetFiltersBtn = document.getElementById('valoboisMatrixResetFilters');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
-            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode, selectedDuplicateSource: ui.selectedDuplicateSource };
+            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode, selectedDuplicateSource: ui.selectedDuplicateSource, importReplaceCustom: ui.importReplaceCustom };
             this.renderMatrice();
         });
     }
@@ -35426,11 +35474,17 @@ renderMatrice() {
 
     const importBtn = document.getElementById('valoboisMatrixImportConfig');
     const importInput = document.getElementById('valoboisMatrixImportInput');
+    const importReplaceCustom = document.getElementById('valoboisMatrixImportReplaceCustom');
+    if (importReplaceCustom) {
+        importReplaceCustom.addEventListener('change', () => {
+            ui.importReplaceCustom = !!importReplaceCustom.checked;
+        });
+    }
     if (importBtn && importInput) {
         importBtn.addEventListener('click', () => importInput.click());
         importInput.addEventListener('change', () => {
             const file = importInput.files && importInput.files[0];
-            this.handleValoboisMatrixConfigImport(file);
+            this.handleValoboisMatrixConfigImport(file, { replaceCustomFreeCriteria: !!ui.importReplaceCustom });
             importInput.value = '';
         });
     }
@@ -35578,6 +35632,9 @@ renderMatrice() {
             if (!ui.editMode) return;
             const criterionId = String(btn.getAttribute('data-valobois-custom-alert-config-id') || '').trim();
             if (!criterionId) return;
+            const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+            const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion && criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion && criterion.rank).alertConfig);
+            if (alertConfig.mode === 'inherited') return;
             this.openValoboisCustomAlertConfigModal(criterionId);
         });
     });
@@ -35589,6 +35646,7 @@ renderMatrice() {
             if (!criterionId) return;
             const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
             const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion && criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion && criterion.rank).alertConfig);
+            if (alertConfig.mode === 'inherited') return;
             const profiles = alertConfig.recommendations || this.getValoboisDefaultAlertRecommendationProfiles();
             const targetLevel = ['fort', 'moyen', 'faible'].find((levelKey) => Array.isArray(profiles[levelKey] && profiles[levelKey].conditions) && profiles[levelKey].conditions.length);
             if (!targetLevel) return;
