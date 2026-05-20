@@ -5516,7 +5516,114 @@ class ValoboisApp {
             },
             vectors: {},
             rejects: {},
-            notation: { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' } }
+            notation: { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', note: '', references: '' } },
+            alertConfig: {
+                mode: 'disabled',
+                inheritedRank: null,
+                recommendationLevel: 'moyen',
+                message: '',
+                conditions: [],
+                recommendations: {
+                    fort: { color: 'rouge', message: '', conditions: [] },
+                    moyen: { color: 'orange', message: '', conditions: [] },
+                    faible: { color: 'vert', message: '', conditions: [] }
+                }
+            }
+        };
+    }
+
+    normalizeValoboisAlertColorKey(rawColor, fallback = 'orange') {
+        const value = String(rawColor || fallback || '').trim().toLowerCase();
+        if (['vert', 'orange', 'rouge'].includes(value)) return value;
+        if (value === 'green') return 'vert';
+        if (value === 'red') return 'rouge';
+        return ['vert', 'orange', 'rouge'].includes(String(fallback || '').trim().toLowerCase())
+            ? String(fallback).trim().toLowerCase()
+            : 'orange';
+    }
+
+    getValoboisDefaultAlertRecommendationProfiles() {
+        return {
+            fort: { color: 'rouge', message: '', conditions: [] },
+            moyen: { color: 'orange', message: '', conditions: [] },
+            faible: { color: 'vert', message: '', conditions: [] }
+        };
+    }
+
+    normalizeValoboisAlertConditionList(source) {
+        const conditionsSource = Array.isArray(source) ? source : [];
+        return conditionsSource
+            .map((condition) => {
+                if (!condition || typeof condition !== 'object') return null;
+                const criterionRef = String(condition.criterionRef || '').trim();
+                const levels = Array.isArray(condition.levels)
+                    ? condition.levels.map((l) => String(l || '').trim().toLowerCase()).filter((l) => ['fort', 'moyen', 'faible'].includes(l))
+                    : [];
+                if (!criterionRef || !levels.length) return null;
+                return { criterionRef, levels: Array.from(new Set(levels)) };
+            })
+            .filter(Boolean);
+    }
+
+    normalizeValoboisAlertRecommendationProfile(rawProfile, fallbackProfile, levelKey) {
+        const source = rawProfile && typeof rawProfile === 'object' ? rawProfile : {};
+        const fallback = fallbackProfile && typeof fallbackProfile === 'object' ? fallbackProfile : {};
+        const defaultColorByLevel = { fort: 'rouge', moyen: 'orange', faible: 'vert' };
+        return {
+            color: this.normalizeValoboisAlertColorKey(source.color ?? fallback.color, defaultColorByLevel[levelKey] || 'orange'),
+            message: String(source.message ?? fallback.message ?? '').trim(),
+            conditions: this.normalizeValoboisAlertConditionList(Array.isArray(source.conditions) ? source.conditions : fallback.conditions)
+        };
+    }
+
+    normalizeValoboisCustomFreeAlertConfig(rawConfig, fallback = {}) {
+        const raw = rawConfig && typeof rawConfig === 'object' ? rawConfig : {};
+        const defaultMode = ['disabled', 'inherited', 'custom'].includes(String(fallback.mode || '').trim())
+            ? String(fallback.mode).trim()
+            : 'disabled';
+        const mode = ['disabled', 'inherited', 'custom'].includes(String(raw.mode || '').trim())
+            ? String(raw.mode).trim()
+            : defaultMode;
+        const inheritedRankRaw = Number(raw.inheritedRank ?? fallback.inheritedRank);
+        const inheritedRank = Number.isFinite(inheritedRankRaw) ? Number(inheritedRankRaw) : null;
+        const recommendationLevelRaw = String(raw.recommendationLevel ?? fallback.recommendationLevel ?? 'moyen').trim().toLowerCase();
+        const recommendationLevel = ['fort', 'moyen', 'faible'].includes(recommendationLevelRaw)
+            ? recommendationLevelRaw
+            : 'moyen';
+        const message = String(raw.message ?? fallback.message ?? '').trim();
+        const conditionsSource = Array.isArray(raw.conditions)
+            ? raw.conditions
+            : (Array.isArray(fallback.conditions) ? fallback.conditions : []);
+        const conditions = this.normalizeValoboisAlertConditionList(conditionsSource);
+
+        const defaultProfiles = this.getValoboisDefaultAlertRecommendationProfiles();
+        const fallbackProfilesSource = (fallback.recommendations && typeof fallback.recommendations === 'object')
+            ? fallback.recommendations
+            : defaultProfiles;
+        const rawProfilesSource = (raw.recommendations && typeof raw.recommendations === 'object')
+            ? raw.recommendations
+            : null;
+        const recommendations = {
+            fort: this.normalizeValoboisAlertRecommendationProfile(rawProfilesSource && rawProfilesSource.fort, fallbackProfilesSource.fort || defaultProfiles.fort, 'fort'),
+            moyen: this.normalizeValoboisAlertRecommendationProfile(rawProfilesSource && rawProfilesSource.moyen, fallbackProfilesSource.moyen || defaultProfiles.moyen, 'moyen'),
+            faible: this.normalizeValoboisAlertRecommendationProfile(rawProfilesSource && rawProfilesSource.faible, fallbackProfilesSource.faible || defaultProfiles.faible, 'faible')
+        };
+
+        // Migration legacy -> profil ciblé si aucun profil explicite n'est présent.
+        if (!rawProfilesSource && (conditions.length || message)) {
+            const target = recommendations[recommendationLevel] || recommendations.moyen;
+            target.conditions = conditions;
+            if (message) target.message = message;
+        }
+
+        const selectedProfile = recommendations[recommendationLevel] || recommendations.moyen;
+        return {
+            mode,
+            inheritedRank,
+            recommendationLevel,
+            message: selectedProfile.message || message,
+            conditions: selectedProfile.conditions || conditions,
+            recommendations
         };
     }
 
@@ -5537,6 +5644,7 @@ class ValoboisApp {
             ...defaults,
             id,
             rank,
+            sourceRank: Number.isFinite(Number(source.sourceRank)) ? Number(source.sourceRank) : null,
             critere: toText(source.critere, defaults.critere),
             axeKey: toText(source.axeKey, defaults.axeKey),
             axe: toText(source.axe, defaults.axe),
@@ -5563,9 +5671,11 @@ class ValoboisApp {
                     fort: String(source.notation?.fields?.fort ?? defaults.notation.fields.fort).trim(),
                     moyen: String(source.notation?.fields?.moyen ?? defaults.notation.fields.moyen).trim(),
                     faible: String(source.notation?.fields?.faible ?? defaults.notation.fields.faible).trim(),
+                    note: String(source.notation?.fields?.note ?? defaults.notation.fields.note).trim(),
                     references: String(source.notation?.fields?.references ?? defaults.notation.fields.references).trim()
                 }
-            }
+            },
+            alertConfig: this.normalizeValoboisCustomFreeAlertConfig(source.alertConfig, defaults.alertConfig)
         };
 
         if (/^personnalisee?$/i.test(String(next.famille || '').trim())) {
@@ -5593,24 +5703,76 @@ class ValoboisApp {
         return next;
     }
 
+    /**
+     * Parse a raw notation text (from base-criterion content maps) into the structured
+     * `notation.fields` object used by the custom-notation edit modal.
+     * Uses the existing `parseLegacyModalContent` renderer-parser, then maps its
+     * output (intro / echelle / info / references) to the editable fields struct.
+     */
+    parseNotationMessageToFields(rawText) {
+        if (!rawText || typeof rawText !== 'string') return null;
+        const parsed = this.parseLegacyModalContent(rawText);
+        if (!parsed) return null;
+
+        const fields = {
+            intro: '',
+            grammaticalGender: 'feminin',
+            grammaticalNumber: 'singulier',
+            article: 'Une',
+            labelFort: 'Forte',
+            labelMoyen: 'Moyenne',
+            labelFaible: 'Faible',
+            fort: '',
+            moyen: '',
+            faible: '',
+            note: '',
+            references: ''
+        };
+
+        if (parsed.intro) fields.intro = String(parsed.intro).trim();
+
+        const scaleItems = Array.isArray(parsed.echelle) ? parsed.echelle : [];
+        scaleItems.forEach((item) => {
+            const rawLine = typeof item === 'string' ? item : String(item && (item.texte || item.text) || '');
+            if (!rawLine.trim()) return;
+
+            // Identify the level
+            const levelMatch = rawLine.match(/(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?/i);
+            if (!levelMatch) return;
+            const levelRaw = levelMatch[1];
+            const levelNorm = levelRaw.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const key = /^fort/.test(levelNorm) ? 'fort' : /^moy/.test(levelNorm) ? 'moyen' : /^faibl/.test(levelNorm) ? 'faible' : null;
+            if (!key) return;
+
+            // Label = raw level word, capitalized first letter
+            const label = levelRaw.charAt(0).toUpperCase() + levelRaw.slice(1).toLowerCase();
+            // Description = full original line without trailing score bracket
+            const desc = rawLine.replace(/\s*\[[^\]]+\]\s*\.?\s*$/, '').trim();
+
+            if (key === 'fort' && !fields.fort) { fields.labelFort = label; fields.fort = desc; }
+            else if (key === 'moyen' && !fields.moyen) { fields.labelMoyen = label; fields.moyen = desc; }
+            else if (key === 'faible' && !fields.faible) { fields.labelFaible = label; fields.faible = desc; }
+        });
+
+        const infoLines = Array.isArray(parsed.info) ? parsed.info.map((l) => String(l || '').trim()).filter(Boolean) : [];
+        if (infoLines.length) fields.note = infoLines.join('\n\n');
+
+        const refLines = Array.isArray(parsed.references) ? parsed.references.map((l) => String(l || '').trim()).filter(Boolean) : [];
+        if (refLines.length) fields.references = refLines.join('\n');
+
+        return fields;
+    }
+
     buildNotationMessageFromFields(criterion) {
         if (!criterion) return '';
         const fields = criterion.notation?.fields || {};
-        const critere = String(criterion.critere || 'critère').trim();
         const scores = criterion.scores || {};
         const toLabel = (value, fallback) => {
             const raw = String(value || '').trim() || fallback;
             if (!raw) return '';
             return raw.charAt(0).toUpperCase() + raw.slice(1);
         };
-        const toArticle = () => {
-            const explicit = String(fields.article || '').trim();
-            if (explicit) return explicit;
-            const source = String(criterion.notation?.title || critere || '').trim().toLowerCase();
-            const normalized = source.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            const masculinePrefixes = ['amortissement', 'vieillissement', 'debit', 'transport', 'feu', 'aspect', 'classement', 'etiquetage', 'reemploi', 'recyclage'];
-            return masculinePrefixes.some((prefix) => normalized.startsWith(prefix)) ? 'Un' : 'Une';
-        };
+        // Article determination is no longer used in the compact notation lines below.
         const formatScore = (val) => {
             const n = Number(val);
             if (!Number.isFinite(n)) return '[0]';
@@ -5619,16 +5781,28 @@ class ValoboisApp {
         const scoreFort = formatScore(scores.fort?.value);
         const scoreMoyen = formatScore(scores.moyen?.value);
         const scoreFaible = formatScore(scores.faible?.value);
-        const article = toArticle();
         const labelFort = toLabel(fields.labelFort, 'Forte');
         const labelMoyen = toLabel(fields.labelMoyen, 'Moyenne');
         const labelFaible = toLabel(fields.labelFaible, 'Faible');
         const lines = [];
         if (fields.intro) lines.push(fields.intro.trim(), '');
-        lines.push(`${article} ${critere} ${labelFort} ${scoreFort}${fields.fort ? '. ' + fields.fort.trim() : '.'}`);
-        lines.push(`${article} ${critere} ${labelMoyen} ${scoreMoyen}${fields.moyen ? '. ' + fields.moyen.trim() : '.'}`);
-        lines.push(`${article} ${critere} ${labelFaible} ${scoreFaible}${fields.faible ? '. ' + fields.faible.trim() : '.'}`);
-        if (fields.references) lines.push('', fields.references.trim());
+        // Format: 'Label. Description (if any) [score]' for clean, consistent rendering.
+        const buildScaleLine = (label, desc, score) => {
+            const cleanDesc = String(desc || '').trim();
+            if (cleanDesc) {
+                return `${label}. ${cleanDesc} ${score}.`;
+            }
+            return `${label}. ${score}.`;
+        };
+        lines.push(buildScaleLine(labelFort, fields.fort, scoreFort));
+        lines.push(buildScaleLine(labelMoyen, fields.moyen, scoreMoyen));
+        lines.push(buildScaleLine(labelFaible, fields.faible, scoreFaible));
+        if (fields.note) {
+            String(fields.note).trim().split(/\n\n+/).map(s => s.trim()).filter(Boolean).forEach(block => lines.push('', block));
+        }
+        if (fields.references) {
+            lines.push('', 'Références et ressources.', fields.references.trim());
+        }
         return lines.join('\n').trim();
     }
 
@@ -5710,10 +5884,26 @@ class ValoboisApp {
 
         const nextRank = this.getValoboisNextCustomFreeCriterionRank(criteria);
         const usedIds = new Set(criteria.map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        // Deep clone du critère source
         const cloneSeed = JSON.parse(JSON.stringify(source));
         cloneSeed.id = '';
         cloneSeed.rank = nextRank;
         cloneSeed.critere = `${String(source.critere || '').trim() || 'Critère personnalisé'} (copie)`;
+        // Copie profonde et explicite du bloc notation (modale info)
+        if (source.notation) {
+            cloneSeed.notation = JSON.parse(JSON.stringify(source.notation));
+            // Si le message principal est absent mais que des champs existent,
+            // génère le message synthétique depuis les fields pour garder
+            // l'équivalent de la fiche visible après duplication.
+            try {
+                const hasFields = cloneSeed.notation.fields && Object.values(cloneSeed.notation.fields).some((v) => String(v || '').trim());
+                if (hasFields && !String(cloneSeed.notation.message || '').trim()) {
+                    cloneSeed.notation.message = this.buildNotationMessageFromFields({ notation: cloneSeed.notation, scores: cloneSeed.scores || source.scores || {} });
+                }
+            } catch (e) {
+                // noop
+            }
+        }
         const nextEntry = this.normalizeValoboisCustomFreeCriterionEntry(cloneSeed, nextRank, usedIds);
 
         criteria.push(nextEntry);
@@ -5778,8 +5968,36 @@ class ValoboisApp {
             return out;
         };
 
+        // Copie profonde et explicite du bloc notation (modale info).
+        // Les critères socle stockent leur contenu dans les content maps (getDenatDetailContents, etc.)
+        // et non dans baseEntry.notation.fields. On récupère le spec complet via getNotationDetailSpec
+        // puis on le parse en fields structurés pour pré-remplir le formulaire d'édition.
+        let clonedNotation = { title: '', message: '', fields: null };
+        try {
+            // Priorité 1 : le spec section/field du critère socle
+            const spec = this.getNotationDetailSpec(mapping.section, mapping.field);
+            if (spec && spec.message) {
+                const parsedFields = this.parseNotationMessageToFields(spec.message);
+                clonedNotation.title = spec.title || baseEntry.critere || '';
+                clonedNotation.message = spec.message;
+                if (parsedFields) clonedNotation.fields = parsedFields;
+            } else if (baseEntry.notation) {
+                // Priorité 2 : notation déjà présente sur l'entrée socle
+                clonedNotation = JSON.parse(JSON.stringify(baseEntry.notation));
+            }
+            // Ne génère le message compact depuis les fields QUE si aucun message complet n'est déjà présent.
+            // Le message complet (spec.message) est la source de vérité pour la modale info ;
+            // les fields servent uniquement au formulaire d'édition.
+            const hasFields = clonedNotation.fields && Object.values(clonedNotation.fields).some((v) => String(v || '').trim());
+            if (hasFields && !String(clonedNotation.message || '').trim()) {
+                clonedNotation.message = this.buildNotationMessageFromFields({ notation: clonedNotation, scores: baseEntry.scores || {} });
+            }
+        } catch (e) {
+            // noop — on laisse le clone vide plutôt que de planter la duplication
+        }
         return this.createValoboisCustomFreeCriterion({
             critere: `${baseEntry.critere || `Critère ${rank}`} (copie)`,
+            sourceRank: rank,
             axeKey: baseEntry.axeKey,
             axe: baseEntry.axe,
             famille: baseEntry.famille,
@@ -5788,7 +6006,14 @@ class ValoboisApp {
             scores: JSON.parse(JSON.stringify(baseEntry.scores || {})),
             vectors: buildFlowSeed('vectors'),
             rejects: buildFlowSeed('rejects'),
-            notation: JSON.parse(JSON.stringify(baseEntry.notation || {}))
+            notation: clonedNotation,
+            alertConfig: {
+                mode: baseEntry.alerte ? 'inherited' : 'disabled',
+                inheritedRank: baseEntry.alerte ? rank : null,
+                recommendationLevel: 'moyen',
+                message: '',
+                conditions: []
+            }
         });
     }
 
@@ -5803,6 +6028,7 @@ class ValoboisApp {
             const sourceLabel = Number.isFinite(sourceRank) ? `${sourceRank}` : 'legacy';
             return {
                 id: `legacy-r${sourceLabel}`,
+                sourceRank: Number.isFinite(sourceRank) ? sourceRank : null,
                 critere: `${entry.critere || `Critère ${sourceLabel}`} (import legacy)`,
                 axeKey: entry.axeKey,
                 axe: entry.axe,
@@ -5814,7 +6040,14 @@ class ValoboisApp {
                 scores: JSON.parse(JSON.stringify(entry.scores || {})),
                 vectors: JSON.parse(JSON.stringify(entry.vectors || {})),
                 rejects: JSON.parse(JSON.stringify(entry.rejects || {})),
-                notation: JSON.parse(JSON.stringify(entry.notation || {}))
+                notation: JSON.parse(JSON.stringify(entry.notation || {})),
+                alertConfig: {
+                    mode: entry.alerte ? 'inherited' : 'disabled',
+                    inheritedRank: Number.isFinite(sourceRank) ? sourceRank : null,
+                    recommendationLevel: 'moyen',
+                    message: '',
+                    conditions: []
+                }
             };
         });
     }
@@ -5923,6 +6156,46 @@ class ValoboisApp {
             if (!next.notation || typeof next.notation !== 'object') next.notation = { title: '', message: '' };
             next.notation.message = String(rawValue || '').trim();
             break;
+        case 'alertConfig.mode': {
+            const mode = String(rawValue || '').trim();
+            if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+                next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+            }
+            if (!['disabled', 'inherited', 'custom'].includes(mode)) return false;
+            next.alertConfig.mode = mode;
+            if (mode === 'inherited' && !Number.isFinite(Number(next.alertConfig.inheritedRank))) {
+                next.alertConfig.inheritedRank = Number.isFinite(Number(next.sourceRank)) ? Number(next.sourceRank) : null;
+            }
+            break;
+        }
+        case 'alertConfig.recommendationLevel': {
+            const level = String(rawValue || '').trim().toLowerCase();
+            if (!['fort', 'moyen', 'faible'].includes(level)) return false;
+            if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+                next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+            }
+            next.alertConfig.recommendationLevel = level;
+            break;
+        }
+        case 'alertConfig.message': {
+            if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+                next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+            }
+            next.alertConfig.message = String(rawValue || '').trim();
+            break;
+        }
+        case 'alertConfig.recommendations': {
+            if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+                next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+            }
+            const source = rawValue && typeof rawValue === 'object' ? rawValue : {};
+            next.alertConfig.recommendations = {
+                fort: this.normalizeValoboisAlertRecommendationProfile(source.fort, next.alertConfig.recommendations && next.alertConfig.recommendations.fort, 'fort'),
+                moyen: this.normalizeValoboisAlertRecommendationProfile(source.moyen, next.alertConfig.recommendations && next.alertConfig.recommendations.moyen, 'moyen'),
+                faible: this.normalizeValoboisAlertRecommendationProfile(source.faible, next.alertConfig.recommendations && next.alertConfig.recommendations.faible, 'faible')
+            };
+            break;
+        }
         default: {
             const modeMatch = /^enabledModes\.(fort|moyen|faible)$/.exec(path);
             if (modeMatch) {
@@ -5962,6 +6235,121 @@ class ValoboisApp {
             return false;
         }
         }
+
+        const usedIds = new Set(criteria.filter((_, i) => i !== index).map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        criteria[index] = this.normalizeValoboisCustomFreeCriterionEntry(next, next.rank, usedIds);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        this.renderSeuils();
+        this.renderCustomFreeCriteria();
+        return true;
+    }
+
+    addValoboisCustomFreeAlertCondition(id, condition) {
+        const targetId = String(id || '').trim();
+        if (!targetId || !condition || typeof condition !== 'object') return false;
+        const criterionRef = String(condition.criterionRef || '').trim();
+        const levels = Array.isArray(condition.levels)
+            ? condition.levels.map((level) => String(level || '').trim().toLowerCase()).filter((level) => ['fort', 'moyen', 'faible'].includes(level))
+            : [];
+        if (!criterionRef || !levels.length) return false;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const index = criteria.findIndex((entry) => String(entry && entry.id || '') === targetId);
+        if (index < 0) return false;
+
+        const next = JSON.parse(JSON.stringify(criteria[index]));
+        if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+            next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+        }
+        if (!Array.isArray(next.alertConfig.conditions)) next.alertConfig.conditions = [];
+        next.alertConfig.conditions.push({ criterionRef, levels: Array.from(new Set(levels)) });
+        if (next.alertConfig.mode === 'disabled') next.alertConfig.mode = 'custom';
+
+        const usedIds = new Set(criteria.filter((_, i) => i !== index).map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        criteria[index] = this.normalizeValoboisCustomFreeCriterionEntry(next, next.rank, usedIds);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        this.renderSeuils();
+        this.renderCustomFreeCriteria();
+        return true;
+    }
+
+    removeValoboisCustomFreeAlertCondition(id, indexToRemove) {
+        const targetId = String(id || '').trim();
+        const idx = Number(indexToRemove);
+        if (!targetId || !Number.isInteger(idx) || idx < 0) return false;
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const index = criteria.findIndex((entry) => String(entry && entry.id || '') === targetId);
+        if (index < 0) return false;
+
+        const next = JSON.parse(JSON.stringify(criteria[index]));
+        if (!next.alertConfig || typeof next.alertConfig !== 'object' || !Array.isArray(next.alertConfig.conditions)) return false;
+        if (!next.alertConfig.conditions[idx]) return false;
+        next.alertConfig.conditions.splice(idx, 1);
+
+        const usedIds = new Set(criteria.filter((_, i) => i !== index).map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
+        criteria[index] = this.normalizeValoboisCustomFreeCriterionEntry(next, next.rank, usedIds);
+        criteria.sort((a, b) => Number(a.rank) - Number(b.rank));
+        config.customFreeCriteria = criteria;
+        this.valoboisMatrixConfig = config;
+        this.saveValoboisMatrixConfig();
+        this.computeOrientation(this.getCurrentLot());
+        this.renderMatrice();
+        this.renderSeuils();
+        this.renderCustomFreeCriteria();
+        return true;
+    }
+
+    setValoboisCustomFreeAlertConditions(id, conditions, recommendationLevel = 'moyen') {
+        const targetId = String(id || '').trim();
+        if (!targetId || !Array.isArray(conditions)) return false;
+        const targetRecommendation = ['fort', 'moyen', 'faible'].includes(String(recommendationLevel || '').trim().toLowerCase())
+            ? String(recommendationLevel).trim().toLowerCase()
+            : 'moyen';
+
+        const config = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+        const criteria = Array.isArray(config.customFreeCriteria) ? [...config.customFreeCriteria] : [];
+        const index = criteria.findIndex((entry) => String(entry && entry.id || '') === targetId);
+        if (index < 0) return false;
+
+        const next = JSON.parse(JSON.stringify(criteria[index]));
+        if (!next.alertConfig || typeof next.alertConfig !== 'object') {
+            next.alertConfig = this.normalizeValoboisCustomFreeAlertConfig(null, this.buildValoboisDefaultCustomFreeCriterion(next.rank).alertConfig);
+        }
+        const normalizedConditions = conditions
+            .map((condition) => {
+                if (!condition || typeof condition !== 'object') return null;
+                const criterionRef = String(condition.criterionRef || '').trim();
+                const levels = Array.isArray(condition.levels)
+                    ? condition.levels.map((level) => String(level || '').trim().toLowerCase()).filter((level) => ['fort', 'moyen', 'faible'].includes(level))
+                    : [];
+                if (!criterionRef || !levels.length) return null;
+                return { criterionRef, levels: Array.from(new Set(levels)) };
+            })
+            .filter(Boolean);
+
+        if (!next.alertConfig.recommendations || typeof next.alertConfig.recommendations !== 'object') {
+            next.alertConfig.recommendations = this.getValoboisDefaultAlertRecommendationProfiles();
+        }
+        if (!next.alertConfig.recommendations[targetRecommendation] || typeof next.alertConfig.recommendations[targetRecommendation] !== 'object') {
+            next.alertConfig.recommendations[targetRecommendation] = this.getValoboisDefaultAlertRecommendationProfiles()[targetRecommendation];
+        }
+        next.alertConfig.recommendations[targetRecommendation].conditions = normalizedConditions;
+        next.alertConfig.recommendationLevel = targetRecommendation;
+        next.alertConfig.conditions = normalizedConditions;
+        next.alertConfig.message = String(next.alertConfig.recommendations[targetRecommendation].message || '').trim();
 
         const usedIds = new Set(criteria.filter((_, i) => i !== index).map((entry) => String(entry && entry.id || '').trim()).filter(Boolean));
         criteria[index] = this.normalizeValoboisCustomFreeCriterionEntry(next, next.rank, usedIds);
@@ -6070,6 +6458,22 @@ class ValoboisApp {
             title: notationTitle || (typeof notation.title === 'string' ? notation.title.trim() : ''),
             message: notationMessage || (typeof notation.message === 'string' ? notation.message.trim() : '')
         };
+
+        // Preserve detailed notation.fields when present on the raw object or baseEntry
+        try {
+            if (notation && typeof notation.fields === 'object') {
+                next.notation.fields = JSON.parse(JSON.stringify(notation.fields));
+            } else if (baseEntry && baseEntry.notation && typeof baseEntry.notation.fields === 'object') {
+                next.notation.fields = JSON.parse(JSON.stringify(baseEntry.notation.fields));
+            }
+            // If message is empty but fields exist, build a synthetic message for display
+            const hasFields = next.notation.fields && Object.values(next.notation.fields).some((v) => String(v || '').trim());
+            if (hasFields && !String(next.notation.message || '').trim()) {
+                next.notation.message = this.buildNotationMessageFromFields({ notation: next.notation, scores: next.scores || baseEntry.scores || {} });
+            }
+        } catch (e) {
+            // noop — if cloning/building fails, keep previous values
+        }
 
         return next;
     }
@@ -6340,6 +6744,109 @@ class ValoboisApp {
         return out;
     }
 
+    migrateValoboisCustomNotationMessages(config) {
+        if (!config || typeof config !== 'object') return false;
+        const defaultFields = { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', note: '', references: '' };
+        const baseEntries = Array.isArray(this.getValoboisMatrixBaseDataset()) ? this.getValoboisMatrixBaseDataset() : [];
+        const baseByNorm = new Map(baseEntries.map((b) => [this.normalizeValoboisGateId(String(b.critere || '')), b]));
+        const baseByRank = new Map(baseEntries.map((b) => [Number(b.rang), b]));
+        let changed = false;
+
+        // Récupère le spec de notation d'un critère socle (titre + message complet)
+        const getBaseSpec = (baseEntry) => {
+            if (!baseEntry) return null;
+            return this.getValoboisMatrixNotationSpec(baseEntry) || null;
+        };
+
+        // Tente de trouver l'entrée socle correspondant à un critère dupliqué
+        const findBaseEntry = (entry) => {
+            // Par sourceRank explicite
+            if (entry.sourceRank && Number.isFinite(Number(entry.sourceRank))) {
+                const found = baseByRank.get(Number(entry.sourceRank));
+                if (found) return found;
+            }
+            // Par nom (strip suffixe "(copie)", "-copie", etc.)
+            const rawLabel = String(entry.critere || entry.id || '').trim();
+            if (!rawLabel) return null;
+            const cleaned = rawLabel
+                .replace(/\s*\((copie|import legacy|imported|import)\)\s*$/i, '')
+                .replace(/\s*-\s*copie\s*$/i, '')
+                .trim();
+            return baseByNorm.get(this.normalizeValoboisGateId(cleaned)) || null;
+        };
+
+        const list = Array.isArray(config.customFreeCriteria) ? config.customFreeCriteria : [];
+        list.forEach((entry) => {
+            if (!entry || typeof entry !== 'object') return;
+            if (!entry.notation || typeof entry.notation !== 'object') entry.notation = { title: '', message: '', fields: Object.assign({}, defaultFields) };
+            if (!entry.notation.fields || typeof entry.notation.fields !== 'object') entry.notation.fields = Object.assign({}, defaultFields);
+
+            const hasFields = entry.notation.fields && Object.values(entry.notation.fields).some((v) => String(v || '').trim());
+            const currentMessage = String(entry.notation.message || '').trim();
+            const isCorruptedMessage = currentMessage === '[object Object]';
+
+            // Cas 1 : fields renseignés mais message absent → regénérer le message
+            if (hasFields && !currentMessage) {
+                try {
+                    entry.notation.message = this.buildNotationMessageFromFields(entry);
+                    changed = true;
+                } catch (e) { /* noop */ }
+                return;
+            }
+
+            // Cas 2 : fields vides mais message présent (et non corrompu) → parser le message en fields
+            if (!hasFields && currentMessage && !isCorruptedMessage) {
+                try {
+                    const parsed = this.parseNotationMessageToFields(currentMessage);
+                    if (parsed && Object.values(parsed).some((v) => String(v || '').trim())) {
+                        entry.notation.fields = parsed;
+                        changed = true;
+                    }
+                } catch (e) { /* noop */ }
+                return;
+            }
+
+            // Cas 3 : tout vide OU message corrompu ("[object Object]") → chercher le critère socle et restaurer
+            if (!hasFields && (!currentMessage || isCorruptedMessage)) {
+                try {
+                    const base = findBaseEntry(entry);
+                    const spec = getBaseSpec(base);
+                    if (spec) {
+                        entry.notation.message = spec.message || '';
+                        if (!String(entry.notation.title || '').trim()) entry.notation.title = spec.title || '';
+                        const parsedFields = this.parseNotationMessageToFields(spec.message);
+                        if (parsedFields) entry.notation.fields = parsedFields;
+                        changed = true;
+                    }
+                } catch (e) { /* noop */ }
+            }
+
+            // Cas 4 : fields renseignés ET message présent mais message semble être une version compacte
+            // (généré par buildNotationMessageFromFields) → restaurer le message complet depuis le spec socle.
+            // Heuristique : la version compacte commence par un label court (ex : "Forte. ...")
+            // alors que le message original commence par l'intro ou un titre de section.
+            if (hasFields && currentMessage) {
+                const looksCompact = /^(Forte|Faible|Moyenne)\.\s/i.test(currentMessage);
+                if (looksCompact) {
+                    try {
+                        const base = findBaseEntry(entry);
+                        const spec = getBaseSpec(base);
+                        if (spec && spec.message) {
+                            entry.notation.message = spec.message;
+                            if (!String(entry.notation.title || '').trim()) entry.notation.title = spec.title || '';
+                            changed = true;
+                        }
+                    } catch (e) { /* noop */ }
+                }
+            }
+        });
+
+        if (changed) {
+            config.customFreeCriteria = list;
+        }
+        return changed;
+    }
+
     loadValoboisMatrixConfig() {
         try {
             const raw = localStorage.getItem(this.matrixConfigStorageKey);
@@ -6351,6 +6858,20 @@ class ValoboisApp {
                 ...(normalized.customFreeCriteria || []),
                 ...convertedLegacyCustomCriteria
             ]);
+
+            // Migration: remplir les messages manquants des modales `notation` pour les critères personnalisés existants
+            try {
+                const migrated = this.migrateValoboisCustomNotationMessages(normalized);
+                if (migrated) {
+                    try {
+                        localStorage.setItem(this.matrixConfigStorageKey, JSON.stringify(normalized));
+                    } catch (e) {
+                        console.warn('Migration: impossible de sauvegarder la config matricielle migrée.', e);
+                    }
+                }
+            } catch (e) {
+                // noop
+            }
 
             // Les critères socle sont en lecture seule: on neutralise les reliquats legacy.
             normalized.customCriteria = {};
@@ -6693,7 +7214,17 @@ class ValoboisApp {
             [lot.provenance, ['confianceProv', 'transportProv', 'reputationProv', 'macroProv', 'territorialiteProv']]
         ];
 
-        return blocks.some(([block, fields]) => checkBlock(block, fields));
+        const hasStandardGaps = blocks.some(([block, fields]) => checkBlock(block, fields));
+        if (hasStandardGaps) return true;
+
+        const activeMode = this.normalizeNotationMode(this.getValoboisActiveMatrixMode()) || this.getValoboisActiveMatrixMode();
+        const hasCustomGaps = this.getValoboisActiveCustomFreeCriteria(activeMode)
+            .some((criterion) => {
+                const criterionId = String(criterion && criterion.id || '').trim();
+                if (!criterionId) return false;
+                return !Number.isFinite(this.getValoboisLotCustomScoreValue(lot, criterionId));
+            });
+        return hasCustomGaps;
     }
 
     getNotationConfidenceSummaryActionFromLevel(level) {
@@ -20510,7 +21041,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             while (lines.length && !lines[0]) lines.shift();
         }
 
-        const scaleLineRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]/i;
+        const scaleLineRegex = /(?:(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]|^(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?\.?\s*[^\n]*\[[^\]]+\]\s*\.?\s*$)/i;
         const isReferenceHeadingLine = (line) => /^R[eé]f[eé]rences?\s+et\s+[Rr]essources\.?\s*$/i.test(String(line || '').trim());
         const isInfoSectionHeaderLine = (line) => /^(Attention|À\s*noter|Exemple)\s*:?/i.test(String(line || '').trim());
         const isLikelyReferenceLine = (line) => {
@@ -20521,6 +21052,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             if (/^(NF|EN|ISO|FD|DIN|ASTM|EUROCODE)\b/i.test(l)) return true;
             if (/(https?:\/\/|doi\.org\/|\bdoi\s*:)/i.test(l)) return true;
             if (/\(\d{4}\)/.test(l) && /^[A-ZÀ-ÖØ-Ý]/.test(l)) return true;
+            // Référence bibliographique sans parenthèses autour de l'année : "Auteur. Titre. Lieu, AAAA."
+            if (/,\s*\d{4}\.?\s*$/.test(l) && /^[A-ZÀ-ÖØ-Ý]/.test(l) && l.length > 30) return true;
             return false;
         };
         const isStrongReferenceSignalLine = (line) => {
@@ -20615,11 +21148,11 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
         const referenceChunks = [];
 
-        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
+        const scaleRegex = /(?:(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?|^(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?\.?\s*[^\n]*\[[^\]]+\]\s*\.?\s*$)/gmi;
         const referenceTokenRegex = /(https?:\/\/|\bwww\.|\bdoi\s*:|\b10\.\d{4,9}\/)/i;
         const bibliographicRegex = /\((?:\d{4}(?:[^)]*)|s\.\s*d\.)\)/i;
         const normRegex = /\b(FD|NF|EN|ISO|FWPA|STI|STII|STIII|C\d{2}|D\d{2})\b/i;
-        const scaleLineRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]/i;
+        const scaleLineRegex = /(?:(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\]|^(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?\.?\s*[^\n]*\[[^\]]+\]\s*\.?\s*$)/i;
 
         const isReferenceLine = (line) => {
             const clean = String(line || '').trim();
@@ -20632,6 +21165,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             if (normRegex.test(clean) && clean.length < 180) return true;
             if (/^\*+/.test(clean)) return true;
             if (/^[A-ZÀ-ÖØ-Ý][a-zA-Zà-öø-ÿ]+,\s/.test(clean) && /\b\d{4}\b/.test(clean)) return true;
+            // Référence bibliographique sans parenthèses autour de l'année : "Auteur. Titre. Lieu, AAAA."
+            if (/,\s*\d{4}\.?\s*$/.test(clean) && /^[A-ZÀ-ÖØ-Ý]/.test(clean) && clean.length > 30) return true;
             return false;
         };
 
@@ -20660,7 +21195,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 .toLowerCase()
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '');
-            const safeSentence = this.linkifyText(sentence.replace(/\s+/g, ' ').trim());
+            const safeSentence = this.linkifyText(String(sentence || '').replace(/\s+/g, ' ').trim());
             const className = forcedClassName || classFromLevelLabel(level);
             const normalizedLabel = level.replace(/[^a-z]/g, '');
             const label = normalizedLabel
@@ -20669,7 +21204,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             return `<div class="detail-modal-scale-item"><span class="detail-modal-scale-pill detail-modal-scale-pill--${className}">${label}</span><span>${safeSentence}</span></div>`;
         };
 
-        const html = blocks.map((block) => {
+        const html = blocks.map((block, blockIndex) => {
             let currentBlock = block;
             const firstLine = currentBlock.split('\n')[0].trim();
             const firstLineNoDot = firstLine.replace(/\.$/, '').trim();
@@ -20793,6 +21328,17 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 return '';
             }).trim();
 
+            const hasMeaningfulScaleText = (entry) => {
+                const sentence = String(entry && entry.sentence || '').trim();
+                if (!sentence) return false;
+                const withoutScore = sentence.replace(/\[\s*[+-]?\d+(?:[.,]\d+)?\s*\]/g, '').trim();
+                const withoutLeadLabel = withoutScore
+                    .replace(/^(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?\s*/i, '')
+                    .replace(/^(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?\.?\s*/i, '')
+                    .trim();
+                return withoutLeadLabel.length > 0;
+            };
+
             const scaleItems = scaleEntries.map((entry) => {
                 const finiteScores = scaleEntries
                     .map((item) => item.score)
@@ -20816,7 +21362,8 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 return toScaleItem(entry.sentence, entry.level, className);
             });
 
-            if (scaleItems.length >= 2) {
+            const hasRichScaleItems = scaleEntries.some((entry) => hasMeaningfulScaleText(entry));
+            if (scaleItems.length >= 2 && hasRichScaleItems) {
                 const intro = textWithoutScale
                     ? `<div class="detail-modal-paragraph"><p>${textWithoutScale.split('\n').map((line) => this.linkifyText(line.trim())).filter(Boolean).join('<br>')}</p></div>`
                     : '';
@@ -20824,6 +21371,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             }
 
             if (/^Noter\b/i.test(inlineText)) {
+                return `<div class="detail-modal-instruction"><p>${linesHtml}</p></div>`;
+            }
+
+            const nextBlock = blocks[blockIndex + 1] || '';
+            const nextBlockLooksLikeScale = !!nextBlock && scaleLineRegex.test(String(nextBlock).trim());
+            if (blockIndex === 0 && nextBlockLooksLikeScale) {
                 return `<div class="detail-modal-instruction"><p>${linesHtml}</p></div>`;
             }
 
@@ -31818,6 +32371,421 @@ getValoboisCustomFreeLevelKeyForScore(criterion, scoreValue, activeMode = null) 
     return '';
 }
 
+getValoboisAlertConditionCriterionOptions(mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const standard = this.getValoboisActiveCriteriaMappings(activeMode).map((mapping) => {
+        const matrixEntry = this.getValoboisMatrixEntryByRank(mapping.rang);
+        const label = `${Number(mapping.rang)} - ${(matrixEntry && matrixEntry.critere) ? matrixEntry.critere : `${mapping.section}.${mapping.field}`}`;
+        return {
+            ref: `${mapping.section}.${mapping.field}`,
+            label,
+            type: 'standard'
+        };
+    });
+    const custom = this.getValoboisActiveCustomFreeCriteria(activeMode).map((criterion) => {
+        const criterionId = String(criterion && criterion.id || '').trim();
+        if (!criterionId) return null;
+        return {
+            ref: `custom:${criterionId}`,
+            label: `${Number(criterion.rank) || '-'} - ${criterion.critere || criterionId}`,
+            type: 'custom'
+        };
+    }).filter(Boolean);
+    return [...standard, ...custom];
+}
+
+getValoboisLevelKeyForAlertConditionRef(lot, criterionRef, mode = null) {
+    if (!lot) return '';
+    const ref = String(criterionRef || '').trim();
+    if (!ref) return '';
+    if (ref.startsWith('custom:')) {
+        const criterionId = ref.slice('custom:'.length).trim();
+        if (!criterionId) return '';
+        const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+        if (!criterion) return '';
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (!Number.isFinite(score)) return '';
+        return this.getValoboisCustomFreeLevelKeyForScore(criterion, score, mode);
+    }
+
+    const mapping = this.getValoboisScoreMappingByCriterionKey(ref);
+    if (!mapping) return '';
+    return this.getValoboisCurrentLevelKeyForCriterion(lot, mapping);
+}
+
+evaluateValoboisCustomAlertRuleSet(lot, criterion, mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion && criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion && criterion.rank).alertConfig);
+    const profiles = alertConfig && alertConfig.recommendations && typeof alertConfig.recommendations === 'object'
+        ? alertConfig.recommendations
+        : this.getValoboisDefaultAlertRecommendationProfiles();
+
+    const priority = ['fort', 'moyen', 'faible'];
+    const recommendationsEval = {};
+    let hasAnyConditions = false;
+    let activeRecommendation = '';
+
+    priority.forEach((levelKey) => {
+        const profile = profiles[levelKey] && typeof profiles[levelKey] === 'object'
+            ? profiles[levelKey]
+            : { color: levelKey === 'fort' ? 'rouge' : (levelKey === 'moyen' ? 'orange' : 'vert'), message: '', conditions: [] };
+        const conditions = this.normalizeValoboisAlertConditionList(profile.conditions);
+        if (conditions.length) hasAnyConditions = true;
+
+        const matchedConditions = [];
+        const missingConditions = [];
+        conditions.forEach((condition) => {
+            const currentLevel = this.getValoboisLevelKeyForAlertConditionRef(lot, condition.criterionRef, activeMode);
+            const allowed = Array.isArray(condition.levels) ? condition.levels : [];
+            if (currentLevel && allowed.includes(currentLevel)) {
+                matchedConditions.push({ ...condition, currentLevel });
+            } else {
+                missingConditions.push({ ...condition, currentLevel });
+            }
+        });
+
+        const triggered = conditions.length > 0 && missingConditions.length === 0;
+        recommendationsEval[levelKey] = {
+            level: levelKey,
+            color: this.normalizeValoboisAlertColorKey(profile.color, levelKey === 'fort' ? 'rouge' : (levelKey === 'moyen' ? 'orange' : 'vert')),
+            message: String(profile.message || '').trim(),
+            conditions,
+            matchedConditions,
+            missingConditions,
+            triggered
+        };
+
+        if (!activeRecommendation && triggered) {
+            activeRecommendation = levelKey;
+        }
+    });
+
+    if (!hasAnyConditions) {
+        return {
+            triggered: false,
+            matchedConditions: [],
+            missingConditions: [],
+            recommendationLevel: alertConfig.recommendationLevel || 'moyen',
+            recommendationColor: this.normalizeValoboisAlertColorKey((profiles[alertConfig.recommendationLevel] || {}).color, 'orange'),
+            message: String((profiles[alertConfig.recommendationLevel] || {}).message || alertConfig.message || '').trim(),
+            activeRecommendation: '',
+            recommendationsEval
+        };
+    }
+
+    const chosenLevel = activeRecommendation || alertConfig.recommendationLevel || 'moyen';
+    const chosenEval = recommendationsEval[chosenLevel] || recommendationsEval.moyen || {
+        matchedConditions: [],
+        missingConditions: [],
+        color: 'orange',
+        message: ''
+    };
+
+    return {
+        triggered: !!activeRecommendation,
+        matchedConditions: chosenEval.matchedConditions,
+        missingConditions: chosenEval.missingConditions,
+        recommendationLevel: chosenLevel,
+        recommendationColor: chosenEval.color,
+        message: chosenEval.message,
+        activeRecommendation,
+        recommendationsEval
+    };
+}
+
+resolveValoboisCustomFreeAlertState(lot, criterion, mode = null) {
+    const activeMode = this.normalizeNotationMode(mode) || this.getValoboisActiveMatrixMode();
+    if (!lot || !criterion) {
+        return { state: 'none', triggered: false, reason: 'missing-data', recommendationLevel: 'moyen', message: '' };
+    }
+    const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion.rank).alertConfig);
+    const criterionId = String(criterion.id || '').trim();
+
+    if (alertConfig.mode === 'disabled') {
+        return { state: 'none', triggered: false, reason: 'disabled', recommendationLevel: alertConfig.recommendationLevel || 'moyen', message: alertConfig.message || '' };
+    }
+
+    if (alertConfig.mode === 'inherited') {
+        const inheritedRank = Number(alertConfig.inheritedRank ?? criterion.sourceRank);
+        if (!Number.isFinite(inheritedRank)) {
+            return { state: 'missing-config', triggered: false, reason: 'missing-inherited-rank', recommendationLevel: alertConfig.recommendationLevel || 'moyen', message: alertConfig.message || '' };
+        }
+        const inheritedGate = this.getValoboisDefaultGateDefinitions().find((gate) => Number(gate.rang) === inheritedRank);
+        if (!inheritedGate) {
+            return {
+                state: 'missing-config',
+                triggered: false,
+                reason: 'inherited-not-supported',
+                recommendationLevel: alertConfig.recommendationLevel || 'moyen',
+                message: alertConfig.message || '',
+                criterionId
+            };
+        }
+        const mapping = this.getValoboisScoreMappingByRank(inheritedRank);
+        if (!mapping) {
+            return { state: 'missing-config', triggered: false, reason: 'unknown-inherited-rank', recommendationLevel: alertConfig.recommendationLevel || 'moyen', message: alertConfig.message || '' };
+        }
+        const score = this.getValoboisEffectiveCriterionScore(lot, mapping, activeMode);
+        const threshold = Number.isFinite(Number(inheritedGate.scoreThreshold)) ? Number(inheritedGate.scoreThreshold) : -10;
+        const triggered = Number(score) <= threshold;
+        const levelKey = this.getValoboisLevelKeyForAlertConditionRef(lot, `${mapping.section}.${mapping.field}`, activeMode);
+        return {
+            state: triggered ? 'active' : 'none',
+            triggered,
+            reason: triggered ? 'inherited-threshold' : 'inherited-not-triggered',
+            recommendationLevel: levelKey || alertConfig.recommendationLevel || 'moyen',
+            message: alertConfig.message || '',
+            criterionRef: `${mapping.section}.${mapping.field}`,
+            criterionId
+        };
+    }
+
+    const evaluated = this.evaluateValoboisCustomAlertRuleSet(lot, criterion, activeMode);
+    if (!evaluated.matchedConditions.length && !evaluated.missingConditions.length) {
+        return {
+            state: 'missing-config',
+            triggered: false,
+            reason: 'no-conditions',
+            recommendationLevel: evaluated.recommendationLevel,
+            message: evaluated.message,
+            criterionId
+        };
+    }
+    return {
+        state: evaluated.triggered ? 'active' : 'none',
+        triggered: !!evaluated.triggered,
+        reason: evaluated.triggered ? 'custom-rules-match' : 'custom-rules-no-match',
+        recommendationLevel: evaluated.recommendationLevel,
+        recommendationColor: evaluated.recommendationColor,
+        message: evaluated.message,
+        matchedConditions: evaluated.matchedConditions,
+        missingConditions: evaluated.missingConditions,
+        activeRecommendation: evaluated.activeRecommendation,
+        recommendationsEval: evaluated.recommendationsEval,
+        criterionId
+    };
+}
+
+openValoboisCustomAlertConfigPrompt(criterionId) {
+    const id = String(criterionId || '').trim();
+    if (!id) return false;
+    const criterion = this.getValoboisCustomFreeCriteriaMap()[id];
+    if (!criterion) return false;
+    const options = this.getValoboisAlertConditionCriterionOptions();
+    const optionsHint = options.slice(0, 25).map((opt) => `- ${opt.ref} (${opt.label})`).join('\n');
+    const ref = window.prompt(`Référence du critère à surveiller (ex: denat.contaminationDenat ou custom:cf51)\n\nExemples disponibles:\n${optionsHint}`);
+    if (!ref) return false;
+    const levelsRaw = window.prompt('Niveaux à déclencher (liste séparée par virgules: fort,moyen,faible)', 'faible');
+    if (!levelsRaw) return false;
+    const levels = String(levelsRaw)
+        .split(',')
+        .map((level) => String(level || '').trim().toLowerCase())
+        .filter((level) => ['fort', 'moyen', 'faible'].includes(level));
+    if (!levels.length) return false;
+    return this.addValoboisCustomFreeAlertCondition(id, { criterionRef: String(ref).trim(), levels });
+}
+
+openValoboisCustomAlertConfigModal(criterionId) {
+    const id = String(criterionId || '').trim();
+    if (!id) return false;
+    const criterion = this.getValoboisCustomFreeCriteriaMap()[id];
+    if (!criterion) return false;
+
+    const backdrop = document.getElementById('valoboisCustomAlertConfigModalBackdrop');
+    const titleEl = document.getElementById('valoboisCustomAlertConfigModalTitle');
+    const contentEl = document.getElementById('valoboisCustomAlertConfigModalContent');
+    const closeBtn = document.getElementById('btnCloseValoboisCustomAlertConfigModal');
+    const cancelBtn = document.getElementById('btnCancelValoboisCustomAlertConfigModal');
+    const saveBtn = document.getElementById('btnSaveValoboisCustomAlertConfig');
+    if (!backdrop || !contentEl || !saveBtn) return false;
+
+    const closeModal = () => {
+        backdrop.classList.add('hidden');
+        backdrop.setAttribute('aria-hidden', 'true');
+    };
+
+    const options = this.getValoboisAlertConditionCriterionOptions();
+    const current = this.normalizeValoboisCustomFreeAlertConfig(criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion.rank).alertConfig);
+    const recommendations = current && current.recommendations && typeof current.recommendations === 'object'
+        ? current.recommendations
+        : this.getValoboisDefaultAlertRecommendationProfiles();
+    const state = {
+        selectedRecommendation: ['fort', 'moyen', 'faible'].includes(String(current.recommendationLevel || '').trim().toLowerCase())
+            ? String(current.recommendationLevel).trim().toLowerCase()
+            : 'moyen',
+        recommendations: {
+            fort: JSON.parse(JSON.stringify(recommendations.fort || { color: 'rouge', message: '', conditions: [] })),
+            moyen: JSON.parse(JSON.stringify(recommendations.moyen || { color: 'orange', message: '', conditions: [] })),
+            faible: JSON.parse(JSON.stringify(recommendations.faible || { color: 'vert', message: '', conditions: [] }))
+        }
+    };
+
+    const render = () => {
+        const optionsHtml = options.map((opt) => `<option value="${this.escapeHtml(opt.ref)}">${this.escapeHtml(opt.label)}</option>`).join('');
+        const selectedKey = ['fort', 'moyen', 'faible'].includes(String(state.selectedRecommendation || '').trim().toLowerCase())
+            ? String(state.selectedRecommendation).trim().toLowerCase()
+            : 'moyen';
+        const selectedProfile = state.recommendations[selectedKey] || { color: 'orange', message: '', conditions: [] };
+        const selectedConditions = Array.isArray(selectedProfile.conditions) ? selectedProfile.conditions : [];
+        const conditionRows = selectedConditions.map((condition, idx) => {
+            const levelsLabel = (condition.levels || []).map((level) => level.charAt(0).toUpperCase() + level.slice(1)).join(', ');
+            const optionLabel = options.find((opt) => opt.ref === condition.criterionRef)?.label || condition.criterionRef;
+            return `
+                <div class="valobois-alert-config__condition-row">
+                    <div class="valobois-alert-config__condition-text"><strong>${this.escapeHtml(optionLabel)}</strong> · ${this.escapeHtml(levelsLabel || '-')}</div>
+                    <button type="button" class="btn valobois-alert-config__remove" data-valobois-alert-condition-remove="${idx}">Supprimer</button>
+                </div>
+            `;
+        }).join('');
+        const profilesSummary = ['fort', 'moyen', 'faible'].map((levelKey) => {
+            const profile = state.recommendations[levelKey] || { color: 'orange', message: '', conditions: [] };
+            const count = Array.isArray(profile.conditions) ? profile.conditions.length : 0;
+            const isActive = selectedKey === levelKey;
+            const label = levelKey === 'fort' ? 'Fort' : (levelKey === 'moyen' ? 'Moyen' : 'Faible');
+            return `<button type="button" class="btn valobois-alert-config__level-btn ${isActive ? 'is-active' : ''}" data-valobois-alert-reco-level="${levelKey}">${label} <span>${count}</span></button>`;
+        }).join('');
+
+        contentEl.innerHTML = `
+            <div class="valobois-alert-config">
+                <p class="valobois-alert-config__hint">Le mode se règle dans la cellule Matrice. Cette modale configure uniquement les recommandations du mode Personnalisée.</p>
+                <div class="valobois-alert-config__row">
+                    <label class="valobois-alert-config__label">Recommandations</label>
+                    <div class="valobois-alert-config__levels-switch">${profilesSummary}</div>
+                </div>
+                <div class="valobois-alert-config__row">
+                    <label class="valobois-alert-config__label" for="valoboisAlertRecoColorInput">Couleur de l'alerte (${selectedKey})</label>
+                    <select id="valoboisAlertRecoColorInput" class="valobois-alert-config__input">
+                        <option value="vert" ${selectedProfile.color === 'vert' ? 'selected' : ''}>Vert</option>
+                        <option value="orange" ${selectedProfile.color === 'orange' ? 'selected' : ''}>Orange</option>
+                        <option value="rouge" ${selectedProfile.color === 'rouge' ? 'selected' : ''}>Rouge</option>
+                    </select>
+                </div>
+                <div class="valobois-alert-config__row">
+                    <label class="valobois-alert-config__label" for="valoboisAlertMessageInput">Explication de la recommandation vers le niveau (${selectedKey})</label>
+                    <textarea id="valoboisAlertMessageInput" class="valobois-alert-config__input" rows="2">${this.escapeHtml(selectedProfile.message || '')}</textarea>
+                </div>
+
+                <div class="valobois-alert-config__adder">
+                    <select id="valoboisAlertConditionCriterionInput" class="valobois-alert-config__input">
+                        ${optionsHtml}
+                    </select>
+                    <div class="valobois-alert-config__levels">
+                        <label><input type="checkbox" id="valoboisAlertConditionLevelFort"> Fort</label>
+                        <label><input type="checkbox" id="valoboisAlertConditionLevelMoyen"> Moyen</label>
+                        <label><input type="checkbox" id="valoboisAlertConditionLevelFaible" checked> Faible</label>
+                    </div>
+                    <button type="button" class="btn btn-primary" id="btnValoboisAlertAddCondition">+ Ajouter condition</button>
+                </div>
+
+                <div class="valobois-alert-config__conditions">
+                    <div class="valobois-alert-config__conditions-title">Critère(s) conditionnel(s) d'une recommandation vers le niveau (${selectedKey})</div>
+                    <div class="valobois-alert-config__conditions-list">${conditionRows || '<p class="valobois-alert-config__empty">Aucune condition.</p>'}</div>
+                </div>
+            </div>
+        `;
+
+        contentEl.querySelectorAll('[data-valobois-alert-reco-level]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const levelKey = String(btn.getAttribute('data-valobois-alert-reco-level') || '').trim().toLowerCase();
+                if (!['fort', 'moyen', 'faible'].includes(levelKey)) return;
+                state.selectedRecommendation = levelKey;
+                render();
+            });
+        });
+
+        const colorInput = document.getElementById('valoboisAlertRecoColorInput');
+        const messageInput = document.getElementById('valoboisAlertMessageInput');
+        if (colorInput) {
+            colorInput.onchange = () => {
+                const selected = state.selectedRecommendation;
+                const profile = state.recommendations[selected] || (state.recommendations[selected] = { color: 'orange', message: '', conditions: [] });
+                profile.color = this.normalizeValoboisAlertColorKey(colorInput.value, profile.color || 'orange');
+            };
+        }
+        if (messageInput) {
+            messageInput.oninput = () => {
+                const selected = state.selectedRecommendation;
+                const profile = state.recommendations[selected] || (state.recommendations[selected] = { color: 'orange', message: '', conditions: [] });
+                profile.message = String(messageInput.value || '');
+            };
+        }
+
+        contentEl.querySelectorAll('[data-valobois-alert-condition-remove]').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                const idx = Number(btn.getAttribute('data-valobois-alert-condition-remove'));
+                const selected = state.selectedRecommendation;
+                const profile = state.recommendations[selected] || (state.recommendations[selected] = { color: 'orange', message: '', conditions: [] });
+                if (!Array.isArray(profile.conditions) || !Number.isInteger(idx) || idx < 0 || !profile.conditions[idx]) return;
+                profile.conditions.splice(idx, 1);
+                render();
+            });
+        });
+
+        const addBtn = document.getElementById('btnValoboisAlertAddCondition');
+        if (addBtn) {
+            addBtn.onclick = () => {
+                const criterionInput = document.getElementById('valoboisAlertConditionCriterionInput');
+                const fort = document.getElementById('valoboisAlertConditionLevelFort');
+                const moyen = document.getElementById('valoboisAlertConditionLevelMoyen');
+                const faible = document.getElementById('valoboisAlertConditionLevelFaible');
+                const criterionRef = String(criterionInput && criterionInput.value || '').trim();
+                const levels = [
+                    fort && fort.checked ? 'fort' : '',
+                    moyen && moyen.checked ? 'moyen' : '',
+                    faible && faible.checked ? 'faible' : ''
+                ].filter(Boolean);
+                if (!criterionRef || !levels.length) return;
+                const selected = state.selectedRecommendation;
+                const profile = state.recommendations[selected] || (state.recommendations[selected] = { color: 'orange', message: '', conditions: [] });
+                if (!Array.isArray(profile.conditions)) profile.conditions = [];
+                profile.conditions.push({ criterionRef, levels: Array.from(new Set(levels)) });
+                render();
+            };
+        }
+    };
+
+    if (titleEl) titleEl.textContent = `Configurer l'alerte — ${criterion.critere || criterion.id}`;
+    render();
+
+    saveBtn.onclick = () => {
+        const selectedLevel = ['fort', 'moyen', 'faible'].includes(String(state.selectedRecommendation || '').trim().toLowerCase())
+            ? String(state.selectedRecommendation).trim().toLowerCase()
+            : 'moyen';
+        const recommendationsPayload = {
+            fort: {
+                color: this.normalizeValoboisAlertColorKey(state.recommendations.fort && state.recommendations.fort.color, 'rouge'),
+                message: String(state.recommendations.fort && state.recommendations.fort.message || '').trim(),
+                conditions: this.normalizeValoboisAlertConditionList(state.recommendations.fort && state.recommendations.fort.conditions)
+            },
+            moyen: {
+                color: this.normalizeValoboisAlertColorKey(state.recommendations.moyen && state.recommendations.moyen.color, 'orange'),
+                message: String(state.recommendations.moyen && state.recommendations.moyen.message || '').trim(),
+                conditions: this.normalizeValoboisAlertConditionList(state.recommendations.moyen && state.recommendations.moyen.conditions)
+            },
+            faible: {
+                color: this.normalizeValoboisAlertColorKey(state.recommendations.faible && state.recommendations.faible.color, 'vert'),
+                message: String(state.recommendations.faible && state.recommendations.faible.message || '').trim(),
+                conditions: this.normalizeValoboisAlertConditionList(state.recommendations.faible && state.recommendations.faible.conditions)
+            }
+        };
+        this.updateValoboisCustomFreeCriterionField(id, 'alertConfig.recommendationLevel', selectedLevel);
+        this.updateValoboisCustomFreeCriterionField(id, 'alertConfig.recommendations', recommendationsPayload);
+        const selectedProfile = recommendationsPayload[selectedLevel] || { message: '', conditions: [] };
+        this.updateValoboisCustomFreeCriterionField(id, 'alertConfig.message', String(selectedProfile.message || '').trim());
+        this.setValoboisCustomFreeAlertConditions(id, selectedProfile.conditions || [], selectedLevel);
+        closeModal();
+    };
+    if (closeBtn) closeBtn.onclick = closeModal;
+    if (cancelBtn) cancelBtn.onclick = closeModal;
+    backdrop.onclick = (event) => {
+        if (event.target === backdrop) closeModal();
+    };
+
+    backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden', 'false');
+    return true;
+}
+
 getValoboisOrientationLabel(code) {
     const labels = {
         reemploi: 'Réemploi',
@@ -32074,12 +33042,26 @@ ensureCustomNotationEditModalBindings() {
 openValoboisCustomNotationEditModal(criterionId) {
     this.ensureCustomNotationEditModalBindings();
     const backdrop = document.getElementById('valoboisCustomNotationEditModalBackdrop');
+    // Restore generic form if it was replaced by the inline layout
+    const modalEl = backdrop ? backdrop.querySelector('.modal') : null;
+    if (modalEl) modalEl.classList.remove('modal--notation-edit--inline');
+    const bodyEl = backdrop ? backdrop.querySelector('.custom-notation-edit-body') : null;
+    if (bodyEl && this._genericNotationEditFormHtml) {
+        const existingForm = bodyEl.querySelector('.custom-notation-edit-form');
+        if (existingForm && existingForm.classList.contains('notation-edit-inline')) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = this._genericNotationEditFormHtml;
+            existingForm.replaceWith(tmp.firstElementChild);
+        }
+    }
     const idInput = document.getElementById('valoboisCustomNotationEditCriterionId');
     const titleInput = document.getElementById('valoboisCustomNotationEditTitle');
     const introInput = document.getElementById('valoboisCustomNotationEditIntro');
     const fortInput = document.getElementById('valoboisCustomNotationEditFort');
     const moyenInput = document.getElementById('valoboisCustomNotationEditMoyen');
     const faibleInput = document.getElementById('valoboisCustomNotationEditFaible');
+    const notesContainer = document.getElementById('valoboisNotesContainer');
+    const addNoteBtn = document.getElementById('btnAddValoboisNotationNote');
     const referencesInput = document.getElementById('valoboisCustomNotationEditReferences');
     const labelFortInput = document.getElementById('valoboisCustomNotationEditLabelFort');
     const labelMoyenInput = document.getElementById('valoboisCustomNotationEditLabelMoyen');
@@ -32091,17 +33073,52 @@ openValoboisCustomNotationEditModal(criterionId) {
     const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
     if (!criterion) return false;
     const fields = criterion.notation?.fields || {};
+    const normalizedTitle = String(criterion.notation?.title || '').trim();
+    const resolvedTitle = !normalizedTitle || /^Noter\b/i.test(normalizedTitle)
+        ? String(criterion.critere || '')
+        : normalizedTitle;
     const formatScore = (val) => { const n = Number(val); return Number.isFinite(n) && n > 0 ? `+${n}` : `${Number.isFinite(Number(val)) ? Number(val) : 0}`; };
+    const rawScores = [
+        Number(criterion.scores?.fort?.value),
+        Number(criterion.scores?.moyen?.value),
+        Number(criterion.scores?.faible?.value)
+    ].filter(Number.isFinite);
+    const minScore = rawScores.length ? Math.min(...rawScores) : null;
+    const maxScore = rawScores.length ? Math.max(...rawScores) : null;
+    const pillClassForScore = (score) => {
+        if (!Number.isFinite(score)) return 'moyenne';
+        if (!Number.isFinite(minScore) || !Number.isFinite(maxScore) || minScore === maxScore) return 'moyenne';
+        if (score === maxScore) return 'forte';
+        if (score === minScore) return 'faible';
+        return 'moyenne';
+    };
+    const applyPillClass = (input, pillClass) => {
+        if (!input) return;
+        input.classList.remove('detail-modal-scale-pill--forte', 'detail-modal-scale-pill--moyenne', 'detail-modal-scale-pill--faible');
+        input.classList.add(`detail-modal-scale-pill--${pillClass}`);
+    };
     idInput.value = criterionId;
-    if (titleInput) titleInput.value = criterion.notation?.title || '';
+    if (titleInput) titleInput.value = resolvedTitle;
     if (introInput) introInput.value = fields.intro || '';
     if (fortInput) fortInput.value = fields.fort || '';
     if (moyenInput) moyenInput.value = fields.moyen || '';
     if (faibleInput) faibleInput.value = fields.faible || '';
+    if (notesContainer) this.populateNotationEditNotes(notesContainer, fields.note || '');
+    if (addNoteBtn && notesContainer) {
+        addNoteBtn.onclick = () => {
+            this.appendNotationNoteBlock(notesContainer, '');
+            const all = notesContainer.querySelectorAll('.notation-edit-note-textarea');
+            const last = all[all.length - 1];
+            if (last) last.focus();
+        };
+    }
     if (referencesInput) referencesInput.value = fields.references || '';
     if (labelFortInput) labelFortInput.value = String(fields.labelFort || 'Forte').replace(/^./, (c) => c.toUpperCase());
     if (labelMoyenInput) labelMoyenInput.value = String(fields.labelMoyen || 'Moyenne').replace(/^./, (c) => c.toUpperCase());
     if (labelFaibleInput) labelFaibleInput.value = String(fields.labelFaible || 'Faible').replace(/^./, (c) => c.toUpperCase());
+    applyPillClass(labelFortInput, pillClassForScore(Number(criterion.scores?.fort?.value)));
+    applyPillClass(labelMoyenInput, pillClassForScore(Number(criterion.scores?.moyen?.value)));
+    applyPillClass(labelFaibleInput, pillClassForScore(Number(criterion.scores?.faible?.value)));
     if (scoreFortEl) scoreFortEl.textContent = `[${formatScore(criterion.scores?.fort?.value)}]`;
     if (scoreMoyenEl) scoreMoyenEl.textContent = `[${formatScore(criterion.scores?.moyen?.value)}]`;
     if (scoreFaibleEl) scoreFaibleEl.textContent = `[${formatScore(criterion.scores?.faible?.value)}]`;
@@ -32109,6 +33126,142 @@ openValoboisCustomNotationEditModal(criterionId) {
     backdrop.setAttribute('aria-hidden', 'false');
     if (titleInput) titleInput.focus();
     return true;
+}
+
+openValoboisInlineNotationEditModal(criterionId) {
+    this.ensureCustomNotationEditModalBindings();
+    const backdrop = document.getElementById('valoboisCustomNotationEditModalBackdrop');
+    const modalEl = backdrop ? backdrop.querySelector('.modal') : null;
+    const bodyEl = backdrop ? backdrop.querySelector('.custom-notation-edit-body') : null;
+    const idInput = backdrop ? backdrop.querySelector('#valoboisCustomNotationEditCriterionId') : null;
+    const titleH2El = backdrop ? backdrop.querySelector('#valoboisCustomNotationEditModalTitle') : null;
+    if (!backdrop || !modalEl || !bodyEl || !idInput) return false;
+
+    const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+    if (!criterion) return false;
+
+    // Save original generic form HTML once for restoration
+    const formEl = bodyEl.querySelector('.custom-notation-edit-form');
+    if (formEl && !this._genericNotationEditFormHtml) {
+        this._genericNotationEditFormHtml = formEl.outerHTML;
+    }
+
+    const fields = criterion.notation?.fields || {};
+    const scores = criterion.scores || {};
+    const fmt = (val) => {
+        const n = Number(val);
+        return Number.isFinite(n) && n > 0 ? `[+${n}]` : `[${Number.isFinite(Number(val)) ? Number(val) : 0}]`;
+    };
+    const rawScores = [Number(scores.fort?.value), Number(scores.moyen?.value), Number(scores.faible?.value)].filter(Number.isFinite);
+    const minScore = rawScores.length ? Math.min(...rawScores) : null;
+    const maxScore = rawScores.length ? Math.max(...rawScores) : null;
+    const pillClassForScore = (score) => {
+        if (!Number.isFinite(score)) return 'moyenne';
+        if (!Number.isFinite(minScore) || !Number.isFinite(maxScore) || minScore === maxScore) return 'moyenne';
+        if (score === maxScore) return 'forte';
+        if (score === minScore) return 'faible';
+        return 'moyenne';
+    };
+    const normalizedTitle = String(criterion.notation?.title || '').trim();
+    const resolvedTitle = !normalizedTitle || /^Noter\b/i.test(normalizedTitle)
+        ? String(criterion.critere || '')
+        : normalizedTitle;
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const levelRow = ({ pillClass, labelId, scoreId, descId, labelVal, descVal, scoreVal, key }) => `
+        <div class="detail-modal-scale-item notation-edit-inline__scale-item">
+            <div class="notation-edit-inline__scale-header">
+                <input type="text" id="${labelId}" class="detail-modal-scale-pill detail-modal-scale-pill--${pillClass} custom-notation-edit-form__pill-input" value="${esc(labelVal)}" aria-label="Libellé ${key}">
+                <span class="custom-notation-edit-form__score" id="${scoreId}">${esc(scoreVal)}</span>
+            </div>
+            <textarea id="${descId}" class="custom-notation-edit-form__textarea notation-edit-inline__scale-desc" rows="2" aria-label="Description ${key}">${esc(descVal)}</textarea>
+        </div>`;
+
+    const inlineDiv = document.createElement('div');
+    inlineDiv.className = 'custom-notation-edit-form notation-edit-inline';
+    inlineDiv.innerHTML = `
+        <input type="text" id="valoboisCustomNotationEditTitle" class="custom-notation-edit-form__input notation-edit-inline__title" value="${esc(resolvedTitle)}" placeholder="Titre de la fiche…" aria-label="Titre">
+        <div class="detail-modal-paragraph notation-edit-inline__intro-wrap">
+            <textarea id="valoboisCustomNotationEditIntro" class="custom-notation-edit-form__textarea notation-edit-inline__intro" rows="2" placeholder="Texte d'introduction (noter…)" aria-label="Introduction">${esc(fields.intro || '')}</textarea>
+        </div>
+        <div class="detail-modal-scale">
+            ${levelRow({ pillClass: pillClassForScore(Number(scores.fort?.value)), labelId: 'valoboisCustomNotationEditLabelFort', scoreId: 'valoboisCustomNotationEditScoreFort', descId: 'valoboisCustomNotationEditFort', labelVal: fields.labelFort || 'Forte', descVal: fields.fort || '', scoreVal: fmt(scores.fort?.value), key: 'fort' })}
+            ${levelRow({ pillClass: pillClassForScore(Number(scores.moyen?.value)), labelId: 'valoboisCustomNotationEditLabelMoyen', scoreId: 'valoboisCustomNotationEditScoreMoyen', descId: 'valoboisCustomNotationEditMoyen', labelVal: fields.labelMoyen || 'Moyenne', descVal: fields.moyen || '', scoreVal: fmt(scores.moyen?.value), key: 'moyen' })}
+            ${levelRow({ pillClass: pillClassForScore(Number(scores.faible?.value)), labelId: 'valoboisCustomNotationEditLabelFaible', scoreId: 'valoboisCustomNotationEditScoreFaible', descId: 'valoboisCustomNotationEditFaible', labelVal: fields.labelFaible || 'Faible', descVal: fields.faible || '', scoreVal: fmt(scores.faible?.value), key: 'faible' })}
+        </div>
+        <div class="custom-notation-edit-form__row custom-notation-edit-form__row--notes">
+            <div class="custom-notation-edit-form__notes-header">
+                <label class="custom-notation-edit-form__label">Encarts intermédiaires <span class="custom-notation-edit-form__opt">(optionnel)</span></label>
+                <button type="button" class="btn-notation-add-note" id="btnAddValoboisNotationNote">+ Ajouter</button>
+            </div>
+            <div id="valoboisNotesContainer" class="notation-edit-notes-container"></div>
+        </div>
+        <div class="notation-edit-inline__ref-wrap">
+            <textarea id="valoboisCustomNotationEditReferences" class="custom-notation-edit-form__textarea notation-edit-inline__ref" rows="2" placeholder="Références et ressources (optionnel)…" aria-label="Références">${esc(fields.references || '')}</textarea>
+        </div>`;
+
+    if (formEl) {
+        formEl.replaceWith(inlineDiv);
+    } else {
+        bodyEl.appendChild(inlineDiv);
+    }
+
+    // Re-bind capitalize behavior to newly rendered pill inputs
+    const capitalizeLabelInput = (evt) => {
+        const el = evt && evt.target;
+        if (!el) return;
+        const raw = String(el.value || '').trimStart();
+        el.value = raw ? raw.charAt(0).toUpperCase() + raw.slice(1) : '';
+    };
+    ['valoboisCustomNotationEditLabelFort', 'valoboisCustomNotationEditLabelMoyen', 'valoboisCustomNotationEditLabelFaible'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('blur', capitalizeLabelInput);
+    });
+    const notesContainer = document.getElementById('valoboisNotesContainer');
+    const addNoteBtn = document.getElementById('btnAddValoboisNotationNote');
+    if (notesContainer) this.populateNotationEditNotes(notesContainer, fields.note || '');
+    if (addNoteBtn && notesContainer) {
+        addNoteBtn.onclick = () => {
+            this.appendNotationNoteBlock(notesContainer, '');
+            const all = notesContainer.querySelectorAll('.notation-edit-note-textarea');
+            const last = all[all.length - 1];
+            if (last) last.focus();
+        };
+    }
+
+    modalEl.classList.add('modal--notation-edit--inline');
+    if (titleH2El) titleH2El.textContent = criterion.critere || 'Fiche de notation';
+    idInput.value = criterionId;
+
+    backdrop.classList.remove('hidden');
+    backdrop.setAttribute('aria-hidden', 'false');
+    const titleInput = document.getElementById('valoboisCustomNotationEditTitle');
+    if (titleInput) titleInput.focus();
+    return true;
+}
+
+populateNotationEditNotes(container, noteText) {
+    if (!container) return;
+    container.innerHTML = '';
+    const blocks = String(noteText || '').split(/\n\n+/).map(s => s.trim()).filter(Boolean);
+    blocks.forEach(text => this.appendNotationNoteBlock(container, text));
+}
+
+appendNotationNoteBlock(container, text = '') {
+    if (!container) return;
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const div = document.createElement('div');
+    div.className = 'notation-edit-note-block';
+    div.innerHTML = `<textarea class="custom-notation-edit-form__textarea notation-edit-note-textarea" rows="2">${esc(text)}</textarea><button type="button" class="btn-notation-remove-note" aria-label="Supprimer cet encart" title="Supprimer cet encart">−</button>`;
+    div.querySelector('.btn-notation-remove-note').addEventListener('click', () => div.remove());
+    container.appendChild(div);
+}
+
+collectNotationNotes(container) {
+    if (!container) return '';
+    return Array.from(container.querySelectorAll('.notation-edit-note-textarea'))
+        .map(ta => ta.value.trim())
+        .filter(Boolean)
+        .join('\n\n');
 }
 
 closeValoboisCustomNotationEditModal() {
@@ -32128,10 +33281,10 @@ saveValoboisCustomNotationEdit() {
     const criterion = criteria.find((c) => String(c && c.id || '') === criterionId);
     if (!criterion) return;
     if (!criterion.notation || typeof criterion.notation !== 'object') {
-        criterion.notation = { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' } };
+        criterion.notation = { title: '', message: '', fields: { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', note: '', references: '' } };
     }
     if (!criterion.notation.fields || typeof criterion.notation.fields !== 'object') {
-        criterion.notation.fields = { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', references: '' };
+        criterion.notation.fields = { intro: '', grammaticalGender: 'feminin', grammaticalNumber: 'singulier', article: 'Une', labelFort: 'forte', labelMoyen: 'moyenne', labelFaible: 'faible', fort: '', moyen: '', faible: '', note: '', references: '' };
     }
     const g = (id) => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
     const labelValue = (id, fallback) => {
@@ -32147,6 +33300,10 @@ saveValoboisCustomNotationEdit() {
     criterion.notation.fields.fort = g('valoboisCustomNotationEditFort');
     criterion.notation.fields.moyen = g('valoboisCustomNotationEditMoyen');
     criterion.notation.fields.faible = g('valoboisCustomNotationEditFaible');
+    const notesContainer = document.getElementById('valoboisNotesContainer');
+    criterion.notation.fields.note = notesContainer
+        ? this.collectNotationNotes(notesContainer)
+        : g('valoboisCustomNotationEditNote');
     criterion.notation.fields.references = g('valoboisCustomNotationEditReferences');
     criterion.notation.message = this.buildNotationMessageFromFields(criterion);
     this.valoboisMatrixConfig = config;
@@ -33288,10 +34445,10 @@ getNotationDetailSpec(section, field) {
     const contents = this[methodName]();
     const message = contents[field];
     if (!message) return null;
-    const rawText = typeof message === 'string' ? message : (this.modalStructuredContentToText ? this.modalStructuredContentToText(message, { includeReferenceHeading: false }) : String(message));
+    const rawText = typeof message === 'string' ? message : (this.modalStructuredContentToText ? this.modalStructuredContentToText(message, { includeReferenceHeading: true }) : String(message));
     const firstLine = (rawText || '').split('\n')[0].replace(/\.$/, '').trim();
     const title = firstLine || `${section}.${field}`;
-    return { title, message };
+    return { title, message: rawText };
 }
 
 openValoboisMatrixCriterionModal(rank, badgeType = 'alert') {
@@ -33452,10 +34609,23 @@ getValoboisGateTriggerInfo(lot) {
         }
     });
 
+    const customTriggered = [];
+    this.getValoboisActiveCustomFreeCriteria(mode).forEach((criterion) => {
+        const resolved = this.resolveValoboisCustomFreeAlertState(lot, criterion, mode);
+        if (!resolved || !resolved.triggered) return;
+        customTriggered.push({
+            id: String(criterion && criterion.id || '').trim(),
+            rank: Number(criterion && criterion.rank) || 0,
+            critere: criterion && criterion.critere ? criterion.critere : 'Critère personnalisé',
+            recommendationLevel: resolved.recommendationLevel || 'moyen',
+            reason: resolved.reason || 'custom'
+        });
+    });
+
     return {
-        triggered: defaultTriggered.length > 0,
+        triggered: defaultTriggered.length > 0 || customTriggered.length > 0,
         defaultTriggered,
-        customTriggered: []
+        customTriggered
     };
 }
 
@@ -33877,6 +35047,7 @@ renderMatrice() {
         `;
     }).join('');
 
+    const currentLotForCustomAlerts = this.getCurrentLot();
     const freeEditorHtml = `
         <div class="valobois-matrix-free-editor">
             <div class="valobois-matrix-free-editor__table-wrap">
@@ -34031,7 +35202,43 @@ renderMatrice() {
                         return `<button type="button" class="valobois-matrix-badge ${badgeExtraClass} valobois-matrix-badge--interactive" data-valobois-custom-notation-id="${criterionId}" aria-label="Fiche de notation">${label}</button>`;
                     })()}</td>
                     <td class="valobois-matrix-col-gate"><input type="checkbox" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="criticite" ${criterion.criticite ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}></td>
-                    <td class="valobois-matrix-col-alert">—</td>
+                    <td class="valobois-matrix-col-alert">${(() => {
+                        const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion.rank).alertConfig);
+                        const resolved = currentLotForCustomAlerts
+                            ? this.resolveValoboisCustomFreeAlertState(currentLotForCustomAlerts, criterion)
+                            : { state: 'none' };
+                        const stateLabel = resolved.state === 'active'
+                            ? 'Active'
+                            : resolved.state === 'missing-config'
+                                ? 'À configurer'
+                                : 'Inactive';
+                        const recommendationProfiles = alertConfig && alertConfig.recommendations && typeof alertConfig.recommendations === 'object'
+                            ? alertConfig.recommendations
+                            : this.getValoboisDefaultAlertRecommendationProfiles();
+                        const conditionCount = ['fort', 'moyen', 'faible'].reduce((sum, levelKey) => {
+                            const list = recommendationProfiles[levelKey] && Array.isArray(recommendationProfiles[levelKey].conditions)
+                                ? recommendationProfiles[levelKey].conditions
+                                : [];
+                            return sum + list.length;
+                        }, 0);
+                        if (!ui.editMode) {
+                            return `<span class="valobois-matrix-badge ${resolved.state === 'active' ? 'valobois-matrix-badge--alert' : 'valobois-matrix-badge--neutral'}">${stateLabel}</span>`;
+                        }
+                        return `
+                            <div class="valobois-custom-alert-cell">
+                                <select class="valobois-matrix-free-editor__input valobois-custom-alert-cell__mode" data-valobois-custom-free-id="${criterionId}" data-valobois-custom-free-field="alertConfig.mode" ${ui.editMode ? '' : 'disabled'}>
+                                    <option value="disabled" ${alertConfig.mode === 'disabled' ? 'selected' : ''}>Désactivée</option>
+                                    <option value="inherited" ${alertConfig.mode === 'inherited' ? 'selected' : ''}>Héritée</option>
+                                    <option value="custom" ${alertConfig.mode === 'custom' ? 'selected' : ''}>Personnalisée</option>
+                                </select>
+                                <div class="valobois-custom-alert-cell__actions">
+                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-config-id="${criterionId}" ${ui.editMode ? '' : 'disabled'}>Configurer</button>
+                                    <button type="button" class="btn valobois-custom-alert-cell__btn" data-valobois-custom-alert-remove-rule-id="${criterionId}" ${ui.editMode ? '' : 'disabled'}>Retirer règle</button>
+                                </div>
+                                <div class="valobois-custom-alert-cell__meta">${stateLabel} • ${conditionCount} règle(s)</div>
+                            </div>
+                        `;
+                    })()}</td>
                     ${buildScoreCells('fort')}
                     ${buildScoreCells('moyen')}
                     ${buildScoreCells('faible')}
@@ -34350,13 +35557,43 @@ renderMatrice() {
             const criterionId = String(btn.getAttribute('data-valobois-custom-notation-id') || '').trim();
             if (!criterionId) return;
             if (ui.editMode) {
-                this.openValoboisCustomNotationEditModal(criterionId);
+                const crit = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+                const isDuplicated = crit && Number.isFinite(Number(crit.sourceRank));
+                if (isDuplicated) {
+                    this.openValoboisInlineNotationEditModal(criterionId);
+                } else {
+                    this.openValoboisCustomNotationEditModal(criterionId);
+                }
             } else {
                 const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
                 const title = criterion?.notation?.title || criterion?.critere || 'Notation';
                 const message = criterion?.notation?.message || '';
                 this.openValoboisMatrixDetailModal(title, message || 'À renseigner');
             }
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-alert-config-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(btn.getAttribute('data-valobois-custom-alert-config-id') || '').trim();
+            if (!criterionId) return;
+            this.openValoboisCustomAlertConfigModal(criterionId);
+        });
+    });
+
+    freeEditorScopeEl.querySelectorAll('[data-valobois-custom-alert-remove-rule-id]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            if (!ui.editMode) return;
+            const criterionId = String(btn.getAttribute('data-valobois-custom-alert-remove-rule-id') || '').trim();
+            if (!criterionId) return;
+            const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+            const alertConfig = this.normalizeValoboisCustomFreeAlertConfig(criterion && criterion.alertConfig, this.buildValoboisDefaultCustomFreeCriterion(criterion && criterion.rank).alertConfig);
+            const profiles = alertConfig.recommendations || this.getValoboisDefaultAlertRecommendationProfiles();
+            const targetLevel = ['fort', 'moyen', 'faible'].find((levelKey) => Array.isArray(profiles[levelKey] && profiles[levelKey].conditions) && profiles[levelKey].conditions.length);
+            if (!targetLevel) return;
+            const conditions = profiles[targetLevel].conditions;
+            this.setValoboisCustomFreeAlertConditions(criterionId, conditions.slice(0, -1), targetLevel);
         });
     });
 }

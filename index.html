@@ -3553,6 +3553,20 @@
                 </div>
             </div>
 
+            <div class="modal-backdrop hidden" id="valoboisCustomAlertConfigModalBackdrop" aria-hidden="true">
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="valoboisCustomAlertConfigModalTitle">
+                    <header class="modal-header">
+                        <h2 id="valoboisCustomAlertConfigModalTitle" class="text-center">Configurer l'alerte</h2>
+                        <button class="modal-close" type="button" id="btnCloseValoboisCustomAlertConfigModal">×</button>
+                    </header>
+                    <div class="modal-body" id="valoboisCustomAlertConfigModalContent"></div>
+                    <footer class="modal-footer">
+                        <button class="btn" type="button" id="btnCancelValoboisCustomAlertConfigModal">Annuler</button>
+                        <button class="btn btn-primary" type="button" id="btnSaveValoboisCustomAlertConfig">Enregistrer</button>
+                    </footer>
+                </div>
+            </div>
+
             <!-- Modale alerte pièces non détaillées -->
             <div class="modal-backdrop hidden" id="alertPiecesModalBackdrop" aria-hidden="true">
                 <div class="modal" role="dialog" aria-modal="true" aria-labelledby="alertPiecesModalTitle">
@@ -5020,6 +5034,13 @@
                                         <span class="custom-notation-edit-form__score" id="valoboisCustomNotationEditScoreFaible"></span>
                                     </div>
                                     <textarea id="valoboisCustomNotationEditFaible" class="custom-notation-edit-form__textarea" rows="2" placeholder="Description du niveau faible…"></textarea>
+                                </div>
+                                <div class="custom-notation-edit-form__row custom-notation-edit-form__row--notes">
+                                    <div class="custom-notation-edit-form__notes-header">
+                                        <label class="custom-notation-edit-form__label">Encarts intermédiaires <span class="custom-notation-edit-form__opt">(optionnel)</span></label>
+                                        <button type="button" class="btn-notation-add-note" id="btnAddValoboisNotationNote">+ Ajouter</button>
+                                    </div>
+                                    <div id="valoboisNotesContainer" class="notation-edit-notes-container"></div>
                                 </div>
                                 <div class="custom-notation-edit-form__row">
                                     <label class="custom-notation-edit-form__label" for="valoboisCustomNotationEditReferences">Références <span class="custom-notation-edit-form__opt">(optionnel)</span></label>
