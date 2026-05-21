@@ -50,6 +50,7 @@
     var SESSION_PENDING_EVAL_ID = 'valobois_pending_eval_id';
     /** Objet JSON { evalId, ownerUid } pour réinjecter ?eval= et ?owner=. */
     var SESSION_PENDING_EVAL = 'valobois_pending_eval';
+    var CLOUD_DRAFT_PREFIX = 'valobois_cloud_draft_v1';
 
     /** Champs `ui` purement interface : jamais dans payloadJson. */
     function stripUiOnlyFieldsFromCloudPayloadRoot(root) {
@@ -310,6 +311,45 @@
         }
     }
 
+    function getCloudDraftPrefix(appInstance) {
+        if (appInstance && appInstance.cloudDraftStoragePrefix) {
+            return String(appInstance.cloudDraftStoragePrefix);
+        }
+        return CLOUD_DRAFT_PREFIX;
+    }
+
+    function buildCloudDraftStorageKey(appInstance, evalId, ownerUid) {
+        var id = evalId == null ? '' : String(evalId).trim();
+        if (!id) return '';
+        var owner = ownerUid == null ? '' : String(ownerUid).trim();
+        return getCloudDraftPrefix(appInstance) + ':' + (owner || 'self') + ':' + id;
+    }
+
+    function trySaveCloudDraft(appInstance, evalId, ownerUid) {
+        try {
+            if (!global.localStorage || !appInstance || !appInstance.data) return;
+            var key = buildCloudDraftStorageKey(appInstance, evalId, ownerUid);
+            if (!key) return;
+            localStorage.setItem(key, JSON.stringify(appInstance.data));
+        } catch (e) {
+            console.warn('Valobois Cloud draft save (local)', e);
+        }
+    }
+
+    function tryLoadCloudDraft(appInstance, evalId, ownerUid) {
+        try {
+            if (!global.localStorage) return null;
+            var key = buildCloudDraftStorageKey(appInstance, evalId, ownerUid);
+            if (!key) return null;
+            var raw = localStorage.getItem(key);
+            if (!raw || !String(raw).trim()) return null;
+            return JSON.parse(raw);
+        } catch (e) {
+            console.warn('Valobois Cloud draft load (local)', e);
+            return null;
+        }
+    }
+
     function attachValoboisFirestoreSync(app) {
         var skipNewEvalIntent =
             urlIndicatesNewEval() || consumeNewEvalHash() || consumeNewEvalIntentFromSession();
@@ -346,6 +386,7 @@
         var lastAuthUid = null;
         var deferredSaveApp = null;
         var inFlightWrites = 0;
+        var lastSyncError = null;
 
         function emitCloudSyncState() {
             if (!global.window) return;
@@ -359,12 +400,19 @@
                     state = 'hidden';
                 } else if (scheduledTimer != null || inFlightWrites > 0) {
                     state = 'saving';
+                } else if (lastSyncError) {
+                    state = 'error';
                 } else {
                     state = 'saved';
                 }
             }
             global.window.dispatchEvent(
-                new CustomEvent('valobois:cloudsync', { detail: { state: state } })
+                new CustomEvent('valobois:cloudsync', {
+                    detail: {
+                        state: state,
+                        errorCode: lastSyncError && lastSyncError.code ? String(lastSyncError.code) : '',
+                    },
+                })
             );
         }
 
@@ -419,6 +467,7 @@
             var evalId = getEvalIdFromUrl();
             if (!evalId) return;
             var ownerUid = getEvalOwnerUid(u);
+            trySaveCloudDraft(appInstance, evalId, ownerUid);
             var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
             var payload = Object.assign({
                 payloadJson: buildPayloadJsonForCloud(appInstance),
@@ -430,7 +479,11 @@
             emitCloudSyncState();
             return evalRef(db, ownerUid, evalId)
                 .set(payload, { merge: true })
+                .then(function () {
+                    lastSyncError = null;
+                })
                 .catch(function (e) {
+                    lastSyncError = e || new Error('firestore-save-failed');
                     console.error('Valobois Firestore save', e);
                 })
                 .finally(function () {
@@ -477,6 +530,7 @@
 
         function enterGuestMode(appInstance) {
             appInstance.persistenceMode = 'guest';
+            lastSyncError = null;
             try {
                 localStorage.removeItem('valobois_firestore_eval_id');
             } catch (e) {
@@ -505,6 +559,7 @@
             }
 
             appInstance.persistenceMode = 'cloud';
+            lastSyncError = null;
             notifyPersistenceUi(appInstance);
 
             try {
@@ -521,6 +576,7 @@
                 resetLocalDraftToBlank(appInstance);
                 var newId = evalCollection(db, user.uid).doc().id;
                 setEvalAndOwnerInUrl(newId, '');
+                trySaveCloudDraft(appInstance, newId, user.uid);
                 var rev = Number(appInstance.data.meta && appInstance.data.meta.revision) || 0;
                 var payload = Object.assign({
                     payloadJson: buildPayloadJsonForCloud(appInstance),
@@ -531,9 +587,11 @@
                 evalRef(db, user.uid, newId)
                     .set(payload)
                     .then(function () {
+                        lastSyncError = null;
                         finishLoading();
                     })
                     .catch(function (e) {
+                        lastSyncError = e || new Error('firestore-create-failed');
                         console.error('Valobois Firestore create eval', e);
                         finishLoading();
                     });
@@ -546,8 +604,18 @@
                 .get()
                 .then(function (snap) {
                     if (!snap.exists) {
+                        if (evalOwnerUid !== user.uid) {
+                            var sharedDraft = tryLoadCloudDraft(appInstance, evalId, evalOwnerUid);
+                            if (sharedDraft && sharedDraft.lots && Array.isArray(sharedDraft.lots)) {
+                                applyRemoteData(appInstance, sharedDraft);
+                            } else {
+                                redirectToListing();
+                            }
+                            return;
+                        }
                         var empty = appInstance.createInitialData();
                         applyRemoteData(appInstance, empty);
+                        trySaveCloudDraft(appInstance, evalId, evalOwnerUid);
                         return evalRef(db, evalOwnerUid, evalId).set(Object.assign({
                             payloadJson: buildPayloadJsonForCloud(appInstance),
                             revision: Number(appInstance.data.meta && appInstance.data.meta.revision) || 0,
@@ -565,10 +633,17 @@
                     }
                     if (parsed.lots && Array.isArray(parsed.lots)) {
                         applyRemoteData(appInstance, parsed);
+                        trySaveCloudDraft(appInstance, evalId, evalOwnerUid);
                     }
+                    lastSyncError = null;
                 })
                 .catch(function (e) {
                     console.error('Valobois Firestore hydrate', e);
+                    lastSyncError = e || new Error('firestore-hydrate-failed');
+                    var draft = tryLoadCloudDraft(appInstance, evalId, evalOwnerUid);
+                    if (draft && draft.lots && Array.isArray(draft.lots)) {
+                        applyRemoteData(appInstance, draft);
+                    }
                 })
                 .then(function () {
                     finishLoading();

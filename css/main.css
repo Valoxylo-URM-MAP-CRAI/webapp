@@ -683,6 +683,15 @@
     vertical-align: middle;
 }
 
+.auth-banner-sync--saved {
+    color: #1e6b45;
+}
+
+.auth-banner-sync--error {
+    color: #b42318;
+    font-weight: 600;
+}
+
 .auth-banner-sync-spinner {
     display: inline-block;
     width: 14px;
@@ -706,6 +715,17 @@
     line-height: 1;
     color: var(--color-text);
     opacity: 0.85;
+}
+
+.auth-banner-sync--saved .auth-banner-sync-check {
+    color: #1e6b45;
+    opacity: 1;
+}
+
+.auth-banner-sync--error .auth-banner-sync-check {
+    color: #b42318;
+    opacity: 1;
+    font-weight: 700;
 }
 
 .auth-banner-sync-label {
@@ -10090,21 +10110,21 @@ body.day-mode .lot-group--collapsible summary:hover {
     min-width: var(--lot-piece-card-min-width);
     max-width: var(--lot-piece-card-max-width);
     flex: 0 0 var(--lot-piece-card-min-width);
-    padding: var(--space-8);
+    padding: 8px;
     border-radius: var(--radius-base);
-    border: 1px solid var(--color-border);
-    background-color: rgba(255, 255, 255, 0.06);
+    border: 3px solid #d7d7d7;
+    background-color: #000;
     color: var(--color-white);
     cursor: pointer;
     transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease, opacity 0.15s ease;
-    opacity: 0.5;
+    opacity: 1;
 }
 
 .orientation-lot-card--active {
-    background-color: var(--color-white);
-    color: var(--color-text);
+    background-color: #000;
+    color: var(--color-white);
     opacity: 1;
-    box-shadow: 0 0 0 1px var(--color-border);
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.2);
 }
 
 .orientation-lot-header {
@@ -10112,18 +10132,22 @@ body.day-mode .lot-group--collapsible summary:hover {
     align-items: center;
     justify-content: space-between;
     gap: var(--space-8);
-    margin-bottom: var(--space-24);
+    margin-bottom: 8px;
 }
 
 .orientation-lot-name {
-    font-size: var(--font-size-base);
+    font-size: 16px;
     font-weight: var(--font-weight-semibold);
+    color: #000;
+    background: #e6e6e6;
+    padding: 2px 10px;
+    border-radius: 999px;
 }
 
 .orientation-lot-orientation {
-    padding: 2px 8px;
+    padding: 4px 10px;
     border-radius: 999px;
-    font-size: 12px;
+    font-size: 11px;
     font-weight: var(--font-weight-semibold);
     background-color: #E6E6E6;
     color: var(--color-text);
@@ -10263,6 +10287,197 @@ body.day-mode .lot-group--collapsible summary:hover {
     height: 8px;
     border-radius: 50%;
     display: inline-block;
+}
+
+.orientation-lot-card-body {
+    display: grid;
+    gap: 10px;
+}
+
+.orientation-compact-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+}
+
+.orientation-compact-grid--single {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.orientation-compact-grid--triple {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.orientation-compact-cell {
+    background: #d9d9d9;
+    color: #111;
+    border-radius: 7px;
+    padding: 5px 7px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.orientation-compact-cell-title {
+    font-size: 9px;
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 4px;
+    padding: 0 2px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+}
+
+.orientation-compact-cell-value {
+    font-size: 11px;
+    font-weight: 700;
+    color: #111;
+}
+
+.orientation-compact-field {
+    display: flex;
+    flex-direction: column;
+}
+
+.orientation-compact-cell--full {
+    grid-column: 1 / -1;
+}
+
+.orientation-compact-cell--confidence .orientation-compact-cell {
+    background: #f0b323;
+}
+
+.orientation-compact-cell--confidence-forte .orientation-compact-cell {
+    background: #8fd8a9;
+}
+
+.orientation-compact-cell--confidence-moyenne .orientation-compact-cell {
+    background: #f0b323;
+}
+
+.orientation-compact-cell--confidence-faible .orientation-compact-cell {
+    background: #e39a9a;
+}
+
+.orientation-compact-separator {
+    border-top: 1px solid #E6E6E6;
+    margin: 4px 0;
+}
+
+.orientation-compact-notes-panel {
+    background: #efefef;
+    border-radius: 6px;
+    padding: 8px 9px 8px;
+}
+
+.orientation-compact-notes-title {
+    font-size: 10px;
+    font-weight: 600;
+    color: #000;
+    margin-bottom: 0;
+}
+
+.orientation-compact-notes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+}
+
+.orientation-compact-notes-mode {
+    font-size: 10px;
+    font-weight: 500;
+    color: #111;
+    white-space: nowrap;
+    text-align: right;
+}
+
+.orientation-compact-notes-bar {
+    display: flex;
+    height: 14px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: #dcdcdc;
+}
+
+.orientation-compact-notes-segment {
+    display: block;
+    height: 100%;
+}
+
+.orientation-compact-notes-legend {
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 8px;
+    color: #667085;
+    font-size: 10px;
+    font-weight: 700;
+}
+
+.orientation-compact-notes-legend-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+}
+
+.orientation-compact-notes-legend-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.orientation-score-triplet {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.orientation-score-triplet-cell {
+    text-align: center;
+}
+
+.orientation-score-triplet-cell .orientation-compact-cell {
+    border-radius: 6px;
+}
+
+.orientation-score-triplet-cell .orientation-compact-cell-title {
+    text-align: left;
+}
+
+.orientation-score-triplet-cell--neg .orientation-compact-cell,
+.orientation-score-triplet-cell--pos .orientation-compact-cell {
+    background: #d9d9d9;
+    color: #777;
+}
+
+.orientation-score-triplet-cell--net .orientation-compact-cell {
+    background: #55b6f4;
+    color: #111;
+}
+
+.orientation-negative-criteria {
+    font-size: 12px;
+}
+
+.orientation-negative-criteria--none .orientation-compact-cell {
+    background: #d9d9d9;
+}
+
+.orientation-negative-criteria--d .orientation-compact-cell {
+    background: #f6d29f;
+}
+
+.orientation-negative-criteria--e .orientation-compact-cell {
+    background: #efb1b1;
+}
+
+.orientation-destination-cell {
+    margin-top: 2px;
 }
 
 /* Scrollbar custom en bas */

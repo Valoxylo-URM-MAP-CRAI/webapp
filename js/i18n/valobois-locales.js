@@ -19,6 +19,7 @@
                     signIn: 'Connexion',
                     cloudSaving: 'Sauvegarde…',
                     cloudSaved: 'Sauvegardé',
+                    cloudError: 'Échec sauvegarde',
                 },
             },
             mesEval: {
@@ -122,6 +123,7 @@
                     signIn: 'Sign in',
                     cloudSaving: 'Saving…',
                     cloudSaved: 'Saved',
+                    cloudError: 'Save failed',
                 },
             },
             mesEval: {

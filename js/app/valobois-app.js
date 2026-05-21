@@ -603,6 +603,7 @@ class ValoboisApp {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
         this.storageKey = 'valobois_v1';
         this.storageBackupKey = 'valobois_v1_backup';
+        this.cloudDraftStoragePrefix = 'valobois_cloud_draft_v1';
         this.matrixConfigStorageKey = 'valobois_matrix_config';
         this.locSitGlobalStorageKey = 'valobois_locsit_custom_global_v1';
         this.rareteCustomGlobalStorageKey = 'valobois_rarete_custom_global_v1';
@@ -7035,6 +7036,19 @@ class ValoboisApp {
             this.data.meta = this.getDefaultMeta(this.data.meta || {});
             this.data.meta.revision = (Number(this.data.meta.revision) || 0) + 1;
             if (this.persistenceMode === 'cloud') {
+                try {
+                    const url = new URL(window.location.href);
+                    const evalIdRaw = url.searchParams.get('eval');
+                    const ownerRaw = url.searchParams.get('owner');
+                    const evalId = evalIdRaw == null ? '' : String(evalIdRaw).trim();
+                    const ownerUid = ownerRaw == null ? '' : String(ownerRaw).trim();
+                    if (evalId && evalId !== 'new') {
+                        const draftKey = `${this.cloudDraftStoragePrefix}:${ownerUid || 'self'}:${evalId}`;
+                        localStorage.setItem(draftKey, JSON.stringify(this.data));
+                    }
+                } catch (storageErr) {
+                    console.warn('Impossible de stocker le brouillon cloud en local.', storageErr);
+                }
                 if (typeof window.__valoboisScheduleCloudSave === 'function') {
                     window.__valoboisScheduleCloudSave(this);
                 }
@@ -12387,7 +12401,12 @@ class ValoboisApp {
     }
 
     getLotOrientationCountedDisplay(lot, fieldName) {
-        if (!lot || !lot.allotissement || !fieldName) return '';
+        const summary = this.getLotOrientationCountedSummary(lot, fieldName);
+        return summary.display;
+    }
+
+    getLotOrientationCountedSummary(lot, fieldName) {
+        if (!lot || !lot.allotissement || !fieldName) return { display: '', distinctCount: 0 };
 
         const counts = new Map();
         let nextOrder = 0;
@@ -12432,10 +12451,13 @@ class ValoboisApp {
             return a.order - b.order;
         });
 
-        if (!sortedItems.length) return '';
-        return sortedItems
+        if (!sortedItems.length) return { display: '', distinctCount: 0 };
+        return {
+            display: sortedItems
             .map((item) => `${item.label} (${item.qty.toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 })})`)
-            .join(', ');
+            .join(', '),
+            distinctCount: sortedItems.length
+        };
     }
 
     getLotUnfavorableCriteria(lot) {
@@ -30880,6 +30902,17 @@ getRadarOrientationPositionData(lot, mode = null) {
             letterCounts[row.noteLetter] += 1;
         }
     });
+    const unratedFromRows = notationRows.reduce((sum, row) => sum + (row.noteLetter ? 0 : 1), 0);
+    const unassignedStandard = nonConfidenceMappings.reduce((sum, mapping) => {
+        return sum + (this.hasValoboisCriterionValue(lot, mapping) ? 0 : 1);
+    }, 0);
+    const unassignedCustom = activeCustom.reduce((sum, criterion) => {
+        const criterionId = String(criterion && criterion.id || '').trim();
+        if (!criterionId) return sum;
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        return sum + (Number.isFinite(score) ? 0 : 1);
+    }, 0);
+    const unassignedCount = unratedFromRows + unassignedStandard + unassignedCustom;
 
     const netScoreRaw = positiveNoConfidence - negativeNoConfidenceAbs;
     const netScore = Math.max(axisMin, Math.min(axisMax, netScoreRaw));
@@ -30898,6 +30931,7 @@ getRadarOrientationPositionData(lot, mode = null) {
         currentOrientationLabel: this.getValoboisOrientationLabel(currentOrientation),
         rejectsByOrientation,
         letterCounts,
+        unassignedCount,
         notationRows,
         decomposition: {
             positiveNoConfidence,
@@ -31581,7 +31615,8 @@ buildSyntheseLotsPositionBarHtml(mode = null) {
         const lotNameRaw = String((lot && (lot.nomLot || lot.nom)) || '').trim();
         const lotLabel = lotNameRaw || `Lot ${index + 1}`;
         const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
-        const notesDistribution = `A:${Number(letterCounts.A) || 0} · B:${Number(letterCounts.B) || 0} · C:${Number(letterCounts.C) || 0} · D:${Number(letterCounts.D) || 0} · E:${Number(letterCounts.E) || 0}`;
+        const unassignedCount = Number(state.unassignedCount) || 0;
+        const notesDistribution = `A:${Number(letterCounts.A) || 0} · B:${Number(letterCounts.B) || 0} · C:${Number(letterCounts.C) || 0} · D:${Number(letterCounts.D) || 0} · E:${Number(letterCounts.E) || 0} · Non notée:${unassignedCount}`;
         const lockDistribution = orientationOrder
             .map((orientationKey) => {
                 const count = ((state.rejectsByOrientation && state.rejectsByOrientation[orientationKey]) || []).length;
@@ -38087,77 +38122,22 @@ renderRadar() {
 
     renderOrientation() {
         const section = document.getElementById('orientationSection');
-    const container = document.getElementById('orientationLotsContainer');
-    const scrollbarThumb = document.getElementById('orientationScrollbarThumb');
+        const container = document.getElementById('orientationLotsContainer');
+        const scrollbarThumb = document.getElementById('orientationScrollbarThumb');
 
-    if (!section || !container) return;
+        if (!section || !container) return;
 
-    const lots = this.data.lots || [];
-    if (!lots.length) {
-        section.style.display = 'none';
-        return;
-    }
-
-    section.style.display = 'block';
-
-    // Lot actif global (le même index que dans le reste de l’app)
-    const currentLot = this.getCurrentLot();
-    const activeIndex = currentLot ? lots.indexOf(currentLot) : 0;
-
-    container.innerHTML = '';
-
-    lots.forEach((lot, index) => {
-        const card = document.createElement('div');
-        card.className = 'orientation-lot-card';
-        if (index === activeIndex) {
-            card.classList.add('orientation-lot-card--active');
-        }
-        card.dataset.lotIndex = String(index);
-
-        const header = document.createElement('div');
-        header.className = 'orientation-lot-header';
-
-        const nameBox = document.createElement('div');
-        nameBox.className = 'orientation-lot-name';
-        nameBox.textContent = 'Lot ' + (index + 1);
-
-        const orientationBox = document.createElement('div');
-        orientationBox.className = 'orientation-lot-orientation';
-
-        const label = lot.orientationLabel || '…';
-        const normalized = (label || '').toLowerCase();
-        const uiState = this.getValoboisOrientationUiState(lot);
-
-        let extraClass = 'orientation-lot-orientation--none';
-        if (normalized === 'réemploi' || normalized === 'reemploi') {
-            extraClass = 'orientation-lot-orientation--reemploi';
-        } else if (normalized === 'réutilisation' || normalized === 'reutilisation') {
-            extraClass = 'orientation-lot-orientation--reutilisation';
-        } else if (normalized === 'recyclage') {
-            extraClass = 'orientation-lot-orientation--recyclage';
-        } else if (normalized === 'combustion') {
-            extraClass = 'orientation-lot-orientation--combustion';
-        }
-        orientationBox.classList.add(extraClass);
-        if (uiState.stateClass) orientationBox.classList.add(uiState.stateClass);
-        orientationBox.textContent = label || '…';
-        orientationBox.title = uiState.titleSuffix ? `${label || '…'} — ${uiState.titleSuffix}` : (label || '…');
-        if (uiState.stateLabel) {
-            orientationBox.setAttribute('data-orientation-state-label', uiState.stateLabel);
-        } else {
-            orientationBox.removeAttribute('data-orientation-state-label');
+        const lots = this.data.lots || [];
+        if (!lots.length) {
+            section.style.display = 'none';
+            return;
         }
 
-        header.appendChild(nameBox);
-        header.appendChild(orientationBox);
+        section.style.display = 'block';
 
-        const grid = document.createElement('div');
-        grid.className = 'orientation-lot-grid';
-
-        const info = lot.allotissement || lot.allot || {};
-        const studyStatus = (this.data && this.data.meta && this.data.meta.statutEtude)
-            ? this.data.meta.statutEtude
-            : '';
+        const currentLot = this.getCurrentLot();
+        const activeIndex = currentLot ? lots.indexOf(currentLot) : 0;
+        container.innerHTML = '';
 
         const formatGroupedValue = (value, digits = 0) => {
             const num = parseFloat(value);
@@ -38168,159 +38148,310 @@ renderRadar() {
             });
         };
 
-        const qty = info.quantite != null ? info.quantite : (info.quantitePieces != null ? info.quantitePieces : '');
-        const qtyLabel = qty === '' ? '' : formatGroupedValue(qty, 0);
-        const typePiece = this.getLotOrientationCountedDisplay(lot, 'typePiece');
-        const essence = this.getLotOrientationCountedDisplay(lot, 'essenceNomCommun');
-        const unfavorable = this.getLotUnfavorableCriteria(lot);
-        const volumeLot = info.volumeLot != null ? info.volumeLot : (info.volume_m3 != null ? info.volume_m3 : '');
-        const volumeLotLabel = volumeLot === '' ? '' : formatGroupedValue(volumeLot, 1);
-        const surfaceLot = info.surfaceLot != null ? info.surfaceLot : (info.surface_m2 != null ? info.surface_m2 : '');
-        const surfaceLotLabel = surfaceLot === '' ? '' : formatGroupedValue(surfaceLot, 1);
-        const lineaireLot = info.lineaireLot != null ? info.lineaireLot : (info.lineaire_ml != null ? info.lineaire_ml : '');
-        const lineaireLotLabel = lineaireLot === '' ? '' : formatGroupedValue(lineaireLot, 1);
-        const pco2Display = this.formatPco2Display(info.carboneBiogeniqueEstime);
-        const pco2UnitCompact = (pco2Display.unit || '').replace(' (NF EN 16449)', '').trim();
-        const pco2LotLabel = pco2Display.value ? (pco2Display.value + ' ' + pco2UnitCompact).trim() : '';
-        const priceUnitRaw = info.prixUnite != null ? info.prixUnite : (info.prix_unite != null ? info.prix_unite : 'm3');
-        const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
-        const prixLot = info.prixLot != null ? info.prixLot : (info.prix_total != null ? info.prix_total : '');
-        const prixLotLabel = prixLot === '' ? '' : formatGroupedValue(Math.round(parseFloat(prixLot) || 0), 0);
-        const masseLotTheoriqueRaw = info.masseLot != null ? info.masseLot : (info.masse_lot != null ? info.masse_lot : '');
-        const masseLotTheoriqueNum = parseFloat(masseLotTheoriqueRaw);
-        const masseLotTheoriqueDisplay = Number.isFinite(masseLotTheoriqueNum)
-            ? this.formatMasseDisplay(masseLotTheoriqueNum)
-            : { value: '', unit: '' };
-        const masseLotTheoriqueLabel = masseLotTheoriqueDisplay.value ? (masseLotTheoriqueDisplay.value + ' ' + masseLotTheoriqueDisplay.unit) : '';
-        const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
-        const masseMesureeComplete = masseLotMesureeDisplay && masseLotMesureeDisplay.status === 'full' && masseLotMesureeDisplay.value;
-        const masseLotOrientationLabel = masseMesureeComplete ? 'Masse mesurée du lot' : 'Masse théorique du lot';
-        const masseLotOrientationValue = masseMesureeComplete
-            ? ((masseLotMesureeDisplay.value || '') + ' ' + (masseLotMesureeDisplay.unit || '')).trim()
-            : masseLotTheoriqueLabel;
-        const notationConfidenceEntries = this.getNotationConfidenceSummaryEntries(lot);
-        const confidenceGeneral = this.getNotationConfidenceGeneralSummary(lot);
-        const confidenceGeneralLabel = `${confidenceGeneral.level} (${confidenceGeneral.score}/${confidenceGeneral.maxScore})`;
-        const _confNorm = (confidenceGeneral.level || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-        const confidenceDotColor = _confNorm === 'forte' ? '#009E73' : _confNorm === 'moyenne' ? '#E69F00' : '#D55E00';
+        const formatSigned = (value) => {
+            const rounded = Math.round(Number(value) || 0);
+            return rounded >= 0 ? `+ ${rounded}` : `- ${Math.abs(rounded)}`;
+        };
 
-        const createOrientationField = (fieldDef) => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'orientation-field';
-            if (fieldDef.className) {
-                if (Array.isArray(fieldDef.className)) {
-                    wrapper.classList.add(...fieldDef.className);
-                } else {
-                    wrapper.classList.add(fieldDef.className);
-                }
+        const createCell = (value, className = '', fallback = '—', title = '') => {
+            const field = document.createElement('div');
+            field.className = 'orientation-compact-field';
+            if (className) {
+                field.classList.add(...className.split(' ').filter(Boolean));
             }
-            const labelEl = document.createElement('div');
-            labelEl.className = 'orientation-field-label';
-            labelEl.textContent = fieldDef.label;
-            const box = document.createElement('div');
-            box.className = 'orientation-field-box';
-            if (fieldDef.dot) {
-                box.classList.add('orientation-field-box--with-dot');
-                const dot = document.createElement('span');
-                dot.className = 'orientation-field-dot';
-                dot.style.backgroundColor = fieldDef.dot;
-                const textSpan = document.createElement('span');
-                textSpan.textContent = fieldDef.value || fieldDef.fallback || '—';
-                box.appendChild(dot);
-                box.appendChild(textSpan);
+            if (title) {
+                const titleEl = document.createElement('div');
+                titleEl.className = 'orientation-compact-cell-title';
+                titleEl.textContent = title;
+                field.appendChild(titleEl);
+            }
+            const cell = document.createElement('div');
+            cell.className = 'orientation-compact-cell';
+            const valueEl = document.createElement('div');
+            valueEl.className = 'orientation-compact-cell-value';
+            valueEl.textContent = value || fallback;
+            cell.appendChild(valueEl);
+            field.appendChild(cell);
+            return field;
+        };
+
+        const createRow = (cells, className = 'orientation-compact-grid') => {
+            const row = document.createElement('div');
+            row.className = className;
+            cells.forEach((cell) => row.appendChild(cell));
+            return row;
+        };
+
+        lots.forEach((lot, index) => {
+            const card = document.createElement('div');
+            card.className = 'orientation-lot-card';
+            if (index === activeIndex) card.classList.add('orientation-lot-card--active');
+            card.dataset.lotIndex = String(index);
+
+            const lotState = this.getRadarOrientationPositionData(lot);
+            const info = lot.allotissement || lot.allot || {};
+            const studyStatus = (this.data && this.data.meta && this.data.meta.statutEtude)
+                ? String(this.data.meta.statutEtude)
+                : '';
+
+            const label = lot.orientationLabel || '…';
+            const normalized = (label || '').toLowerCase();
+            let extraClass = 'orientation-lot-orientation--none';
+            if (normalized === 'réemploi' || normalized === 'reemploi') {
+                extraClass = 'orientation-lot-orientation--reemploi';
+            } else if (normalized === 'réutilisation' || normalized === 'reutilisation') {
+                extraClass = 'orientation-lot-orientation--reutilisation';
+            } else if (normalized === 'recyclage') {
+                extraClass = 'orientation-lot-orientation--recyclage';
+            } else if (normalized === 'combustion') {
+                extraClass = 'orientation-lot-orientation--combustion';
+            }
+
+            const header = document.createElement('div');
+            header.className = 'orientation-lot-header';
+            const nameBox = document.createElement('div');
+            nameBox.className = 'orientation-lot-name';
+            nameBox.textContent = `Lot ${index + 1}`;
+            const orientationBox = document.createElement('div');
+            orientationBox.className = 'orientation-lot-orientation';
+            orientationBox.classList.add(extraClass);
+            orientationBox.textContent = label || '…';
+            header.appendChild(nameBox);
+            header.appendChild(orientationBox);
+            card.appendChild(header);
+
+            const body = document.createElement('div');
+            body.className = 'orientation-lot-card-body';
+
+            const qty = info.quantite != null ? info.quantite : (info.quantitePieces != null ? info.quantitePieces : '');
+            const qtyLabel = qty === '' ? '' : formatGroupedValue(qty, 0);
+            const prixLot = info.prixLot != null ? info.prixLot : (info.prix_total != null ? info.prix_total : '');
+            const prixLotLabel = prixLot === '' ? '' : `${formatGroupedValue(Math.round(parseFloat(prixLot) || 0), 0)} €`;
+            const volumeLot = info.volumeLot != null ? info.volumeLot : (info.volume_m3 != null ? info.volume_m3 : '');
+            const volumeLotLabel = volumeLot === '' ? '' : `${formatGroupedValue(volumeLot, 1)} m³`;
+
+            const masseLotTheoriqueRaw = info.masseLot != null ? info.masseLot : (info.masse_lot != null ? info.masse_lot : '');
+            const masseLotTheoriqueNum = parseFloat(masseLotTheoriqueRaw);
+            const masseLotTheoriqueDisplay = Number.isFinite(masseLotTheoriqueNum)
+                ? this.formatMasseDisplay(masseLotTheoriqueNum)
+                : { value: '', unit: '' };
+            const masseLotTheoriqueLabel = masseLotTheoriqueDisplay.value
+                ? `${masseLotTheoriqueDisplay.value} ${masseLotTheoriqueDisplay.unit}`
+                : '';
+            const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
+            const masseMesureeComplete = masseLotMesureeDisplay && masseLotMesureeDisplay.status === 'full' && masseLotMesureeDisplay.value;
+            const masseLotLabel = masseMesureeComplete
+                ? `${masseLotMesureeDisplay.value || ''} ${masseLotMesureeDisplay.unit || ''}`.trim()
+                : masseLotTheoriqueLabel;
+
+            const pco2Display = this.formatPco2Display(info.carboneBiogeniqueEstime);
+            const pco2UnitCompact = (pco2Display.unit || '').replace(' (NF EN 16449)', '').trim();
+            const pco2LotLabel = pco2Display.value ? `${pco2Display.value} ${pco2UnitCompact}`.trim() : '';
+
+            const confidenceGeneral = this.getNotationConfidenceGeneralSummary(lot);
+            const confidenceGeneralLabel = `${confidenceGeneral.level} (${confidenceGeneral.score}/${confidenceGeneral.maxScore})`;
+            const confidenceLevelNorm = (confidenceGeneral.level || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            const confidenceLevelClass = confidenceLevelNorm === 'forte'
+                ? 'orientation-compact-cell--confidence-forte'
+                : (confidenceLevelNorm === 'faible' ? 'orientation-compact-cell--confidence-faible' : 'orientation-compact-cell--confidence-moyenne');
+
+            const avgAmortissement = this.computeAmortissementBiologique(
+                lot.allotissement && lot.allotissement._avgAgeArbre != null ? String(lot.allotissement._avgAgeArbre) : '',
+                lot.allotissement && lot.allotissement._avgServiceYear != null ? String(lot.allotissement._avgServiceYear) : ''
+            );
+
+            const typePieceSummary = this.getLotOrientationCountedSummary(lot, 'typePiece');
+            const essenceSummary = this.getLotOrientationCountedSummary(lot, 'essenceNomCommun');
+            const typePiece = typePieceSummary.display;
+            const essence = essenceSummary.display;
+            const typePieceTitle = typePieceSummary.distinctCount >= 2 ? 'Types de pièces' : 'Type de pièce';
+            const essenceTitle = essenceSummary.distinctCount >= 2 ? 'Essences' : 'Essence';
+
+            const pieceTypeDims = info.medoideDims || {};
+            const formatDim = (value) => {
+                if (value == null) return '';
+                const raw = String(value).trim();
+                if (!raw) return '';
+                const num = parseFloat(raw.replace(',', '.'));
+                return Number.isFinite(num)
+                    ? Math.round(num).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 })
+                    : '';
+            };
+            const dimLongueur = formatDim(pieceTypeDims.longueur);
+            const dimDiametre = formatDim(pieceTypeDims.diametre);
+            const dimLargeur = formatDim(pieceTypeDims.largeur);
+            const dimEpaisseur = formatDim(pieceTypeDims.epaisseur);
+            const hasDiametre = dimDiametre !== '';
+
+            body.appendChild(createRow([
+                createCell(studyStatus, '', '—', 'Statut de l\'étude'),
+                createCell(confidenceGeneralLabel, `orientation-compact-cell--confidence ${confidenceLevelClass}`, '—', 'Confiance générale')
+            ]));
+            body.appendChild(createRow([
+                createCell(qtyLabel, '', '—', 'Quantité'),
+                createCell(prixLotLabel, '', '—', 'Prix du lot')
+            ]));
+            body.appendChild(createRow([
+                createCell(volumeLotLabel, '', '—', 'Volume du lot'),
+                createCell(masseLotLabel, '', '—', 'Masse du lot')
+            ]));
+            body.appendChild(createRow([
+                createCell(typePiece, 'orientation-compact-cell--full', '—', typePieceTitle)
+            ], 'orientation-compact-grid orientation-compact-grid--single'));
+            body.appendChild(createRow([
+                createCell(essence, 'orientation-compact-cell--full', '—', essenceTitle)
+            ], 'orientation-compact-grid orientation-compact-grid--single'));
+            body.appendChild(createRow([
+                createCell(pco2LotLabel, '', '—', 'PCO₂ du lot'),
+                createCell(avgAmortissement, '', '—', 'Amortissement moyen')
+            ]));
+            if (hasDiametre) {
+                body.appendChild(createRow([
+                    createCell(dimLongueur, '', '—', 'Longueur (mm)'),
+                    createCell(dimDiametre, '', '—', 'Diamètre (mm)')
+                ]));
             } else {
-                box.innerHTML = `<span>${fieldDef.value || fieldDef.fallback || '—'}</span>`;
+                body.appendChild(createRow([
+                    createCell(dimLongueur, '', '—', 'Longueur (mm)'),
+                    createCell(dimLargeur, '', '—', 'Largeur (mm)'),
+                    createCell(dimEpaisseur, '', '—', 'Épaisseur (mm)')
+                ], 'orientation-compact-grid orientation-compact-grid--triple'));
             }
-            wrapper.appendChild(labelEl);
-            wrapper.appendChild(box);
-            return wrapper;
+
+            const separator1 = document.createElement('div');
+            separator1.className = 'orientation-compact-separator';
+            body.appendChild(separator1);
+
+            const notesPanel = document.createElement('div');
+            notesPanel.className = 'orientation-compact-notes-panel';
+            const notesHeader = document.createElement('div');
+            notesHeader.className = 'orientation-compact-notes-header';
+            const notesTitle = document.createElement('div');
+            notesTitle.className = 'orientation-compact-notes-title';
+            notesTitle.textContent = 'Répartition des notes';
+            const notesMode = document.createElement('div');
+            notesMode.className = 'orientation-compact-notes-mode';
+            const notationMode = this.normalizeNotationMode(this.getValoboisActiveMatrixMode()) || 'fort';
+            notesMode.textContent = `Mode de notation : ${notationMode}`;
+            notesHeader.appendChild(notesTitle);
+            notesHeader.appendChild(notesMode);
+            notesPanel.appendChild(notesHeader);
+            const counts = lotState && lotState.letterCounts ? lotState.letterCounts : { A: 0, B: 0, C: 0, D: 0, E: 0 };
+            const unassignedCount = Number(lotState && lotState.unassignedCount) || 0;
+            const total = (counts.A || 0) + (counts.B || 0) + (counts.C || 0) + (counts.D || 0) + (counts.E || 0) + unassignedCount;
+            const noteColors = { A: '#2bb673', B: '#40c1a3', C: '#f0b323', D: '#f28e2b', E: '#e84d4d', U: '#9aa3af' };
+
+            const notesBar = document.createElement('div');
+            notesBar.className = 'orientation-compact-notes-bar';
+            if (total > 0) {
+                ['A', 'B', 'C', 'D', 'E', 'U'].forEach((letter) => {
+                    const count = letter === 'U' ? unassignedCount : (counts[letter] || 0);
+                    if (!count) return;
+                    const segment = document.createElement('span');
+                    segment.className = 'orientation-compact-notes-segment';
+                    segment.style.width = `${((count / total) * 100).toFixed(2)}%`;
+                    segment.style.background = noteColors[letter];
+                    notesBar.appendChild(segment);
+                });
+            }
+            notesPanel.appendChild(notesBar);
+
+            const notesLegend = document.createElement('div');
+            notesLegend.className = 'orientation-compact-notes-legend';
+            ['A', 'B', 'C', 'D', 'E', 'U'].forEach((letter) => {
+                const count = letter === 'U' ? unassignedCount : (counts[letter] || 0);
+                const item = document.createElement('span');
+                item.className = 'orientation-compact-notes-legend-item';
+                const dot = document.createElement('span');
+                dot.className = 'orientation-compact-notes-legend-dot';
+                dot.style.background = noteColors[letter];
+                const txt = document.createElement('span');
+                txt.textContent = letter === 'U' ? `?:${count}` : `${letter}:${count}`;
+                item.appendChild(dot);
+                item.appendChild(txt);
+                notesLegend.appendChild(item);
+            });
+            notesPanel.appendChild(notesLegend);
+            body.appendChild(notesPanel);
+
+            const scoreRow = document.createElement('div');
+            scoreRow.className = 'orientation-score-triplet';
+            const negativeAbs = Math.abs(Number(lotState && lotState.decomposition ? lotState.decomposition.negativeNoConfidenceAbs : 0) || 0);
+            const positiveScore = Number(lotState && lotState.decomposition ? lotState.decomposition.positiveNoConfidence : 0) || 0;
+            const netScore = Number(lotState && lotState.decomposition ? lotState.decomposition.netNoConfidence : 0) || 0;
+            const maxScore = Math.round(Number(lotState && lotState.positiveScoreMax) || 0);
+            const negativeItems = (lotState && lotState.decomposition && Array.isArray(lotState.decomposition.negativeNoConfidenceItems))
+                ? lotState.decomposition.negativeNoConfidenceItems
+                : [];
+            const unfavorableLabels = [];
+            let unfavorableHasE = false;
+            let unfavorableHasD = false;
+            negativeItems.forEach((item) => {
+                const note = String(item && item.noteLetter || '').toUpperCase();
+                if (note !== 'D' && note !== 'E') return;
+                if (note === 'E') unfavorableHasE = true;
+                if (note === 'D') unfavorableHasD = true;
+                const labelCrit = String(item && item.critere || '').trim();
+                if (!labelCrit) return;
+                if (!unfavorableLabels.includes(labelCrit)) unfavorableLabels.push(labelCrit);
+            });
+            const unfavorableValue = unfavorableLabels.length ? unfavorableLabels.join(', ') : 'Aucun';
+            const unfavorableTitle = unfavorableLabels.length >= 2 ? 'Critères défavorables' : 'Critère défavorable';
+            const unfavorableLevelClass = unfavorableHasE
+                ? 'orientation-negative-criteria--e'
+                : (unfavorableHasD ? 'orientation-negative-criteria--d' : 'orientation-negative-criteria--none');
+
+            scoreRow.appendChild(createCell(`- ${Math.round(negativeAbs)}`, 'orientation-score-triplet-cell orientation-score-triplet-cell--neg', '—', 'Score négatif'));
+            scoreRow.appendChild(createCell(`${formatSigned(netScore)} / ${maxScore}`, 'orientation-score-triplet-cell orientation-score-triplet-cell--net', '— / —', 'Score net / max'));
+            scoreRow.appendChild(createCell(formatSigned(positiveScore), 'orientation-score-triplet-cell orientation-score-triplet-cell--pos', '—', 'Score positif'));
+            body.appendChild(scoreRow);
+
+            body.appendChild(createCell(unfavorableValue, `orientation-negative-criteria orientation-compact-cell--full ${unfavorableLevelClass}`, 'Aucun', unfavorableTitle));
+
+            const separator2 = document.createElement('div');
+            separator2.className = 'orientation-compact-separator';
+            body.appendChild(separator2);
+
+            const destination = typeof lot.allotissement?.destination === 'string'
+                ? lot.allotissement.destination.trim()
+                : '';
+            body.appendChild(createCell(destination || '—', 'orientation-destination-cell orientation-compact-cell--full', '—', 'Destination'));
+
+            card.appendChild(body);
+
+            card.addEventListener('click', () => {
+                this.setCurrentLotIndex(index);
+                this.render();
+            });
+
+            container.appendChild(card);
+        });
+
+        const scroller = container;
+        const updateThumb = () => {
+            if (!scrollbarThumb) return;
+            const maxScroll = scroller.scrollWidth - scroller.clientWidth;
+            if (maxScroll <= 0) {
+                scrollbarThumb.style.width = '100%';
+                scrollbarThumb.style.left = '0';
+                return;
+            }
+            const ratioVisible = scroller.clientWidth / scroller.scrollWidth;
+            const thumbWidth = Math.max(ratioVisible * 100, 10);
+            const scrollRatio = scroller.scrollLeft / maxScroll;
+            const maxLeft = 100 - thumbWidth;
+            scrollbarThumb.style.width = thumbWidth + '%';
+            scrollbarThumb.style.left = (scrollRatio * maxLeft) + '%';
         };
 
-        const fieldDefs = [
-            { label: 'Quantité', value: qtyLabel },
-            { label: 'Statut de l\'étude', value: studyStatus },
-            { label: 'Volume du lot', value: volumeLotLabel ? volumeLotLabel + ' m³' : '' },
-            { label: 'Prix du lot', value: prixLotLabel ? prixLotLabel + ' €' : '' },
+        scroller.addEventListener('scroll', updateThumb);
+        window.addEventListener('resize', updateThumb);
+        updateThumb();
 
-            { label: 'Type de pièce', value: typePiece, className: 'orientation-field--type-piece' },
-            { label: 'Essence', value: essence, className: 'orientation-field--essence' },
-            {
-                label: 'Critères défavorables',
-                value: unfavorable,
-                fallback: 'Aucun',
-                className: 'orientation-field--unfavorable'
-            },
-            {
-                label: 'Confiance générale',
-                value: confidenceGeneralLabel,
-                dot: confidenceDotColor,
-                className: 'orientation-field--confidence-general'
-            },
-
-            { label: 'PCO2 du lot (NF EN 16449)', value: pco2LotLabel },
-            { label: masseLotOrientationLabel, value: masseLotOrientationValue }
-        ];
-
-        if (priceUnit === 'ml') {
-            fieldDefs.push({ label: 'Linéaire du lot', value: lineaireLotLabel ? lineaireLotLabel + ' m' : '' });
-        } else if (priceUnit === 'm2') {
-            fieldDefs.push({ label: 'Surface du lot', value: surfaceLotLabel ? surfaceLotLabel + ' m2' : '' });
-        }
-
-        fieldDefs.forEach((f) => {
-            grid.appendChild(createOrientationField(f));
-        });
-
-        const actionToDotColor = (action) => {
-            const norm = (action || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-            if (norm === 'a confirmer') return '#009E73';
-            if (norm === 'a completer') return '#E69F00';
-            return '#D55E00';
-        };
-
-        const notationGrid = document.createElement('div');
-        notationGrid.className = 'orientation-notation-grid';
-        notationConfidenceEntries.forEach((item) => {
-            notationGrid.appendChild(createOrientationField({ label: item.label, value: item.action, dot: actionToDotColor(item.action) }));
-        });
-        grid.appendChild(notationGrid);
-
-        card.appendChild(header);
-        card.appendChild(grid);
-
-        // clic sur la carte => input le lot actif
-        card.addEventListener('click', () => {
-            this.setCurrentLotIndex(index);
-            this.render(); // re‑rendu global (y compris Orientation)
-        });
-
-        container.appendChild(card);
-    });
-
-    // Scrollbar custom synchronisée
-    const scroller = container;
-
-    const updateThumb = () => {
-        if (!scrollbarThumb) return;
-        const maxScroll = scroller.scrollWidth - scroller.clientWidth;
-        if (maxScroll <= 0) {
-            scrollbarThumb.style.width = '100%';
-            scrollbarThumb.style.left = '0';
-            return;
-        }
-        const ratioVisible = scroller.clientWidth / scroller.scrollWidth;
-        const thumbWidth = Math.max(ratioVisible * 100, 10);
-        const scrollRatio = scroller.scrollLeft / maxScroll;
-        const maxLeft = 100 - thumbWidth;
-        scrollbarThumb.style.width = thumbWidth + '%';
-        scrollbarThumb.style.left = (scrollRatio * maxLeft) + '%';
-    };
-
-    scroller.addEventListener('scroll', updateThumb);
-    window.addEventListener('resize', updateThumb);
-    updateThumb();
-
-    this.renderSyntheseLotsPositionPanel();
+        this.renderSyntheseLotsPositionPanel();
     }
 
     computeOrientation(lot) {
@@ -42554,7 +42685,7 @@ renderRadar() {
             'Age arbre',
             'Date mise en service',
             'Masse pièce (kg)',
-            'Carbone biogénique pièce (kgCO2eq)',
+            'Carbone biogénique pièce (kgCO₂eq)',
             'Largeur moyenne intra (mm)',
             'Epaisseur moyenne intra (mm)',
             'CV largeur intra (%)',
@@ -42580,7 +42711,7 @@ renderRadar() {
             'Volume lot (m3)',
             'Linéaire lot (m)',
             'Masse lot (kg)',
-            'Carbone biogénique lot (kgCO2eq)',
+            'Carbone biogénique lot (kgCO₂eq)',
             'Prix lot base (€)',
             'Prix lot aj. intégrité (€)',
             'Orientation',
@@ -43113,7 +43244,7 @@ renderRadar() {
                 const v = ((lot && lot.allotissement) || {}).masseLot;
                 return (v ? parseFloat(v) : '-') || '-';
             } },
-            { label: 'Carbone biogénique (kgCO2eq)', getValue: (lot) => {
+            { label: 'Carbone biogénique (kgCO₂eq)', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).carboneBiogeniqueEstime;
                 return (v != null && v !== '') ? parseFloat(v) : '-';
             } },

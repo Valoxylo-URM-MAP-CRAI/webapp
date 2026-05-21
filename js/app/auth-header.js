@@ -6,7 +6,7 @@
 
     window.addEventListener('valobois:cloudsync', function (ev) {
         var d = ev.detail && ev.detail.state;
-        if (d === 'hidden' || d === 'saving' || d === 'saved') {
+        if (d === 'hidden' || d === 'saving' || d === 'saved' || d === 'error') {
             cloudSyncState = d;
         } else {
             cloudSyncState = 'hidden';
@@ -19,37 +19,49 @@
     function renderAuthStatus(container, user, authInstance, syncState) {
         container.textContent = '';
         if (user && user.email) {
-            if (syncState === 'saving' || syncState === 'saved') {
+            if (syncState === 'saving' || syncState === 'saved' || syncState === 'error') {
                 var syncWrap = document.createElement('span');
                 syncWrap.className =
                     'auth-banner-sync' +
                     (syncState === 'saving'
                         ? ' auth-banner-sync--saving'
-                        : ' auth-banner-sync--saved');
+                        : syncState === 'saved'
+                            ? ' auth-banner-sync--saved'
+                            : ' auth-banner-sync--error');
                 syncWrap.setAttribute(
                     'aria-label',
                     syncState === 'saving'
                         ? t('auth.header.cloudSaving')
-                        : t('auth.header.cloudSaved')
+                        : syncState === 'saved'
+                            ? t('auth.header.cloudSaved')
+                            : t('auth.header.cloudError')
                 );
                 if (syncState === 'saving') {
                     var spin = document.createElement('span');
                     spin.className = 'auth-banner-sync-spinner';
                     spin.setAttribute('aria-hidden', 'true');
                     syncWrap.appendChild(spin);
-                } else {
+                } else if (syncState === 'saved') {
                     var check = document.createElement('span');
                     check.className = 'auth-banner-sync-check';
                     check.setAttribute('aria-hidden', 'true');
                     check.textContent = '✓';
                     syncWrap.appendChild(check);
+                } else {
+                    var warn = document.createElement('span');
+                    warn.className = 'auth-banner-sync-check';
+                    warn.setAttribute('aria-hidden', 'true');
+                    warn.textContent = '!';
+                    syncWrap.appendChild(warn);
                 }
                 var syncLabel = document.createElement('span');
                 syncLabel.className = 'auth-banner-sync-label';
                 syncLabel.textContent =
                     syncState === 'saving'
                         ? t('auth.header.cloudSaving')
-                        : t('auth.header.cloudSaved');
+                        : syncState === 'saved'
+                            ? t('auth.header.cloudSaved')
+                            : t('auth.header.cloudError');
                 syncWrap.appendChild(syncLabel);
                 container.appendChild(syncWrap);
                 container.appendChild(document.createTextNode(' · '));
