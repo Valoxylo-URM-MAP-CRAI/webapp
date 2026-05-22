@@ -7,5 +7,9 @@
     "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "serve": "npx --yes serve .",
     "import:france-geojson": "node scripts/import-france-geojson.mjs"
+  },
+  "dependencies": {
+    "bwip-js": "^4.10.1",
+    "qrcode": "^1.5.4"
   }
 }

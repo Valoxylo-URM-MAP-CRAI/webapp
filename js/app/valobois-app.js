@@ -20156,6 +20156,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const exportContentModeSelect = document.getElementById('exportContentModeSelect');
         const exportLotsHint = document.getElementById('exportLotsHint');
         const exportPdfLotsList = document.getElementById('exportPdfLotsList');
+        const exportPdfLotsSelectAll = document.getElementById('exportPdfLotsSelectAll');
         const exportModalLotsSection = document.getElementById('exportModalLotsSection');
         const exportModalDetailSection = document.getElementById('exportModalDetailSection');
         const exportModalIntro = document.getElementById('exportModalIntro');
@@ -20272,6 +20273,15 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 lotCheckboxes.forEach((checkbox) => {
                     checkbox.disabled = !requiresLotSelection;
                 });
+                if (exportPdfLotsSelectAll) {
+                    exportPdfLotsSelectAll.disabled = !requiresLotSelection;
+                    if (!requiresLotSelection) {
+                        exportPdfLotsSelectAll.checked = false;
+                        exportPdfLotsSelectAll.indeterminate = false;
+                    } else {
+                        this.syncExportPdfLotsSelectAllState();
+                    }
+                }
                 exportPdfLotsList.style.opacity = requiresLotSelection ? '1' : '0.55';
                 if (exportLotsHint) {
                     exportLotsHint.textContent = requiresLotSelection
@@ -20311,13 +20321,13 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 }
                 if (exportModalIntro) {
                     exportModalIntro.textContent = isJson
-                        ? 'Export JSON : données d’évaluation (même structure que l’enregistrement nuage).'
+                        ? 'Sauvegarde des données (JSON) : données d’évaluation (même structure que l’enregistrement nuage).'
                         : isGh
-                            ? '⚠️ En cours de développement — Export JSON Grasshopper : génère un fichier structuré pour GHPython, par lots sélectionnés. Le format peut évoluer.'
+                            ? '⚠️ En cours de développement — 3D à reconstruire - Rhinon + Grasshopper (JSON) : génère un fichier structuré pour GHPython, par lots sélectionnés. Le format peut évoluer.'
                             : is3d
-                                ? 'Export 3D — Génère un fichier par lot sélectionné (un fichier par lot).'
+                                ? 'Export 3D (GLB/DAE) — Génère un fichier par lot sélectionné (un fichier par lot).'
                                 : isIfc
-                                    ? 'Export IFC4 — Génère un fichier BIM par lot sélectionné.'
+                                    ? 'Export 3D - BIM (IFC 4) — Génère un fichier BIM par lot sélectionné.'
                                     : 'Choisissez le contenu et le format à exporter.';
                 }
                 if (isJson) {
@@ -20336,6 +20346,22 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
             btnCancelExportPdf.addEventListener('click', closeExportPdf);
             exportPdfBackdrop.addEventListener('click', (e) => {
                 if (e.target === exportPdfBackdrop) closeExportPdf();
+            });
+
+            if (exportPdfLotsSelectAll) {
+                exportPdfLotsSelectAll.addEventListener('change', () => {
+                    const lotCheckboxes = exportPdfLotsList.querySelectorAll('[data-export-pdf-lot]');
+                    lotCheckboxes.forEach((checkbox) => {
+                        if (!checkbox.disabled) checkbox.checked = exportPdfLotsSelectAll.checked;
+                    });
+                    this.syncExportPdfLotsSelectAllState();
+                });
+            }
+            exportPdfLotsList.addEventListener('change', (event) => {
+                const target = event.target;
+                if (target && target.matches('[data-export-pdf-lot]')) {
+                    this.syncExportPdfLotsSelectAllState();
+                }
             });
 
             exportContentModeSelect.addEventListener('change', updateExportLotsState);
@@ -20413,9 +20439,12 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const btnCloseEtiqueter = document.getElementById('btnCloseEtiqueter');
         const btnCancelEtiqueter = document.getElementById('btnCancelEtiqueter');
         const btnRunEtiqueter = document.getElementById('btnRunEtiqueter');
+        const etiqueterLotsSelectAll = document.getElementById('etiqueterLotsSelectAll');
 
         if (etiqueterBackdrop && btnCloseEtiqueter && btnCancelEtiqueter && btnRunEtiqueter) {
             const closeEtiqueter = () => this.closeEtiqueterModal();
+
+            etiqueterBackdrop.setAttribute('inert', '');
 
             btnCloseEtiqueter.addEventListener('click', closeEtiqueter);
             btnCancelEtiqueter.addEventListener('click', closeEtiqueter);
@@ -20423,16 +20452,75 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 if (e.target === etiqueterBackdrop) closeEtiqueter();
             });
 
+            if (etiqueterLotsSelectAll) {
+                etiqueterLotsSelectAll.addEventListener('change', () => {
+                    const lotCheckboxes = document.querySelectorAll('[data-export-etiquette-lot]');
+                    lotCheckboxes.forEach((checkbox) => {
+                        checkbox.checked = etiqueterLotsSelectAll.checked;
+                    });
+                    this.syncEtiqueterLotsSelectAllState();
+                    this.refreshBarcodeComposerPreview();
+                    this.updateEtiqueterCodeLengthIndicator();
+                });
+            }
+
+            const etiqueterLotsList = document.getElementById('etiqueterLotsList');
+            if (etiqueterLotsList) {
+                etiqueterLotsList.addEventListener('change', (event) => {
+                    const target = event.target;
+                    if (target && target.matches('[data-export-etiquette-lot]')) {
+                        this.syncEtiqueterLotsSelectAllState();
+                        this.refreshBarcodeComposerPreview();
+                        this.updateEtiqueterCodeLengthIndicator();
+                    }
+                });
+            }
+
             btnRunEtiqueter.addEventListener('click', () => {
                 const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
                 if (!selectedLotIndices.length) {
                     alert('Sélectionne au moins un lot pour exporter les étiquettes.');
                     return;
                 }
+                const layoutSelect = document.getElementById('etiqueterLayoutMode');
+                const layoutMode = this.normalizeEtiquetteLayoutMode(layoutSelect && layoutSelect.value);
+                const codeFormula = this.getSelectedCodeFormula();
+                const codeFields = this.getSelectedCodeContentFields();
+                const barcodeConfig = this.getBarcodeComposerConfig();
 
                 closeEtiqueter();
-                this.exportEtiquettes(selectedLotIndices);
+                this.exportEtiquettes(selectedLotIndices, { layoutMode, codeFormula, codeFields, barcodeConfig });
             });
+
+            const codeFormulaSelector = document.getElementById('code-formula-selector');
+            if (codeFormulaSelector) {
+                codeFormulaSelector.addEventListener('click', (event) => {
+                    const btn = event.target && event.target.closest('[data-formula]');
+                    if (!btn) return;
+                    const formula = this.normalizeCodeFormula(btn.getAttribute('data-formula'));
+                    codeFormulaSelector.querySelectorAll('[data-formula]').forEach((node) => {
+                        const nodeFormula = this.normalizeCodeFormula(node.getAttribute('data-formula'));
+                        const isActive = nodeFormula === formula;
+                        node.classList.toggle('active', isActive);
+                        node.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+                    });
+                    this.updateEtiqueterCodeFormulaHint(formula);
+                    this.updateEtiqueterContentSelectorVisibility(formula);
+                    this.updateBarcodeComposerReadonlyState(formula);
+                    this.updateEtiqueterCodeLengthIndicator();
+                });
+            }
+
+            const codeContentFields = document.getElementById('code-content-fields');
+            if (codeContentFields) {
+                codeContentFields.addEventListener('change', () => this.updateEtiqueterCodeLengthIndicator());
+            }
+
+            this.initBarcodeComposer();
+            this.updateEtiqueterCodeFormulaHint(this.getSelectedCodeFormula());
+            this.updateEtiqueterContentSelectorVisibility(this.getSelectedCodeFormula());
+            this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
+            this.updateEtiqueterCodeLengthIndicator();
         }
     }
 
@@ -24075,15 +24163,34 @@ closeEvalOpModal() {
         if (backdrop) {
             this.renderEtiqueterLotOptions();
             backdrop.classList.remove('hidden');
+            backdrop.removeAttribute('inert');
             backdrop.setAttribute('aria-hidden', 'false');
+            this.refreshBarcodeComposerPreview();
+            this.updateEtiqueterCodeFormulaHint(this.getSelectedCodeFormula());
+            this.updateEtiqueterContentSelectorVisibility(this.getSelectedCodeFormula());
+            this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
+            this.updateEtiqueterCodeLengthIndicator();
+            const runBtn = document.getElementById('btnRunEtiqueter');
+            if (runBtn && typeof runBtn.focus === 'function') {
+                runBtn.focus();
+            }
         }
     }
 
     closeEtiqueterModal() {
         const backdrop = document.getElementById('etiqueterBackdrop');
         if (backdrop) {
+            const activeEl = document.activeElement;
+            if (activeEl && backdrop.contains(activeEl) && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+            }
+            backdrop.setAttribute('inert', '');
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
+            const trigger = document.getElementById('btnEtiqueter');
+            if (trigger && typeof trigger.focus === 'function') {
+                trigger.focus();
+            }
         }
     }
 
@@ -24123,6 +24230,8 @@ closeEvalOpModal() {
             label.appendChild(text);
             list.appendChild(label);
         });
+
+        this.syncExportPdfLotsSelectAllState();
     }
 
     getSelectedExportPdfLotIndices() {
@@ -24135,6 +24244,7 @@ closeEvalOpModal() {
     renderEtiqueterLotOptions() {
         const list = document.getElementById('etiqueterLotsList');
         const hint = document.getElementById('etiqueterLotsHint');
+        const selectAll = document.getElementById('etiqueterLotsSelectAll');
         if (!list) return;
 
         const lots = this.data.lots || [];
@@ -24147,9 +24257,16 @@ closeEvalOpModal() {
             emptyText.style.color = '#666666';
             emptyText.textContent = 'Aucun lot disponible.';
             list.appendChild(emptyText);
+            if (selectAll) {
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+                selectAll.disabled = true;
+            }
             if (hint) hint.textContent = 'Ajoutez un lot avant de lancer un export d\'étiquettes.';
             return;
         }
+
+        if (selectAll) selectAll.disabled = false;
 
         if (hint) hint.textContent = 'Sélectionner un ou plusieurs lots puis lancer l\'export.';
 
@@ -24182,6 +24299,8 @@ closeEvalOpModal() {
             label.appendChild(text);
             list.appendChild(label);
         });
+
+        this.syncEtiqueterLotsSelectAllState();
     }
 
     getSelectedEtiqueterLotIndices() {
@@ -24189,6 +24308,40 @@ closeEvalOpModal() {
             .filter((input) => input.checked)
             .map((input) => parseInt(input.value, 10))
             .filter((value) => Number.isInteger(value) && value >= 0);
+    }
+
+    syncExportPdfLotsSelectAllState() {
+        const selectAll = document.getElementById('exportPdfLotsSelectAll');
+        if (!selectAll) return;
+
+        const allLots = Array.from(document.querySelectorAll('[data-export-pdf-lot]'));
+        const activeLots = allLots.filter((checkbox) => !checkbox.disabled);
+        const scope = activeLots.length ? activeLots : allLots;
+        if (!scope.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const checkedCount = scope.filter((checkbox) => checkbox.checked).length;
+        selectAll.checked = checkedCount === scope.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < scope.length;
+    }
+
+    syncEtiqueterLotsSelectAllState() {
+        const selectAll = document.getElementById('etiqueterLotsSelectAll');
+        if (!selectAll) return;
+
+        const lots = Array.from(document.querySelectorAll('[data-export-etiquette-lot]'));
+        if (!lots.length) {
+            selectAll.checked = false;
+            selectAll.indeterminate = false;
+            return;
+        }
+
+        const checkedCount = lots.filter((checkbox) => checkbox.checked).length;
+        selectAll.checked = checkedCount === lots.length;
+        selectAll.indeterminate = checkedCount > 0 && checkedCount < lots.length;
     }
 
     render() {
@@ -38900,83 +39053,1134 @@ renderRadar() {
         this.render();
     }
 
-    async exportEtiquettes(lotIndices = []) {
+    getEtiquetteQrConfig() {
+        return {
+            baseUrl: 'https://valoxylo.app',
+            maxTextLength: 120,
+            maxHtmlPayloadLength: 800,
+            // Liste centrale des champs publics publiés dans pieces/{pieceId}.
+            publicPieceFields: [
+                'lotRef',
+                'pieceLabel',
+                'essence',
+                'essenceScientifique',
+                'dimensions',
+                'typePiece',
+                'orientation',
+                'volumeM3',
+                'origine',
+                'diagnostiqueur',
+                'operation',
+                'diagDate'
+            ]
+        };
+    }
+
+    getEtiquetteEvalIdFromUrl() {
+        try {
+            const url = new URL(window.location.href);
+            const value = String(url.searchParams.get('eval') || '').trim();
+            if (!value || value === 'new') return '';
+            return value;
+        } catch (e) {
+            return '';
+        }
+    }
+
+    sanitizeQrFieldValue(value, fallback = '?') {
+        if (value == null) return fallback;
+        const text = String(value).trim().replace(/\|/g, '-');
+        return text || fallback;
+    }
+
+    abbreviateEssence(essenceNomCommun, maxCharsPerWord = 4, maxWords = 2) {
+        const raw = essenceNomCommun == null ? '' : String(essenceNomCommun).trim();
+        if (!raw) return 'BOIS';
+
+        const stopWords = new Set(['de', 'du', 'la', 'le', 'les', 'des', 'et', "d'", "l'"]);
+        const normalized = raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[’']/g, "'")
+            .toUpperCase();
+
+        const words = normalized
+            .split(/[\s\-']+/)
+            .map((word) => word.trim())
+            .filter(Boolean)
+            .map((word) => word.replace(/^[^A-Z0-9]+|[^A-Z0-9]+$/g, ''))
+            .filter(Boolean)
+            .filter((word) => {
+                const lower = word.toLowerCase();
+                if (stopWords.has(lower)) return false;
+                if ((lower === 'd' || lower === 'l')) return false;
+                return true;
+            });
+
+        if (!words.length) return 'BOIS';
+        const limitedWords = Number.isFinite(Number(maxWords)) && Number(maxWords) > 0
+            ? words.slice(0, Number(maxWords))
+            : words;
+
+        return words
+            .slice(0, limitedWords.length)
+            .map((word) => word.slice(0, Math.max(1, Number(maxCharsPerWord) || 4)))
+            .join('.');
+    }
+
+    abbreviateCompactToken(value, maxChars = 4) {
+        const raw = value == null ? '' : String(value).trim();
+        if (!raw) return '';
+        return raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^A-Za-z0-9]+/g, '')
+            .toUpperCase()
+            .slice(0, Math.max(1, Number(maxChars) || 4));
+    }
+
+    getBarcodeComposerOptionalFieldsOrder() {
+        return [
+            'essence',
+            'longueur',
+            'largeur',
+            'epaisseur',
+            'largeurExtremes',
+            'epaisseurExtremes',
+            'orientationAbbr',
+            'prixUnitaire',
+            'masseUnitaire',
+            'pco2Unitaire',
+            'typePieceAbbr',
+            'amortissementBio',
+            'dateMiseService',
+            'volumeUnitaire',
+            'scoreNetMax',
+            'classementEstime',
+            'durabiliteNaturelle',
+            'macroHistoire',
+            'contamination'
+        ];
+    }
+
+    resolveBarcodeEssenceEn13556(piece, lot) {
+        const common = String(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun') || '').trim();
+        const scientific = String(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomScientifique') || '').trim();
+        const resolved = this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific);
+        return resolved && resolved.codeEn13556 ? String(resolved.codeEn13556).trim().toUpperCase() : '';
+    }
+
+    getBarcodeComposerMesuresExtremes(piece, dimKey) {
+        const mm = piece && piece.mesuresMultiples;
+        if (!mm || !mm.active || !Array.isArray(mm.sections)) return '';
+        const values = mm.sections
+            .filter((section) => section && section.typeSection === 'rect' && section[dimKey] != null)
+            .map((section) => parseFloat(section[dimKey]))
+            .filter((num) => Number.isFinite(num) && num > 0);
+        if (!values.length) return '';
+        const min = Math.round(Math.min(...values));
+        const max = Math.round(Math.max(...values));
+        if (!(min > 0 && max > 0)) return '';
+        return `${min}-${max}`;
+    }
+
+    formatBarcodeComposerNumber(value, digits = 0) {
+        const num = parseFloat(value);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        if (digits <= 0) return String(Math.round(num));
+        return String(Number(num.toFixed(digits))).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    getBarcodeComposerLevelCode(levelRaw, prefix = '') {
+        const level = String(levelRaw || '').trim().toLowerCase();
+        if (!level) return '';
+        if (level.startsWith('fort')) return `${prefix}For`;
+        if (level.startsWith('moy')) return `${prefix}Moy`;
+        if (level.startsWith('faib')) return `${prefix}Fai`;
+        return '';
+    }
+
+    buildBarcodeComposerValueMap(lot, piece, essenceMode = 'abbr') {
+        const mode = String(essenceMode || 'abbr').trim().toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        const lotNum = Number.isInteger(piece && piece.sourceLotIndex) ? piece.sourceLotIndex + 1 : null;
+
+        const essenceNom = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun');
+        const essenceAbbr = essenceNom ? this.abbreviateEssence(essenceNom, 4, 2) : '';
+        const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece, lot);
+        const essenceValue = mode === 'en13556' ? essenceEn13556 : essenceAbbr;
+
+        const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'longueur'));
+        const largeur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'largeur'));
+        const epaisseur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'epaisseur'));
+        const largeurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'largeur');
+        const epaisseurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'epaisseur');
+
+        const orientationRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'orientation') || lot?.orientationCode || '';
+        const orientationAbbr = this.abbreviateCompactToken(orientationRaw, 4);
+
+        const prixUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'prixPiece'), 2);
+        const masseUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'massePiece'), 2);
+        const pco2Unitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'carboneBiogeniqueEstime'), 2);
+        const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'typePiece'), 4);
+
+        const ageArbre = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'ageArbre');
+        const dateMiseEnServiceRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'dateMiseEnService');
+        const amortissementBio = this.formatBarcodeComposerNumber(this.computeAmortissementBiologique(ageArbre, dateMiseEnServiceRaw), 2);
+        const dateYear = (() => {
+            const match = String(dateMiseEnServiceRaw || '').match(/\b(\d{4})\b/);
+            return match ? match[1] : '';
+        })();
+
+        const volumeUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'volumePiece'), 4);
+        const scoreState = lot ? this.getRadarOrientationPositionData(lot) : null;
+        const scoreNet = this.formatBarcodeComposerNumber(scoreState && scoreState.decomposition ? scoreState.decomposition.netNoConfidence : '', 0);
+        const scoreMax = this.formatBarcodeComposerNumber(scoreState ? scoreState.positiveScoreMax : '', 0);
+        const scoreNetMax = scoreNet && scoreMax ? `${scoreNet}/${scoreMax}` : '';
+
+        const classementEstime = this.getBarcodeComposerLevelCode(lot?.usage?.classementUsage?.niveau, 'ClaEst');
+
+        const durabResolved = this.resolveDurabiliteNaturelleEssenceFromNames(
+            this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun'),
+            this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomScientifique')
+        );
+        const durabiliteNaturelle = this.abbreviateCompactToken(
+            durabResolved && durabResolved.durabiliteChampignons ? durabResolved.durabiliteChampignons : '',
+            6
+        );
+
+        const macroHistoire = this.getBarcodeComposerLevelCode(lot?.provenance?.macroProv?.niveau, 'MaHis');
+        const contamination = this.getBarcodeComposerLevelCode(lot?.denat?.contaminationDenat?.niveau, 'Cont');
+
+        return {
+            ref: { value: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '', preview: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '—' },
+            essence: { value: essenceValue, preview: essenceValue || '—' },
+            longueur: { value: longueur, preview: longueur || '—' },
+            largeur: { value: largeur, preview: largeur || '—' },
+            epaisseur: { value: epaisseur, preview: epaisseur || '—' },
+            largeurExtremes: { value: largeurExtremes, preview: largeurExtremes || '—' },
+            epaisseurExtremes: { value: epaisseurExtremes, preview: epaisseurExtremes || '—' },
+            orientationAbbr: { value: orientationAbbr, preview: orientationAbbr || '—' },
+            prixUnitaire: { value: prixUnitaire, preview: prixUnitaire || '—' },
+            masseUnitaire: { value: masseUnitaire, preview: masseUnitaire || '—' },
+            pco2Unitaire: { value: pco2Unitaire, preview: pco2Unitaire || '—' },
+            typePieceAbbr: { value: typePieceAbbr, preview: typePieceAbbr || '—' },
+            amortissementBio: { value: amortissementBio, preview: amortissementBio || '—' },
+            dateMiseService: { value: dateYear, preview: dateYear || '—' },
+            volumeUnitaire: { value: volumeUnitaire, preview: volumeUnitaire || '—' },
+            scoreNetMax: { value: scoreNetMax, preview: scoreNetMax || '—' },
+            classementEstime: { value: classementEstime, preview: classementEstime || '—' },
+            durabiliteNaturelle: { value: durabiliteNaturelle, preview: durabiliteNaturelle || '—' },
+            macroHistoire: { value: macroHistoire, preview: macroHistoire || '—' },
+            contamination: { value: contamination, preview: contamination || '—' }
+        };
+    }
+
+    getBarcodeComposerDefaultConfig() {
+        return {
+            lotNum: true,
+            pieceNum: true,
+            essenceMode: 'abbr',
+            essence: true,
+            longueur: true,
+            largeur: true,
+            epaisseur: false,
+            largeurExtremes: false,
+            epaisseurExtremes: false,
+            orientationAbbr: false,
+            prixUnitaire: false,
+            masseUnitaire: false,
+            pco2Unitaire: false,
+            typePieceAbbr: false,
+            amortissementBio: false,
+            dateMiseService: false,
+            volumeUnitaire: false,
+            scoreNetMax: false,
+            classementEstime: false,
+            durabiliteNaturelle: false,
+            macroHistoire: false,
+            contamination: false
+        };
+    }
+
+    getBarcodeComposerConfig() {
+        if (!this._barcodeComposerFieldState || typeof this._barcodeComposerFieldState !== 'object') {
+            this._barcodeComposerFieldState = this.getBarcodeComposerDefaultConfig();
+        }
+        if (!this._barcodeComposerCustomState || typeof this._barcodeComposerCustomState !== 'object') {
+            this._barcodeComposerCustomState = { label: '', code: '' };
+        }
+        return {
+            ...this.getBarcodeComposerDefaultConfig(),
+            ...this._barcodeComposerFieldState,
+            customLabel: String(this._barcodeComposerCustomState.label || '').trim(),
+            customCode: String(this._barcodeComposerCustomState.code || '').trim(),
+            lotNum: true,
+            pieceNum: true
+        };
+    }
+
+    getBarcodeComposerValueFromPieceOrLot(piece, lot, key) {
+        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        const pieceValue = pieceSource && pieceSource[key] != null && String(pieceSource[key]).trim() !== ''
+            ? pieceSource[key]
+            : (piece && piece[key]);
+        if (pieceValue != null && String(pieceValue).trim() !== '') return pieceValue;
+        const allot = lot && lot.allotissement && typeof lot.allotissement === 'object' ? lot.allotissement : null;
+        if (allot && allot[key] != null && String(allot[key]).trim() !== '') return allot[key];
+        return '';
+    }
+
+    buildBarcodeContent(lot, piece, lotIndex, pieceIndex, config = {}) {
+        const cfg = {
+            ...this.getBarcodeComposerDefaultConfig(),
+            ...(config || {}),
+            lotNum: true,
+            pieceNum: true
+        };
+
+        const lotNum = Number.isInteger(lotIndex) ? lotIndex + 1 : 1;
+        const pieceNum = Number.isInteger(pieceIndex) ? pieceIndex + 1 : 1;
+        const segments = [`L${lotNum}P${pieceNum}`];
+
+        const map = this.buildBarcodeComposerValueMap(lot, piece, cfg.essenceMode);
+        this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+            if (!cfg[field]) return;
+            const token = map && map[field] && map[field].value ? String(map[field].value).trim() : '';
+            if (token) segments.push(token);
+        });
+
+        const customCode = String(cfg.customCode || '').trim().replace(/\s+/g, '').slice(0, 32);
+        if (customCode) {
+            segments.push(customCode);
+        }
+
+        return segments.join('|');
+    }
+
+    normalizeCodeFormula(formula) {
+        const value = String(formula || '').trim().toLowerCase();
+        if (value === 'barcode1d' || value === 'datamatrix' || value === 'qr-online') return value;
+        return 'qr-offline';
+    }
+
+    getCodeFormulaRank(formula) {
+        const ranks = { barcode1d: 0, datamatrix: 1, 'qr-offline': 2, 'qr-online': 3 };
+        const normalized = this.normalizeCodeFormula(formula);
+        return ranks[normalized] == null ? 0 : ranks[normalized];
+    }
+
+    getCodeFormulaMaxLength(formula) {
+        const limits = { barcode1d: 48, datamatrix: 60, 'qr-offline': 300, 'qr-online': 120 };
+        const normalized = this.normalizeCodeFormula(formula);
+        return limits[normalized] || 120;
+    }
+
+    getSelectedCodeFormula() {
+        const active = document.querySelector('#code-formula-selector .code-formula-btn.active[data-formula]')
+            || document.querySelector('#code-formula-selector [data-formula][aria-pressed="true"]');
+        return this.normalizeCodeFormula(active && active.getAttribute('data-formula'));
+    }
+
+    getSelectedCodeContentFields() {
+        const nodes = document.querySelectorAll('#code-content-fields input[data-field]:checked:not(:disabled)');
+        const fields = [];
+        nodes.forEach((node) => {
+            const field = String(node.getAttribute('data-field') || '').trim();
+            if (field) fields.push(field);
+        });
+        if (!fields.includes('id')) fields.unshift('id');
+        return Array.from(new Set(fields));
+    }
+
+    getCodeFormulaHintText(formula) {
+        const normalized = this.normalizeCodeFormula(formula);
+        const keyMap = {
+            barcode1d: 'editor.common.formulaHintBarcode1D',
+            datamatrix: 'editor.common.formulaHintDataMatrix',
+            'qr-offline': 'editor.common.formulaHintQrOffline',
+            'qr-online': 'editor.common.formulaHintQrOnline'
+        };
+        const fallbackMap = {
+            barcode1d: 'Encode uniquement la référence. Compatible avec les lecteurs code-barres industriels.',
+            datamatrix: 'Encode référence + champs sélectionnés. Format compact très robuste.',
+            'qr-offline': 'Encode les données de la pièce dans le code. Lecture sans connexion internet.',
+            'qr-online': 'Encode une URL vers la fiche Valobois. Nécessite une connexion internet.'
+        };
+        const key = keyMap[normalized];
+        if (key && typeof window.t === 'function') {
+            const translated = window.t(key);
+            if (translated && translated !== key) return translated;
+        }
+        return fallbackMap[normalized] || fallbackMap['qr-offline'];
+    }
+
+    updateEtiqueterCodeFormulaHint(formula) {
+        const hintNode = document.getElementById('code-formula-hint');
+        if (!hintNode) return;
+        hintNode.textContent = this.getCodeFormulaHintText(formula);
+    }
+
+    updateEtiqueterContentSelectorVisibility(formula) {
+        const group = document.getElementById('code-content-group');
+        if (!group) return;
+        const normalized = this.normalizeCodeFormula(formula);
+        const genericContent = document.getElementById('generic-code-content');
+
+        if (genericContent) {
+            if (normalized === 'barcode1d' || normalized === 'qr-online') {
+                genericContent.style.display = 'none';
+            } else {
+                genericContent.style.display = '';
+            }
+        }
+        group.style.display = '';
+
+        const rank = this.getCodeFormulaRank(normalized);
+        const nodes = group.querySelectorAll('#code-content-fields [data-min-formula]');
+        nodes.forEach((node) => {
+            const minFormula = String(node.getAttribute('data-min-formula') || '').trim();
+            const minRank = this.getCodeFormulaRank(minFormula);
+            const isAvailable = rank >= minRank;
+            node.style.opacity = isAvailable ? '1' : '0.4';
+            const checkbox = node.querySelector('input[type="checkbox"]');
+            if (checkbox) {
+                checkbox.disabled = !isAvailable;
+                if (!isAvailable) checkbox.checked = false;
+            }
+        });
+    }
+
+    updateBarcodeComposerReadonlyState(formula) {
+        const composer = document.getElementById('barcodeComposer');
+        if (!composer) return;
+        const isBarcodeMode = this.normalizeCodeFormula(formula) === 'barcode1d';
+        composer.classList.toggle('barcode-composer--readonly', !isBarcodeMode);
+        composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
+            const isAvailable = checkbox.dataset.available !== 'false';
+            checkbox.disabled = !isBarcodeMode || !isAvailable;
+        });
+        composer.querySelectorAll('.barcode-composer__custom-field input').forEach((input) => {
+            input.disabled = !isBarcodeMode;
+        });
+        const essenceModeEl = composer.querySelector('#bcEssenceMode');
+        if (essenceModeEl) essenceModeEl.disabled = !isBarcodeMode;
+    }
+
+    getEtiqueterPreviewContext() {
+        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+        const lotIndex = selectedLotIndices.length ? selectedLotIndices[0] : (this.currentLotIndex || 0);
+        const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+        if (!lot) return { lot: null, item: null, lotIndex: 0, pieceIndex: 0 };
+
+        const items = this.buildEtiquettePieceItems(lot, lotIndex);
+        const item = Array.isArray(items) && items.length ? items[0] : null;
+        const pieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : 0;
+
+        return { lot, item, lotIndex, pieceIndex };
+    }
+
+    refreshBarcodeComposerPreview() {
+        const context = this.getEtiqueterPreviewContext();
+        this.initBarcodeComposer(context.lot, context.item, context.lotIndex, context.pieceIndex);
+    }
+
+    initBarcodeComposer(lot = null, piece = null, lotIndex = 0, pieceIndex = 0) {
+        const BARCODE_MAX = 48;
+        const composer = document.getElementById('barcodeComposer');
+        if (!composer) return;
+
+        const context = {
+            lot: lot || null,
+            piece: piece || null,
+            lotIndex: Number.isInteger(lotIndex) ? lotIndex : 0,
+            pieceIndex: Number.isInteger(pieceIndex) ? pieceIndex : 0
+        };
+
+        if (!context.lot || !context.piece) {
+            const fallback = this.getEtiqueterPreviewContext();
+            context.lot = fallback.lot;
+            context.piece = fallback.item;
+            context.lotIndex = fallback.lotIndex;
+            context.pieceIndex = fallback.pieceIndex;
+        }
+
+        const customLabelEl = document.getElementById('bcCustomLabel');
+        const customCodeEl = document.getElementById('bcCustomCode');
+        const essenceModeEl = document.getElementById('bcEssenceMode');
+
+        const currentState = this.getBarcodeComposerConfig();
+        const essenceMode = String(currentState.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        if (essenceModeEl) essenceModeEl.value = essenceMode;
+
+        const valueMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, essenceMode);
+        const previewIds = {
+            ref: 'bcPreviewRef',
+            essence: 'bcPreviewEssence',
+            longueur: 'bcPreviewLongueur',
+            largeur: 'bcPreviewLargeur',
+            epaisseur: 'bcPreviewEpaisseur',
+            largeurExtremes: 'bcPreviewLargeurExtremes',
+            epaisseurExtremes: 'bcPreviewEpaisseurExtremes',
+            orientationAbbr: 'bcPreviewOrientationAbbr',
+            prixUnitaire: 'bcPreviewPrixUnitaire',
+            masseUnitaire: 'bcPreviewMasseUnitaire',
+            pco2Unitaire: 'bcPreviewPco2Unitaire',
+            typePieceAbbr: 'bcPreviewTypePieceAbbr',
+            amortissementBio: 'bcPreviewAmortissementBio',
+            dateMiseService: 'bcPreviewDateMiseService',
+            volumeUnitaire: 'bcPreviewVolumeUnitaire',
+            scoreNetMax: 'bcPreviewScoreNetMax',
+            classementEstime: 'bcPreviewClassementEstime',
+            durabiliteNaturelle: 'bcPreviewDurabiliteNaturelle',
+            macroHistoire: 'bcPreviewMacroHistoire',
+            contamination: 'bcPreviewContamination'
+        };
+
+        Object.keys(previewIds).forEach((field) => {
+            const el = document.getElementById(previewIds[field]);
+            if (!el) return;
+            const preview = valueMap && valueMap[field] ? valueMap[field].preview : '—';
+            el.textContent = preview || '—';
+        });
+
+        if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
+        if (customCodeEl) customCodeEl.value = currentState.customCode || '';
+
+        composer.querySelectorAll('.barcode-composer__check[data-field]').forEach((check) => {
+            const field = String(check.getAttribute('data-field') || '').trim();
+            if (!field) return;
+            const label = composer.querySelector(`.barcode-composer__field[data-field="${field}"]`);
+            const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
+            const isAvailable = !!value;
+            if (label) label.style.opacity = isAvailable ? '1' : '0.4';
+            check.dataset.available = isAvailable ? 'true' : 'false';
+            if (!isAvailable) {
+                check.checked = false;
+            } else {
+                check.checked = !!currentState[field];
+            }
+        });
+
+        const updateOutput = () => {
+            const nextEssenceMode = essenceModeEl && essenceModeEl.value === 'en13556' ? 'en13556' : 'abbr';
+            const currentMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, nextEssenceMode);
+            const config = { lotNum: true, pieceNum: true, essenceMode: nextEssenceMode };
+
+            this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+                const check = composer.querySelector(`.barcode-composer__check[data-field="${field}"]`);
+                const fieldValue = currentMap && currentMap[field] && currentMap[field].value ? String(currentMap[field].value).trim() : '';
+                config[field] = !!(check && check.checked && fieldValue);
+            });
+
+            Object.keys(previewIds).forEach((field) => {
+                const el = document.getElementById(previewIds[field]);
+                if (!el) return;
+                const preview = currentMap && currentMap[field] ? currentMap[field].preview : '—';
+                el.textContent = preview || '—';
+            });
+
+            this._barcodeComposerFieldState = { ...config };
+            this._barcodeComposerCustomState = {
+                label: String(customLabelEl && customLabelEl.value ? customLabelEl.value : '').trim().slice(0, 40),
+                code: String(customCodeEl && customCodeEl.value ? customCodeEl.value : '').trim().slice(0, 32)
+            };
+
+            const content = this.buildBarcodeContent(
+                context.lot,
+                context.piece,
+                context.lotIndex,
+                context.pieceIndex,
+                {
+                    ...config,
+                    customLabel: this._barcodeComposerCustomState.label,
+                    customCode: this._barcodeComposerCustomState.code
+                }
+            );
+            const len = String(content || '').length;
+            const pct = Math.min(100, Math.round((len / BARCODE_MAX) * 100));
+
+            const stringEl = document.getElementById('bcEncodedString');
+            const countEl = document.getElementById('bcCharCount');
+            const barEl = document.getElementById('bcLengthBar');
+            const warnEl = document.getElementById('bcLengthWarning');
+
+            if (stringEl) stringEl.textContent = content;
+            if (countEl) countEl.textContent = String(len);
+            if (barEl) {
+                barEl.style.width = `${pct}%`;
+                barEl.classList.toggle('barcode-composer__output-bar--warn', pct >= 75 && pct < 100);
+                barEl.classList.toggle('barcode-composer__output-bar--over', pct >= 100);
+            }
+            if (warnEl) warnEl.hidden = len <= BARCODE_MAX;
+
+            this._currentBarcodeContent = content;
+            this.updateEtiqueterCodeLengthIndicator();
+        };
+
+        composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
+            checkbox.onchange = updateOutput;
+        });
+        if (essenceModeEl) essenceModeEl.onchange = updateOutput;
+        if (customLabelEl) customLabelEl.oninput = updateOutput;
+        if (customCodeEl) customCodeEl.oninput = updateOutput;
+
+        this._updateBarcodeComposerOutput = updateOutput;
+        this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
+        updateOutput();
+    }
+
+    getEtiqueterPreviewItem() {
+        return this.getEtiqueterPreviewContext().item;
+    }
+
+    updateEtiqueterCodeLengthIndicator() {
+        const formula = this.getSelectedCodeFormula();
+        if (formula === 'barcode1d') {
+            if (typeof this._updateBarcodeComposerOutput === 'function') {
+                const current = this._updateBarcodeComposerOutput;
+                this._updateBarcodeComposerOutput = null;
+                current();
+                this._updateBarcodeComposerOutput = current;
+            }
+            return;
+        }
+
+        const fields = this.getSelectedCodeContentFields();
+        const preview = this.getEtiqueterPreviewContext();
+        const payload = this.buildCodeContent(formula, preview.item, {
+            fields,
+            lot: preview.lot,
+            lotIndex: preview.lotIndex,
+            pieceIndex: preview.pieceIndex,
+            barcodeConfig: this.getBarcodeComposerConfig(),
+            baseUrl: String(window.VALOBOIS_PUBLIC_URL || this.getEtiquetteQrConfig().baseUrl || 'https://valoxylo.app').replace(/\/+$/, ''),
+            diagDate: this.data && this.data.meta ? this.data.meta.date : null
+        });
+
+        const maxLen = this.getCodeFormulaMaxLength(formula);
+        const len = String(payload || '').length;
+        const ratio = Math.max(0, Math.min(100, (len / maxLen) * 100));
+        const valEl = document.getElementById('code-length-value');
+        const progressEl = document.getElementById('code-length-progress');
+        if (valEl) valEl.textContent = String(len);
+        if (progressEl) {
+            progressEl.value = ratio;
+            progressEl.max = 100;
+            progressEl.style.accentColor = ratio > 90 ? '#c0392b' : (ratio > 70 ? '#e67e22' : '#01696f');
+        }
+    }
+
+    buildCodeContent(formula, item, options = {}) {
+        const normalized = this.normalizeCodeFormula(formula);
+        const fields = Array.isArray(options.fields) ? options.fields : ['id'];
+        const selectedFields = new Set(fields);
+        selectedFields.add('id');
+
+        const rawUid = item && item.uid ? String(item.uid) : '';
+        const uidNumMatch = rawUid.match(/-p0*(\d+)$/i);
+        const refFromUid = uidNumMatch ? `VAL-${String(uidNumMatch[1]).padStart(5, '0')}` : rawUid;
+        const ref = this.sanitizeQrFieldValue(refFromUid || (item && item.pieceLabel) || '?', '?');
+        const baseUrl = String(options.baseUrl || window.VALOBOIS_PUBLIC_URL || this.getEtiquetteQrConfig().baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
+        const firestorePieceId = options.firestorePieceId ? String(options.firestorePieceId) : '';
+
+        if (normalized === 'barcode1d') {
+            const lot = options && options.lot ? options.lot : null;
+            const lotIndex = Number.isInteger(options && options.lotIndex) ? options.lotIndex : 0;
+            const pieceIndex = Number.isInteger(options && options.pieceIndex) ? options.pieceIndex : 0;
+            const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
+            return this.buildBarcodeContent(lot, item, lotIndex, pieceIndex, barcodeConfig);
+        }
+        if (normalized === 'qr-online') {
+            if (firestorePieceId) return `${baseUrl}/p/${encodeURIComponent(firestorePieceId)}`;
+            return `${baseUrl}/fiche/${encodeURIComponent(ref)}`;
+        }
+
+        const sep = normalized === 'datamatrix' ? ',' : '|';
+        const parts = [ref];
+
+        if (selectedFields.has('essence')) {
+            const essence = this.sanitizeQrFieldValue(item && item.essenceNomCommun, '');
+            if (essence) {
+                const value = normalized === 'datamatrix' ? essence.slice(0, 20) : essence;
+                parts.push(`ES:${value}`);
+            }
+        }
+        if (selectedFields.has('dimensions')) {
+            const dims = this.sanitizeQrFieldValue(item && item.dimensionsLabel, '');
+            if (dims) {
+                const value = normalized === 'datamatrix' ? dims.slice(0, 24) : dims;
+                parts.push(`D:${value}`);
+            }
+        }
+        if (selectedFields.has('score')) {
+            const score = options.lotScore;
+            if (score != null && score !== '') parts.push(`SC:${score}`);
+        }
+        if (selectedFields.has('orientation')) {
+            const orientation = this.sanitizeQrFieldValue(item && item.orientationLabel, '');
+            if (orientation) parts.push(`OR:${orientation}`);
+        }
+        if (selectedFields.has('date')) {
+            const date = this.sanitizeQrFieldValue(options.diagDate || (this.data && this.data.meta && this.data.meta.date), '');
+            if (date) parts.push(`DT:${date}`);
+        }
+
+        const content = parts.join(sep);
+        const limit = this.getCodeFormulaMaxLength(normalized);
+        return normalized === 'datamatrix' && content.length > limit ? content.substring(0, limit) : content;
+    }
+
+    getBwipJsApi() {
+        if (typeof bwipjs !== 'undefined' && bwipjs) return bwipjs;
+        if (typeof window !== 'undefined' && window.bwipjs) return window.bwipjs;
+        return null;
+    }
+
+    async generateBarcode1DSvg(text) {
+        const api = this.getBwipJsApi();
+        if (!api || typeof api.toSVG !== 'function') {
+            console.warn('Valobois code: bwip-js indisponible pour Code 128');
+            return null;
+        }
+        try {
+            return api.toSVG({
+                bcid: 'code128',
+                text: String(text || ''),
+                scale: 2,
+                height: 12,
+                includetext: true,
+                textxalign: 'center',
+                backgroundcolor: 'FFFFFF',
+                barcolor: '000000',
+                paddingwidth: 4,
+                paddingheight: 4
+            });
+        } catch (e) {
+            console.error('Valobois code: erreur génération Code 128', e);
+            return null;
+        }
+    }
+
+    async generateDataMatrixSvg(text) {
+        const api = this.getBwipJsApi();
+        if (!api || typeof api.toSVG !== 'function') {
+            console.warn('Valobois code: bwip-js indisponible pour DataMatrix');
+            return null;
+        }
+        try {
+            return api.toSVG({
+                bcid: 'datamatrix',
+                text: String(text || ''),
+                scale: 2,
+                backgroundcolor: 'FFFFFF',
+                barcolor: '000000',
+                paddingwidth: 4,
+                paddingheight: 4
+            });
+        } catch (e) {
+            console.error('Valobois code: erreur génération DataMatrix', e);
+            return null;
+        }
+    }
+
+    async generateCodeSvg(content, formula) {
+        const normalized = this.normalizeCodeFormula(formula);
+        if (normalized === 'barcode1d') return this.generateBarcode1DSvg(content);
+        if (normalized === 'datamatrix') return this.generateDataMatrixSvg(content);
+        return this.generateQrSvgString(content, 132, 'H');
+    }
+
+    formatEtiquetteMainDimension(item) {
+        const roundDim = (value) => {
+            const num = parseFloat(value);
+            return Number.isFinite(num) && num > 0 ? Math.round(num) : null;
+        };
+        const formatRange = (maxValue, minValue, prefix = '') => {
+            if (!Number.isFinite(maxValue) || maxValue <= 0) return '';
+            if (!Number.isFinite(minValue) || minValue <= 0 || minValue === maxValue) {
+                return `${prefix}${Math.round(maxValue)}`;
+            }
+            return `${prefix}${Math.round(maxValue)}-${Math.round(minValue)}`;
+        };
+
+        const sourcePiece = item && item.sourcePiece && typeof item.sourcePiece === 'object' ? item.sourcePiece : null;
+        const mm = sourcePiece && sourcePiece.mesuresMultiples && sourcePiece.mesuresMultiples.active === true
+            && Array.isArray(sourcePiece.mesuresMultiples.sections)
+            ? sourcePiece.mesuresMultiples.sections
+            : [];
+        const longueur = roundDim((sourcePiece && sourcePiece.longueur) || (item && item.longueur));
+
+        if (mm.length) {
+            const largeurs = mm.map((section) => roundDim(section && section.largeur)).filter((value) => Number.isFinite(value) && value > 0);
+            const epaisseurs = mm.map((section) => roundDim(section && section.epaisseur)).filter((value) => Number.isFinite(value) && value > 0);
+            const diametres = mm.map((section) => roundDim(section && section.diametre)).filter((value) => Number.isFinite(value) && value > 0);
+
+            if (diametres.length && !largeurs.length && !epaisseurs.length) {
+                const diametreLabel = formatRange(Math.max(...diametres), Math.min(...diametres), 'Ø ');
+                return [longueur, diametreLabel].filter(Boolean).join(' x ') + ' mm';
+            }
+
+            const widthLabel = largeurs.length ? formatRange(Math.max(...largeurs), Math.min(...largeurs)) : '';
+            const thicknessLabel = epaisseurs.length ? formatRange(Math.max(...epaisseurs), Math.min(...epaisseurs)) : '';
+            const parts = [longueur, widthLabel, thicknessLabel].filter(Boolean);
+            if (parts.length) return parts.join(' x ') + ' mm';
+        }
+
+        const directDiametre = roundDim(sourcePiece && sourcePiece.diametre);
+        const directLargeur = roundDim((sourcePiece && sourcePiece.largeur) || (item && item.largeur));
+        const directEpaisseur = roundDim((sourcePiece && sourcePiece.epaisseur) || (item && item.epaisseur));
+        const directParts = [];
+        if (longueur) directParts.push(longueur);
+        if (directDiametre && !directLargeur && !directEpaisseur) {
+            directParts.push(`Ø ${directDiametre}`);
+        } else {
+            if (directLargeur) directParts.push(directLargeur);
+            if (directEpaisseur) directParts.push(directEpaisseur);
+        }
+        if (directParts.length === 1) return `${directParts[0]} mm`;
+        if (directParts.length > 1) return directParts.join(' x ') + ' mm';
+        return '—';
+    }
+
+    formatEtiquettePieceHeading(item) {
+        const label = String(item && item.pieceLabel ? item.pieceLabel : '').trim() || 'Pièce';
+        const match = label.match(/^(.*?)(?:\s*(?:n[°o]?\s*)?(\d+[\w.-]*))$/i);
+        if (!match) {
+            return { nameLabel: label, numberLabel: '' };
+        }
+
+        const nameLabel = String(match[1] || '').trim() || 'Pièce';
+        const numberValue = String(match[2] || '').trim();
+        if (!numberValue) {
+            return { nameLabel: label, numberLabel: '' };
+        }
+        return {
+            nameLabel,
+            numberLabel: `N° ${numberValue}`
+        };
+    }
+
+    buildQrTextPayload(item, lotIndex) {
+        const cfg = this.getEtiquetteQrConfig();
+        const maxLen = Number(cfg.maxTextLength) || 120;
+        const safe = (value, limit) => this.sanitizeQrFieldValue(value).substring(0, limit);
+        const pieceId = safe(item && item.uid ? item.uid : `lot${String(lotIndex + 1).padStart(2, '0')}`, 36);
+        const essence = safe(item && item.essenceNomCommun, 20);
+        const dims = safe(item && item.dimensionsLabel, 24);
+        const orientation = safe(item && item.orientationLabel, 15);
+        const lotRef = safe(item && item.lotRef, 20);
+        const operation = safe(this.data && this.data.meta && this.data.meta.operation, 25);
+        const text = `VLX|${pieceId}|${essence}|${dims}|${orientation}|${lotRef}|${operation}`;
+        return text.length <= maxLen ? text : text.substring(0, maxLen);
+    }
+
+    buildQrHtmlPayload(item) {
+        const safeText = (value) => {
+            const raw = value == null ? '' : String(value).trim();
+            return raw || '—';
+        };
+        const esc = (value) => safeText(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        const colorMap = {
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#D55E00'
+        };
+        const orientationCode = String((item && item.orientationCode) || 'none').toLowerCase();
+        const orientationColor = colorMap[orientationCode] || '#888888';
+
+        const html =
+            '<meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">' +
+            '<style>body{font:14px sans-serif;padding:12px;max-width:360px}' +
+            'h2{font-size:16px;margin:0 0 8px}.badge{background:' + orientationColor + ';color:#fff;padding:3px 8px;border-radius:4px;font-size:12px}' +
+            '.row{margin:4px 0;font-size:13px}b{font-size:11px;color:#666;display:block}</style>' +
+            '<h2>VALOXYLO · ' + esc(item && item.lotRef) + '</h2>' +
+            '<span class=badge>' + esc(item && item.orientationLabel) + '</span>' +
+            '<div class=row><b>Pièce</b>' + esc(item && item.pieceLabel) + '</div>' +
+            '<div class=row><b>Essence</b>' + esc(item && item.essenceNomCommun) + '</div>' +
+            '<div class=row><b>Dimensions</b>' + esc(item && item.dimensionsLabel) + '</div>' +
+            '<div class=row><b>Origine</b>' + esc(item && item.origine) + '</div>' +
+            '<div class=row><b>Diagnostiqueur</b>' + esc(item && item.diagnostiqueur) + '</div>';
+
+        const payload = 'data:text/html,' + encodeURIComponent(html);
+        const maxHtmlLen = Number(this.getEtiquetteQrConfig().maxHtmlPayloadLength) || 800;
+        if (payload.length > maxHtmlLen) {
+            const mini =
+                '<meta charset=utf-8><b>' + esc(item && item.lotRef) + ' - ' + esc(item && item.pieceLabel) + '</b>' +
+                '<p>' + esc(item && item.essenceNomCommun) + ' ' + esc(item && item.dimensionsLabel) + '</p>' +
+                '<p>→ ' + esc(item && item.orientationLabel) + '</p>';
+            return 'data:text/html,' + encodeURIComponent(mini);
+        }
+        return payload;
+    }
+
+    async generateQrSvgString(text, sizePx = 96, ecLevel = 'H') {
+        if (!text) return null;
+        if (typeof QRCode === 'undefined' || typeof QRCode.toString !== 'function') {
+            console.warn('Valobois QR: bibliothèque qrcode indisponible');
+            return null;
+        }
+        try {
+            return await QRCode.toString(String(text), {
+                type: 'svg',
+                width: sizePx,
+                margin: 1,
+                errorCorrectionLevel: ecLevel,
+                color: { dark: '#111111', light: '#ffffff' }
+            });
+        } catch (e) {
+            console.error('Valobois QR generation error', e);
+            return null;
+        }
+    }
+
+    async publishPiecesToFirestore(lot, lotIndex, items = []) {
+        const db = typeof getValoboisFirestore === 'function' ? getValoboisFirestore() : null;
+        const auth = typeof getValoboisAuth === 'function' ? getValoboisAuth() : null;
+        if (!db || !auth || !auth.currentUser || !Array.isArray(items) || !items.length) return null;
+
+        const cfg = this.getEtiquetteQrConfig();
+        const allowedPublicFields = new Set(cfg.publicPieceFields || []);
+        const assignPublic = (target, key, value) => {
+            if (allowedPublicFields.has(key)) {
+                target[key] = value == null ? null : value;
+            }
+        };
+
+        const ownerUid = auth.currentUser.uid;
+        const evalId = this.getEtiquetteEvalIdFromUrl();
+        const evalKey = (evalId || 'eval').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40) || 'eval';
+        const serverTs = window.firebase && window.firebase.firestore
+            && window.firebase.firestore.FieldValue
+            && typeof window.firebase.firestore.FieldValue.serverTimestamp === 'function'
+            ? window.firebase.firestore.FieldValue.serverTimestamp()
+            : new Date();
+
+        const piecesMap = new Map();
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i] || {};
+            const pieceId = `${evalKey}-lot${String(lotIndex + 1).padStart(2, '0')}-p${String(i + 1).padStart(3, '0')}`;
+            const docData = {
+                pieceId,
+                evalId: evalId || null,
+                ownerUid,
+                public: true,
+                updatedAt: serverTs
+            };
+
+            assignPublic(docData, 'lotRef', item.lotRef || null);
+            assignPublic(docData, 'pieceLabel', item.pieceLabel || null);
+            assignPublic(docData, 'essence', item.essenceNomCommun || null);
+            assignPublic(docData, 'essenceScientifique', item.essenceNomScientifique || null);
+            assignPublic(docData, 'dimensions', {
+                longueur: Number.isFinite(item.longueur) ? item.longueur : null,
+                largeur: Number.isFinite(item.largeur) ? item.largeur : null,
+                epaisseur: Number.isFinite(item.epaisseur) ? item.epaisseur : null
+            });
+            assignPublic(docData, 'typePiece', item.typePiece || null);
+            assignPublic(docData, 'orientation', {
+                code: item.orientationCode || 'none',
+                label: item.orientationLabel || '—'
+            });
+            assignPublic(docData, 'volumeM3', Number.isFinite(item.volumePiece) ? item.volumePiece : null);
+            assignPublic(docData, 'origine', item.origine || null);
+            assignPublic(docData, 'diagnostiqueur', item.diagnostiqueur || null);
+            assignPublic(docData, 'operation', (this.data && this.data.meta && this.data.meta.operation) || null);
+            assignPublic(docData, 'diagDate', (this.data && this.data.meta && this.data.meta.date) || null);
+
+            try {
+                await db.collection('pieces').doc(pieceId).set(docData, { merge: true });
+                piecesMap.set(item.uid || `item-${i}`, pieceId);
+            } catch (e) {
+                console.error('Valobois: erreur publication pièce Firestore', pieceId, e);
+            }
+        }
+
+        return piecesMap;
+    }
+
+    normalizeEtiquetteLayoutMode(layoutMode) {
+        const mode = String(layoutMode || '').trim().toLowerCase();
+        if (mode === 'a3_6x6' || mode === 'a3_9x4') return 'a3_9x4';
+        return 'a4_3x6';
+    }
+
+    getEtiquetteLayoutPreset(layoutMode) {
+        const mode = this.normalizeEtiquetteLayoutMode(layoutMode);
+        if (mode === 'a3_9x4') {
+            return {
+                mode,
+                pageSize: 'A3',
+                pageOrientation: 'landscape',
+                pageWidthMm: 420,
+                pageHeightMm: 297,
+                pageMarginMm: 11,
+                cols: 9,
+                rows: 4,
+                labelWidthMm: 40,
+                labelHeightMm: 60,
+                gapMm: 2
+            };
+        }
+        return {
+            mode: 'a4_3x6',
+            pageSize: 'A4',
+            pageOrientation: 'landscape',
+            pageWidthMm: 297,
+            pageHeightMm: 210,
+            pageMarginMm: 11,
+            cols: 6,
+            rows: 3,
+            labelWidthMm: 40,
+            labelHeightMm: 60,
+            gapMm: 2
+        };
+    }
+
+    async exportEtiquettes(lotIndices = [], options = {}) {
         const validLotIndices = Array.isArray(lotIndices)
             ? lotIndices.filter((i) => Number.isInteger(i) && this.data.lots[i])
             : [];
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const codeFormula = this.normalizeCodeFormula(options && options.codeFormula);
+        const codeFields = Array.isArray(options && options.codeFields) ? options.codeFields : ['id', 'essence', 'dimensions', 'orientation'];
+        const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
 
         if (!validLotIndices.length) {
             alert('Aucun lot valide sélectionné pour l\'export des étiquettes.');
             return;
         }
 
-        if (typeof window.jspdf === 'undefined' && typeof window.jsPDF === 'undefined') {
-            alert('Export PDF indisponible (bibliothèque jsPDF manquante).');
+        if (typeof pdfMake === 'undefined') {
+            alert('Export PDF vectoriel indisponible (pdfMake manquant).');
+            return;
+        }
+
+        const allItems = [];
+        const failedLots = [];
+        const globalFirestoreMap = new Map();
+
+        for (let i = 0; i < validLotIndices.length; i += 1) {
+            const lotIndex = validLotIndices[i];
+            const lot = this.data.lots[lotIndex];
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+
+            try {
+                const labels = this.buildEtiquettePieceItems(lot, lotIndex);
+                if (!Array.isArray(labels) || labels.length === 0) {
+                    continue;
+                }
+
+                labels.forEach((label) => {
+                    if (label && typeof label === 'object') {
+                        label.sourceLotIndex = lotIndex;
+                        allItems.push(label);
+                    }
+                });
+
+                if (codeFormula === 'qr-online' && this.persistenceMode === 'cloud') {
+                    const piecesMap = await this.publishPiecesToFirestore(lot, lotIndex, labels);
+                    if (piecesMap && typeof piecesMap.forEach === 'function') {
+                        piecesMap.forEach((pieceId, uid) => {
+                            globalFirestoreMap.set(uid, pieceId);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error(error);
+                failedLots.push(`${lotLabel} : ${error && error.message ? error.message : 'erreur inconnue'}`);
+            }
+        }
+
+        if (!allItems.length) {
+            const details = failedLots.length ? `\n\n${failedLots.map((msg) => `- ${msg}`).join('\n')}` : '';
+            alert(`Aucune étiquette à exporter pour la sélection.${details}`);
             return;
         }
 
         try {
-            for (let i = 0; i < validLotIndices.length; i += 1) {
-                const lotIndex = validLotIndices[i];
-                const svgPages = this.buildEtiquetteSvgPages(lotIndex);
-                const lotLabel = this.getPdfLotLabel(this.data.lots[lotIndex], lotIndex);
-                const safeLabel = lotLabel.replace(/[^a-zA-Z0-9-]/g, '_').toLowerCase();
-                await this.downloadEtiquettePdf(svgPages, `valobois_etiquettes_${safeLabel}.pdf`);
-            }
+            const pageNoteLabel = validLotIndices.length > 1
+                ? `${validLotIndices.length} lots sélectionnés`
+                : this.getPdfLotLabel(this.data.lots[validLotIndices[0]], validLotIndices[0]);
+            const svgPages = await this.buildEtiquetteSvgPages(validLotIndices[0], {
+                layoutMode,
+                codeFormula,
+                codeFields,
+                barcodeConfig,
+                items: allItems,
+                firestorePiecesMap: globalFirestoreMap,
+                pageNoteLabel
+            });
+
+            const safeLayout = layoutMode === 'a3_9x4' ? 'a3_9x4' : 'a4_3x6';
+            const multiSuffix = validLotIndices.length > 1
+                ? `${String(validLotIndices.length).padStart(2, '0')}_lots`
+                : `lot-${String(validLotIndices[0] + 1).padStart(2, '0')}`;
+            await this.downloadEtiquettePdf(
+                svgPages,
+                `valobois_etiquettes_${multiSuffix}_${safeLayout}.pdf`,
+                { layoutMode }
+            );
         } catch (error) {
             console.error(error);
-            alert('Une erreur est survenue pendant la génération des étiquettes PDF.');
+            failedLots.push(error && error.message ? error.message : 'erreur inconnue');
+        }
+
+        if (failedLots.length) {
+            const details = failedLots.map((msg) => `- ${msg}`).join('\n');
+            alert(`Export terminé avec avertissements.\n\n${details}`);
         }
     }
 
-    async downloadEtiquettePdf(svgPages, filename) {
-        const { jsPDF } = window.jspdf || window;
-        const pdf = new jsPDF('p', 'mm', 'a4');
-        const pages = Array.isArray(svgPages) ? svgPages : [svgPages];
+    async downloadEtiquettePdf(svgPages, filename, options = {}) {
+        const pages = (Array.isArray(svgPages) ? svgPages : [svgPages])
+            .filter((page) => typeof page === 'string' && page.trim());
 
-        try {
-            for (let pageIndex = 0; pageIndex < pages.length; pageIndex += 1) {
-                const svgMarkup = pages[pageIndex];
-                const svgBlob = new Blob([svgMarkup], { type: 'image/svg+xml;charset=utf-8' });
-                const svgUrl = URL.createObjectURL(svgBlob);
+        if (!pages.length) {
+            throw new Error('Aucune page d\'étiquette générée.');
+        }
 
-                try {
-                    const image = await new Promise((resolve, reject) => {
-                        const img = new Image();
-                        img.onload = () => resolve(img);
-                        img.onerror = () => reject(new Error('Impossible de charger le SVG des étiquettes.'));
-                        img.src = svgUrl;
-                    });
+        if (typeof pdfMake === 'undefined') {
+            throw new Error('pdfMake est requis pour un export PDF purement vectoriel.');
+        }
 
-                    const canvas = document.createElement('canvas');
-                    const upscale = 2;
-                    canvas.width = Math.max(1, Math.round(image.naturalWidth * upscale));
-                    canvas.height = Math.max(1, Math.round(image.naturalHeight * upscale));
-                    const ctx = canvas.getContext('2d');
-                    if (!ctx) throw new Error('Contexte canvas indisponible pour l\'export PDF.');
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const preset = this.getEtiquetteLayoutPreset(layoutMode);
+        const mmToPt = (mm) => (Number(mm) || 0) * 72 / 25.4;
+        const pageWidthPt = mmToPt(preset.pageWidthMm);
+        const pageHeightPt = mmToPt(preset.pageHeightMm);
 
-                    ctx.fillStyle = '#FFFFFF';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const docDef = {
+            pageSize: preset.pageSize,
+            pageOrientation: preset.pageOrientation,
+            pageMargins: [0, 0, 0, 0],
+            info: {
+                title: filename,
+                author: 'VALOBOIS',
+                subject: 'Export étiquettes',
+                creator: 'VALOBOIS',
+                producer: 'pdfmake'
+            },
+            content: pages.map((page, index) => ({
+                svg: String(page).replace(/^<\?xml[^>]*>\s*/i, ''),
+                width: pageWidthPt,
+                height: pageHeightPt,
+                pageBreak: index < pages.length - 1 ? 'after' : undefined
+            }))
+        };
 
-                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                    const pageWidth = pdf.internal.pageSize.getWidth();
-                    const pageHeight = pdf.internal.pageSize.getHeight();
-                    const ratio = Math.min(pageWidth / canvas.width, pageHeight / canvas.height);
-                    const drawWidth = canvas.width * ratio;
-                    const drawHeight = canvas.height * ratio;
-                    const x = (pageWidth - drawWidth) / 2;
-                    const y = (pageHeight - drawHeight) / 2;
-
-                    if (pageIndex > 0) pdf.addPage('a4', 'p');
-                    pdf.addImage(dataUrl, 'JPEG', x, y, drawWidth, drawHeight, undefined, 'FAST');
-                } finally {
-                    URL.revokeObjectURL(svgUrl);
-                }
+        await new Promise((resolve, reject) => {
+            try {
+                pdfMake.createPdf(docDef).download(filename, () => resolve());
+            } catch (e) {
+                reject(e);
             }
-
-            pdf.save(filename);
-        } finally {}
+        });
     }
 
     buildEtiquettePieceItems(lot, lotIndex) {
@@ -38984,9 +40188,14 @@ renderRadar() {
         const allot = (lot && lot.allotissement) || {};
         const meta = this.data.meta || {};
         const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const orientation = this.getPdfOrientationSummary(lot);
 
         const asText = (value) => (value == null ? '' : String(value)).trim();
         const firstFilled = (...values) => values.map(asText).find(Boolean) || '';
+        const asNumber = (value) => {
+            const num = parseFloat(value);
+            return Number.isFinite(num) && num > 0 ? num : null;
+        };
         const formatMm = (value) => {
             const num = parseFloat(value);
             return Number.isFinite(num) && num > 0 ? `${Math.round(num)} mm` : '—';
@@ -39013,64 +40222,145 @@ renderRadar() {
             firstFilled(allot.destination),
             firstFilled(allot.destinationMail, allot.destinationEmail)
         );
+        let pieceOrdinal = 0;
 
-        const createBaseItem = (pieceLabel, typePiece, essenceNomCommun, dimensionsLabel) => ({
-            lotRef,
-            pieceLabel,
-            dimensionsLabel,
-            typePiece: asText(typePiece) || '—',
-            essenceNomCommun: asText(essenceNomCommun) || '—',
-            volumeLot: vol,
-            origine: asText(meta.localisation) || '—',
-            diagnostiqueur: diagInfo || '—',
-            deconstructeur: deconInfo || '—',
-            destination: destinationInfo || '—'
-        });
+        const createBaseItem = (pieceLabel, typePiece, essenceNomCommun, dims, volumePiece, sourcePieceIndex = null) => {
+            pieceOrdinal += 1;
+            const normalizedPieceIndex = Number.isInteger(sourcePieceIndex) ? sourcePieceIndex : (pieceOrdinal - 1);
+            return {
+                uid: `lot${String(lotIndex + 1).padStart(2, '0')}-p${String(pieceOrdinal).padStart(4, '0')}`,
+                lotRef,
+                pieceLabel,
+                sourcePieceIndex: normalizedPieceIndex,
+                dimensionsLabel: formatDimensionsLabel(dims.longueur, dims.largeur, dims.epaisseur),
+                longueur: asNumber(dims.longueur),
+                largeur: asNumber(dims.largeur),
+                epaisseur: asNumber(dims.epaisseur),
+                typePiece: asText(typePiece) || '—',
+                essenceNomCommun: asText(essenceNomCommun) || '—',
+                essenceNomScientifique: asText(allot.essenceNomScientifique) || null,
+                orientationCode: orientation.code || 'none',
+                orientationLabel: orientation.label || '—',
+                volumeLot: vol,
+                volumePiece: asNumber(volumePiece),
+                origine: asText(meta.localisation) || '—',
+                diagnostiqueur: diagInfo || '—',
+                deconstructeur: deconInfo || '—',
+                destination: destinationInfo || '—',
+                sourcePiece: dims && dims.sourcePiece ? dims.sourcePiece : null,
+                mainDimensionLabel: '—'
+            };
+        };
 
         const pieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
         pieces.forEach((piece, index) => {
+            const longueur = firstFilled(piece && piece.longueur, allot.longueur);
+            const largeur = firstFilled(piece && piece.largeur, allot.largeur);
+            const epaisseur = firstFilled(piece && piece.epaisseur, allot.epaisseur);
             items.push(createBaseItem(
                 `Pièce ${index + 1}`,
                 firstFilled(piece && piece.typePiece, allot.typePiece),
                 firstFilled(piece && piece.essenceNomCommun, allot.essenceNomCommun),
-                formatDimensionsLabel(
-                    firstFilled(piece && piece.longueur, allot.longueur),
-                    firstFilled(piece && piece.largeur, allot.largeur),
-                    firstFilled(piece && piece.epaisseur, allot.epaisseur)
-                )
+                { longueur, largeur, epaisseur, sourcePiece: piece },
+                piece && piece.volumePiece,
+                index
             ));
         });
 
         defaultPieces.forEach((defaultPiece, defaultPieceIndex) => {
             const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
             for (let i = 0; i < defaultQty; i += 1) {
+                const longueur = firstFilled(defaultPiece.longueur, allot.longueur);
+                const largeur = firstFilled(defaultPiece.largeur, allot.largeur);
+                const epaisseur = firstFilled(defaultPiece.epaisseur, allot.epaisseur);
                 items.push(createBaseItem(
                     `Pièce par défaut ${defaultPieceIndex + 1} n°${i + 1}`,
                     firstFilled(defaultPiece.typePiece, allot.typePiece),
                     firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
-                    formatDimensionsLabel(
-                        firstFilled(defaultPiece.longueur, allot.longueur),
-                        firstFilled(defaultPiece.largeur, allot.largeur),
-                        firstFilled(defaultPiece.epaisseur, allot.epaisseur)
-                    )
+                    { longueur, largeur, epaisseur, sourcePiece: defaultPiece },
+                    defaultPiece && defaultPiece.volumePiece,
+                    pieces.length + defaultPieceIndex + i
                 ));
             }
+        });
+
+        items.forEach((item) => {
+            item.mainDimensionLabel = this.formatEtiquetteMainDimension(item);
         });
 
         return items;
     }
 
-    buildEtiquetteSvgPages(lotIndex) {
+    async buildEtiquetteSvgPages(lotIndex, options = {}) {
         const lot   = this.data.lots[lotIndex] || {};
-        const orientation = this.getPdfOrientationSummary(lot);
-        const items = this.buildEtiquettePieceItems(lot, lotIndex);
+        const externalItems = Array.isArray(options && options.items) ? options.items : null;
+        const items = externalItems || this.buildEtiquettePieceItems(lot, lotIndex);
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const layoutPreset = this.getEtiquetteLayoutPreset(layoutMode);
+        const codeFormula = this.normalizeCodeFormula(options && options.codeFormula);
+        const codeFields = Array.isArray(options && options.codeFields)
+            ? options.codeFields
+            : ['id', 'essence', 'dimensions', 'orientation'];
+        const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
 
-        /* ── Page A4 (mm) ── */
-        const PW = 210, PH = 297;
-        const PAGE_MARGIN = 15;
-        const COLS = 3, ROWS = 5, SZ = 51, GAP = 2;
-        const areaW = COLS * SZ + (COLS - 1) * GAP;
-        const areaH = ROWS * SZ + (ROWS - 1) * GAP;
+        if (!items.length) return [];
+
+        let firestorePiecesMap = options && options.firestorePiecesMap instanceof Map
+            ? options.firestorePiecesMap
+            : null;
+        if (!firestorePiecesMap && codeFormula === 'qr-online' && this.persistenceMode === 'cloud' && !externalItems) {
+            try {
+                firestorePiecesMap = await this.publishPiecesToFirestore(lot, lotIndex, items);
+            } catch (e) {
+                console.warn('Valobois QR: publication Firestore échouée, fallback local', e);
+            }
+        }
+
+        const qrByItemUid = new Map();
+        const cfg = this.getEtiquetteQrConfig();
+        const baseUrl = String(window.VALOBOIS_PUBLIC_URL || cfg.baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
+        const singlePx = 132;
+
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            const itemLotIndex = Number.isInteger(item && item.sourceLotIndex) ? item.sourceLotIndex : lotIndex;
+            const itemPieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : i;
+            const itemLot = (this.data && this.data.lots && this.data.lots[itemLotIndex]) ? this.data.lots[itemLotIndex] : lot;
+            const firestorePieceId = firestorePiecesMap && firestorePiecesMap.get(item.uid);
+            const payload = this.buildCodeContent(codeFormula, item, {
+                fields: codeFields,
+                firestorePieceId,
+                lot: itemLot,
+                lotIndex: itemLotIndex,
+                pieceIndex: itemPieceIndex,
+                barcodeConfig,
+                baseUrl,
+                diagDate: this.data && this.data.meta ? this.data.meta.date : null
+            });
+
+            const hardLimit = this.getCodeFormulaMaxLength(codeFormula);
+            if ((codeFormula === 'barcode1d' || codeFormula === 'datamatrix') && String(payload || '').length > hardLimit) {
+                console.warn(`[Valobois] Contenu trop long pour ${codeFormula} (${String(payload || '').length} chars).`);
+            }
+
+            const svg = await this.generateCodeSvg(payload, codeFormula);
+            qrByItemUid.set(item.uid, {
+                mode: codeFormula,
+                svg: typeof svg === 'string' ? svg : ''
+            });
+        }
+
+        /* ── Page (mm) ── */
+        const PW = layoutPreset.pageWidthMm;
+        const PH = layoutPreset.pageHeightMm;
+        const PAGE_MARGIN = layoutPreset.pageMarginMm;
+        const COLS = layoutPreset.cols;
+        const ROWS = layoutPreset.rows;
+        const LABEL_W = layoutPreset.labelWidthMm;
+        const LABEL_H = layoutPreset.labelHeightMm;
+        const GAP = layoutPreset.gapMm;
+        const areaW = COLS * LABEL_W + (COLS - 1) * GAP;
+        const areaH = ROWS * LABEL_H + (ROWS - 1) * GAP;
         const printableW = PW - (PAGE_MARGIN * 2);
         const printableH = PH - (PAGE_MARGIN * 2);
         const ox = PAGE_MARGIN + Math.max(0, (printableW - areaW) / 2);
@@ -39118,6 +40408,22 @@ renderRadar() {
         const maxCharsForWidth = (widthMm, fontSize) => {
             return Math.max(6, Math.floor(widthMm / (fontSize * 0.55)));
         };
+        const drawRotatedCenterText = (out, opts) => {
+            const {
+                text,
+                cx,
+                cy,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                angle = -90,
+                fontWeight = '700'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
+        };
         const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
             const safeText = String(text || '').trim() || '—';
             let size = baseSize;
@@ -39159,6 +40465,32 @@ renderRadar() {
             const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
             out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
             return y;
+        };
+        const buildQrVectorGroup = (svgString, x, y, sizeMm, fitMode = 'contain') => {
+            const raw = typeof svgString === 'string' ? svgString.trim() : '';
+            if (!raw) return '';
+
+            const inner = raw
+                .replace(/^<\?xml[^>]*>\s*/i, '')
+                .replace(/^<svg[^>]*>/i, '')
+                .replace(/<\/svg>\s*$/i, '')
+                .trim();
+            if (!inner) return '';
+
+            const viewBoxMatch = raw.match(/viewBox\s*=\s*"([^"]+)"/i);
+            let vbWidth = 1;
+            let vbHeight = 1;
+            if (viewBoxMatch && viewBoxMatch[1]) {
+                const parts = viewBoxMatch[1].trim().split(/\s+/).map((v) => parseFloat(v));
+                if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+                    vbWidth = parts[2];
+                    vbHeight = parts[3];
+                }
+            }
+
+            const preserveAspectRatio = fitMode === 'stretch' ? 'none' : 'xMidYMid meet';
+            // Sous-SVG viewporté: contain par défaut, stretch optionnel (Code128) pour remplir 30x30.
+            return `<svg x="${x}" y="${y}" width="${sizeMm}" height="${sizeMm}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="hidden" shape-rendering="crispEdges">${inner}</svg>`;
         };
         const drawLabeledWrappedValue = (out, opts) => {
             const {
@@ -39228,187 +40560,249 @@ renderRadar() {
             maximumFractionDigits: 1
         });
 
-        /* ── Données du lot ── */
-        const lotRef = this.getPdfLotLabel(lot, lotIndex);
+        /* ── Données de page ── */
+        const lotRef = options && options.pageNoteLabel
+            ? String(options.pageNoteLabel)
+            : this.getPdfLotLabel(lot, lotIndex);
 
         /* ── Orientation ── */
         const OC = { reemploi: '#009E73', reutilisation: '#56B4E9', recyclage: '#E69F00', combustion: '#D55E00', none: '#CCCCCC' };
-        const oCode  = orientation.code || 'none';
-        const oColor = OC[oCode] || '#CCCCCC';
-        const oLabel = orientation.label || '—';
 
         /* ── Typographie ── */
         const FF = 'Roboto,Arial,sans-serif';
-        const F  = { header: 3.0, content: 2.25, small: 1.95, dim: 2.05 };
+        const baseF = { lot: 2.5, side: 2.45, orientation: 2.8, piece: 2.5, line: 2.1, origin: 1.55 };
         const C  = { dark: '#111111', mid: '#333333', muted: '#555555', light: '#777777' };
 
-        /* ── Constructeur d'une étiquette 51×51 mm ── */
-        const buildLabel = (lx, ly, uid, item) => {
-            const R  = 2;
-            const HH = 10.5;
-            const MARGIN = 2.4;
+        /* ── Constructeur d'une étiquette 40×60 mm ── */
+        const buildLabel = (lx, ly, uid, item, qrData) => {
+            const R = 0;
             const out = [];
-
-            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m3` : '0,0 m3';
-            const headerLot = item.lotRef || '—';
-            const headerOrientation = oLabel || '—';
+            const layoutScale = Math.min(LABEL_W / 40, LABEL_H / 60);
+            const su = (value) => value * layoutScale;
+            const lotNameRaw = String(item.lotRef || '').trim();
+            const lotName = lotNameRaw ? (lotNameRaw.toLowerCase().startsWith('lot') ? lotNameRaw : `Lot ${lotNameRaw}`) : 'Lot nnn';
             const pieceLabel = item.pieceLabel || '—';
-            const dimensionsLabel = item.dimensionsLabel || '—';
+            const pieceHeading = this.formatEtiquettePieceHeading(item);
             const typePiece = item.typePiece || '—';
             const essenceNomCommun = item.essenceNomCommun || '—';
             const origine = item.origine || '—';
-            const diagnostiqueur = item.diagnostiqueur || '—';
-            const deconstructeur = item.deconstructeur || '—';
-            const destination = item.destination || '—';
+            const mainDimensionLabel = item.mainDimensionLabel || '—';
+            const orientationCode = String(item.orientationCode || 'none').toLowerCase();
+            const orientationColor = OC[orientationCode] || '#CCCCCC';
+            const orientationText = String(item.orientationLabel || '—').toUpperCase();
+            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m³` : '0,0 m³';
+            const COLOR_GREEN = '#019e73';
+            const COLOR_WHITE = '#FFFFFF';
+            const COLOR_DARK = '#000000';
+            const topBandH = su(5);
+            const bottomBandH = su(5);
+            const sideBandW = su(5);
+            const qrSize = su(30);
+            const centerPanelW = LABEL_W - (sideBandW * 2);
+            const centerPanelH = LABEL_H - topBandH - bottomBandH;
+            const qrX = lx + sideBandW + ((centerPanelW - qrSize) / 2);
+            const qrY = ly + topBandH;
+            const sideTextCy = ly + topBandH + (centerPanelH / 2);
+            const sideTextSpan = centerPanelH - su(4);
+            const blockX = lx + sideBandW;
+            const blockY = qrY + qrSize;
+            const blockW = centerPanelW;
+            const row1H = su(7);
+            const row2H = su(3.5);
+            const row3H = su(3.5);
+            const row4H = su(6);
+            const rowSplitY1 = blockY + row1H;
+            const rowSplitY2 = rowSplitY1 + row2H;
+            const rowSplitY3 = rowSplitY2 + row3H;
+            const pieceCellW = su(13.5);
+            const nCellW = su(5);
+            const pieceNumRaw = pieceHeading.numberLabel
+                ? pieceHeading.numberLabel.replace(/^N°\s*/i, '').trim()
+                : '';
+            const fallbackNumMatch = String(item && item.uid ? item.uid : '').match(/-p0*(\d+)$/i);
+            const pieceNumberText = pieceNumRaw || (fallbackNumMatch ? fallbackNumMatch[1] : '—');
 
             /* ClipPath arrondi */
-            out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${SZ}" height="${SZ}" rx="${R}"/></clipPath>`);
+            out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" rx="${R}"/></clipPath>`);
 
-            /* Fond blanc + bord */
-            out.push(`<rect x="${lx}" y="${ly}" width="${SZ}" height="${SZ}" rx="${R}" fill="white" stroke="#CCCCCC" stroke-width="0.3"/>`);
-
-            /* ══════ BLOC 1 : EN-TÊTE (1/5) ══════ */
-            out.push(`<rect x="${lx}" y="${ly}" width="${SZ}" height="${HH}" rx="${R}" fill="${oColor}"/>`);
-            out.push(`<rect x="${lx}" y="${ly + R}" width="${SZ}" height="${HH - R}" fill="${oColor}"/>`);
-            const headerPad = 2.8;
-            const headerGap = 1.2;
-            const headerBodyW = SZ - (headerPad * 2) - (headerGap * 2);
-            const lotW = headerBodyW * 0.25;
-            const volW = headerBodyW * 0.25;
-            const orientationW = headerBodyW * 0.5;
-            const headerY = ly + 6.4;
-
-            drawSingleLine(out, {
-                text: headerLot,
-                x: lx + headerPad + (lotW / 2),
-                y: headerY,
-                widthMm: lotW,
-                baseFontSize: F.header,
-                minFontSize: 2.05,
-                fill: C.dark,
-                fontWeight: '700',
-                textAnchor: 'middle'
-            });
-            drawSingleLine(out, {
-                text: volumeStr,
-                x: lx + headerPad + lotW + headerGap + (volW / 2),
-                y: headerY,
-                widthMm: volW,
-                baseFontSize: F.header,
-                minFontSize: 2.05,
-                fill: C.dark,
-                fontWeight: '700',
-                textAnchor: 'middle'
-            });
-            drawSingleLine(out, {
-                text: headerOrientation,
-                x: lx + headerPad + lotW + headerGap + volW + headerGap + (orientationW / 2),
-                y: headerY,
-                widthMm: orientationW,
-                baseFontSize: F.header,
-                minFontSize: 2.05,
-                fill: C.dark,
-                fontWeight: '700',
-                textAnchor: 'middle'
-            });
-
-            /* ── Contenu clippé ── */
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${topBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + LABEL_W - sideBandW}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + LABEL_H - bottomBandH}" width="${LABEL_W}" height="${bottomBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + sideBandW}" y="${ly + topBandH}" width="${centerPanelW}" height="${centerPanelH}" fill="${COLOR_WHITE}" stroke="none"/>`);
             out.push(`<g clip-path="url(#cp${uid})">`);
 
-            const contentX = lx + 2.8;
-            let lineY = ly + HH + MARGIN + 2.1;
-            const bodyWidth = SZ - 5.6;
-            const lineHContent = 2.55;
-            const lineHSmall = 2.4;
+            {
+                const lotFont = fitSingleLineFont(lotName, LABEL_W - su(5), su(2.8), su(1.8));
+                out.push(`<text x="${lx + (LABEL_W / 2)}" y="${ly + (topBandH / 2)}" font-family="${FF}" font-size="${lotFont}" font-weight="700" fill="${COLOR_DARK}" text-anchor="middle" dominant-baseline="middle">${e(lotName)}</text>`);
+            }
 
-            lineY = drawWrappedLines(out, {
-                text: pieceLabel,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.content,
-                lineHeight: lineHContent,
-                fill: C.dark,
+            drawRotatedCenterText(out, {
+                text: mainDimensionLabel,
+                cx: lx + (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                angle: -90
+            });
+            drawRotatedCenterText(out, {
+                text: volumeStr,
+                cx: lx + LABEL_W - (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(3.72),
+                minFontSize: su(2.82),
+                fill: COLOR_DARK,
+                angle: 90
+            });
+
+            out.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
+            if (qrData && qrData.svg) {
+                const fitMode = qrData && qrData.mode === 'barcode1d' ? 'stretch' : 'contain';
+                const qrGroup = buildQrVectorGroup(qrData.svg, qrX, qrY, qrSize, fitMode);
+                if (qrGroup) {
+                    out.push(qrGroup);
+                } else {
+                    out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+                }
+            } else {
+                out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+            }
+
+            out.push(`<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${row1H + row2H + row3H + row4H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+
+            const pieceNameCellText = String(pieceHeading.nameLabel || pieceLabel || 'Pièce').trim() || 'Pièce';
+            const isDefaultPieceLabel = /^pi[eè]ce\s+par\s+d[ée]faut\b/i.test(pieceNameCellText);
+            if (isDefaultPieceLabel) {
+                const pieceNameLinesRaw = wrapText(pieceNameCellText, maxCharsForWidth(pieceCellW - su(1.2), su(2.2)));
+                const line1 = pieceNameLinesRaw[0] || 'Pièce par';
+                let line2 = pieceNameLinesRaw[1] || 'défaut';
+                if (pieceNameLinesRaw.length > 2) {
+                    line2 = `${line2.replace(/\s+$/, '')}…`;
+                }
+                drawSingleLine(out, {
+                    text: line1,
+                    x: blockX + su(0.6),
+                    y: blockY + su(2.55),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.2),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+                drawSingleLine(out, {
+                    text: line2,
+                    x: blockX + su(0.6),
+                    y: blockY + su(5.05),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.2),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            } else {
+                drawSingleLine(out, {
+                    text: pieceNameCellText,
+                    x: blockX + su(0.6),
+                    y: blockY + (row1H / 2) + su(0.72),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.1),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            }
+            drawSingleLine(out, {
+                text: 'N°',
+                x: blockX + pieceCellW + (nCellW / 2),
+                y: blockY + (row1H / 2) + su(0.95),
+                widthMm: nCellW - su(0.6),
+                baseFontSize: su(3.4),
+                minFontSize: su(3.2),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+            drawSingleLine(out, {
+                text: pieceNumberText,
+                x: blockX + pieceCellW + nCellW + ((blockW - pieceCellW - nCellW) / 2),
+                y: blockY + (row1H / 2) + su(1.3),
+                widthMm: (blockW - pieceCellW - nCellW) - su(0.6),
+                baseFontSize: su(5.9),
+                minFontSize: su(5.8),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+
+            drawSingleLine(out, {
+                text: typePiece,
+                x: blockX + su(0.6),
+                y: rowSplitY1 + (row2H / 2) + su(0.95),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(2.85),
+                minFontSize: su(2.2),
+                fill: COLOR_DARK,
                 fontWeight: '700'
             });
-            lineY += 0.1;
             drawSingleLine(out, {
-                text: dimensionsLabel,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                baseFontSize: F.dim,
-                minFontSize: 1.55,
-                fill: C.mid
-            });
-            lineY += lineHContent;
-            lineY = drawLabeledWrappedValue(out, {
-                label: 'Type:',
-                value: typePiece,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.content,
-                lineHeight: lineHContent,
-                fill: C.mid
-            });
-            lineY = drawLabeledWrappedValue(out, {
-                label: 'Essence:',
-                value: essenceNomCommun,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.content,
-                lineHeight: lineHContent,
-                fill: C.mid
+                text: essenceNomCommun,
+                x: blockX + su(0.6),
+                y: rowSplitY2 + (row3H / 2) + su(0.95),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(2.85),
+                minFontSize: su(2.2),
+                fill: COLOR_DARK,
+                fontWeight: '700'
             });
 
-            lineY += 1.0;
-            out.push(`<line x1="${contentX}" y1="${lineY}" x2="${contentX + bodyWidth}" y2="${lineY}" stroke="#D6D6D6" stroke-width="0.25"/>`);
+            const originLines = wrapText(origine, maxCharsForWidth(blockW - su(1.2), su(2.45)));
+            const originLineOne = originLines[0] || '—';
+            const hasOriginOverflow = originLines.length > 2;
+            let originLineTwo = originLines[1] || '';
+            if (hasOriginOverflow && originLineTwo) {
+                originLineTwo = originLineTwo.replace(/\s+$/, '') + '…';
+            }
+            drawSingleLine(out, {
+                text: originLineOne,
+                x: blockX + su(0.6),
+                y: rowSplitY3 + su(2.2),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(1.85),
+                minFontSize: su(1.85),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+            if (originLineTwo) {
+                drawSingleLine(out, {
+                    text: originLineTwo,
+                    x: blockX + su(0.6),
+                    y: rowSplitY3 + su(4.8),
+                    widthMm: blockW - su(1.2),
+                    baseFontSize: su(1.85),
+                    minFontSize: su(1.85),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            }
 
-            lineY += 3.2;
-            lineY = drawLabeledWrappedValue(out, {
-                label: 'Origine du lot:',
-                value: origine,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.small,
-                lineHeight: lineHSmall,
-                fill: C.mid
-            });
-            lineY = drawLabeledWrappedValue(out, {
-                label: 'Diagnostiqueur:',
-                value: diagnostiqueur,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.small,
-                lineHeight: lineHSmall,
-                fill: C.mid
-            });
-            lineY = drawLabeledWrappedValue(out, {
-                label: 'Déconstructeur:',
-                value: deconstructeur,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.small,
-                lineHeight: lineHSmall,
-                fill: C.mid
-            });
-            drawLabeledWrappedValue(out, {
-                label: 'Destination du lot:',
-                value: destination,
-                x: contentX,
-                y: lineY,
-                widthMm: bodyWidth,
-                fontSize: F.small,
-                lineHeight: lineHSmall,
-                fill: C.mid
+            drawSingleLine(out, {
+                text: orientationText,
+                x: lx + (LABEL_W / 2),
+                y: ly + LABEL_H - su(1.65),
+                widthMm: LABEL_W - su(4),
+                baseFontSize: su(2.55),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
             });
 
             out.push('</g>');
+
             return out.join('');
         };
 
@@ -39416,11 +40810,11 @@ renderRadar() {
         const dash = `stroke="#CCCCCC" stroke-width="0.25" stroke-dasharray="1.5 1.5"`;
         const marks = [];
         for (let c = 1; c < COLS; c++) {
-            const cx = ox + c * (SZ + GAP) - GAP / 2;
+            const cx = ox + c * (LABEL_W + GAP) - GAP / 2;
             marks.push(`<line x1="${cx}" y1="${oy}" x2="${cx}" y2="${oy + areaH}" ${dash}/>`);
         }
         for (let r = 1; r < ROWS; r++) {
-            const ry = oy + r * (SZ + GAP) - GAP / 2;
+            const ry = oy + r * (LABEL_H + GAP) - GAP / 2;
             marks.push(`<line x1="${ox}" y1="${ry}" x2="${ox + areaW}" y2="${ry}" ${dash}/>`);
         }
 
@@ -39439,9 +40833,10 @@ renderRadar() {
                 const row = Math.floor(idx / COLS);
                 const col = idx % COLS;
                 const uid = `p${pageIndex}_${idx}`;
-                const x = ox + col * (SZ + GAP);
-                const y = oy + row * (SZ + GAP);
-                cells.push(buildLabel(x, y, uid, pageItems[idx]));
+                const x = ox + col * (LABEL_W + GAP);
+                const y = oy + row * (LABEL_H + GAP);
+                const item = pageItems[idx];
+                cells.push(buildLabel(x, y, uid, item, qrByItemUid.get(item.uid)));
             }
 
             const pageNoteY = PH - 10;
@@ -39462,8 +40857,9 @@ renderRadar() {
         return svgPages;
     }
 
-    buildEtiquetteSvgPage(lotIndex) {
-        return this.buildEtiquetteSvgPages(lotIndex)[0] || '';
+    async buildEtiquetteSvgPage(lotIndex, options = {}) {
+        const pages = await this.buildEtiquetteSvgPages(lotIndex, options);
+        return pages[0] || '';
     }
 
     /* ═══════ pdfmake — palette & styles ═══════ */

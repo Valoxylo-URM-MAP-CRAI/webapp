@@ -11781,6 +11781,332 @@ body.day-mode .lot-group--collapsible summary:hover {
         #exportPdfBackdrop #btnCancelExportPdf:hover {
             background-color: #152d6e;
         }
+
+        #etiqueterBackdrop .export-modal-select {
+            width: 100%;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--color-border);
+            background-color: #E6E6E6;
+            color: var(--color-text);
+            padding: 8px;
+            font-size: var(--font-size-sm);
+        }
+
+        #etiqueterBackdrop .code-formula-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+
+        #etiqueterBackdrop .code-formula-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
+            padding: 0.6rem 0.75rem;
+            border: 1.5px solid var(--color-border, #d0d0d0);
+            border-radius: var(--radius-md, 6px);
+            background: var(--color-surface, #fafafa);
+            cursor: pointer;
+            text-align: left;
+            transition: border-color 0.15s, background 0.15s;
+        }
+
+        #etiqueterBackdrop .code-formula-btn:hover {
+            border-color: var(--color-primary, #01696f);
+            background: var(--color-primary-highlight, #cedcd8);
+        }
+
+        #etiqueterBackdrop .code-formula-btn.active,
+        #etiqueterBackdrop .code-formula-btn[aria-pressed="true"] {
+            border-color: var(--color-primary, #01696f);
+            background: var(--color-primary-highlight, #cedcd8);
+        }
+
+        #etiqueterBackdrop .code-formula-icon {
+            font-size: 1rem;
+            opacity: 0.6;
+        }
+
+        #etiqueterBackdrop .code-formula-name {
+            font-weight: 600;
+            font-size: var(--text-sm, 0.875rem);
+            color: var(--color-text);
+        }
+
+        #etiqueterBackdrop .code-formula-desc {
+            font-size: var(--text-xs, 0.75rem);
+            color: var(--color-text-muted, #666);
+        }
+
+        #etiqueterBackdrop .code-formula-hint {
+            margin: 0;
+            padding: 0.5rem 0.75rem;
+            background: var(--color-surface-offset, #f0f0ec);
+            border-radius: var(--radius-sm, 4px);
+            font-size: var(--text-xs, 0.75rem);
+            color: var(--color-text-muted, #666);
+            border-left: 3px solid var(--color-primary, #01696f);
+        }
+
+        #etiqueterBackdrop .checkbox-group {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        #etiqueterBackdrop .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.82rem;
+        }
+
+        #etiqueterBackdrop .checkbox-item--locked {
+            opacity: 0.8;
+            font-weight: 600;
+        }
+
+        #etiqueterBackdrop .code-length-indicator {
+            display: grid;
+            grid-template-columns: auto auto auto;
+            gap: 0.3rem;
+            align-items: center;
+            font-size: 0.78rem;
+            color: var(--color-text-muted, #666);
+        }
+
+        #etiqueterBackdrop .code-length-indicator progress {
+            grid-column: 1 / -1;
+            width: 100%;
+            height: 8px;
+        }
+
+        #etiqueterBackdrop .barcode-composer {
+            border: 1px solid var(--color-border, #d0d0d0);
+            border-radius: var(--radius-md, 8px);
+            padding: 0.75rem;
+            margin-top: 0.75rem;
+            background: var(--color-surface, #fafafa);
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__title {
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--color-text-muted, #666);
+            margin-bottom: 0.2rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field {
+            display: grid;
+            grid-template-columns: 1.2rem 2.6rem minmax(0, 8.5rem) minmax(0, 1fr) auto;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.5rem;
+            border-radius: var(--radius-sm, 4px);
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field:hover {
+            background: var(--color-surface-offset, #f0f0ec);
+        }
+
+        #etiqueterBackdrop .barcode-composer__field--locked {
+            grid-template-columns: 2.6rem minmax(0, 8.5rem) minmax(0, 1fr) auto;
+            opacity: 0.78;
+            cursor: default;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field--locked:hover {
+            background: transparent;
+        }
+
+        #etiqueterBackdrop .barcode-composer__check {
+            margin: 0;
+        }
+
+        #etiqueterBackdrop .barcode-composer__ai {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.72rem;
+            color: var(--color-primary, #01696f);
+            font-weight: 700;
+        }
+
+        #etiqueterBackdrop .barcode-composer__preview {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.72rem;
+            color: var(--color-text, #111);
+            background: var(--color-surface-offset, #f0f0ec);
+            padding: 2px 0.35rem;
+            border-radius: var(--radius-sm, 4px);
+            min-width: 0;
+            max-width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            text-align: center;
+        }
+
+        #etiqueterBackdrop .barcode-composer__label {
+            font-size: 0.8rem;
+            color: var(--color-text, #111);
+            min-width: 0;
+            overflow-wrap: anywhere;
+        }
+
+        #etiqueterBackdrop .barcode-composer__inline-select {
+            min-width: 0;
+            max-width: 8.4rem;
+            border: 1px solid var(--color-border, #d0d0d0);
+            border-radius: var(--radius-sm, 4px);
+            background: #ffffff;
+            color: var(--color-text, #111);
+            padding: 0.2rem 0.3rem;
+            font-size: 0.72rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field[data-field="essence"] {
+            grid-template-columns: 1.2rem 2.6rem minmax(0, 7rem) minmax(0, 1fr) minmax(0, 8.4rem);
+        }
+
+        #etiqueterBackdrop .barcode-composer__badge {
+            font-size: 0.72rem;
+            color: var(--color-text-muted, #666);
+            font-style: italic;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px solid var(--color-divider, #e2e2e2);
+        }
+
+        #etiqueterBackdrop .barcode-composer__custom {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__custom-field {
+            display: grid;
+            gap: 0.25rem;
+            font-size: 0.72rem;
+            color: var(--color-text-muted, #666);
+        }
+
+        #etiqueterBackdrop .barcode-composer__custom-field input {
+            width: 100%;
+            min-width: 0;
+            border: 1px solid var(--color-border, #d0d0d0);
+            border-radius: var(--radius-sm, 4px);
+            background: #ffffff;
+            color: var(--color-text, #111);
+            padding: 0.35rem 0.45rem;
+            font-size: 0.76rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-label {
+            font-size: 0.74rem;
+            color: var(--color-text-muted, #666);
+            margin-bottom: 0.25rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-value {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            font-size: 0.78rem;
+            color: var(--color-text, #111);
+            word-break: break-all;
+            background: var(--color-surface-offset-2, #ecece8);
+            padding: 0.45rem;
+            border-radius: var(--radius-sm, 4px);
+            margin-bottom: 0.45rem;
+            user-select: all;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-meter {
+            height: 4px;
+            background: var(--color-surface-dynamic, #e2e2e2);
+            border-radius: 999px;
+            overflow: hidden;
+            margin-bottom: 0.25rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-bar {
+            height: 100%;
+            background: var(--color-primary, #01696f);
+            border-radius: 999px;
+            transition: width 0.2s ease, background 0.2s ease;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-bar--warn {
+            background: #e67e22;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-bar--over {
+            background: #c0392b;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-count {
+            font-size: 0.72rem;
+            color: var(--color-text-muted, #666);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        #etiqueterBackdrop .barcode-composer__output-warning {
+            color: #c0392b;
+            font-weight: 700;
+        }
+
+        #etiqueterBackdrop .barcode-composer--readonly {
+            opacity: 0.7;
+        }
+
+        #etiqueterBackdrop .barcode-composer--readonly .barcode-composer__check {
+            pointer-events: none;
+        }
+
+        #etiqueterBackdrop .barcode-composer--readonly .barcode-composer__custom-field input {
+            pointer-events: none;
+            background: #f1f1f1;
+        }
+
+        @media (max-width: 640px) {
+            #etiqueterBackdrop .barcode-composer__field {
+                grid-template-columns: 1.2rem 2.2rem minmax(0, 6.8rem) minmax(0, 1fr);
+            }
+
+            #etiqueterBackdrop .barcode-composer__field--locked {
+                grid-template-columns: 2.2rem minmax(0, 6.8rem) minmax(0, 1fr);
+            }
+
+            #etiqueterBackdrop .barcode-composer__field[data-field="essence"] {
+                grid-template-columns: 1.2rem 2.2rem minmax(0, 6.8rem) minmax(0, 1fr);
+            }
+
+            #etiqueterBackdrop .barcode-composer__inline-select {
+                grid-column: 2 / -1;
+                max-width: none;
+                width: 100%;
+            }
+
+            #etiqueterBackdrop .barcode-composer__badge {
+                display: none;
+            }
+
+            #etiqueterBackdrop .barcode-composer__custom {
+                grid-template-columns: 1fr;
+            }
+        }
  
 /* Harmonisation finale: mêmes espacements verticaux pour tous les sliders de notation */
 :is(
