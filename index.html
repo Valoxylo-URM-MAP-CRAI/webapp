@@ -5363,51 +5363,58 @@
                         <p class="code-formula-hint" id="code-formula-hint" data-i18n="editor.common.formulaHintQrOffline">Encode les données de la pièce dans le code. Lecture sans connexion internet.</p>
                     </div>
                     <div style="margin-top: 12px; display: grid; gap: 6px;" id="code-content-group">
-                        <label style="font-size: 13px; font-weight: 600;" data-i18n="editor.common.codeContentLabel">Contenu encodé</label>
-                        <div id="generic-code-content">
-                            <div class="checkbox-group" id="code-content-fields">
-                                <label class="checkbox-item checkbox-item--locked">
-                                    <input type="checkbox" checked disabled data-field="id">
-                                    <span data-i18n="editor.common.codeFieldId">Référence (obligatoire)</span>
-                                </label>
-                                <label class="checkbox-item" data-min-formula="datamatrix">
-                                    <input type="checkbox" checked data-field="essence">
-                                    <span data-i18n="editor.common.codeFieldEssence">Essence</span>
-                                </label>
-                                <label class="checkbox-item" data-min-formula="datamatrix">
-                                    <input type="checkbox" checked data-field="dimensions">
-                                    <span data-i18n="editor.common.codeFieldDimensions">Dimensions</span>
-                                </label>
-                                <label class="checkbox-item" data-min-formula="qr-offline">
-                                    <input type="checkbox" data-field="score">
-                                    <span data-i18n="editor.common.codeFieldScore">Score Valobois</span>
-                                </label>
-                                <label class="checkbox-item" data-min-formula="qr-offline">
-                                    <input type="checkbox" checked data-field="orientation">
-                                    <span data-i18n="editor.common.codeFieldOrientation">Orientation de fin de vie</span>
-                                </label>
-                                <label class="checkbox-item" data-min-formula="qr-offline">
-                                    <input type="checkbox" data-field="date">
-                                    <span data-i18n="editor.common.codeFieldDate">Date de diagnostic</span>
-                                </label>
-                            </div>
-                            <div class="code-length-indicator" id="code-length-bar">
-                                <span data-i18n="editor.common.codeLengthLabel">Taille du contenu :</span>
-                                <span id="code-length-value">0</span>
-                                <span data-i18n="editor.common.codeLengthChars">caractères</span>
-                                <progress id="code-length-progress" max="100" value="0"></progress>
-                            </div>
-                        </div>
-
                         <div class="barcode-composer" id="barcodeComposer">
                             <div class="barcode-composer__title" data-i18n="editor.common.barcodeComposerTitle">Composition du code</div>
-
-                            <div class="barcode-composer__field barcode-composer__field--locked">
-                                <span class="barcode-composer__ai">(10)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewRef">L1P1</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldRefLabel">N° lot · N° pièce</span>
-                                <span class="barcode-composer__badge" data-i18n="editor.common.barcodeFieldRequired">obligatoire</span>
+                            <div class="barcode-composer__live-output">
+                                <div class="barcode-composer__output-label" data-i18n="editor.common.barcodeOutputLabel">Chaîne encodée :</div>
+                                <div class="barcode-composer__output-value" id="bcEncodedString">L1P1</div>
+                                <div class="barcode-composer__output-meter">
+                                    <div class="barcode-composer__output-bar" id="bcLengthBar" style="width:0%"></div>
+                                </div>
+                                <div class="barcode-composer__output-count">
+                                    <span id="bcCharCount">4</span>
+                                    <span id="bcCharLimitLabel">/ 48 caractères</span>
+                                    <span class="barcode-composer__output-warning" id="bcLengthWarning" hidden data-i18n="editor.common.barcodeLengthWarning">
+                                        Limite recommandée dépassée
+                                    </span>
+                                </div>
                             </div>
+                            <div class="barcode-composer__output">
+                                <div class="barcode-composer__custom">
+                                    <label class="barcode-composer__custom-field" id="bcPreviewPieceField">
+                                        <span>Pièce exemple</span>
+                                        <select id="bcPreviewPiece">
+                                            <option value="auto">Auto (pièce la plus renseignée)</option>
+                                        </select>
+                                    </label>
+                                    <label class="barcode-composer__custom-field" id="bcPayloadFormatField">
+                                        <span>Format du contenu</span>
+                                        <select id="bcPayloadFormat">
+                                            <option value="compact">Compact</option>
+                                            <option value="complet">Complet</option>
+                                        </select>
+                                    </label>
+                                    <label class="barcode-composer__custom-field">
+                                        <span data-i18n="editor.common.barcodeCustomLabel">Explication du code</span>
+                                        <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Ex: lot premium" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
+                                    </label>
+                                    <label class="barcode-composer__custom-field">
+                                        <span data-i18n="editor.common.barcodeCustomCode">Code à ajouter</span>
+                                        <input type="text" id="bcCustomCode" maxlength="32" placeholder="Ex: X9" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
+                                    </label>
+                                </div>
+                                <label class="barcode-composer__custom-field barcode-composer__custom-field--wide">
+                                    <span data-i18n="editor.common.barcodeFooterText">Texte de bas de page</span>
+                                    <textarea id="bcFooterText" rows="2" maxlength="120" placeholder="VALOXYLO · Lot 1 · 230 étiquettes · page 1/13 · 22/05/2026" data-i18n-placeholder="editor.common.barcodeFooterTextPlaceholder"></textarea>
+                                </label>
+                            </div>
+                            <div class="barcode-composer__selection-scroll">
+                                <div class="barcode-composer__field barcode-composer__field--locked">
+                                    <span class="barcode-composer__ai">(10)</span>
+                                    <span class="barcode-composer__preview" id="bcPreviewRef">L1P1</span>
+                                    <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldRefLabel">N° lot · N° pièce</span>
+                                    <span class="barcode-composer__badge" data-i18n="editor.common.barcodeFieldRequired">obligatoire</span>
+                                </div>
 
                             <label class="barcode-composer__field" data-field="essence">
                                 <input type="checkbox" class="barcode-composer__check" data-field="essence">
@@ -5539,36 +5546,12 @@
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMacroHistoireLabel">Macro-Histoire</span>
                             </label>
 
-                            <label class="barcode-composer__field" data-field="contamination">
-                                <input type="checkbox" class="barcode-composer__check" data-field="contamination">
-                                <span class="barcode-composer__ai">(CT)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewContamination">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldContaminationLabel">Contamination</span>
-                            </label>
-
-                            <div class="barcode-composer__output">
-                                <div class="barcode-composer__custom">
-                                    <label class="barcode-composer__custom-field">
-                                        <span data-i18n="editor.common.barcodeCustomLabel">Explication du code</span>
-                                        <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Ex: lot premium" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
-                                    </label>
-                                    <label class="barcode-composer__custom-field">
-                                        <span data-i18n="editor.common.barcodeCustomCode">Code à ajouter</span>
-                                        <input type="text" id="bcCustomCode" maxlength="32" placeholder="Ex: X9" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
-                                    </label>
-                                </div>
-                                <div class="barcode-composer__output-label" data-i18n="editor.common.barcodeOutputLabel">Chaîne encodée :</div>
-                                <div class="barcode-composer__output-value" id="bcEncodedString">L1P1</div>
-                                <div class="barcode-composer__output-meter">
-                                    <div class="barcode-composer__output-bar" id="bcLengthBar" style="width:0%"></div>
-                                </div>
-                                <div class="barcode-composer__output-count">
-                                    <span id="bcCharCount">4</span>
-                                    <span data-i18n="editor.common.barcodeOutputCountMax">/ 48 caractères</span>
-                                    <span class="barcode-composer__output-warning" id="bcLengthWarning" hidden data-i18n="editor.common.barcodeLengthWarning">
-                                        Limite recommandée dépassée
-                                    </span>
-                                </div>
+                                <label class="barcode-composer__field" data-field="contamination">
+                                    <input type="checkbox" class="barcode-composer__check" data-field="contamination">
+                                    <span class="barcode-composer__ai">(CT)</span>
+                                    <span class="barcode-composer__preview" id="bcPreviewContamination">—</span>
+                                    <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldContaminationLabel">Contamination</span>
+                                </label>
                             </div>
                         </div>
                     </div>

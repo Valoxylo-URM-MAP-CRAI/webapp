@@ -2592,10 +2592,18 @@ class ValoboisApp {
                 fallbackSituation
             })] : [];
         } else {
+            // Applique le fallback de quantité uniquement si aucune quantité explicite n'est fournie.
+            const hasExplicitDefaultQty = lot.defaultPieces.some((piece) => {
+                if (!piece || typeof piece !== 'object') return false;
+                const rawQty = piece.quantite;
+                if (rawQty == null) return false;
+                return String(rawQty).trim() !== '';
+            });
+            const fallbackTargetIndex = hasExplicitDefaultQty ? -1 : 0;
             lot.defaultPieces = lot.defaultPieces
                 .filter((piece) => piece && typeof piece === 'object')
                 .map((piece, index) => this.ensureDefaultPieceShape(lot, piece, {
-                    fallbackQty: index === 0 ? fallbackQty : '0',
+                    fallbackQty: index === fallbackTargetIndex ? fallbackQty : '',
                     fallbackLocation,
                     fallbackSituation
                 }));
@@ -20509,11 +20517,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     this.updateBarcodeComposerReadonlyState(formula);
                     this.updateEtiqueterCodeLengthIndicator();
                 });
-            }
-
-            const codeContentFields = document.getElementById('code-content-fields');
-            if (codeContentFields) {
-                codeContentFields.addEventListener('change', () => this.updateEtiqueterCodeLengthIndicator());
             }
 
             this.initBarcodeComposer();
@@ -39163,9 +39166,18 @@ renderRadar() {
         ];
     }
 
-    resolveBarcodeEssenceEn13556(piece, lot) {
-        const common = String(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun') || '').trim();
-        const scientific = String(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomScientifique') || '').trim();
+    getBarcodeComposerValueFromPieceOnly(piece, key) {
+        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        const pieceValue = pieceSource && pieceSource[key] != null && String(pieceSource[key]).trim() !== ''
+            ? pieceSource[key]
+            : (piece && piece[key]);
+        if (pieceValue != null && String(pieceValue).trim() !== '') return pieceValue;
+        return '';
+    }
+
+    resolveBarcodeEssenceEn13556(piece) {
+        const common = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun') || '').trim();
+        const scientific = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique') || '').trim();
         const resolved = this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific);
         return resolved && resolved.codeEn13556 ? String(resolved.codeEn13556).trim().toUpperCase() : '';
     }
@@ -39191,6 +39203,88 @@ renderRadar() {
         return String(Number(num.toFixed(digits))).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
     }
 
+    formatBarcodeComposerSignedNumber(value, digits = 0) {
+        const num = parseFloat(value);
+        if (!Number.isFinite(num)) return '';
+        if (digits <= 0) return String(Math.round(num));
+        return String(Number(num.toFixed(digits))).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    formatBarcodeComposerPco2CompactKg(valueKg) {
+        const num = parseFloat(valueKg);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        const floored = Math.floor(num);
+        if (floored <= 0) return '';
+        return String(floored);
+    }
+
+    formatBarcodeComposerVolumeCompactM3(valueM3) {
+        const num = parseFloat(valueM3);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        const digits = num < 1 ? 2 : 1;
+        return String(Number(num.toFixed(digits))).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    formatBarcodeComposerMassCompactKg(valueKg) {
+        const num = parseFloat(valueKg);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        return String(Number(num.toFixed(1))).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
+    }
+
+    formatBarcodeComposerPriceCompactEur(valueEur) {
+        const num = parseFloat(valueEur);
+        if (!Number.isFinite(num) || num <= 0) return '';
+        return String(Math.ceil(num));
+    }
+
+    formatBarcodeComposerDurabiliteNaturelleToken(valueRaw) {
+        const raw = String(valueRaw || '').trim();
+        if (!raw) return '';
+
+        const matches = raw.match(/\d+/g);
+        if (Array.isArray(matches) && matches.length) {
+            const unique = [];
+            matches.forEach((item) => {
+                const token = String(parseInt(item, 10));
+                if (token && !unique.includes(token)) unique.push(token);
+            });
+            if (unique.length >= 2) return unique.join('-');
+            if (unique.length === 1) return unique[0];
+        }
+
+        return this.abbreviateCompactToken(raw, 6);
+    }
+
+    getBarcodeComposerPieceVolumeM3(pieceLike) {
+        if (!pieceLike || typeof pieceLike !== 'object') return null;
+        const enriched = parseFloat(pieceLike.volumePieceEnrichi);
+        if (Number.isFinite(enriched) && enriched > 0) return enriched;
+        const volume = parseFloat(pieceLike.volumePiece);
+        if (Number.isFinite(volume) && volume > 0) return volume;
+        return null;
+    }
+
+    computeBarcodeComposerPieceTheoreticalPco2Kg(pieceLike, lot) {
+        if (!pieceLike || typeof pieceLike !== 'object') return null;
+        const volumeM3 = this.getBarcodeComposerPieceVolumeM3(pieceLike);
+        if (!(Number.isFinite(volumeM3) && volumeM3 > 0)) return null;
+
+        const lotAllot = lot && lot.allotissement ? lot.allotissement : {};
+        const rho = parseFloat(pieceLike.masseVolumique || lotAllot.masseVolumique);
+        if (!(Number.isFinite(rho) && rho > 0)) return null;
+
+        const woodPctRaw = pieceLike.bois !== '' && pieceLike.bois != null ? pieceLike.bois : lotAllot.bois;
+        const humidityRaw = pieceLike.humidite !== '' && pieceLike.humidite != null ? pieceLike.humidite : lotAllot.humidite;
+        const woodPct = Number.isFinite(parseFloat(woodPctRaw)) ? parseFloat(woodPctRaw) : 100;
+        const humidity = Number.isFinite(parseFloat(humidityRaw)) ? parseFloat(humidityRaw) : 12;
+
+        const moistureDenominator = 1 + (humidity / 100);
+        if (!(moistureDenominator > 0)) return null;
+
+        const pco2Kg = (44 / 12) * 0.5 * rho * volumeM3 * (woodPct / 100) / moistureDenominator;
+        return Number.isFinite(pco2Kg) && pco2Kg > 0 ? pco2Kg : null;
+    }
+
     getBarcodeComposerLevelCode(levelRaw, prefix = '') {
         const level = String(levelRaw || '').trim().toLowerCase();
         if (!level) return '';
@@ -39200,57 +39294,211 @@ renderRadar() {
         return '';
     }
 
+    getBarcodeComposerPieceCriterionLevel(piece, sectionKey, fieldKey, lot = null) {
+        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        if (!pieceSource || typeof pieceSource !== 'object') return '';
+
+        const section = pieceSource[sectionKey];
+        if (section && typeof section === 'object') {
+            const fieldObj = section[fieldKey];
+            if (fieldObj && typeof fieldObj === 'object' && fieldObj.niveau != null) {
+                return String(fieldObj.niveau).trim();
+            }
+            if (typeof fieldObj === 'string' && fieldObj.trim()) {
+                return fieldObj.trim();
+            }
+        }
+
+        const direct = pieceSource[fieldKey];
+        if (direct && typeof direct === 'object' && direct.niveau != null) {
+            return String(direct.niveau).trim();
+        }
+        if (typeof direct === 'string' && direct.trim()) {
+            return direct.trim();
+        }
+
+        const readLevelFromSection = (container) => {
+            if (!container || typeof container !== 'object') return '';
+            const section = container[sectionKey];
+            if (section && typeof section === 'object') {
+                const fieldObj = section[fieldKey];
+                if (fieldObj && typeof fieldObj === 'object' && fieldObj.niveau != null) {
+                    return String(fieldObj.niveau).trim();
+                }
+                if (typeof fieldObj === 'string' && fieldObj.trim()) {
+                    return fieldObj.trim();
+                }
+            }
+            const directField = container[fieldKey];
+            if (directField && typeof directField === 'object' && directField.niveau != null) {
+                return String(directField.niveau).trim();
+            }
+            if (typeof directField === 'string' && directField.trim()) {
+                return directField.trim();
+            }
+            return '';
+        };
+
+        const levelFromLot = readLevelFromSection(lot);
+        if (levelFromLot) return levelFromLot;
+
+        const allot = lot && lot.allotissement && typeof lot.allotissement === 'object' ? lot.allotissement : null;
+        const levelFromAllot = readLevelFromSection(allot);
+        if (levelFromAllot) return levelFromAllot;
+
+        return '';
+    }
+
+    getBarcodeComposerPieceScoreNetMax(piece, lot = null) {
+        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        const lotSource = lot && typeof lot === 'object' ? lot : null;
+        const lotAllot = lotSource && lotSource.allotissement && typeof lotSource.allotissement === 'object'
+            ? lotSource.allotissement
+            : null;
+
+        const candidatesNet = [
+            pieceSource && pieceSource.scoreNet,
+            pieceSource && pieceSource.scoreValoboisNet,
+            pieceSource && pieceSource.netScore,
+            lotSource && lotSource.scoreNet,
+            lotSource && lotSource.scoreValoboisNet,
+            lotSource && lotSource.netScore,
+            lotAllot && lotAllot.scoreNet,
+            lotAllot && lotAllot.scoreValoboisNet,
+            lotAllot && lotAllot.netScore
+        ];
+        const candidatesMax = [
+            pieceSource && pieceSource.scoreMax,
+            pieceSource && pieceSource.scoreValoboisMax,
+            pieceSource && pieceSource.maxScore,
+            lotSource && lotSource.scoreMax,
+            lotSource && lotSource.scoreValoboisMax,
+            lotSource && lotSource.maxScore,
+            lotAllot && lotAllot.scoreMax,
+            lotAllot && lotAllot.scoreValoboisMax,
+            lotAllot && lotAllot.maxScore
+        ];
+
+        let netRaw = candidatesNet.find((value) => Number.isFinite(parseFloat(value)));
+        let maxRaw = candidatesMax.find((value) => Number.isFinite(parseFloat(value)));
+
+        // Fallback sur l'état notation du lot quand les champs score* ne sont pas matérialisés.
+        if ((!Number.isFinite(parseFloat(netRaw)) || !Number.isFinite(parseFloat(maxRaw))) && lotSource) {
+            const lotState = this.getRadarOrientationPositionData(lotSource);
+            if (lotState && typeof lotState === 'object') {
+                if (!Number.isFinite(parseFloat(netRaw))) {
+                    netRaw = lotState.decomposition && lotState.decomposition.netNoConfidence;
+                }
+                if (!Number.isFinite(parseFloat(maxRaw))) {
+                    maxRaw = lotState.positiveScoreMax;
+                }
+            }
+        }
+
+        const scoreNet = this.formatBarcodeComposerSignedNumber(netRaw, 0);
+        const scoreMax = this.formatBarcodeComposerNumber(maxRaw, 0);
+        return scoreNet && scoreMax ? `${scoreNet}/${scoreMax}` : '';
+    }
+
     buildBarcodeComposerValueMap(lot, piece, essenceMode = 'abbr') {
         const mode = String(essenceMode || 'abbr').trim().toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
         const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
         const lotNum = Number.isInteger(piece && piece.sourceLotIndex) ? piece.sourceLotIndex + 1 : null;
 
-        const essenceNom = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun');
+        const computedPiece = (() => {
+            if (!pieceSource || typeof pieceSource !== 'object' || !lot || typeof lot !== 'object') return null;
+            const needsDerived = ['prixPiece', 'massePiece', 'volumePiece'].some((key) => {
+                const value = parseFloat(pieceSource[key]);
+                return !(Number.isFinite(value) && value > 0);
+            });
+            if (!needsDerived || typeof this.recalculatePiece !== 'function') return null;
+            try {
+                const preview = { ...pieceSource };
+                this.recalculatePiece(preview, lot);
+                return preview;
+            } catch (err) {
+                return null;
+            }
+        })();
+
+        const essenceNom = this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun');
         const essenceAbbr = essenceNom ? this.abbreviateEssence(essenceNom, 4, 2) : '';
-        const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece, lot);
+        const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece);
         const essenceValue = mode === 'en13556' ? essenceEn13556 : essenceAbbr;
 
-        const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'longueur'));
-        const largeur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'largeur'));
-        const epaisseur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'epaisseur'));
+        const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'longueur'));
+        const largeur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'largeur'));
+        const epaisseur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'epaisseur'));
         const largeurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'largeur');
         const epaisseurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'epaisseur');
 
-        const orientationRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'orientation') || lot?.orientationCode || '';
+        const orientationRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'orientation');
         const orientationAbbr = this.abbreviateCompactToken(orientationRaw, 4);
 
-        const prixUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'prixPiece'), 2);
-        const masseUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'massePiece'), 2);
-        const pco2Unitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'carboneBiogeniqueEstime'), 2);
-        const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'typePiece'), 4);
+        const prixUnitaireRaw = this.formatBarcodeComposerPriceCompactEur(
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'prixPiece')
+            || (computedPiece ? computedPiece.prixPiece : '')
+        );
+        const prixUnitaire = prixUnitaireRaw ? `${prixUnitaireRaw}€` : '';
+        const masseUnitaireRaw = this.formatBarcodeComposerMassCompactKg(
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'massePiece')
+            || (computedPiece ? computedPiece.massePiece : '')
+        );
+        const masseUnitaire = masseUnitaireRaw ? `${masseUnitaireRaw}kg` : '';
+        const pco2PieceTheoKg = this.computeBarcodeComposerPieceTheoreticalPco2Kg(pieceSource, lot);
+        const pco2Fallback = parseFloat(pieceSource && pieceSource.carboneBiogeniqueEstimeExact != null
+            ? pieceSource.carboneBiogeniqueEstimeExact
+            : (pieceSource ? pieceSource.carboneBiogeniqueEstime : ''));
+        const pco2ValueKg = Number.isFinite(pco2PieceTheoKg) && pco2PieceTheoKg > 0
+            ? pco2PieceTheoKg
+            : (Number.isFinite(pco2Fallback) && pco2Fallback > 0 ? pco2Fallback : null);
+        const pco2UnitaireRaw = this.formatBarcodeComposerPco2CompactKg(pco2ValueKg);
+        const pco2Unitaire = pco2UnitaireRaw ? `${pco2UnitaireRaw}kg` : '';
+        const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOnly(piece, 'typePiece'), 4);
 
-        const ageArbre = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'ageArbre');
-        const dateMiseEnServiceRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'dateMiseEnService');
-        const amortissementBio = this.formatBarcodeComposerNumber(this.computeAmortissementBiologique(ageArbre, dateMiseEnServiceRaw), 2);
+        const allot = lot && lot.allotissement && typeof lot.allotissement === 'object' ? lot.allotissement : null;
+        const ageArbre = this.getBarcodeComposerValueFromPieceOnly(piece, 'ageArbre')
+            || (allot && allot._avgAgeArbre != null ? allot._avgAgeArbre : '');
+        const dateMiseEnServiceRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'dateMiseEnService')
+            || (allot && allot._avgServiceYear != null ? allot._avgServiceYear : '')
+            || (allot && allot.dateMiseEnService != null ? allot.dateMiseEnService : '');
+        const amortissementRaw = this.computeAmortissementBiologique(ageArbre, dateMiseEnServiceRaw);
+        const amortissementBio = this.formatBarcodeComposerSignedNumber(
+            String(amortissementRaw || '').replace(',', '.'),
+            2
+        );
         const dateYear = (() => {
             const match = String(dateMiseEnServiceRaw || '').match(/\b(\d{4})\b/);
             return match ? match[1] : '';
         })();
 
-        const volumeUnitaire = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'volumePiece'), 4);
-        const scoreState = lot ? this.getRadarOrientationPositionData(lot) : null;
-        const scoreNet = this.formatBarcodeComposerNumber(scoreState && scoreState.decomposition ? scoreState.decomposition.netNoConfidence : '', 0);
-        const scoreMax = this.formatBarcodeComposerNumber(scoreState ? scoreState.positiveScoreMax : '', 0);
-        const scoreNetMax = scoreNet && scoreMax ? `${scoreNet}/${scoreMax}` : '';
+        const volumePieceM3 = this.getBarcodeComposerPieceVolumeM3(pieceSource)
+            || this.getBarcodeComposerPieceVolumeM3(computedPiece);
+        const volumeUnitaireRaw = this.formatBarcodeComposerVolumeCompactM3(volumePieceM3);
+        const volumeUnitaire = volumeUnitaireRaw ? `${volumeUnitaireRaw}m3` : '';
+        const scoreNetMax = this.getBarcodeComposerPieceScoreNetMax(piece, lot);
 
-        const classementEstime = this.getBarcodeComposerLevelCode(lot?.usage?.classementUsage?.niveau, 'ClaEst');
+        const classementEstime = this.getBarcodeComposerLevelCode(
+            this.getBarcodeComposerPieceCriterionLevel(piece, 'usage', 'classementUsage', lot),
+            'ClaEst'
+        );
 
         const durabResolved = this.resolveDurabiliteNaturelleEssenceFromNames(
-            this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomCommun'),
-            this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'essenceNomScientifique')
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun'),
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique')
         );
-        const durabiliteNaturelle = this.abbreviateCompactToken(
-            durabResolved && durabResolved.durabiliteChampignons ? durabResolved.durabiliteChampignons : '',
-            6
+        const durabiliteNaturelle = this.formatBarcodeComposerDurabiliteNaturelleToken(
+            durabResolved && durabResolved.durabiliteChampignons ? durabResolved.durabiliteChampignons : ''
         );
 
-        const macroHistoire = this.getBarcodeComposerLevelCode(lot?.provenance?.macroProv?.niveau, 'MaHis');
-        const contamination = this.getBarcodeComposerLevelCode(lot?.denat?.contaminationDenat?.niveau, 'Cont');
+        const macroHistoire = this.getBarcodeComposerLevelCode(
+            this.getBarcodeComposerPieceCriterionLevel(piece, 'provenance', 'macroProv', lot),
+            'MaHis'
+        );
+        const contamination = this.getBarcodeComposerLevelCode(
+            this.getBarcodeComposerPieceCriterionLevel(piece, 'denat', 'contaminationDenat', lot),
+            'Cont'
+        );
 
         return {
             ref: { value: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '', preview: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '—' },
@@ -39281,6 +39529,7 @@ renderRadar() {
             lotNum: true,
             pieceNum: true,
             essenceMode: 'abbr',
+            payloadFormat: 'compact',
             essence: true,
             longueur: true,
             largeur: true,
@@ -39303,18 +39552,30 @@ renderRadar() {
         };
     }
 
+    normalizeBarcodePayloadFormat(value) {
+        return String(value || '').trim().toLowerCase() === 'complet' ? 'complet' : 'compact';
+    }
+
+    isBarcodePayloadFormatAvailable(formula) {
+        const normalized = this.normalizeCodeFormula(formula);
+        return normalized === 'datamatrix' || normalized === 'qr-offline';
+    }
+
     getBarcodeComposerConfig() {
         if (!this._barcodeComposerFieldState || typeof this._barcodeComposerFieldState !== 'object') {
             this._barcodeComposerFieldState = this.getBarcodeComposerDefaultConfig();
         }
         if (!this._barcodeComposerCustomState || typeof this._barcodeComposerCustomState !== 'object') {
-            this._barcodeComposerCustomState = { label: '', code: '' };
+            this._barcodeComposerCustomState = { label: '', code: '', footerText: '' };
         }
+        const payloadFormat = this.normalizeBarcodePayloadFormat(this._barcodeComposerFieldState.payloadFormat);
         return {
             ...this.getBarcodeComposerDefaultConfig(),
             ...this._barcodeComposerFieldState,
+            payloadFormat,
             customLabel: String(this._barcodeComposerCustomState.label || '').trim(),
             customCode: String(this._barcodeComposerCustomState.code || '').trim(),
+            footerText: String(this._barcodeComposerCustomState.footerText || '').trim(),
             lotNum: true,
             pieceNum: true
         };
@@ -39331,19 +39592,112 @@ renderRadar() {
         return '';
     }
 
-    buildBarcodeContent(lot, piece, lotIndex, pieceIndex, config = {}) {
+    buildBarcodeContent(lot, piece, lotIndex, pieceIndex, formula, config = {}) {
+        const normalizedFormula = this.normalizeCodeFormula(formula);
         const cfg = {
             ...this.getBarcodeComposerDefaultConfig(),
             ...(config || {}),
             lotNum: true,
             pieceNum: true
         };
+        cfg.payloadFormat = this.normalizeBarcodePayloadFormat(cfg.payloadFormat);
 
         const lotNum = Number.isInteger(lotIndex) ? lotIndex + 1 : 1;
         const pieceNum = Number.isInteger(pieceIndex) ? pieceIndex + 1 : 1;
-        const segments = [`L${lotNum}P${pieceNum}`];
-
         const map = this.buildBarcodeComposerValueMap(lot, piece, cfg.essenceMode);
+        const supportsComplete = this.isBarcodePayloadFormatAvailable(normalizedFormula);
+        const isComplete = supportsComplete && cfg.payloadFormat === 'complet';
+
+        if (isComplete) {
+            const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+            const completeSegments = [`Lot ${lotNum}`, `Pièce ${pieceNum}`];
+            const add = (label, value) => {
+                const cleaned = String(value || '').trim();
+                if (cleaned) completeSegments.push(`${label} : ${cleaned}`);
+            };
+            const withUnitSpacing = (value) => String(value || '')
+                .replace(/\s*(kg|mm|m3|€)$/i, ' $1')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+                if (!cfg[field]) return;
+                const token = map && map[field] && map[field].value ? String(map[field].value).trim() : '';
+                if (!token) return;
+                switch (field) {
+                    case 'essence': {
+                        const fullNameRaw = String(this.getBarcodeComposerValueFromPieceOnly(pieceSource, 'essenceNomCommun') || '').trim();
+                        const fullName = fullNameRaw.replace(/\s+\(([A-Z0-9.\-]{2,20})\)/gu, '').trim();
+                        const value = fullName || fullNameRaw || token;
+                        add('Essence', value);
+                        break;
+                    }
+                    case 'longueur':
+                        add('Longueur', `${token} mm`);
+                        break;
+                    case 'largeur':
+                        add('Largeur', `${token} mm`);
+                        break;
+                    case 'epaisseur':
+                        add('Epaisseur', `${token} mm`);
+                        break;
+                    case 'largeurExtremes':
+                        add('Extrêmes largeurs', `${token} mm`);
+                        break;
+                    case 'epaisseurExtremes':
+                        add('Extrêmes épaisseurs', `${token} mm`);
+                        break;
+                    case 'orientationAbbr':
+                        add('Orientation', this.getBarcodeComposerValueFromPieceOnly(pieceSource, 'orientation') || token);
+                        break;
+                    case 'prixUnitaire':
+                        add('Prix unitaire', withUnitSpacing(token));
+                        break;
+                    case 'masseUnitaire':
+                        add('Masse unitaire', withUnitSpacing(token));
+                        break;
+                    case 'pco2Unitaire':
+                        add('PCO2 unitaire', withUnitSpacing(token));
+                        break;
+                    case 'typePieceAbbr':
+                        add('Type pièce', this.getBarcodeComposerValueFromPieceOnly(pieceSource, 'typePiece') || token);
+                        break;
+                    case 'amortissementBio':
+                        add('Amortissement biologique', token);
+                        break;
+                    case 'dateMiseService':
+                        add('Date mise en service', token);
+                        break;
+                    case 'volumeUnitaire':
+                        add('Volume unitaire', withUnitSpacing(token));
+                        break;
+                    case 'scoreNetMax':
+                        add('Score net / max', token);
+                        break;
+                    case 'classementEstime':
+                        add('Classement estimé', this.getBarcodeComposerPieceCriterionLevel(piece, 'usage', 'classementUsage', lot) || token);
+                        break;
+                    case 'durabiliteNaturelle':
+                        add('Durabilité naturelle', token);
+                        break;
+                    case 'macroHistoire':
+                        add('Macro-Histoire', this.getBarcodeComposerPieceCriterionLevel(piece, 'provenance', 'macroProv', lot) || token);
+                        break;
+                    case 'contamination':
+                        add('Contamination', this.getBarcodeComposerPieceCriterionLevel(piece, 'denat', 'contaminationDenat', lot) || token);
+                        break;
+                    default:
+                        add(field, token);
+                        break;
+                }
+            });
+
+            const customCodeRaw = String(cfg.customCode || '').trim().slice(0, 32);
+            if (customCodeRaw) add('Code ajouté', customCodeRaw);
+            return completeSegments.join(' | ');
+        }
+
+        const segments = [`L${lotNum}P${pieceNum}`];
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
             if (!cfg[field]) return;
             const token = map && map[field] && map[field].value ? String(map[field].value).trim() : '';
@@ -39371,9 +39725,25 @@ renderRadar() {
     }
 
     getCodeFormulaMaxLength(formula) {
-        const limits = { barcode1d: 48, datamatrix: 60, 'qr-offline': 300, 'qr-online': 120 };
+        // Seuils DataMatrix — ISO/IEC 16022
+        // Plafond dur    : 2335 chars (symbole 144×144, capacité maximale)
+        // Seuil warning  : 400 chars  (au-delà, symbole >52×52, lisibilité terrain dégradée sur étiquette bois)
+        const DATAMATRIX_MAX = 2335;
+        const limits = { barcode1d: 48, datamatrix: DATAMATRIX_MAX, 'qr-offline': 2953, 'qr-online': 120 };
         const normalized = this.normalizeCodeFormula(formula);
         return limits[normalized] || 120;
+    }
+
+    getCodeFormulaWarnLength(formula) {
+        const normalized = this.normalizeCodeFormula(formula);
+        const DATAMATRIX_WARN = 400;
+        const warnings = {
+            barcode1d: 36,
+            datamatrix: DATAMATRIX_WARN,
+            'qr-offline': null,
+            'qr-online': null
+        };
+        return Object.prototype.hasOwnProperty.call(warnings, normalized) ? warnings[normalized] : null;
     }
 
     getSelectedCodeFormula() {
@@ -39383,7 +39753,7 @@ renderRadar() {
     }
 
     getSelectedCodeContentFields() {
-        const nodes = document.querySelectorAll('#code-content-fields input[data-field]:checked:not(:disabled)');
+        const nodes = document.querySelectorAll('#barcodeComposer .barcode-composer__check[data-field]:checked:not(:disabled)');
         const fields = [];
         nodes.forEach((node) => {
             const field = String(node.getAttribute('data-field') || '').trim();
@@ -39424,69 +39794,213 @@ renderRadar() {
     updateEtiqueterContentSelectorVisibility(formula) {
         const group = document.getElementById('code-content-group');
         if (!group) return;
-        const normalized = this.normalizeCodeFormula(formula);
-        const genericContent = document.getElementById('generic-code-content');
-
-        if (genericContent) {
-            if (normalized === 'barcode1d' || normalized === 'qr-online') {
-                genericContent.style.display = 'none';
-            } else {
-                genericContent.style.display = '';
-            }
-        }
         group.style.display = '';
 
-        const rank = this.getCodeFormulaRank(normalized);
-        const nodes = group.querySelectorAll('#code-content-fields [data-min-formula]');
-        nodes.forEach((node) => {
-            const minFormula = String(node.getAttribute('data-min-formula') || '').trim();
-            const minRank = this.getCodeFormulaRank(minFormula);
-            const isAvailable = rank >= minRank;
-            node.style.opacity = isAvailable ? '1' : '0.4';
-            const checkbox = node.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-                checkbox.disabled = !isAvailable;
-                if (!isAvailable) checkbox.checked = false;
-            }
-        });
+        const formatField = document.getElementById('bcPayloadFormatField');
+        const formatSelect = document.getElementById('bcPayloadFormat');
+        const allowFormat = this.isBarcodePayloadFormatAvailable(formula);
+        if (formatField) formatField.style.display = allowFormat ? '' : 'none';
+        if (!formatSelect) return;
+
+        formatSelect.disabled = !allowFormat;
+        const nextValue = allowFormat ? this.normalizeBarcodePayloadFormat(formatSelect.value) : 'compact';
+        formatSelect.value = nextValue;
+        if (!this._barcodeComposerFieldState || typeof this._barcodeComposerFieldState !== 'object') {
+            this._barcodeComposerFieldState = this.getBarcodeComposerDefaultConfig();
+        }
+        const prevStateValue = this.normalizeBarcodePayloadFormat(this._barcodeComposerFieldState.payloadFormat);
+        this._barcodeComposerFieldState.payloadFormat = nextValue;
+        if (prevStateValue !== nextValue && typeof this._updateBarcodeComposerOutput === 'function') {
+            this._updateBarcodeComposerOutput();
+        }
     }
 
     updateBarcodeComposerReadonlyState(formula) {
         const composer = document.getElementById('barcodeComposer');
         if (!composer) return;
-        const isBarcodeMode = this.normalizeCodeFormula(formula) === 'barcode1d';
-        composer.classList.toggle('barcode-composer--readonly', !isBarcodeMode);
+        composer.classList.remove('barcode-composer--readonly');
         composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
             const isAvailable = checkbox.dataset.available !== 'false';
-            checkbox.disabled = !isBarcodeMode || !isAvailable;
+            checkbox.disabled = !isAvailable;
         });
         composer.querySelectorAll('.barcode-composer__custom-field input').forEach((input) => {
-            input.disabled = !isBarcodeMode;
+            input.disabled = false;
+        });
+        composer.querySelectorAll('.barcode-composer__custom-field textarea').forEach((textarea) => {
+            textarea.disabled = false;
         });
         const essenceModeEl = composer.querySelector('#bcEssenceMode');
-        if (essenceModeEl) essenceModeEl.disabled = !isBarcodeMode;
+        if (essenceModeEl) essenceModeEl.disabled = false;
+    }
+
+    getBarcodeComposerFieldUnavailableTooltip(field) {
+        const tips = {
+            essence: 'Essence manquante sur les pieces selectionnees.',
+            longueur: 'Longueur manquante sur les pieces selectionnees.',
+            largeur: 'Largeur manquante sur les pieces selectionnees.',
+            epaisseur: 'Epaisseur manquante sur les pieces selectionnees.',
+            largeurExtremes: 'Aucune serie de mesures multiples exploitable pour les largeurs.',
+            epaisseurExtremes: 'Aucune serie de mesures multiples exploitable pour les epaisseurs.',
+            orientationAbbr: 'Orientation non renseignee sur les pieces selectionnees.',
+            prixUnitaire: 'Prix unitaire piece non renseigne.',
+            masseUnitaire: 'Masse unitaire piece non renseignee.',
+            pco2Unitaire: 'PCO2 unitaire non calculable: donnees dimensions/masse volumique insuffisantes.',
+            typePieceAbbr: 'Type de piece non renseigne.',
+            amortissementBio: 'Amortissement biologique indisponible: age arbre, date mise en service et date du diagnostic sont requis.',
+            dateMiseService: 'Date de mise en service non renseignee.',
+            volumeUnitaire: 'Volume unitaire non calcule.',
+            scoreNetMax: 'Score net / score max indisponible: notation non calculee pour les lots/pieces selectionnes.',
+            classementEstime: 'Classement estime non note.',
+            durabiliteNaturelle: 'Durabilite naturelle introuvable (essence manquante ou non resolue).',
+            macroHistoire: 'Macro-histoire non notee.',
+            contamination: 'Contamination non notee.'
+        };
+        return tips[field] || 'Valeur indisponible pour les lots/pieces selectionnes.';
+    }
+
+    updateBarcodeComposerFieldAvailabilityIndicator(fieldLabel, field, isAvailable) {
+        if (!fieldLabel) return;
+        let indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
+        if (!indicator) {
+            indicator = document.createElement('span');
+            indicator.className = 'barcode-composer__availability-dot';
+            indicator.setAttribute('aria-hidden', 'true');
+            indicator.textContent = '!';
+            fieldLabel.appendChild(indicator);
+        }
+
+        if (isAvailable) {
+            indicator.hidden = true;
+            indicator.removeAttribute('title');
+            indicator.removeAttribute('aria-label');
+            return;
+        }
+
+        const tip = this.getBarcodeComposerFieldUnavailableTooltip(field);
+        indicator.hidden = false;
+        indicator.setAttribute('title', tip);
+        indicator.setAttribute('aria-label', tip);
+    }
+
+    getBarcodeComposerPreviewAvailabilityScore(lot, item) {
+        if (!lot || !item) return -1;
+        const config = this.getBarcodeComposerConfig();
+        const essenceMode = String(config && config.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        const valueMap = this.buildBarcodeComposerValueMap(lot, item, essenceMode);
+        let score = 0;
+
+        this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+            const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
+            if (value) score += 1;
+        });
+
+        return score;
+    }
+
+    getBarcodeComposerFieldsAvailabilityMap(essenceMode = 'abbr') {
+        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+        const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+        const availability = {};
+
+        this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+            availability[field] = false;
+        });
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+            if (!lot) return;
+            const items = this.buildEtiquettePieceItems(lot, lotIndex);
+            if (!Array.isArray(items) || !items.length) return;
+
+            items.forEach((item) => {
+                const valueMap = this.buildBarcodeComposerValueMap(lot, item, mode);
+                this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
+                    if (availability[field]) return;
+                    const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
+                    if (value) availability[field] = true;
+                });
+            });
+        });
+
+        return availability;
+    }
+
+    getBarcodeComposerPreviewCandidates() {
+        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+        const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+        const candidates = [];
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+            if (!lot) return;
+            const items = this.buildEtiquettePieceItems(lot, lotIndex);
+            if (!Array.isArray(items) || !items.length) return;
+
+            items.forEach((item) => {
+                const pieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : 0;
+                const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+                const pieceLabel = String(item && item.pieceLabel ? item.pieceLabel : `Pièce ${pieceIndex + 1}`).trim();
+                candidates.push({
+                    lot,
+                    item,
+                    lotIndex,
+                    pieceIndex,
+                    score: this.getBarcodeComposerPreviewAvailabilityScore(lot, item),
+                    label: `${lotLabel} · ${pieceLabel}`
+                });
+            });
+        });
+
+        return candidates;
     }
 
     getEtiqueterPreviewContext() {
-        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
-        const lotIndex = selectedLotIndices.length ? selectedLotIndices[0] : (this.currentLotIndex || 0);
-        const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
-        if (!lot) return { lot: null, item: null, lotIndex: 0, pieceIndex: 0 };
+        const candidates = this.getBarcodeComposerPreviewCandidates();
+        if (!candidates.length) return { lot: null, item: null, lotIndex: 0, pieceIndex: 0 };
 
-        const items = this.buildEtiquettePieceItems(lot, lotIndex);
-        const item = Array.isArray(items) && items.length ? items[0] : null;
-        const pieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : 0;
+        const selection = this._barcodeComposerPreviewSelection && typeof this._barcodeComposerPreviewSelection === 'object'
+            ? this._barcodeComposerPreviewSelection
+            : null;
+        if (selection && Number.isInteger(selection.lotIndex) && Number.isInteger(selection.pieceIndex)) {
+            const forced = candidates.find((entry) => entry.lotIndex === selection.lotIndex && entry.pieceIndex === selection.pieceIndex);
+            if (forced) {
+                return {
+                    lot: forced.lot,
+                    item: forced.item,
+                    lotIndex: forced.lotIndex,
+                    pieceIndex: forced.pieceIndex
+                };
+            }
+        }
 
-        return { lot, item, lotIndex, pieceIndex };
+        let bestContext = candidates[0];
+        candidates.forEach((entry) => {
+            if (entry.score > bestContext.score) bestContext = entry;
+        });
+
+        return {
+            lot: bestContext.lot,
+            item: bestContext.item,
+            lotIndex: bestContext.lotIndex,
+            pieceIndex: bestContext.pieceIndex
+        };
     }
 
     refreshBarcodeComposerPreview() {
+        const selection = this._barcodeComposerPreviewSelection;
+        if (selection && Number.isInteger(selection.lotIndex)) {
+            const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+            const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+            if (!lotIndices.includes(selection.lotIndex)) {
+                this._barcodeComposerPreviewSelection = null;
+            }
+        }
         const context = this.getEtiqueterPreviewContext();
         this.initBarcodeComposer(context.lot, context.item, context.lotIndex, context.pieceIndex);
     }
 
     initBarcodeComposer(lot = null, piece = null, lotIndex = 0, pieceIndex = 0) {
-        const BARCODE_MAX = 48;
         const composer = document.getElementById('barcodeComposer');
         if (!composer) return;
 
@@ -39507,13 +40021,18 @@ renderRadar() {
 
         const customLabelEl = document.getElementById('bcCustomLabel');
         const customCodeEl = document.getElementById('bcCustomCode');
+        const footerTextEl = document.getElementById('bcFooterText');
+        const payloadFormatEl = document.getElementById('bcPayloadFormat');
+        const previewPieceEl = document.getElementById('bcPreviewPiece');
         const essenceModeEl = document.getElementById('bcEssenceMode');
 
         const currentState = this.getBarcodeComposerConfig();
         const essenceMode = String(currentState.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
         if (essenceModeEl) essenceModeEl.value = essenceMode;
+        if (payloadFormatEl) payloadFormatEl.value = this.normalizeBarcodePayloadFormat(currentState.payloadFormat);
 
         const valueMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, essenceMode);
+        const availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(essenceMode);
         const previewIds = {
             ref: 'bcPreviewRef',
             essence: 'bcPreviewEssence',
@@ -39546,14 +40065,43 @@ renderRadar() {
 
         if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
         if (customCodeEl) customCodeEl.value = currentState.customCode || '';
+        if (footerTextEl) footerTextEl.value = currentState.footerText || '';
+
+        if (previewPieceEl) {
+            const candidates = this.getBarcodeComposerPreviewCandidates();
+            previewPieceEl.innerHTML = '';
+
+            const autoOption = document.createElement('option');
+            autoOption.value = 'auto';
+            autoOption.textContent = 'Auto (pièce la plus renseignée)';
+            previewPieceEl.appendChild(autoOption);
+
+            candidates.forEach((entry) => {
+                const option = document.createElement('option');
+                option.value = `${entry.lotIndex}:${entry.pieceIndex}`;
+                option.textContent = entry.label;
+                previewPieceEl.appendChild(option);
+            });
+
+            const selected = this._barcodeComposerPreviewSelection;
+            if (selected && Number.isInteger(selected.lotIndex) && Number.isInteger(selected.pieceIndex)) {
+                const selectedValue = `${selected.lotIndex}:${selected.pieceIndex}`;
+                previewPieceEl.value = candidates.some((entry) => `${entry.lotIndex}:${entry.pieceIndex}` === selectedValue)
+                    ? selectedValue
+                    : 'auto';
+            } else {
+                previewPieceEl.value = 'auto';
+            }
+        }
 
         composer.querySelectorAll('.barcode-composer__check[data-field]').forEach((check) => {
             const field = String(check.getAttribute('data-field') || '').trim();
             if (!field) return;
             const label = composer.querySelector(`.barcode-composer__field[data-field="${field}"]`);
-            const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
-            const isAvailable = !!value;
+            const labelText = label ? label.querySelector('.barcode-composer__label') : null;
+            const isAvailable = !!availabilityMap[field];
             if (label) label.style.opacity = isAvailable ? '1' : '0.4';
+            this.updateBarcodeComposerFieldAvailabilityIndicator(labelText, field, isAvailable);
             check.dataset.available = isAvailable ? 'true' : 'false';
             if (!isAvailable) {
                 check.checked = false;
@@ -39563,14 +40111,23 @@ renderRadar() {
         });
 
         const updateOutput = () => {
+            const selectedFormula = this.getSelectedCodeFormula();
             const nextEssenceMode = essenceModeEl && essenceModeEl.value === 'en13556' ? 'en13556' : 'abbr';
+            const requestedFormat = this.normalizeBarcodePayloadFormat(payloadFormatEl && payloadFormatEl.value);
+            const nextPayloadFormat = this.isBarcodePayloadFormatAvailable(selectedFormula) ? requestedFormat : 'compact';
+            if (payloadFormatEl) payloadFormatEl.value = nextPayloadFormat;
             const currentMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, nextEssenceMode);
-            const config = { lotNum: true, pieceNum: true, essenceMode: nextEssenceMode };
+            const currentAvailabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(nextEssenceMode);
+            const config = {
+                lotNum: true,
+                pieceNum: true,
+                essenceMode: nextEssenceMode,
+                payloadFormat: nextPayloadFormat
+            };
 
             this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
                 const check = composer.querySelector(`.barcode-composer__check[data-field="${field}"]`);
-                const fieldValue = currentMap && currentMap[field] && currentMap[field].value ? String(currentMap[field].value).trim() : '';
-                config[field] = !!(check && check.checked && fieldValue);
+                config[field] = !!(check && check.checked && currentAvailabilityMap[field]);
             });
 
             Object.keys(previewIds).forEach((field) => {
@@ -39583,7 +40140,8 @@ renderRadar() {
             this._barcodeComposerFieldState = { ...config };
             this._barcodeComposerCustomState = {
                 label: String(customLabelEl && customLabelEl.value ? customLabelEl.value : '').trim().slice(0, 40),
-                code: String(customCodeEl && customCodeEl.value ? customCodeEl.value : '').trim().slice(0, 32)
+                code: String(customCodeEl && customCodeEl.value ? customCodeEl.value : '').trim().slice(0, 32),
+                footerText: String(footerTextEl && footerTextEl.value ? footerTextEl.value : '').trim().slice(0, 120)
             };
 
             const content = this.buildBarcodeContent(
@@ -39591,29 +40149,18 @@ renderRadar() {
                 context.piece,
                 context.lotIndex,
                 context.pieceIndex,
+                selectedFormula,
                 {
                     ...config,
                     customLabel: this._barcodeComposerCustomState.label,
-                    customCode: this._barcodeComposerCustomState.code
+                    customCode: this._barcodeComposerCustomState.code,
+                    footerText: this._barcodeComposerCustomState.footerText
                 }
             );
-            const len = String(content || '').length;
-            const pct = Math.min(100, Math.round((len / BARCODE_MAX) * 100));
 
             const stringEl = document.getElementById('bcEncodedString');
-            const countEl = document.getElementById('bcCharCount');
-            const barEl = document.getElementById('bcLengthBar');
-            const warnEl = document.getElementById('bcLengthWarning');
 
             if (stringEl) stringEl.textContent = content;
-            if (countEl) countEl.textContent = String(len);
-            if (barEl) {
-                barEl.style.width = `${pct}%`;
-                barEl.classList.toggle('barcode-composer__output-bar--warn', pct >= 75 && pct < 100);
-                barEl.classList.toggle('barcode-composer__output-bar--over', pct >= 100);
-            }
-            if (warnEl) warnEl.hidden = len <= BARCODE_MAX;
-
             this._currentBarcodeContent = content;
             this.updateEtiqueterCodeLengthIndicator();
         };
@@ -39621,9 +40168,29 @@ renderRadar() {
         composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
             checkbox.onchange = updateOutput;
         });
-        if (essenceModeEl) essenceModeEl.onchange = updateOutput;
+        if (essenceModeEl) essenceModeEl.onchange = () => this.refreshBarcodeComposerPreview();
+        if (payloadFormatEl) payloadFormatEl.onchange = updateOutput;
+        if (previewPieceEl) {
+            previewPieceEl.onchange = () => {
+                const value = String(previewPieceEl.value || 'auto');
+                if (value === 'auto') {
+                    this._barcodeComposerPreviewSelection = null;
+                } else {
+                    const parts = value.split(':');
+                    const lotIdx = parseInt(parts[0], 10);
+                    const pieceIdx = parseInt(parts[1], 10);
+                    if (Number.isInteger(lotIdx) && lotIdx >= 0 && Number.isInteger(pieceIdx) && pieceIdx >= 0) {
+                        this._barcodeComposerPreviewSelection = { lotIndex: lotIdx, pieceIndex: pieceIdx };
+                    } else {
+                        this._barcodeComposerPreviewSelection = null;
+                    }
+                }
+                this.refreshBarcodeComposerPreview();
+            };
+        }
         if (customLabelEl) customLabelEl.oninput = updateOutput;
         if (customCodeEl) customCodeEl.oninput = updateOutput;
+        if (footerTextEl) footerTextEl.oninput = updateOutput;
 
         this._updateBarcodeComposerOutput = updateOutput;
         this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
@@ -39636,20 +40203,9 @@ renderRadar() {
 
     updateEtiqueterCodeLengthIndicator() {
         const formula = this.getSelectedCodeFormula();
-        if (formula === 'barcode1d') {
-            if (typeof this._updateBarcodeComposerOutput === 'function') {
-                const current = this._updateBarcodeComposerOutput;
-                this._updateBarcodeComposerOutput = null;
-                current();
-                this._updateBarcodeComposerOutput = current;
-            }
-            return;
-        }
-
-        const fields = this.getSelectedCodeContentFields();
         const preview = this.getEtiqueterPreviewContext();
         const payload = this.buildCodeContent(formula, preview.item, {
-            fields,
+            fields: this.getSelectedCodeContentFields(),
             lot: preview.lot,
             lotIndex: preview.lotIndex,
             pieceIndex: preview.pieceIndex,
@@ -39659,16 +40215,35 @@ renderRadar() {
         });
 
         const maxLen = this.getCodeFormulaMaxLength(formula);
+        const warnLen = this.getCodeFormulaWarnLength(formula);
         const len = String(payload || '').length;
         const ratio = Math.max(0, Math.min(100, (len / maxLen) * 100));
-        const valEl = document.getElementById('code-length-value');
-        const progressEl = document.getElementById('code-length-progress');
-        if (valEl) valEl.textContent = String(len);
-        if (progressEl) {
-            progressEl.value = ratio;
-            progressEl.max = 100;
-            progressEl.style.accentColor = ratio > 90 ? '#c0392b' : (ratio > 70 ? '#e67e22' : '#01696f');
+        const stringEl = document.getElementById('bcEncodedString');
+        const countEl = document.getElementById('bcCharCount');
+        const limitEl = document.getElementById('bcCharLimitLabel');
+        const barEl = document.getElementById('bcLengthBar');
+        const warnEl = document.getElementById('bcLengthWarning');
+        const runBtn = document.getElementById('btnRunEtiqueter');
+        const isOverMax = len > maxLen;
+        const isWarn = !isOverMax && warnLen != null && len >= warnLen;
+
+        if (stringEl) stringEl.textContent = String(payload || '');
+        if (countEl) countEl.textContent = String(len);
+        if (limitEl) limitEl.textContent = `/ ${maxLen} caractères`;
+        if (barEl) {
+            barEl.style.width = `${ratio}%`;
+            barEl.classList.toggle('barcode-composer__output-bar--warn', isWarn);
+            barEl.classList.toggle('barcode-composer__output-bar--over', isOverMax);
         }
+        if (warnEl) warnEl.hidden = !(isWarn || isOverMax);
+        if (runBtn) {
+            runBtn.disabled = isOverMax;
+            runBtn.title = isOverMax
+                ? `Contenu trop long pour ${formula}: limite ${maxLen} caractères.`
+                : '';
+        }
+
+        this._currentBarcodeContent = String(payload || '');
     }
 
     buildCodeContent(formula, item, options = {}) {
@@ -39684,12 +40259,12 @@ renderRadar() {
         const baseUrl = String(options.baseUrl || window.VALOBOIS_PUBLIC_URL || this.getEtiquetteQrConfig().baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
         const firestorePieceId = options.firestorePieceId ? String(options.firestorePieceId) : '';
 
-        if (normalized === 'barcode1d') {
+        if (normalized === 'barcode1d' || normalized === 'datamatrix' || normalized === 'qr-offline') {
             const lot = options && options.lot ? options.lot : null;
             const lotIndex = Number.isInteger(options && options.lotIndex) ? options.lotIndex : 0;
             const pieceIndex = Number.isInteger(options && options.pieceIndex) ? options.pieceIndex : 0;
             const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
-            return this.buildBarcodeContent(lot, item, lotIndex, pieceIndex, barcodeConfig);
+            return this.buildBarcodeContent(lot, item, lotIndex, pieceIndex, normalized, barcodeConfig);
         }
         if (normalized === 'qr-online') {
             if (firestorePieceId) return `${baseUrl}/p/${encodeURIComponent(firestorePieceId)}`;
@@ -39702,15 +40277,13 @@ renderRadar() {
         if (selectedFields.has('essence')) {
             const essence = this.sanitizeQrFieldValue(item && item.essenceNomCommun, '');
             if (essence) {
-                const value = normalized === 'datamatrix' ? essence.slice(0, 20) : essence;
-                parts.push(`ES:${value}`);
+                parts.push(`ES:${essence}`);
             }
         }
         if (selectedFields.has('dimensions')) {
             const dims = this.sanitizeQrFieldValue(item && item.dimensionsLabel, '');
             if (dims) {
-                const value = normalized === 'datamatrix' ? dims.slice(0, 24) : dims;
-                parts.push(`D:${value}`);
+                parts.push(`D:${dims}`);
             }
         }
         if (selectedFields.has('score')) {
@@ -39726,9 +40299,7 @@ renderRadar() {
             if (date) parts.push(`DT:${date}`);
         }
 
-        const content = parts.join(sep);
-        const limit = this.getCodeFormulaMaxLength(normalized);
-        return normalized === 'datamatrix' && content.length > limit ? content.substring(0, limit) : content;
+        return parts.join(sep);
     }
 
     getBwipJsApi() {
@@ -39769,14 +40340,14 @@ renderRadar() {
             return null;
         }
         try {
+            // 30 mm = 30 / 25.4 ≈ 1.181 pouces.
             return api.toSVG({
                 bcid: 'datamatrix',
                 text: String(text || ''),
-                scale: 2,
+                width: 1.181,
+                height: 1.181,
                 backgroundcolor: 'FFFFFF',
-                barcolor: '000000',
-                paddingwidth: 4,
-                paddingheight: 4
+                barcolor: '000000'
             });
         } catch (e) {
             console.error('Valobois code: erreur génération DataMatrix', e);
@@ -40231,6 +40802,7 @@ renderRadar() {
                 uid: `lot${String(lotIndex + 1).padStart(2, '0')}-p${String(pieceOrdinal).padStart(4, '0')}`,
                 lotRef,
                 pieceLabel,
+                sourceLotIndex: Number.isInteger(lotIndex) ? lotIndex : 0,
                 sourcePieceIndex: normalizedPieceIndex,
                 dimensionsLabel: formatDimensionsLabel(dims.longueur, dims.largeur, dims.epaisseur),
                 longueur: asNumber(dims.longueur),
@@ -40267,6 +40839,7 @@ renderRadar() {
             ));
         });
 
+        let defaultPieceOccurrenceIndex = 0;
         defaultPieces.forEach((defaultPiece, defaultPieceIndex) => {
             const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
             for (let i = 0; i < defaultQty; i += 1) {
@@ -40279,8 +40852,9 @@ renderRadar() {
                     firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
                     { longueur, largeur, epaisseur, sourcePiece: defaultPiece },
                     defaultPiece && defaultPiece.volumePiece,
-                    pieces.length + defaultPieceIndex + i
+                    pieces.length + defaultPieceOccurrenceIndex
                 ));
+                defaultPieceOccurrenceIndex += 1;
             }
         });
 
@@ -40822,6 +41396,8 @@ renderRadar() {
         const totalLabels = items.length;
         const totalPages = Math.max(1, Math.ceil(totalLabels / labelsPerPage));
         const today = new Date().toLocaleDateString(getValoboisIntlLocale());
+        const footerTextCustom = String(options && options.barcodeConfig && options.barcodeConfig.footerText || '').trim();
+        const footerTextFallback = `VALOXYLO · ${e(lotRef)} · ${totalLabels} étiquettes · page {page}/{totalPages} · ${today}`;
 
         const svgPages = [];
         for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
@@ -40840,7 +41416,16 @@ renderRadar() {
             }
 
             const pageNoteY = PH - 10;
-            const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="2.1" fill="#BBBBBB" text-anchor="middle">VALOXYLO · ${e(lotRef)} · ${totalLabels} étiquettes · page ${pageIndex + 1}/${totalPages} · ${today}</text>`;
+            const pageNoteText = footerTextCustom
+                ? footerTextCustom
+                    .replace(/\{page\}/g, String(pageIndex + 1))
+                    .replace(/\{totalPages\}/g, String(totalPages))
+                    .replace(/\{lotRef\}/g, String(lotRef || ''))
+                    .replace(/\{totalLabels\}/g, String(totalLabels))
+                    .replace(/\{date\}/g, today)
+                : footerTextFallback;
+            const pageNoteFont = footerTextCustom ? Math.max(1.65, fitSingleLineFont(pageNoteText, PW - 10, 2.1, 1.45)) : 2.1;
+            const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="${pageNoteFont}" fill="#BBBBBB" text-anchor="middle">${e(pageNoteText)}</text>`;
 
             svgPages.push([
                 '<?xml version="1.0" encoding="UTF-8"?>',
