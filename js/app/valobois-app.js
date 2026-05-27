@@ -39167,8 +39167,14 @@ renderRadar() {
             'longueur',
             'largeur',
             'epaisseur',
+            'mesuresMultiplesE1',
+            'mesuresMultiplesQ1',
+            'mesuresMultiplesMi',
+            'mesuresMultiplesQ3',
+            'mesuresMultiplesE2',
             'largeurExtremes',
             'epaisseurExtremes',
+            'diametreExtremes',
             'orientationAbbr',
             'prixUnitaire',
             'masseUnitaire',
@@ -39237,11 +39243,33 @@ renderRadar() {
 
     getBarcodeComposerMesuresExtremes(piece, dimKey) {
         const mm = piece && piece.mesuresMultiples;
-        if (!mm || !mm.active || !Array.isArray(mm.sections)) return '';
-        const values = mm.sections
-            .filter((section) => section && section.typeSection === 'rect' && section[dimKey] != null)
-            .map((section) => parseFloat(section[dimKey]))
+        if (!mm || !Array.isArray(mm.sections) || !mm.sections.length) return '';
+        const parseNumeric = (value) => {
+            if (value == null) return NaN;
+            if (typeof value === 'number') return value;
+            return parseFloat(String(value).replace(',', '.'));
+        };
+
+        if (String(dimKey || '').toLowerCase() === 'diametre') {
+            const diametres = mm.sections
+                .map((section) => parseNumeric(section && section.diametre))
+                .filter((num) => Number.isFinite(num) && num > 0);
+            if (!diametres.length) return '';
+            const minD = Math.round(Math.min(...diametres));
+            const maxD = Math.round(Math.max(...diametres));
+            return (minD > 0 && maxD > 0) ? `${minD}-${maxD}` : '';
+        }
+
+        const rectValues = mm.sections
+            .map((section) => parseNumeric(section && section[dimKey]))
             .filter((num) => Number.isFinite(num) && num > 0);
+
+        // Si la série est circulaire, on propage les diamètres vers 3W/3E.
+        const circleValues = rectValues.length ? [] : mm.sections
+            .map((section) => parseNumeric(section && section.diametre))
+            .filter((num) => Number.isFinite(num) && num > 0);
+
+        const values = rectValues.length ? rectValues : circleValues;
         if (!values.length) return '';
         const min = Math.round(Math.min(...values));
         const max = Math.round(Math.max(...values));
@@ -39264,29 +39292,99 @@ renderRadar() {
 
         const format = String(outputFormat || 'compact').toLowerCase() === 'complete' ? 'complete' : 'compact';
         const positionDefs = {
-            extremite1: { key: 'e1', code: 'E1', label: 'Extremite 1' },
-            quart1: { key: 'q1', code: 'Q1', label: 'Quart 1' },
-            milieu: { key: 'mi', code: 'MI', label: 'Milieu' },
-            quart3: { key: 'q3', code: 'Q3', label: 'Quart 3' },
-            extremite2: { key: 'e2', code: 'E2', label: 'Extremite 2' }
+            extremite1: { key: 'e1', code: 'E1', label: 'Extrémité 1', ratio: 0, isExtremity: true },
+            quart1: { key: 'q1', code: 'Q1', label: 'Quart 1', ratio: 0.25, isExtremity: false },
+            milieu: { key: 'mi', code: 'MI', label: 'Milieu', ratio: 0.5, isExtremity: false },
+            quart3: { key: 'q3', code: 'Q3', label: 'Quart 3', ratio: 0.75, isExtremity: false },
+            extremite2: { key: 'e2', code: 'E2', label: 'Extrémité 2', ratio: 1, isExtremity: true }
         };
+
+        const normalizePosition = (positionRaw) => {
+            const key = String(positionRaw == null ? '' : positionRaw)
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\s_-]+/g, '');
+            if (!key) return '';
+            const aliases = {
+                extremite1: 'extremite1', extremite01: 'extremite1', ext1: 'extremite1', e1: 'extremite1',
+                quart1: 'quart1', q1: 'quart1',
+                milieu: 'milieu', mi: 'milieu', m: 'milieu',
+                quart3: 'quart3', q3: 'quart3',
+                extremite2: 'extremite2', extremite02: 'extremite2', ext2: 'extremite2', e2: 'extremite2'
+            };
+            const canonical = aliases[key] || '';
+            return Object.prototype.hasOwnProperty.call(positionDefs, canonical) ? canonical : '';
+        };
+
+        const longueurMm = parseNumeric(piece && piece.longueur);
+        const resolvePositionFromRatio = (ratioRaw) => {
+            if (!Number.isFinite(ratioRaw)) return '';
+            const ratio = Math.max(0, Math.min(1, ratioRaw));
+            const closest = Object.entries(positionDefs)
+                .map(([pos, def]) => ({ pos, delta: Math.abs(def.ratio - ratio) }))
+                .sort((a, b) => a.delta - b.delta)[0];
+            return closest && closest.delta <= 0.08 ? closest.pos : '';
+        };
+
+        const resolvePositionMm = (section, posKey = '') => {
+            if (!section || typeof section !== 'object') return null;
+            const explicit = parseNumeric(section.positionMm);
+            if (Number.isFinite(explicit) && explicit >= 0) return Math.round(explicit);
+
+            const ratio = parseNumeric(section.positionRatio);
+            if (Number.isFinite(ratio) && ratio >= 0 && ratio <= 1 && Number.isFinite(longueurMm) && longueurMm > 0) {
+                return Math.round(ratio * longueurMm);
+            }
+
+            const legacyPosNum = parseNumeric(section.position);
+            if (Number.isFinite(legacyPosNum) && legacyPosNum >= 0) return Math.round(legacyPosNum);
+
+            if (!(Number.isFinite(longueurMm) && longueurMm > 0)) return null;
+            const key = posKey || normalizePosition(section.position);
+            if (key === 'extremite1') return 0;
+            if (key === 'quart1') return Math.round(longueurMm * 0.25);
+            if (key === 'milieu') return Math.round(longueurMm * 0.5);
+            if (key === 'quart3') return Math.round(longueurMm * 0.75);
+            if (key === 'extremite2') return Math.round(longueurMm);
+            return null;
+        };
+
         const details = { e1: '', q1: '', mi: '', q3: '', e2: '' };
 
         mm.sections.forEach((section) => {
             if (!section || typeof section !== 'object') return;
-            const posKey = String(section.position || '').trim().toLowerCase();
+            let posKey = normalizePosition(section.position);
+            if (!posKey) {
+                const ratioRaw = parseNumeric(section.positionRatio);
+                const explicitMm = parseNumeric(section.positionMm);
+                const legacyPos = parseNumeric(section.position);
+                const ratioFromMm = Number.isFinite(explicitMm) && Number.isFinite(longueurMm) && longueurMm > 0
+                    ? explicitMm / longueurMm
+                    : NaN;
+                const ratioFromLegacy = Number.isFinite(legacyPos) && Number.isFinite(longueurMm) && longueurMm > 0
+                    ? legacyPos / longueurMm
+                    : NaN;
+                posKey = resolvePositionFromRatio(
+                    Number.isFinite(ratioRaw) ? ratioRaw : (Number.isFinite(ratioFromMm) ? ratioFromMm : ratioFromLegacy)
+                );
+            }
             const def = positionDefs[posKey];
             if (!def || details[def.key]) return;
 
             const type = String(section.typeSection || '').trim().toLowerCase();
+            const posMm = resolvePositionMm(section, posKey);
             const d = parseNumeric(section.diametre);
             const l = parseNumeric(section.largeur);
             const e = parseNumeric(section.epaisseur);
+            const posSuffixCompact = Number.isFinite(posMm) && !def.isExtremity ? `à${Math.round(posMm)}` : '';
+            const posSuffixComplete = Number.isFinite(posMm) && !def.isExtremity ? ` à ${Math.round(posMm)} mm` : '';
 
             if ((type === 'circ' || type === 'circle') && Number.isFinite(d) && d > 0) {
                 details[def.key] = format === 'complete'
-                    ? (def.label + ' : ' + Math.round(d) + ' mm de O')
-                    : (def.code + ':' + Math.round(d) + 'O');
+                    ? `${def.label} : ${Math.round(d)} mm de ⌀${posSuffixComplete}`
+                    : `${def.code}:${Math.round(d)}⌀${posSuffixCompact}`;
                 return;
             }
 
@@ -39294,15 +39392,15 @@ renderRadar() {
                 && Number.isFinite(l) && l > 0
                 && Number.isFinite(e) && e > 0) {
                 details[def.key] = format === 'complete'
-                    ? (def.label + ' : ' + Math.round(l) + ' x ' + Math.round(e))
-                    : (def.code + ':' + Math.round(l) + 'x' + Math.round(e));
+                    ? `${def.label} : ${Math.round(l)} x ${Math.round(e)}${posSuffixComplete}`
+                    : `${def.code}:${Math.round(l)}x${Math.round(e)}${posSuffixCompact}`;
                 return;
             }
 
             if (Number.isFinite(d) && d > 0) {
                 details[def.key] = format === 'complete'
-                    ? (def.label + ' : ' + Math.round(d) + ' mm de O')
-                    : (def.code + ':' + Math.round(d) + 'O');
+                    ? `${def.label} : ${Math.round(d)} mm de ⌀${posSuffixComplete}`
+                    : `${def.code}:${Math.round(d)}⌀${posSuffixCompact}`;
             }
         });
 
@@ -39339,9 +39437,9 @@ renderRadar() {
     formatBarcodeComposerPco2CompactKg(valueKg) {
         const num = parseFloat(valueKg);
         if (!Number.isFinite(num) || num <= 0) return '';
-        const floored = Math.floor(num);
-        if (floored <= 0) return '';
-        return String(floored);
+        const rounded = Math.round(num);
+        if (rounded <= 0) return '';
+        return String(rounded);
     }
 
     formatBarcodeComposerVolumeCompactM3(valueM3) {
@@ -39541,6 +39639,13 @@ renderRadar() {
             try {
                 const preview = { ...pieceSource };
                 this.recalculatePiece(preview, lot);
+                // Align fallback PCO2 with card metrics when mesures multiples are active.
+                if (typeof this.computeVolumeEnrichi === 'function') {
+                    const volumeEnrichi = this.computeVolumeEnrichi(preview);
+                    if (Number.isFinite(volumeEnrichi) && volumeEnrichi > 0) {
+                        preview.volumePieceEnrichi = volumeEnrichi;
+                    }
+                }
                 return preview;
             } catch (err) {
                 return null;
@@ -39585,13 +39690,20 @@ renderRadar() {
             || (computedPiece ? computedPiece.massePiece : '')
         );
         const masseUnitaire = masseUnitaireRaw ? `${masseUnitaireRaw}kg` : '';
-        const pco2PieceTheoKg = this.computeBarcodeComposerPieceTheoreticalPco2Kg(pieceSource, lot);
-        const pco2Fallback = parseFloat(pieceSource && pieceSource.carboneBiogeniqueEstimeExact != null
-            ? pieceSource.carboneBiogeniqueEstimeExact
-            : (pieceSource ? pieceSource.carboneBiogeniqueEstime : ''));
-        const pco2ValueKg = Number.isFinite(pco2PieceTheoKg) && pco2PieceTheoKg > 0
-            ? pco2PieceTheoKg
-            : (Number.isFinite(pco2Fallback) && pco2Fallback > 0 ? pco2Fallback : null);
+        const pco2StoredCandidates = [
+            pieceSource && pieceSource.carboneBiogeniqueEstimeExact,
+            pieceSource && pieceSource.carboneBiogeniqueEstime,
+            piece && piece.carboneBiogeniqueEstimeExact,
+            piece && piece.carboneBiogeniqueEstime
+        ];
+        const pco2Stored = pco2StoredCandidates
+            .map((value) => parseFloat(value))
+            .find((value) => Number.isFinite(value) && value > 0);
+        const pco2PieceTheoKg = this.computeBarcodeComposerPieceTheoreticalPco2Kg(pieceSource, lot)
+            || this.computeBarcodeComposerPieceTheoreticalPco2Kg(computedPiece, lot);
+        const pco2ValueKg = Number.isFinite(pco2Stored) && pco2Stored > 0
+            ? pco2Stored
+            : (Number.isFinite(pco2PieceTheoKg) && pco2PieceTheoKg > 0 ? pco2PieceTheoKg : null);
         const pco2UnitaireRaw = this.formatBarcodeComposerPco2CompactKg(pco2ValueKg);
         const pco2Unitaire = pco2UnitaireRaw ? `${pco2UnitaireRaw}kg` : '';
         const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOnly(piece, 'typePiece', lot), 4);
@@ -39686,7 +39798,6 @@ renderRadar() {
             mesuresMultiplesMi: false,
             mesuresMultiplesQ3: false,
             mesuresMultiplesE2: false,
-            mesuresMultiplesDetail: false,
             largeurExtremes: false,
             epaisseurExtremes: false,
             diametreExtremes: false,
@@ -40228,7 +40339,6 @@ renderRadar() {
             mesuresMultiplesMi: 'bcPreviewMesuresMultiplesMi',
             mesuresMultiplesQ3: 'bcPreviewMesuresMultiplesQ3',
             mesuresMultiplesE2: 'bcPreviewMesuresMultiplesE2',
-            mesuresMultiplesDetail: 'bcPreviewMesuresMultiplesDetail',
             largeurExtremes: 'bcPreviewLargeurExtremes',
             epaisseurExtremes: 'bcPreviewEpaisseurExtremes',
             diametreExtremes: 'bcPreviewDiametreExtremes',
