@@ -11916,22 +11916,6 @@ body.day-mode .lot-group--collapsible summary:hover {
             padding-right: 0.2rem;
         }
 
-        #etiqueterBackdrop .barcode-composer__section {
-            display: grid;
-            gap: 0.25rem;
-            padding: 0.3rem 0;
-            border-top: 1px dashed var(--color-divider, #e2e2e2);
-        }
-
-        #etiqueterBackdrop .barcode-composer__section-title {
-            font-size: 0.7rem;
-            font-weight: 700;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-            color: var(--color-text-muted, #666);
-            padding: 0 0.5rem 0.1rem;
-        }
-
         #etiqueterBackdrop .barcode-composer__selection-scroll #generic-code-content {
             margin-bottom: 0.2rem;
         }

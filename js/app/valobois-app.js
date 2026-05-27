@@ -16005,20 +16005,6 @@ class ValoboisApp {
             delete piece.surfacePieceEnrichi;
         } else {
             piece.mesuresMultiples = { active: true, niveaux, sections, longueur: piece.longueur != null ? piece.longueur : null };
-            const stats = this.computePieceDimensionStats(piece);
-            const normalizeMedian = (value) => {
-                const num = parseFloat(value);
-                if (!Number.isFinite(num) || num <= 0) return '';
-                return this.normalizeAllotissementNumericInput(String(Number(num.toFixed(2))));
-            };
-            const largeurMed = normalizeMedian(stats && stats.largeurEnrichie);
-            const epaisseurMed = normalizeMedian(stats && stats.epaisseurEnrichie);
-            const diametreMed = normalizeMedian(stats && stats.diametreEnrichi);
-
-            piece.largeur = largeurMed;
-            piece.epaisseur = epaisseurMed;
-            piece.diametre = diametreMed;
-
             const volumeEnrichi = this.computeVolumeEnrichi(piece);
             if (volumeEnrichi !== null) {
                 piece.volumePieceEnrichi = volumeEnrichi;
@@ -16067,38 +16053,7 @@ class ValoboisApp {
             const mmDisable = completeSections.length >= 2;
             const selectorL = context.isDefault ? 'input[data-default-piece-input="largeur"]' : 'input[data-piece-input="largeur"]';
             const selectorE = context.isDefault ? 'input[data-default-piece-input="epaisseur"]' : 'input[data-piece-input="epaisseur"]';
-            const selectorD = context.isDefault ? 'input[data-default-piece-input="diametre"]' : 'input[data-piece-input="diametre"]';
-            const inputL = pieceCardDirect.querySelector(selectorL);
-            const inputE = pieceCardDirect.querySelector(selectorE);
-            const inputD = pieceCardDirect.querySelector(selectorD);
-            const hasMedianDims = (piece.mesuresMultiples && piece.mesuresMultiples.active)
-                && ((piece.largeur != null && String(piece.largeur).trim() !== '')
-                    || (piece.epaisseur != null && String(piece.epaisseur).trim() !== '')
-                    || (piece.diametre != null && String(piece.diametre).trim() !== ''));
-
-            if (inputL) {
-                inputL.value = this.formatAllotissementNumericDisplay(piece.largeur);
-                if (inputL.parentElement?.classList.contains('lot-dimension-input-wrap')) {
-                    inputL.parentElement.dataset.hasValue = inputL.value !== '' ? 'true' : 'false';
-                }
-                const label = inputL.closest('.lot-dimension-field')?.querySelector('.lot-field-label');
-                if (label) label.textContent = hasMedianDims ? 'Largeur Méd.' : 'Largeur';
-            }
-            if (inputE) {
-                inputE.value = this.formatAllotissementNumericDisplay(piece.epaisseur);
-                if (inputE.parentElement?.classList.contains('lot-dimension-input-wrap')) {
-                    inputE.parentElement.dataset.hasValue = inputE.value !== '' ? 'true' : 'false';
-                }
-                const label = inputE.closest('.lot-dimension-field')?.querySelector('.lot-field-label');
-                if (label) label.textContent = hasMedianDims ? 'Épaisseur Méd.' : 'Épaisseur';
-            }
-            if (inputD) {
-                inputD.value = this.formatAllotissementNumericDisplay(piece.diametre);
-                const dLabel = inputD.closest('.lot-dimension-computed')?.querySelector('.lot-field-label');
-                if (dLabel) dLabel.textContent = hasMedianDims ? 'Diamètre Méd.' : 'Diamètre';
-            }
-
-            [inputL, inputE].forEach(inp => {
+            [pieceCardDirect.querySelector(selectorL), pieceCardDirect.querySelector(selectorE)].forEach(inp => {
                 if (!inp) return;
                 inp.disabled = mmDisable;
                 inp.closest('.lot-dimension-field')?.toggleAttribute('data-mm-disabled', mmDisable);
@@ -16751,7 +16706,7 @@ class ValoboisApp {
         const diametreScalar = resolveDim(piece?.diametre, fallbackDiametre);
 
         const mm = piece && piece.mesuresMultiples;
-        if (!mm || !Array.isArray(mm.sections) || mm.sections.length < 1) {
+        if (!mm || !mm.active || !Array.isArray(mm.sections) || mm.sections.length < 2) {
             return {
                 longueur,
                 largeurScalar,
@@ -16761,9 +16716,6 @@ class ValoboisApp {
                 diametreEnrichi: diametreScalar,
                 largeurEnrichie: largeurScalar,
                 epaisseurEnrichie: epaisseurScalar,
-                largeurFromMM: false,
-                epaisseurFromMM: false,
-                diametreFromMM: false,
                 cvLargeurIntra: null,
                 cvEpaisseurIntra: null,
                 deltaLargeurIntra: null,
@@ -16772,11 +16724,7 @@ class ValoboisApp {
             };
         }
 
-        const rectSections = mm.sections.filter((s) => {
-            if (!s || typeof s !== 'object') return false;
-            const type = String(s.typeSection || '').trim().toLowerCase();
-            return type === 'rect' || type === 'rectangle' || (!type && (s.largeur != null || s.epaisseur != null));
-        });
+        const rectSections = mm.sections.filter((s) => s && s.typeSection === 'rect');
         const circSections = mm.sections.filter((s) => {
             const type = ((s && s.typeSection) || '') + '';
             return type === 'circ' || type === 'circle';
@@ -16791,9 +16739,15 @@ class ValoboisApp {
             .map((s) => parseFloat(s.diametre))
             .filter((v) => Number.isFinite(v) && v > 0);
 
-        const largeurMed = largeurVals.length ? vbMedian(largeurVals) : null;
-        const epaisseurMed = epaisseurVals.length ? vbMedian(epaisseurVals) : null;
-        const diametreMed = diametreVals.length ? vbMedian(diametreVals) : null;
+        const largeurMoy = largeurVals.length
+            ? largeurVals.reduce((sum, v) => sum + v, 0) / largeurVals.length
+            : null;
+        const epaisseurMoy = epaisseurVals.length
+            ? epaisseurVals.reduce((sum, v) => sum + v, 0) / epaisseurVals.length
+            : null;
+        const diametreMoy = diametreVals.length
+            ? diametreVals.reduce((sum, v) => sum + v, 0) / diametreVals.length
+            : null;
 
         const cvLargeurIntra = _vbCV(largeurVals);
         const cvEpaisseurIntra = _vbCV(epaisseurVals);
@@ -16818,12 +16772,9 @@ class ValoboisApp {
             epaisseurScalar,
             diametre: diametreScalar,
             diametreScalar,
-            diametreEnrichi: Number.isFinite(diametreMed) && diametreMed > 0 ? diametreMed : null,
-            largeurEnrichie: Number.isFinite(largeurMed) && largeurMed > 0 ? largeurMed : null,
-            epaisseurEnrichie: Number.isFinite(epaisseurMed) && epaisseurMed > 0 ? epaisseurMed : null,
-            largeurFromMM: Number.isFinite(largeurMed) && largeurMed > 0,
-            epaisseurFromMM: Number.isFinite(epaisseurMed) && epaisseurMed > 0,
-            diametreFromMM: Number.isFinite(diametreMed) && diametreMed > 0,
+            diametreEnrichi: Number.isFinite(diametreMoy) && diametreMoy > 0 ? diametreMoy : diametreScalar,
+            largeurEnrichie: Number.isFinite(largeurMoy) && largeurMoy > 0 ? largeurMoy : largeurScalar,
+            epaisseurEnrichie: Number.isFinite(epaisseurMoy) && epaisseurMoy > 0 ? epaisseurMoy : epaisseurScalar,
             cvLargeurIntra,
             cvEpaisseurIntra,
             deltaLargeurIntra,
@@ -17160,18 +17111,21 @@ class ValoboisApp {
      * utilise la moyenne des sections.
      */
     _getPieceEffectiveLHDims(piece) {
-        const stats = this.computePieceDimensionStats(piece);
-        const enrichedLargeur = parseFloat(stats && stats.largeurEnrichie);
-        const enrichedEpaisseur = parseFloat(stats && stats.epaisseurEnrichie);
-        if ((Number.isFinite(enrichedLargeur) && enrichedLargeur > 0) || (Number.isFinite(enrichedEpaisseur) && enrichedEpaisseur > 0)) {
-            return {
-                largeur: Number.isFinite(enrichedLargeur) && enrichedLargeur > 0 ? enrichedLargeur : 0,
-                epaisseur: Number.isFinite(enrichedEpaisseur) && enrichedEpaisseur > 0 ? enrichedEpaisseur : 0,
-            };
+        const l = parseFloat(piece.largeur) || 0;
+        const e = parseFloat(piece.epaisseur) || 0;
+        if (l > 0 || e > 0) return { largeur: l, epaisseur: e };
+        const mm = piece && piece.mesuresMultiples;
+        if (mm && mm.active && Array.isArray(mm.sections)) {
+            const rectSects = mm.sections.filter(s => s.typeSection === 'rect');
+            if (rectSects.length > 0) {
+                const withL = rectSects.filter(s => s.largeur != null);
+                const withE = rectSects.filter(s => s.epaisseur != null);
+                const avgL = withL.length ? withL.reduce((a, s) => a + parseFloat(s.largeur), 0) / withL.length : 0;
+                const avgE = withE.length ? withE.reduce((a, s) => a + parseFloat(s.epaisseur), 0) / withE.length : 0;
+                return { largeur: avgL, epaisseur: avgE };
+            }
         }
-        const l = parseFloat(piece && piece.largeur) || 0;
-        const e = parseFloat(piece && piece.epaisseur) || 0;
-        return { largeur: l, epaisseur: e };
+        return { largeur: 0, epaisseur: 0 };
     }
 
     /**
@@ -20513,7 +20467,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                         checkbox.checked = etiqueterLotsSelectAll.checked;
                     });
                     this.syncEtiqueterLotsSelectAllState();
-                    this.invalidateBarcodeComposerCaches();
                     this.refreshBarcodeComposerPreview();
                     this.updateEtiqueterCodeLengthIndicator();
                 });
@@ -20525,7 +20478,6 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     const target = event.target;
                     if (target && target.matches('[data-export-etiquette-lot]')) {
                         this.syncEtiqueterLotsSelectAllState();
-                        this.invalidateBarcodeComposerCaches();
                         this.refreshBarcodeComposerPreview();
                         this.updateEtiqueterCodeLengthIndicator();
                     }
@@ -24212,7 +24164,6 @@ closeEvalOpModal() {
     openEtiqueterModal() {
         const backdrop = document.getElementById('etiqueterBackdrop');
         if (backdrop) {
-            this.invalidateBarcodeComposerCaches();
             this.renderEtiqueterLotOptions();
             backdrop.classList.remove('hidden');
             backdrop.removeAttribute('inert');
@@ -24584,26 +24535,6 @@ closeEvalOpModal() {
             (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
             (s.typeSection === 'circ' && s.diametre != null)
         ).length >= 2 : false;
-        const defaultPieceStats = this.computePieceDimensionStats(defaultPiece, {
-            fallbackLongueur: lot.allotissement.longueur,
-            fallbackLargeur: lot.allotissement.largeur,
-            fallbackEpaisseur: lot.allotissement.epaisseur,
-            fallbackDiametre: lot.allotissement.diametre,
-        });
-        const mmDpHasMedianDims = !!(defaultPieceStats && (defaultPieceStats.largeurFromMM || defaultPieceStats.epaisseurFromMM || defaultPieceStats.diametreFromMM));
-        const useMedianDimsDp = hasMmDp && mmDpHasMedianDims;
-        const largeurDisplayDp = useMedianDimsDp
-            ? this.formatAllotissementNumericDisplay(defaultPieceStats && defaultPieceStats.largeurEnrichie)
-            : this.formatAllotissementNumericDisplay(defaultPiece.largeur);
-        const epaisseurDisplayDp = useMedianDimsDp
-            ? this.formatAllotissementNumericDisplay(defaultPieceStats && defaultPieceStats.epaisseurEnrichie)
-            : this.formatAllotissementNumericDisplay(defaultPiece.epaisseur);
-        const diametreDisplayDp = useMedianDimsDp
-            ? this.formatAllotissementNumericDisplay(defaultPieceStats && defaultPieceStats.diametreEnrichi)
-            : this.formatAllotissementNumericDisplay(defaultPiece.diametre);
-        const largeurLabelDp = useMedianDimsDp ? 'Largeur Méd.' : 'Largeur';
-        const epaisseurLabelDp = useMedianDimsDp ? 'Épaisseur Méd.' : 'Épaisseur';
-        const diametreLabelDp = useMedianDimsDp ? 'Diamètre Méd.' : 'Diamètre';
         const mesuresResetBtnDp = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
         const mesuresInfoBtnDp = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
         const mesuresActionsDp = `<div class="mesures-accordion-actions" data-default-piece-id="${defaultPieceId}">${mesuresInfoBtnDp}${mesuresResetBtnDp}</div>`;
@@ -24744,9 +24675,9 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmDpDisable ? ' data-mm-disabled="true"' : ''}>
-                            <label class="lot-field-label">${largeurLabelDp}</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${largeurDisplayDp !== '' ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(largeurDisplayDp)}" placeholder="Face, Plat…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
+                            <label class="lot-field-label">Largeur</label>
+                            <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.largeur !== '' && defaultPiece.largeur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.largeur))}" placeholder="Face, Plat…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${isSurfaceMuted ? ' data-muted="true"' : ''}>
@@ -24758,15 +24689,15 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmDpDisable ? ' data-mm-disabled="true"' : ''}>
-                            <label class="lot-field-label">${epaisseurLabelDp}</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${epaisseurDisplayDp !== '' ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(epaisseurDisplayDp)}" placeholder="Chant, Rive…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
+                            <label class="lot-field-label">Épaisseur</label>
+                            <div class="lot-dimension-input-wrap" data-has-value="${defaultPiece.epaisseur !== '' && defaultPiece.epaisseur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.epaisseur))}" placeholder="Chant, Rive…" data-default-piece-id="${defaultPieceId}" data-default-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmDpDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
-                                <label class="lot-field-label">${diametreLabelDp}</label>
+                                <label class="lot-field-label">Diamètre</label>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(diametreDisplayDp)}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="diametre">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(defaultPiece.diametre))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="diametre">
                                     <span class="lot-input-unit">mm</span>
                                 </div>
                             </div>
@@ -24992,21 +24923,6 @@ closeEvalOpModal() {
             (s.typeSection === 'rect' && s.largeur != null && s.epaisseur != null) ||
             (s.typeSection === 'circ' && s.diametre != null)
         ).length >= 2 : false;
-        const pieceStats = this.computePieceDimensionStats(piece);
-        const mmPHasMedianDims = !!(pieceStats && (pieceStats.largeurFromMM || pieceStats.epaisseurFromMM || pieceStats.diametreFromMM));
-        const useMedianDimsP = hasMmP && mmPHasMedianDims;
-        const largeurDisplayP = useMedianDimsP
-            ? this.formatAllotissementNumericDisplay(pieceStats && pieceStats.largeurEnrichie)
-            : this.formatAllotissementNumericDisplay(piece.largeur);
-        const epaisseurDisplayP = useMedianDimsP
-            ? this.formatAllotissementNumericDisplay(pieceStats && pieceStats.epaisseurEnrichie)
-            : this.formatAllotissementNumericDisplay(piece.epaisseur);
-        const diametreDisplayP = useMedianDimsP
-            ? this.formatAllotissementNumericDisplay(pieceStats && pieceStats.diametreEnrichi)
-            : this.formatAllotissementNumericDisplay(piece.diametre);
-        const largeurLabelP = useMedianDimsP ? 'Largeur Méd.' : 'Largeur';
-        const epaisseurLabelP = useMedianDimsP ? 'Épaisseur Méd.' : 'Épaisseur';
-        const diametreLabelP = useMedianDimsP ? 'Diamètre Méd.' : 'Diamètre';
         const mesuresResetBtnP = `<button type="button" class="mesures-accordion-reset-btn mesures-reset-btn" title="R\u00e9initialiser les mesures" aria-label="R\u00e9initialiser les mesures"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><polyline points="3 3 3 8 8 8"/></svg></button>`;
         const mesuresInfoBtnP = `<button type="button" class="mesures-accordion-info-btn mesures-info-btn" title="Aide sur les mesures multiples" aria-label="Aide sur les mesures multiples"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>`;
         const mesuresActionsP = `<div class="mesures-accordion-actions" data-piece-index="${pieceIndex}">${mesuresInfoBtnP}${mesuresResetBtnP}</div>`;
@@ -25129,9 +25045,9 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmPDisable ? ' data-mm-disabled="true"' : ''}>
-                            <label class="lot-field-label">${largeurLabelP}</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${largeurDisplayP !== '' ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${largeurDisplayP}" placeholder="Face, Plat…" data-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
+                            <label class="lot-field-label">Largeur</label>
+                            <div class="lot-dimension-input-wrap" data-has-value="${piece.largeur !== '' && piece.largeur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.largeur)}" placeholder="Face, Plat…" data-piece-input="largeur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${isSurfaceMuted ? ' data-muted="true"' : ''}>
@@ -25143,15 +25059,15 @@ closeEvalOpModal() {
                             </div>
                         </div>
                         <div class="lot-dimension-field"${hasDiametre ? ' data-muted="true"' : ''}${mmPDisable ? ' data-mm-disabled="true"' : ''}>
-                            <label class="lot-field-label">${epaisseurLabelP}</label>
-                            <div class="lot-dimension-input-wrap" data-has-value="${epaisseurDisplayP !== '' ? 'true' : 'false'}">
-                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${epaisseurDisplayP}" placeholder="Chant, Rive…" data-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
+                            <label class="lot-field-label">Épaisseur</label>
+                            <div class="lot-dimension-input-wrap" data-has-value="${piece.epaisseur !== '' && piece.epaisseur != null ? 'true' : 'false'}">
+                                <input type="text" inputmode="decimal" class="lot-input lot-input--with-placeholder" value="${this.formatAllotissementNumericDisplay(piece.epaisseur)}" placeholder="Chant, Rive…" data-piece-input="epaisseur" oninput="this.parentElement.dataset.hasValue = this.value !== '' ? 'true' : 'false'"${mmPDisable ? ' disabled' : ''}>
                                 <span class="lot-dimension-unit">mm</span>
                             </div>
                             <div class="lot-dimension-computed"${hasLH ? ' data-muted="true"' : ''}>
-                                <label class="lot-field-label">${diametreLabelP}</label>
+                                <label class="lot-field-label">Diamètre</label>
                                 <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${diametreDisplayP}" data-piece-input="diametre">
+                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(piece.diametre)}" data-piece-input="diametre">
                                     <span class="lot-input-unit">mm</span>
                                 </div>
                             </div>
@@ -39232,14 +39148,8 @@ renderRadar() {
             'longueur',
             'largeur',
             'epaisseur',
-            'mesuresMultiplesE1',
-            'mesuresMultiplesQ1',
-            'mesuresMultiplesMi',
-            'mesuresMultiplesQ3',
-            'mesuresMultiplesE2',
             'largeurExtremes',
             'epaisseurExtremes',
-            'diametreExtremes',
             'orientationAbbr',
             'prixUnitaire',
             'masseUnitaire',
@@ -39254,70 +39164,6 @@ renderRadar() {
             'macroHistoire',
             'contamination'
         ];
-    }
-
-    getBarcodeComposerFieldScopeMap() {
-        return {
-            essence: 'piece',
-            longueur: 'piece',
-            largeur: 'piece',
-            epaisseur: 'piece',
-            mesuresMultiplesE1: 'piece',
-            mesuresMultiplesQ1: 'piece',
-            mesuresMultiplesMi: 'piece',
-            mesuresMultiplesQ3: 'piece',
-            mesuresMultiplesE2: 'piece',
-            mesuresMultiplesDetail: 'piece',
-            largeurExtremes: 'piece',
-            epaisseurExtremes: 'piece',
-            diametreExtremes: 'piece',
-            orientationAbbr: 'lot',
-            prixUnitaire: 'piece',
-            masseUnitaire: 'piece',
-            pco2Unitaire: 'piece',
-            typePieceAbbr: 'piece',
-            volumeUnitaire: 'piece',
-            amortissementBio: 'piece',
-            dateMiseService: 'piece',
-            scoreNetMax: 'lot',
-            classementEstime: 'lot',
-            durabiliteNaturelle: 'piece',
-            macroHistoire: 'lot',
-            contamination: 'lot'
-        };
-    }
-
-    getBarcodeComposerFieldScope(field) {
-        const scopes = this.getBarcodeComposerFieldScopeMap();
-        return scopes[field] || 'piece';
-    }
-
-    invalidateBarcodeComposerCaches() {
-        this._barcodeComposerAvailabilityCache = {};
-        this._barcodeComposerValueMapCache = {};
-    }
-
-    getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode = 'abbr') {
-        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
-        const lotIndex = Number.isInteger(piece && piece.sourceLotIndex)
-            ? piece.sourceLotIndex
-            : (Array.isArray(this.data && this.data.lots) ? this.data.lots.indexOf(lot) : -1);
-        const pieceIndex = Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex : -1;
-        const fallbackUid = String(piece && piece.uid ? piece.uid : '').trim();
-        return `${mode}|${lotIndex}|${pieceIndex}|${fallbackUid}`;
-    }
-
-    getBarcodeComposerValueMapCached(lot, piece, essenceMode = 'abbr') {
-        if (!this._barcodeComposerValueMapCache || typeof this._barcodeComposerValueMapCache !== 'object') {
-            this._barcodeComposerValueMapCache = {};
-        }
-        const cacheKey = this.getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode);
-        if (this._barcodeComposerValueMapCache[cacheKey]) {
-            return this._barcodeComposerValueMapCache[cacheKey];
-        }
-        const map = this.buildBarcodeComposerValueMap(lot, piece, essenceMode);
-        this._barcodeComposerValueMapCache[cacheKey] = map;
-        return map;
     }
 
     getBarcodeComposerValueFromPieceOnly(piece, key) {
@@ -39338,174 +39184,16 @@ renderRadar() {
 
     getBarcodeComposerMesuresExtremes(piece, dimKey) {
         const mm = piece && piece.mesuresMultiples;
-        if (!mm || !Array.isArray(mm.sections) || !mm.sections.length) return '';
-        const parseNumeric = (value) => {
-            if (value == null) return NaN;
-            if (typeof value === 'number') return value;
-            return parseFloat(String(value).replace(',', '.'));
-        };
-
-        const rectValues = mm.sections
-            .filter((section) => {
-                if (!section || typeof section !== 'object') return false;
-                const type = String(section.typeSection || '').trim().toLowerCase();
-                const isRect = type === 'rect' || type === 'rectangle' || (!type && section[dimKey] != null);
-                return isRect && section[dimKey] != null;
-            })
-            .map((section) => parseNumeric(section[dimKey]))
+        if (!mm || !mm.active || !Array.isArray(mm.sections)) return '';
+        const values = mm.sections
+            .filter((section) => section && section.typeSection === 'rect' && section[dimKey] != null)
+            .map((section) => parseFloat(section[dimKey]))
             .filter((num) => Number.isFinite(num) && num > 0);
-
-        // Si le lot est majoritairement circulaire, on propage les diamètres vers 3W/3E.
-        const circleValues = rectValues.length ? [] : mm.sections
-            .filter((section) => {
-                if (!section || typeof section !== 'object') return false;
-                const type = String(section.typeSection || '').trim().toLowerCase();
-                const hasDiameter = section.diametre != null;
-                if (!hasDiameter) return false;
-                if (type === 'rect' || type === 'rectangle') return false;
-                return true;
-            })
-            .map((section) => parseNumeric(section.diametre))
-            .filter((num) => Number.isFinite(num) && num > 0);
-
-        const values = rectValues.length ? rectValues : circleValues;
         if (!values.length) return '';
         const min = Math.round(Math.min(...values));
         const max = Math.round(Math.max(...values));
         if (!(min > 0 && max > 0)) return '';
         return `${min}-${max}`;
-    }
-
-    getBarcodeComposerMesuresMultiplesRectAverages(piece) {
-        const mm = piece && piece.mesuresMultiples;
-        if (!mm || !Array.isArray(mm.sections) || !mm.sections.length) {
-            return { largeur: null, epaisseur: null, hasAverage: false };
-        }
-        const parseNumeric = (value) => {
-            if (value == null) return NaN;
-            if (typeof value === 'number') return value;
-            return parseFloat(String(value).replace(',', '.'));
-        };
-        const rectSections = mm.sections.filter((section) => {
-            if (!section || typeof section !== 'object') return false;
-            const type = String(section.typeSection || '').trim().toLowerCase();
-            const isRect = type === 'rect' || type === 'rectangle' || (!type && section.largeur != null && section.epaisseur != null);
-            return isRect;
-        });
-        const largeurs = rectSections
-            .map((section) => parseNumeric(section.largeur))
-            .filter((num) => Number.isFinite(num) && num > 0);
-        const epaisseurs = rectSections
-            .map((section) => parseNumeric(section.epaisseur))
-            .filter((num) => Number.isFinite(num) && num > 0);
-        if (!largeurs.length || !epaisseurs.length) {
-            return { largeur: null, epaisseur: null, hasAverage: false };
-        }
-        const medianLargeur = vbMedian(largeurs);
-        const medianEpaisseur = vbMedian(epaisseurs);
-        return {
-            largeur: medianLargeur,
-            epaisseur: medianEpaisseur,
-            hasAverage: Number.isFinite(medianLargeur) && medianLargeur > 0 && Number.isFinite(medianEpaisseur) && medianEpaisseur > 0
-        };
-    }
-
-    getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat = 'compact') {
-        const mm = piece && piece.mesuresMultiples;
-        const empty = { e1: '', q1: '', mi: '', q3: '', e2: '' };
-        if (!mm || !Array.isArray(mm.sections) || !mm.sections.length) return empty;
-
-        const parseNumeric = (value) => {
-            if (value == null) return NaN;
-            if (typeof value === 'number') return value;
-            return parseFloat(String(value).replace(',', '.'));
-        };
-
-        const format = String(outputFormat || 'compact').toLowerCase() === 'complete' ? 'complete' : 'compact';
-        const positionDefs = {
-            extremite1: { key: 'e1', code: 'E1', label: 'Extrémité 1', isExtremity: true },
-            quart1: { key: 'q1', code: 'Q1', label: 'Quart 1', isExtremity: false },
-            milieu: { key: 'mi', code: 'MI', label: 'Milieu', isExtremity: false },
-            quart3: { key: 'q3', code: 'Q3', label: 'Quart 3', isExtremity: false },
-            extremite2: { key: 'e2', code: 'E2', label: 'Extrémité 2', isExtremity: true }
-        };
-        const normalizePosition = (positionRaw) => {
-            const key = String(positionRaw || '').trim().toLowerCase();
-            return Object.prototype.hasOwnProperty.call(positionDefs, key) ? key : '';
-        };
-        const longueurMm = parseNumeric(piece && piece.longueur);
-        const resolvePositionMm = (section) => {
-            if (!section || typeof section !== 'object') return null;
-            const explicit = parseNumeric(section.positionMm);
-            if (Number.isFinite(explicit) && explicit >= 0) return Math.round(explicit);
-
-            const ratio = parseNumeric(section.positionRatio);
-            if (Number.isFinite(ratio) && ratio >= 0 && ratio <= 1 && Number.isFinite(longueurMm) && longueurMm > 0) {
-                return Math.round(ratio * longueurMm);
-            }
-
-            const key = String(section.position || '').trim().toLowerCase();
-            if (!(Number.isFinite(longueurMm) && longueurMm > 0)) return null;
-            if (key === 'extremite1') return 0;
-            if (key === 'quart1') return Math.round(longueurMm * 0.25);
-            if (key === 'milieu') return Math.round(longueurMm * 0.5);
-            if (key === 'quart3') return Math.round(longueurMm * 0.75);
-            if (key === 'extremite2') return Math.round(longueurMm);
-            return null;
-        };
-        const details = { e1: '', q1: '', mi: '', q3: '', e2: '' };
-        mm.sections.forEach((section) => {
-            if (!section || typeof section !== 'object') return;
-            const normalizedPos = normalizePosition(section.position);
-            if (!normalizedPos) return;
-            const def = positionDefs[normalizedPos];
-            if (!def || details[def.key]) return;
-
-            const type = String(section.typeSection || '').trim().toLowerCase();
-            const posMm = resolvePositionMm(section);
-            const d = parseNumeric(section.diametre);
-            const l = parseNumeric(section.largeur);
-            const e = parseNumeric(section.epaisseur);
-            const posSuffixCompact = Number.isFinite(posMm) && !def.isExtremity ? `à${Math.round(posMm)}` : '';
-            const posSuffixComplete = Number.isFinite(posMm) && !def.isExtremity ? ` à ${Math.round(posMm)} mm` : '';
-
-            if ((type === 'circ' || type === 'circle') && Number.isFinite(d) && d > 0) {
-                details[def.key] = format === 'complete'
-                    ? `${def.label} : ${Math.round(d)} mm de ⌀${posSuffixComplete}`
-                    : `${def.code}:${Math.round(d)}⌀${posSuffixCompact}`;
-                return;
-            }
-
-            if ((type === 'rect' || type === 'rectangle' || !type)
-                && Number.isFinite(l) && l > 0
-                && Number.isFinite(e) && e > 0) {
-                details[def.key] = format === 'complete'
-                    ? `${def.label} : ${Math.round(l)} x ${Math.round(e)}${posSuffixComplete}`
-                    : `${def.code}:${Math.round(l)}x${Math.round(e)}${posSuffixCompact}`;
-                return;
-            }
-
-            if (Number.isFinite(d) && d > 0) {
-                details[def.key] = format === 'complete'
-                    ? `${def.label} : ${Math.round(d)} mm de ⌀${posSuffixComplete}`
-                    : `${def.code}:${Math.round(d)}⌀${posSuffixCompact}`;
-            }
-        });
-
-        return details;
-    }
-
-    getBarcodeComposerMesuresMultiplesPositionDetail(piece, positionKey, outputFormat = 'compact') {
-        const details = this.getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat);
-        const key = String(positionKey || '').trim().toLowerCase();
-        return Object.prototype.hasOwnProperty.call(details, key) ? details[key] : '';
-    }
-
-    getBarcodeComposerMesuresMultiplesDetail(piece, outputFormat = 'compact') {
-        const details = this.getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat);
-        const ordered = [details.e1, details.q1, details.mi, details.q3, details.e2].filter(Boolean);
-        const format = String(outputFormat || 'compact').toLowerCase() === 'complete' ? 'complete' : 'compact';
-        return format === 'complete' ? ordered.join(' ; ') : ordered.join(';');
     }
 
     formatBarcodeComposerNumber(value, digits = 0) {
@@ -39739,28 +39427,12 @@ renderRadar() {
         const essenceValue = mode === 'en13556' ? essenceEn13556 : essenceAbbr;
 
         const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'longueur'));
-        const mmAverages = this.getBarcodeComposerMesuresMultiplesRectAverages(pieceSource);
-        const hasAverageDims = !!(mmAverages && mmAverages.hasAverage);
-        const largeurBase = hasAverageDims ? mmAverages.largeur : this.getBarcodeComposerValueFromPieceOnly(piece, 'largeur');
-        const epaisseurBase = hasAverageDims ? mmAverages.epaisseur : this.getBarcodeComposerValueFromPieceOnly(piece, 'epaisseur');
-        const largeur = this.formatBarcodeComposerNumber(largeurBase);
-        const epaisseur = this.formatBarcodeComposerNumber(epaisseurBase);
-        const mesuresMultiplesDetails = this.getBarcodeComposerMesuresMultiplesDetailsMap(pieceSource, 'compact');
-        const mesuresMultiplesE1 = mesuresMultiplesDetails.e1 || '';
-        const mesuresMultiplesQ1 = mesuresMultiplesDetails.q1 || '';
-        const mesuresMultiplesMi = mesuresMultiplesDetails.mi || '';
-        const mesuresMultiplesQ3 = mesuresMultiplesDetails.q3 || '';
-        const mesuresMultiplesE2 = mesuresMultiplesDetails.e2 || '';
-        const mesuresMultiplesDetail = [mesuresMultiplesE1, mesuresMultiplesQ1, mesuresMultiplesMi, mesuresMultiplesQ3, mesuresMultiplesE2]
-            .filter(Boolean)
-            .join(';');
+        const largeur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'largeur'));
+        const epaisseur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'epaisseur'));
         const largeurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'largeur');
         const epaisseurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'epaisseur');
-        const diametreExtremesRaw = this.getBarcodeComposerMesuresExtremes(pieceSource, 'diametre');
-        const diametreExtremes = diametreExtremesRaw ? `⌀${diametreExtremesRaw}` : '';
 
-        const orientationRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'orientation')
-            || (lot && lot.orientationLabel && lot.orientationLabel !== '…' ? lot.orientationLabel : '');
+        const orientationRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'orientation');
         const orientationAbbr = this.abbreviateCompactToken(orientationRaw, 4);
 
         const prixUnitaireRaw = this.formatBarcodeComposerPriceCompactEur(
@@ -39832,17 +39504,10 @@ renderRadar() {
             ref: { value: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '', preview: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '—' },
             essence: { value: essenceValue, preview: essenceValue || '—' },
             longueur: { value: longueur, preview: longueur || '—' },
-            largeur: { value: largeur, preview: largeur || '—', isAverage: hasAverageDims },
-            epaisseur: { value: epaisseur, preview: epaisseur || '—', isAverage: hasAverageDims },
-            mesuresMultiplesE1: { value: mesuresMultiplesE1, preview: mesuresMultiplesE1 || '—' },
-            mesuresMultiplesQ1: { value: mesuresMultiplesQ1, preview: mesuresMultiplesQ1 || '—' },
-            mesuresMultiplesMi: { value: mesuresMultiplesMi, preview: mesuresMultiplesMi || '—' },
-            mesuresMultiplesQ3: { value: mesuresMultiplesQ3, preview: mesuresMultiplesQ3 || '—' },
-            mesuresMultiplesE2: { value: mesuresMultiplesE2, preview: mesuresMultiplesE2 || '—' },
-            mesuresMultiplesDetail: { value: mesuresMultiplesDetail, preview: mesuresMultiplesDetail || '—' },
+            largeur: { value: largeur, preview: largeur || '—' },
+            epaisseur: { value: epaisseur, preview: epaisseur || '—' },
             largeurExtremes: { value: largeurExtremes, preview: largeurExtremes || '—' },
             epaisseurExtremes: { value: epaisseurExtremes, preview: epaisseurExtremes || '—' },
-            diametreExtremes: { value: diametreExtremes, preview: diametreExtremes || '—' },
             orientationAbbr: { value: orientationAbbr, preview: orientationAbbr || '—' },
             prixUnitaire: { value: prixUnitaire, preview: prixUnitaire || '—' },
             masseUnitaire: { value: masseUnitaire, preview: masseUnitaire || '—' },
@@ -39869,15 +39534,8 @@ renderRadar() {
             longueur: true,
             largeur: true,
             epaisseur: false,
-            mesuresMultiplesE1: false,
-            mesuresMultiplesQ1: false,
-            mesuresMultiplesMi: false,
-            mesuresMultiplesQ3: false,
-            mesuresMultiplesE2: false,
-            mesuresMultiplesDetail: false,
             largeurExtremes: false,
             epaisseurExtremes: false,
-            diametreExtremes: false,
             orientationAbbr: false,
             prixUnitaire: false,
             masseUnitaire: false,
@@ -39978,28 +39636,10 @@ renderRadar() {
                         add('Longueur', `${token} mm`);
                         break;
                     case 'largeur':
-                        add(map && map.largeur && map.largeur.isAverage ? 'Largeur médiane' : 'Largeur', `${token} mm`);
+                        add('Largeur', `${token} mm`);
                         break;
                     case 'epaisseur':
-                        add(map && map.epaisseur && map.epaisseur.isAverage ? 'Epaisseur médiane' : 'Epaisseur', `${token} mm`);
-                        break;
-                    case 'mesuresMultiplesE1':
-                        add('Mesures multiples E1', this.getBarcodeComposerMesuresMultiplesPositionDetail(pieceSource, 'e1', 'complete') || token);
-                        break;
-                    case 'mesuresMultiplesQ1':
-                        add('Mesures multiples Q1', this.getBarcodeComposerMesuresMultiplesPositionDetail(pieceSource, 'q1', 'complete') || token);
-                        break;
-                    case 'mesuresMultiplesMi':
-                        add('Mesures multiples MI', this.getBarcodeComposerMesuresMultiplesPositionDetail(pieceSource, 'mi', 'complete') || token);
-                        break;
-                    case 'mesuresMultiplesQ3':
-                        add('Mesures multiples Q3', this.getBarcodeComposerMesuresMultiplesPositionDetail(pieceSource, 'q3', 'complete') || token);
-                        break;
-                    case 'mesuresMultiplesE2':
-                        add('Mesures multiples E2', this.getBarcodeComposerMesuresMultiplesPositionDetail(pieceSource, 'e2', 'complete') || token);
-                        break;
-                    case 'mesuresMultiplesDetail':
-                        add('Mesures multiples', this.getBarcodeComposerMesuresMultiplesDetail(pieceSource, 'complete') || token);
+                        add('Epaisseur', `${token} mm`);
                         break;
                     case 'largeurExtremes':
                         add('Extrêmes largeurs', `${token} mm`);
@@ -40007,11 +39647,8 @@ renderRadar() {
                     case 'epaisseurExtremes':
                         add('Extrêmes épaisseurs', `${token} mm`);
                         break;
-                    case 'diametreExtremes':
-                        add('Extrêmes diamètres', `${token} mm`);
-                        break;
                     case 'orientationAbbr':
-                        add('Orientation', this.getBarcodeComposerValueFromPieceOrLot(pieceSource, lot, 'orientation') || (lot && lot.orientationLabel) || token);
+                        add('Orientation', this.getBarcodeComposerValueFromPieceOnly(pieceSource, 'orientation') || token);
                         break;
                     case 'prixUnitaire':
                         add('Prix unitaire', withUnitSpacing(token));
@@ -40202,16 +39839,9 @@ renderRadar() {
             longueur: 'Longueur manquante sur les pieces selectionnees.',
             largeur: 'Largeur manquante sur les pieces selectionnees.',
             epaisseur: 'Epaisseur manquante sur les pieces selectionnees.',
-            mesuresMultiplesE1: 'Aucune mesure multiple exploitable pour la position E1.',
-            mesuresMultiplesQ1: 'Aucune mesure multiple exploitable pour la position Q1.',
-            mesuresMultiplesMi: 'Aucune mesure multiple exploitable pour la position MI.',
-            mesuresMultiplesQ3: 'Aucune mesure multiple exploitable pour la position Q3.',
-            mesuresMultiplesE2: 'Aucune mesure multiple exploitable pour la position E2.',
-            mesuresMultiplesDetail: 'Aucune serie de mesures multiples exploitable avec positions.',
             largeurExtremes: 'Aucune serie de mesures multiples exploitable pour les largeurs.',
             epaisseurExtremes: 'Aucune serie de mesures multiples exploitable pour les epaisseurs.',
-            diametreExtremes: 'Aucune serie de mesures multiples exploitable pour les diametres.',
-            orientationAbbr: 'Orientation non renseignee sur les lots selectionnes.',
+            orientationAbbr: 'Orientation non renseignee sur les pieces selectionnees.',
             prixUnitaire: 'Prix unitaire piece non renseigne.',
             masseUnitaire: 'Masse unitaire piece non renseignee.',
             pco2Unitaire: 'PCO2 unitaire non calculable: donnees dimensions/masse volumique insuffisantes.',
@@ -40228,8 +39858,8 @@ renderRadar() {
         return tips[field] || 'Valeur indisponible pour les lots/pieces selectionnes.';
     }
 
-    updateBarcodeComposerFieldAvailabilityIndicator(fieldRow, fieldLabel, fieldCheck, field, isAvailable) {
-        if (!fieldLabel && !fieldRow) return;
+    updateBarcodeComposerFieldAvailabilityIndicator(fieldLabel, field, isAvailable) {
+        if (!fieldLabel) return;
         let indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
         if (!indicator) {
             indicator = document.createElement('span');
@@ -40243,18 +39873,6 @@ renderRadar() {
             indicator.hidden = true;
             indicator.removeAttribute('title');
             indicator.removeAttribute('aria-label');
-            if (fieldRow) {
-                fieldRow.removeAttribute('title');
-                fieldRow.removeAttribute('aria-label');
-            }
-            if (fieldCheck) {
-                fieldCheck.removeAttribute('title');
-                fieldCheck.removeAttribute('aria-label');
-            }
-            if (fieldLabel) {
-                fieldLabel.removeAttribute('title');
-                fieldLabel.removeAttribute('aria-label');
-            }
             return;
         }
 
@@ -40262,25 +39880,13 @@ renderRadar() {
         indicator.hidden = false;
         indicator.setAttribute('title', tip);
         indicator.setAttribute('aria-label', tip);
-        if (fieldRow) {
-            fieldRow.setAttribute('title', tip);
-            fieldRow.setAttribute('aria-label', tip);
-        }
-        if (fieldCheck) {
-            fieldCheck.setAttribute('title', tip);
-            fieldCheck.setAttribute('aria-label', tip);
-        }
-        if (fieldLabel) {
-            fieldLabel.setAttribute('title', tip);
-            fieldLabel.setAttribute('aria-label', tip);
-        }
     }
 
     getBarcodeComposerPreviewAvailabilityScore(lot, item) {
         if (!lot || !item) return -1;
         const config = this.getBarcodeComposerConfig();
         const essenceMode = String(config && config.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
-        const valueMap = this.getBarcodeComposerValueMapCached(lot, item, essenceMode);
+        const valueMap = this.buildBarcodeComposerValueMap(lot, item, essenceMode);
         let score = 0;
 
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
@@ -40295,13 +39901,6 @@ renderRadar() {
         const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
         const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
         const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
-        if (!this._barcodeComposerAvailabilityCache || typeof this._barcodeComposerAvailabilityCache !== 'object') {
-            this._barcodeComposerAvailabilityCache = {};
-        }
-        const cacheKey = `${mode}|${lotIndices.filter((value) => Number.isInteger(value) && value >= 0).join(',')}`;
-        if (this._barcodeComposerAvailabilityCache[cacheKey]) {
-            return this._barcodeComposerAvailabilityCache[cacheKey];
-        }
         const availability = {};
 
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
@@ -40315,7 +39914,7 @@ renderRadar() {
             if (!Array.isArray(items) || !items.length) return;
 
             items.forEach((item) => {
-                const valueMap = this.getBarcodeComposerValueMapCached(lot, item, mode);
+                const valueMap = this.buildBarcodeComposerValueMap(lot, item, mode);
                 this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
                     if (availability[field]) return;
                     const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
@@ -40324,7 +39923,6 @@ renderRadar() {
             });
         });
 
-        this._barcodeComposerAvailabilityCache[cacheKey] = availability;
         return availability;
     }
 
@@ -40433,23 +40031,16 @@ renderRadar() {
         if (essenceModeEl) essenceModeEl.value = essenceMode;
         if (payloadFormatEl) payloadFormatEl.value = this.normalizeBarcodePayloadFormat(currentState.payloadFormat);
 
-        let activeEssenceMode = essenceMode;
-        let valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, activeEssenceMode);
-        let availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(activeEssenceMode);
+        const valueMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, essenceMode);
+        const availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(essenceMode);
         const previewIds = {
             ref: 'bcPreviewRef',
             essence: 'bcPreviewEssence',
             longueur: 'bcPreviewLongueur',
             largeur: 'bcPreviewLargeur',
             epaisseur: 'bcPreviewEpaisseur',
-            mesuresMultiplesE1: 'bcPreviewMesuresMultiplesE1',
-            mesuresMultiplesQ1: 'bcPreviewMesuresMultiplesQ1',
-            mesuresMultiplesMi: 'bcPreviewMesuresMultiplesMi',
-            mesuresMultiplesQ3: 'bcPreviewMesuresMultiplesQ3',
-            mesuresMultiplesE2: 'bcPreviewMesuresMultiplesE2',
             largeurExtremes: 'bcPreviewLargeurExtremes',
             epaisseurExtremes: 'bcPreviewEpaisseurExtremes',
-            diametreExtremes: 'bcPreviewDiametreExtremes',
             orientationAbbr: 'bcPreviewOrientationAbbr',
             prixUnitaire: 'bcPreviewPrixUnitaire',
             masseUnitaire: 'bcPreviewMasseUnitaire',
@@ -40465,37 +40056,12 @@ renderRadar() {
             contamination: 'bcPreviewContamination'
         };
 
-        const largeurLabelEl = composer.querySelector('.barcode-composer__field[data-field="largeur"] .barcode-composer__label');
-        const epaisseurLabelEl = composer.querySelector('.barcode-composer__field[data-field="epaisseur"] .barcode-composer__label');
-        const updateDimensionMeanLabels = (map) => {
-            const hasAverageLargeur = !!(map && map.largeur && map.largeur.isAverage);
-            const hasAverageEpaisseur = !!(map && map.epaisseur && map.epaisseur.isAverage);
-
-            const resolveText = (key, fallback) => {
-                if (typeof window.t !== 'function') return fallback;
-                const translated = window.t(key);
-                return translated && translated !== key ? translated : fallback;
-            };
-
-            if (largeurLabelEl) {
-                largeurLabelEl.textContent = hasAverageLargeur
-                    ? resolveText('editor.common.barcodeFieldLargeurMoyenneLabel', 'Largeur médiane (mm)')
-                    : resolveText('editor.common.barcodeFieldLargeurLabel', 'Largeur (mm)');
-            }
-            if (epaisseurLabelEl) {
-                epaisseurLabelEl.textContent = hasAverageEpaisseur
-                    ? resolveText('editor.common.barcodeFieldEpaisseurMoyenneLabel', 'Épaisseur médiane (mm)')
-                    : resolveText('editor.common.barcodeFieldEpaisseurLabel', 'Épaisseur (mm)');
-            }
-        };
-
         Object.keys(previewIds).forEach((field) => {
             const el = document.getElementById(previewIds[field]);
             if (!el) return;
             const preview = valueMap && valueMap[field] ? valueMap[field].preview : '—';
             el.textContent = preview || '—';
         });
-        updateDimensionMeanLabels(valueMap);
 
         if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
         if (customCodeEl) customCodeEl.value = currentState.customCode || '';
@@ -40534,9 +40100,8 @@ renderRadar() {
             const label = composer.querySelector(`.barcode-composer__field[data-field="${field}"]`);
             const labelText = label ? label.querySelector('.barcode-composer__label') : null;
             const isAvailable = !!availabilityMap[field];
-            if (label) label.dataset.scope = this.getBarcodeComposerFieldScope(field);
             if (label) label.style.opacity = isAvailable ? '1' : '0.4';
-            this.updateBarcodeComposerFieldAvailabilityIndicator(label, labelText, check, field, isAvailable);
+            this.updateBarcodeComposerFieldAvailabilityIndicator(labelText, field, isAvailable);
             check.dataset.available = isAvailable ? 'true' : 'false';
             if (!isAvailable) {
                 check.checked = false;
@@ -40545,30 +40110,14 @@ renderRadar() {
             }
         });
 
-        const refreshComputedMaps = (mode) => {
-            valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, mode);
-            availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(mode);
-            Object.keys(previewIds).forEach((field) => {
-                const el = document.getElementById(previewIds[field]);
-                if (!el) return;
-                const preview = valueMap && valueMap[field] ? valueMap[field].preview : '—';
-                el.textContent = preview || '—';
-            });
-            updateDimensionMeanLabels(valueMap);
-        };
-
-        const updateOutput = (source = 'full') => {
+        const updateOutput = () => {
             const selectedFormula = this.getSelectedCodeFormula();
             const nextEssenceMode = essenceModeEl && essenceModeEl.value === 'en13556' ? 'en13556' : 'abbr';
             const requestedFormat = this.normalizeBarcodePayloadFormat(payloadFormatEl && payloadFormatEl.value);
             const nextPayloadFormat = this.isBarcodePayloadFormatAvailable(selectedFormula) ? requestedFormat : 'compact';
             if (payloadFormatEl) payloadFormatEl.value = nextPayloadFormat;
-
-            if (source === 'full' || nextEssenceMode !== activeEssenceMode) {
-                activeEssenceMode = nextEssenceMode;
-                refreshComputedMaps(activeEssenceMode);
-            }
-
+            const currentMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, nextEssenceMode);
+            const currentAvailabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(nextEssenceMode);
             const config = {
                 lotNum: true,
                 pieceNum: true,
@@ -40578,7 +40127,14 @@ renderRadar() {
 
             this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
                 const check = composer.querySelector(`.barcode-composer__check[data-field="${field}"]`);
-                config[field] = !!(check && check.checked && availabilityMap[field]);
+                config[field] = !!(check && check.checked && currentAvailabilityMap[field]);
+            });
+
+            Object.keys(previewIds).forEach((field) => {
+                const el = document.getElementById(previewIds[field]);
+                if (!el) return;
+                const preview = currentMap && currentMap[field] ? currentMap[field].preview : '—';
+                el.textContent = preview || '—';
             });
 
             this._barcodeComposerFieldState = { ...config };
@@ -40610,15 +40166,10 @@ renderRadar() {
         };
 
         composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
-            checkbox.onchange = () => updateOutput('field-check');
+            checkbox.onchange = updateOutput;
         });
-        if (essenceModeEl) {
-            essenceModeEl.onchange = () => {
-                this.invalidateBarcodeComposerCaches();
-                this.refreshBarcodeComposerPreview();
-            };
-        }
-        if (payloadFormatEl) payloadFormatEl.onchange = () => updateOutput('payload-format');
+        if (essenceModeEl) essenceModeEl.onchange = () => this.refreshBarcodeComposerPreview();
+        if (payloadFormatEl) payloadFormatEl.onchange = updateOutput;
         if (previewPieceEl) {
             previewPieceEl.onchange = () => {
                 const value = String(previewPieceEl.value || 'auto');
@@ -40637,9 +40188,9 @@ renderRadar() {
                 this.refreshBarcodeComposerPreview();
             };
         }
-        if (customLabelEl) customLabelEl.oninput = () => updateOutput('custom-input');
-        if (customCodeEl) customCodeEl.oninput = () => updateOutput('custom-input');
-        if (footerTextEl) footerTextEl.oninput = () => updateOutput('custom-input');
+        if (customLabelEl) customLabelEl.oninput = updateOutput;
+        if (customCodeEl) customCodeEl.oninput = updateOutput;
+        if (footerTextEl) footerTextEl.oninput = updateOutput;
 
         this._updateBarcodeComposerOutput = updateOutput;
         this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
@@ -41153,4 +40704,5009 @@ renderRadar() {
 
         if (failedLots.length) {
             const details = failedLots.map((msg) => `- ${msg}`).join('\n');
-            alert(`Export term
+            alert(`Export terminé avec avertissements.\n\n${details}`);
+        }
+    }
+
+    async downloadEtiquettePdf(svgPages, filename, options = {}) {
+        const pages = (Array.isArray(svgPages) ? svgPages : [svgPages])
+            .filter((page) => typeof page === 'string' && page.trim());
+
+        if (!pages.length) {
+            throw new Error('Aucune page d\'étiquette générée.');
+        }
+
+        if (typeof pdfMake === 'undefined') {
+            throw new Error('pdfMake est requis pour un export PDF purement vectoriel.');
+        }
+
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const preset = this.getEtiquetteLayoutPreset(layoutMode);
+        const mmToPt = (mm) => (Number(mm) || 0) * 72 / 25.4;
+        const pageWidthPt = mmToPt(preset.pageWidthMm);
+        const pageHeightPt = mmToPt(preset.pageHeightMm);
+
+        const docDef = {
+            pageSize: preset.pageSize,
+            pageOrientation: preset.pageOrientation,
+            pageMargins: [0, 0, 0, 0],
+            info: {
+                title: filename,
+                author: 'VALOBOIS',
+                subject: 'Export étiquettes',
+                creator: 'VALOBOIS',
+                producer: 'pdfmake'
+            },
+            content: pages.map((page, index) => ({
+                svg: String(page).replace(/^<\?xml[^>]*>\s*/i, ''),
+                width: pageWidthPt,
+                height: pageHeightPt,
+                pageBreak: index < pages.length - 1 ? 'after' : undefined
+            }))
+        };
+
+        await new Promise((resolve, reject) => {
+            try {
+                pdfMake.createPdf(docDef).download(filename, () => resolve());
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    buildEtiquettePieceItems(lot, lotIndex) {
+        const items = [];
+        const allot = (lot && lot.allotissement) || {};
+        const meta = this.data.meta || {};
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        const orientation = this.getPdfOrientationSummary(lot);
+
+        const asText = (value) => (value == null ? '' : String(value)).trim();
+        const firstFilled = (...values) => values.map(asText).find(Boolean) || '';
+        const asNumber = (value) => {
+            const num = parseFloat(value);
+            return Number.isFinite(num) && num > 0 ? num : null;
+        };
+        const formatMm = (value) => {
+            const num = parseFloat(value);
+            return Number.isFinite(num) && num > 0 ? `${Math.round(num)} mm` : '—';
+        };
+        const formatDimensionsLabel = (longueur, largeur, epaisseur) => {
+            return `${formatMm(longueur)} (L) - ${formatMm(largeur)} (l) - ${formatMm(epaisseur)} (e)`;
+        };
+        const joinCompanyAndEmail = (company, email) => {
+            const parts = [asText(company), asText(email)].filter(Boolean);
+            return parts.length ? parts.join(' - ') : '';
+        };
+
+        const lotRef = this.getPdfLotLabel(lot, lotIndex);
+        const vol = parseFloat(allot.volumeLot) || 0;
+        const diagInfo = joinCompanyAndEmail(
+            firstFilled(meta.diagnostiqueurNom, meta.diagnostiqueurContact),
+            firstFilled(meta.diagnostiqueurMail, meta.diagnostiqueurEmail)
+        );
+        const deconInfo = joinCompanyAndEmail(
+            firstFilled(meta.entrepriseDeconstructionNom, meta.deconstructeurNom),
+            firstFilled(meta.entrepriseDeconstructionMail, meta.entrepriseDeconstructionEmail, meta.deconstructeurMail)
+        );
+        const destinationInfo = joinCompanyAndEmail(
+            firstFilled(allot.destination),
+            firstFilled(allot.destinationMail, allot.destinationEmail)
+        );
+        let pieceOrdinal = 0;
+
+        const createBaseItem = (pieceLabel, typePiece, essenceNomCommun, dims, volumePiece, sourcePieceIndex = null) => {
+            pieceOrdinal += 1;
+            const normalizedPieceIndex = Number.isInteger(sourcePieceIndex) ? sourcePieceIndex : (pieceOrdinal - 1);
+            return {
+                uid: `lot${String(lotIndex + 1).padStart(2, '0')}-p${String(pieceOrdinal).padStart(4, '0')}`,
+                lotRef,
+                pieceLabel,
+                sourceLotIndex: Number.isInteger(lotIndex) ? lotIndex : 0,
+                sourcePieceIndex: normalizedPieceIndex,
+                dimensionsLabel: formatDimensionsLabel(dims.longueur, dims.largeur, dims.epaisseur),
+                longueur: asNumber(dims.longueur),
+                largeur: asNumber(dims.largeur),
+                epaisseur: asNumber(dims.epaisseur),
+                typePiece: asText(typePiece) || '—',
+                essenceNomCommun: asText(essenceNomCommun) || '—',
+                essenceNomScientifique: asText(allot.essenceNomScientifique) || null,
+                orientationCode: orientation.code || 'none',
+                orientationLabel: orientation.label || '—',
+                volumeLot: vol,
+                volumePiece: asNumber(volumePiece),
+                origine: asText(meta.localisation) || '—',
+                diagnostiqueur: diagInfo || '—',
+                deconstructeur: deconInfo || '—',
+                destination: destinationInfo || '—',
+                sourcePiece: dims && dims.sourcePiece ? dims.sourcePiece : null,
+                mainDimensionLabel: '—'
+            };
+        };
+
+        const pieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
+        pieces.forEach((piece, index) => {
+            const longueur = firstFilled(piece && piece.longueur, allot.longueur);
+            const largeur = firstFilled(piece && piece.largeur, allot.largeur);
+            const epaisseur = firstFilled(piece && piece.epaisseur, allot.epaisseur);
+            items.push(createBaseItem(
+                `Pièce ${index + 1}`,
+                firstFilled(piece && piece.typePiece, allot.typePiece),
+                firstFilled(piece && piece.essenceNomCommun, allot.essenceNomCommun),
+                { longueur, largeur, epaisseur, sourcePiece: piece },
+                piece && piece.volumePiece,
+                index
+            ));
+        });
+
+        let defaultPieceOccurrenceIndex = 0;
+        defaultPieces.forEach((defaultPiece, defaultPieceIndex) => {
+            const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
+            for (let i = 0; i < defaultQty; i += 1) {
+                const longueur = firstFilled(defaultPiece.longueur, allot.longueur);
+                const largeur = firstFilled(defaultPiece.largeur, allot.largeur);
+                const epaisseur = firstFilled(defaultPiece.epaisseur, allot.epaisseur);
+                items.push(createBaseItem(
+                    `Pièce par défaut ${defaultPieceIndex + 1} n°${i + 1}`,
+                    firstFilled(defaultPiece.typePiece, allot.typePiece),
+                    firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
+                    { longueur, largeur, epaisseur, sourcePiece: defaultPiece },
+                    defaultPiece && defaultPiece.volumePiece,
+                    pieces.length + defaultPieceOccurrenceIndex
+                ));
+                defaultPieceOccurrenceIndex += 1;
+            }
+        });
+
+        items.forEach((item) => {
+            item.mainDimensionLabel = this.formatEtiquetteMainDimension(item);
+        });
+
+        return items;
+    }
+
+    async buildEtiquetteSvgPages(lotIndex, options = {}) {
+        const lot   = this.data.lots[lotIndex] || {};
+        const externalItems = Array.isArray(options && options.items) ? options.items : null;
+        const items = externalItems || this.buildEtiquettePieceItems(lot, lotIndex);
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const layoutPreset = this.getEtiquetteLayoutPreset(layoutMode);
+        const codeFormula = this.normalizeCodeFormula(options && options.codeFormula);
+        const codeFields = Array.isArray(options && options.codeFields)
+            ? options.codeFields
+            : ['id', 'essence', 'dimensions', 'orientation'];
+        const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
+
+        if (!items.length) return [];
+
+        let firestorePiecesMap = options && options.firestorePiecesMap instanceof Map
+            ? options.firestorePiecesMap
+            : null;
+        if (!firestorePiecesMap && codeFormula === 'qr-online' && this.persistenceMode === 'cloud' && !externalItems) {
+            try {
+                firestorePiecesMap = await this.publishPiecesToFirestore(lot, lotIndex, items);
+            } catch (e) {
+                console.warn('Valobois QR: publication Firestore échouée, fallback local', e);
+            }
+        }
+
+        const qrByItemUid = new Map();
+        const cfg = this.getEtiquetteQrConfig();
+        const baseUrl = String(window.VALOBOIS_PUBLIC_URL || cfg.baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
+        const singlePx = 132;
+
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            const itemLotIndex = Number.isInteger(item && item.sourceLotIndex) ? item.sourceLotIndex : lotIndex;
+            const itemPieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : i;
+            const itemLot = (this.data && this.data.lots && this.data.lots[itemLotIndex]) ? this.data.lots[itemLotIndex] : lot;
+            const firestorePieceId = firestorePiecesMap && firestorePiecesMap.get(item.uid);
+            const payload = this.buildCodeContent(codeFormula, item, {
+                fields: codeFields,
+                firestorePieceId,
+                lot: itemLot,
+                lotIndex: itemLotIndex,
+                pieceIndex: itemPieceIndex,
+                barcodeConfig,
+                baseUrl,
+                diagDate: this.data && this.data.meta ? this.data.meta.date : null
+            });
+
+            const hardLimit = this.getCodeFormulaMaxLength(codeFormula);
+            if ((codeFormula === 'barcode1d' || codeFormula === 'datamatrix') && String(payload || '').length > hardLimit) {
+                console.warn(`[Valobois] Contenu trop long pour ${codeFormula} (${String(payload || '').length} chars).`);
+            }
+
+            const svg = await this.generateCodeSvg(payload, codeFormula);
+            qrByItemUid.set(item.uid, {
+                mode: codeFormula,
+                svg: typeof svg === 'string' ? svg : ''
+            });
+        }
+
+        /* ── Page (mm) ── */
+        const PW = layoutPreset.pageWidthMm;
+        const PH = layoutPreset.pageHeightMm;
+        const PAGE_MARGIN = layoutPreset.pageMarginMm;
+        const COLS = layoutPreset.cols;
+        const ROWS = layoutPreset.rows;
+        const LABEL_W = layoutPreset.labelWidthMm;
+        const LABEL_H = layoutPreset.labelHeightMm;
+        const GAP = layoutPreset.gapMm;
+        const areaW = COLS * LABEL_W + (COLS - 1) * GAP;
+        const areaH = ROWS * LABEL_H + (ROWS - 1) * GAP;
+        const printableW = PW - (PAGE_MARGIN * 2);
+        const printableH = PH - (PAGE_MARGIN * 2);
+        const ox = PAGE_MARGIN + Math.max(0, (printableW - areaW) / 2);
+        const oy = PAGE_MARGIN + Math.max(0, (printableH - areaH) / 2);
+
+        /* ── Helpers ── */
+        const e = (s) => String(s || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const wrapText = (value, maxChars) => {
+            const text = String(value || '').trim();
+            if (!text) return [''];
+
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = [];
+            let current = '';
+
+            const pushCurrent = () => {
+                if (current) {
+                    lines.push(current);
+                    current = '';
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > maxChars) {
+                    pushCurrent();
+                    for (let i = 0; i < word.length; i += maxChars) {
+                        lines.push(word.slice(i, i + maxChars));
+                    }
+                    return;
+                }
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= maxChars) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+
+            pushCurrent();
+            return lines.length ? lines : [''];
+        };
+        const maxCharsForWidth = (widthMm, fontSize) => {
+            return Math.max(6, Math.floor(widthMm / (fontSize * 0.55)));
+        };
+        const drawRotatedCenterText = (out, opts) => {
+            const {
+                text,
+                cx,
+                cy,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                angle = -90,
+                fontWeight = '700'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
+        };
+        const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
+            const safeText = String(text || '').trim() || '—';
+            let size = baseSize;
+            while (size > minSize && safeText.length > maxCharsForWidth(widthMm, size)) {
+                size -= 0.05;
+            }
+            return Math.max(minSize, Number(size.toFixed(2)));
+        };
+        const drawWrappedLines = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill,
+                fontWeight = '400'
+            } = opts;
+            const lines = wrapText(text, maxCharsForWidth(widthMm, fontSize));
+            lines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + idx * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(line)}</text>`);
+            });
+            return y + lines.length * lineHeight;
+        };
+        const drawSingleLine = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                fontWeight = '400',
+                textAnchor = 'start'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
+            return y;
+        };
+        const buildQrVectorGroup = (svgString, x, y, sizeMm, fitMode = 'contain') => {
+            const raw = typeof svgString === 'string' ? svgString.trim() : '';
+            if (!raw) return '';
+
+            const inner = raw
+                .replace(/^<\?xml[^>]*>\s*/i, '')
+                .replace(/^<svg[^>]*>/i, '')
+                .replace(/<\/svg>\s*$/i, '')
+                .trim();
+            if (!inner) return '';
+
+            const viewBoxMatch = raw.match(/viewBox\s*=\s*"([^"]+)"/i);
+            let vbWidth = 1;
+            let vbHeight = 1;
+            if (viewBoxMatch && viewBoxMatch[1]) {
+                const parts = viewBoxMatch[1].trim().split(/\s+/).map((v) => parseFloat(v));
+                if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+                    vbWidth = parts[2];
+                    vbHeight = parts[3];
+                }
+            }
+
+            const preserveAspectRatio = fitMode === 'stretch' ? 'none' : 'xMidYMid meet';
+            // Sous-SVG viewporté: contain par défaut, stretch optionnel (Code128) pour remplir 30x30.
+            return `<svg x="${x}" y="${y}" width="${sizeMm}" height="${sizeMm}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="hidden" shape-rendering="crispEdges">${inner}</svg>`;
+        };
+        const drawLabeledWrappedValue = (out, opts) => {
+            const {
+                label,
+                value,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill
+            } = opts;
+
+            const labelText = String(label || '').trim();
+            const valueText = String(value || '').trim() || '—';
+            const maxChars = maxCharsForWidth(widthMm, fontSize);
+            const firstLineCap = Math.max(6, maxChars - labelText.length - 1);
+
+            const words = valueText.split(/\s+/).filter(Boolean);
+            const valueLines = [];
+            let current = '';
+            let currentCap = firstLineCap;
+
+            const pushCurrent = () => {
+                if (current) {
+                    valueLines.push(current);
+                    current = '';
+                    currentCap = maxChars;
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > currentCap) {
+                    if (current) pushCurrent();
+                    if (word.length > maxChars) {
+                        for (let i = 0; i < word.length; i += maxChars) {
+                            valueLines.push(word.slice(i, i + maxChars));
+                        }
+                        currentCap = maxChars;
+                    } else {
+                        current = word;
+                    }
+                    return;
+                }
+
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= currentCap) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+            pushCurrent();
+
+            const firstValue = valueLines.shift() || '—';
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" fill="${fill}"><tspan font-weight="700">${e(labelText)}</tspan><tspan font-weight="400"> ${e(firstValue)}</tspan></text>`);
+
+            valueLines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + (idx + 1) * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="400" fill="${fill}">${e(line)}</text>`);
+            });
+
+            return y + (1 + valueLines.length) * lineHeight;
+        };
+        const formatOneDecimal = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        });
+
+        /* ── Données de page ── */
+        const lotRef = options && options.pageNoteLabel
+            ? String(options.pageNoteLabel)
+            : this.getPdfLotLabel(lot, lotIndex);
+
+        /* ── Orientation ── */
+        const OC = { reemploi: '#009E73', reutilisation: '#56B4E9', recyclage: '#E69F00', combustion: '#D55E00', none: '#CCCCCC' };
+
+        /* ── Typographie ── */
+        const FF = 'Roboto,Arial,sans-serif';
+        const baseF = { lot: 2.5, side: 2.45, orientation: 2.8, piece: 2.5, line: 2.1, origin: 1.55 };
+        const C  = { dark: '#111111', mid: '#333333', muted: '#555555', light: '#777777' };
+
+        /* ── Constructeur d'une étiquette 40×60 mm ── */
+        const buildLabel = (lx, ly, uid, item, qrData) => {
+            const R = 0;
+            const out = [];
+            const layoutScale = Math.min(LABEL_W / 40, LABEL_H / 60);
+            const su = (value) => value * layoutScale;
+            const lotNameRaw = String(item.lotRef || '').trim();
+            const lotName = lotNameRaw ? (lotNameRaw.toLowerCase().startsWith('lot') ? lotNameRaw : `Lot ${lotNameRaw}`) : 'Lot nnn';
+            const pieceLabel = item.pieceLabel || '—';
+            const pieceHeading = this.formatEtiquettePieceHeading(item);
+            const typePiece = item.typePiece || '—';
+            const essenceNomCommun = item.essenceNomCommun || '—';
+            const origine = item.origine || '—';
+            const mainDimensionLabel = item.mainDimensionLabel || '—';
+            const orientationCode = String(item.orientationCode || 'none').toLowerCase();
+            const orientationColor = OC[orientationCode] || '#CCCCCC';
+            const orientationText = String(item.orientationLabel || '—').toUpperCase();
+            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m³` : '0,0 m³';
+            const COLOR_GREEN = '#019e73';
+            const COLOR_WHITE = '#FFFFFF';
+            const COLOR_DARK = '#000000';
+            const topBandH = su(5);
+            const bottomBandH = su(5);
+            const sideBandW = su(5);
+            const qrSize = su(30);
+            const centerPanelW = LABEL_W - (sideBandW * 2);
+            const centerPanelH = LABEL_H - topBandH - bottomBandH;
+            const qrX = lx + sideBandW + ((centerPanelW - qrSize) / 2);
+            const qrY = ly + topBandH;
+            const sideTextCy = ly + topBandH + (centerPanelH / 2);
+            const sideTextSpan = centerPanelH - su(4);
+            const blockX = lx + sideBandW;
+            const blockY = qrY + qrSize;
+            const blockW = centerPanelW;
+            const row1H = su(7);
+            const row2H = su(3.5);
+            const row3H = su(3.5);
+            const row4H = su(6);
+            const rowSplitY1 = blockY + row1H;
+            const rowSplitY2 = rowSplitY1 + row2H;
+            const rowSplitY3 = rowSplitY2 + row3H;
+            const pieceCellW = su(13.5);
+            const nCellW = su(5);
+            const pieceNumRaw = pieceHeading.numberLabel
+                ? pieceHeading.numberLabel.replace(/^N°\s*/i, '').trim()
+                : '';
+            const fallbackNumMatch = String(item && item.uid ? item.uid : '').match(/-p0*(\d+)$/i);
+            const pieceNumberText = pieceNumRaw || (fallbackNumMatch ? fallbackNumMatch[1] : '—');
+
+            /* ClipPath arrondi */
+            out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" rx="${R}"/></clipPath>`);
+
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${topBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + LABEL_W - sideBandW}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + LABEL_H - bottomBandH}" width="${LABEL_W}" height="${bottomBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + sideBandW}" y="${ly + topBandH}" width="${centerPanelW}" height="${centerPanelH}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<g clip-path="url(#cp${uid})">`);
+
+            {
+                const lotFont = fitSingleLineFont(lotName, LABEL_W - su(5), su(2.8), su(1.8));
+                out.push(`<text x="${lx + (LABEL_W / 2)}" y="${ly + (topBandH / 2)}" font-family="${FF}" font-size="${lotFont}" font-weight="700" fill="${COLOR_DARK}" text-anchor="middle" dominant-baseline="middle">${e(lotName)}</text>`);
+            }
+
+            drawRotatedCenterText(out, {
+                text: mainDimensionLabel,
+                cx: lx + (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                angle: -90
+            });
+            drawRotatedCenterText(out, {
+                text: volumeStr,
+                cx: lx + LABEL_W - (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(3.72),
+                minFontSize: su(2.82),
+                fill: COLOR_DARK,
+                angle: 90
+            });
+
+            out.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
+            if (qrData && qrData.svg) {
+                const fitMode = qrData && qrData.mode === 'barcode1d' ? 'stretch' : 'contain';
+                const qrGroup = buildQrVectorGroup(qrData.svg, qrX, qrY, qrSize, fitMode);
+                if (qrGroup) {
+                    out.push(qrGroup);
+                } else {
+                    out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+                }
+            } else {
+                out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+            }
+
+            out.push(`<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${row1H + row2H + row3H + row4H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+
+            const pieceNameCellText = String(pieceHeading.nameLabel || pieceLabel || 'Pièce').trim() || 'Pièce';
+            const isDefaultPieceLabel = /^pi[eè]ce\s+par\s+d[ée]faut\b/i.test(pieceNameCellText);
+            if (isDefaultPieceLabel) {
+                const pieceNameLinesRaw = wrapText(pieceNameCellText, maxCharsForWidth(pieceCellW - su(1.2), su(2.2)));
+                const line1 = pieceNameLinesRaw[0] || 'Pièce par';
+                let line2 = pieceNameLinesRaw[1] || 'défaut';
+                if (pieceNameLinesRaw.length > 2) {
+                    line2 = `${line2.replace(/\s+$/, '')}…`;
+                }
+                drawSingleLine(out, {
+                    text: line1,
+                    x: blockX + su(0.6),
+                    y: blockY + su(2.55),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.2),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+                drawSingleLine(out, {
+                    text: line2,
+                    x: blockX + su(0.6),
+                    y: blockY + su(5.05),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.2),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            } else {
+                drawSingleLine(out, {
+                    text: pieceNameCellText,
+                    x: blockX + su(0.6),
+                    y: blockY + (row1H / 2) + su(0.72),
+                    widthMm: pieceCellW - su(1.2),
+                    baseFontSize: su(2.1),
+                    minFontSize: su(2.2),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            }
+            drawSingleLine(out, {
+                text: 'N°',
+                x: blockX + pieceCellW + (nCellW / 2),
+                y: blockY + (row1H / 2) + su(0.95),
+                widthMm: nCellW - su(0.6),
+                baseFontSize: su(3.4),
+                minFontSize: su(3.2),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+            drawSingleLine(out, {
+                text: pieceNumberText,
+                x: blockX + pieceCellW + nCellW + ((blockW - pieceCellW - nCellW) / 2),
+                y: blockY + (row1H / 2) + su(1.3),
+                widthMm: (blockW - pieceCellW - nCellW) - su(0.6),
+                baseFontSize: su(5.9),
+                minFontSize: su(5.8),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+
+            drawSingleLine(out, {
+                text: typePiece,
+                x: blockX + su(0.6),
+                y: rowSplitY1 + (row2H / 2) + su(0.95),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(2.85),
+                minFontSize: su(2.2),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+            drawSingleLine(out, {
+                text: essenceNomCommun,
+                x: blockX + su(0.6),
+                y: rowSplitY2 + (row3H / 2) + su(0.95),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(2.85),
+                minFontSize: su(2.2),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+
+            const originLines = wrapText(origine, maxCharsForWidth(blockW - su(1.2), su(2.45)));
+            const originLineOne = originLines[0] || '—';
+            const hasOriginOverflow = originLines.length > 2;
+            let originLineTwo = originLines[1] || '';
+            if (hasOriginOverflow && originLineTwo) {
+                originLineTwo = originLineTwo.replace(/\s+$/, '') + '…';
+            }
+            drawSingleLine(out, {
+                text: originLineOne,
+                x: blockX + su(0.6),
+                y: rowSplitY3 + su(2.2),
+                widthMm: blockW - su(1.2),
+                baseFontSize: su(1.85),
+                minFontSize: su(1.85),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+            if (originLineTwo) {
+                drawSingleLine(out, {
+                    text: originLineTwo,
+                    x: blockX + su(0.6),
+                    y: rowSplitY3 + su(4.8),
+                    widthMm: blockW - su(1.2),
+                    baseFontSize: su(1.85),
+                    minFontSize: su(1.85),
+                    fill: COLOR_DARK,
+                    fontWeight: '700'
+                });
+            }
+
+            drawSingleLine(out, {
+                text: orientationText,
+                x: lx + (LABEL_W / 2),
+                y: ly + LABEL_H - su(1.65),
+                widthMm: LABEL_W - su(4),
+                baseFontSize: su(2.55),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+
+            out.push('</g>');
+
+            return out.join('');
+        };
+
+        /* ── Traits de découpe pointillés ── */
+        const dash = `stroke="#CCCCCC" stroke-width="0.25" stroke-dasharray="1.5 1.5"`;
+        const marks = [];
+        for (let c = 1; c < COLS; c++) {
+            const cx = ox + c * (LABEL_W + GAP) - GAP / 2;
+            marks.push(`<line x1="${cx}" y1="${oy}" x2="${cx}" y2="${oy + areaH}" ${dash}/>`);
+        }
+        for (let r = 1; r < ROWS; r++) {
+            const ry = oy + r * (LABEL_H + GAP) - GAP / 2;
+            marks.push(`<line x1="${ox}" y1="${ry}" x2="${ox + areaW}" y2="${ry}" ${dash}/>`);
+        }
+
+        const labelsPerPage = COLS * ROWS;
+        const totalLabels = items.length;
+        const totalPages = Math.max(1, Math.ceil(totalLabels / labelsPerPage));
+        const today = new Date().toLocaleDateString(getValoboisIntlLocale());
+        const footerTextCustom = String(options && options.barcodeConfig && options.barcodeConfig.footerText || '').trim();
+        const footerTextFallback = `VALOXYLO · ${e(lotRef)} · ${totalLabels} étiquettes · page {page}/{totalPages} · ${today}`;
+
+        const svgPages = [];
+        for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
+            const start = pageIndex * labelsPerPage;
+            const pageItems = items.slice(start, start + labelsPerPage);
+
+            const cells = [];
+            for (let idx = 0; idx < pageItems.length; idx += 1) {
+                const row = Math.floor(idx / COLS);
+                const col = idx % COLS;
+                const uid = `p${pageIndex}_${idx}`;
+                const x = ox + col * (LABEL_W + GAP);
+                const y = oy + row * (LABEL_H + GAP);
+                const item = pageItems[idx];
+                cells.push(buildLabel(x, y, uid, item, qrByItemUid.get(item.uid)));
+            }
+
+            const pageNoteY = PH - 10;
+            const pageNoteText = footerTextCustom
+                ? footerTextCustom
+                    .replace(/\{page\}/g, String(pageIndex + 1))
+                    .replace(/\{totalPages\}/g, String(totalPages))
+                    .replace(/\{lotRef\}/g, String(lotRef || ''))
+                    .replace(/\{totalLabels\}/g, String(totalLabels))
+                    .replace(/\{date\}/g, today)
+                : footerTextFallback;
+            const pageNoteFont = footerTextCustom ? Math.max(1.65, fitSingleLineFont(pageNoteText, PW - 10, 2.1, 1.45)) : 2.1;
+            const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="${pageNoteFont}" fill="#BBBBBB" text-anchor="middle">${e(pageNoteText)}</text>`;
+
+            svgPages.push([
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                `<svg xmlns="http://www.w3.org/2000/svg" width="${PW}mm" height="${PH}mm" viewBox="0 0 ${PW} ${PH}">`,
+                `<rect width="${PW}" height="${PH}" fill="#F4F4F4"/>`,
+                '<defs></defs>',
+                marks.join('\n'),
+                cells.join('\n'),
+                pageNote,
+                '</svg>'
+            ].join('\n'));
+        }
+
+        return svgPages;
+    }
+
+    async buildEtiquetteSvgPage(lotIndex, options = {}) {
+        const pages = await this.buildEtiquetteSvgPages(lotIndex, options);
+        return pages[0] || '';
+    }
+
+    /* ═══════ pdfmake — palette & styles ═══════ */
+
+    getPdfmakeColors() {
+        return {
+            border: '#000000',
+            cardBg: '#ffffff',
+            headerBg: '#E6E6E6',
+            altRowBg: '#ffffff',
+            labelColor: '#808080',
+            textColor: '#000000',
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#D55E00',
+            neutral: '#E6E6E6'
+        };
+    }
+
+    getPdfFontScale() {
+        return {
+            title: 16,
+            smallTitle: 13,
+            cardTitle: 10,
+            sectionTitle: 9,
+            body: 8,
+            value: 8,
+            table: 8,
+            label: 8,
+            tableCompact: 7,
+            gaugeValue: 7,
+            gaugeLabel: 7,
+            footer: 7,
+            notation: 6
+        };
+    }
+
+    getPdfLocaleCode() {
+        const locale = ((typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : 'fr') || 'fr').toString().toLowerCase();
+        return locale.startsWith('en') ? 'en' : 'fr';
+    }
+
+    getPdfText(_key, frValue, enValue) {
+        const key = (_key || '').toString().trim();
+        const map = {
+            'pdf.common.none': { fr: 'Aucun', en: 'None' },
+            'pdf.orientation.status.confirmed': { fr: 'Confirmee', en: 'Confirmed' },
+            'pdf.orientation.status.forced': { fr: 'Forcee', en: 'Forced' },
+            'pdf.orientation.status.unconfirmedCombustion': { fr: 'Deduite (non confirmee)', en: 'Inferred (unconfirmed)' },
+            'pdf.orientation.status.inProgress': { fr: 'En cours', en: 'In progress' },
+            'pdf.lot.orientationStatus': { fr: 'Statut orientation', en: 'Orientation status' },
+            'pdf.lot.orientationRejects': { fr: 'Rejets actifs', en: 'Active rejects' },
+            'pdf.lot.orientationVectors': { fr: 'Vecteurs actifs', en: 'Active vectors' },
+            'pdf.card.orientationJustification': { fr: 'Justification de l\'orientation', en: 'Orientation rationale' },
+            'pdf.orientation.emptyRejects': { fr: 'Aucun rejet actif pour cette orientation.', en: 'No active reject for this orientation.' },
+            'pdf.orientation.emptyVectors': { fr: 'Aucun vecteur actif pour cette orientation.', en: 'No active vector for this orientation.' },
+            'pdf.lot.combustionCaution': { fr: 'Alerte combustion', en: 'Combustion warning' },
+            'pdf.orientation.combustionCaution': {
+                fr: 'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                en: 'Orientation inferred by elimination, not positively confirmed by the matrix.'
+            }
+        };
+
+        const locale = this.getPdfLocaleCode();
+        if (key && map[key]) {
+            return locale === 'en' ? map[key].en : map[key].fr;
+        }
+        return locale === 'en' ? enValue : frValue;
+    }
+
+    getPdfDocInfo(kind = 'synthese', lotLabel = '') {
+        const meta = this.data.meta || {};
+        const operation = this.sanitizePdfText(meta.operation || '', { fallback: '' });
+        const ref = this.sanitizePdfText(this.getReferenceGisement(meta) || '', { fallback: '' });
+        const suffix = kind === 'lot' && lotLabel
+            ? (' - ' + this.sanitizePdfText(lotLabel, { fallback: '' }))
+            : '';
+        const titleBase = this.getPdfText('pdf.meta.titleBase', 'VALOBOIS - Evaluation', 'VALOBOIS - Assessment');
+        const title = [titleBase, operation].filter(Boolean).join(' - ') + suffix;
+        const subjectBase = this.getPdfText('pdf.meta.subjectBase', 'Export PDF VALOBOIS', 'VALOBOIS PDF export');
+        return {
+            title,
+            author: 'VALOBOIS',
+            subject: [subjectBase, ref].filter(Boolean).join(' - '),
+            keywords: this.getPdfText(
+                'pdf.meta.keywords',
+                'VALOBOIS, bois, réemploi, évaluation, PDF',
+                'VALOBOIS, timber, reuse, assessment, PDF'
+            ),
+            creator: 'VALOBOIS',
+            producer: 'pdfmake'
+        };
+    }
+
+    getPdfmakeStyles() {
+        const f = this.getPdfFontScale();
+        return {
+            title: { fontSize: f.title, bold: true, alignment: 'center', margin: [0, 0, 0, 6] },
+            cardTitle: { fontSize: f.cardTitle, bold: true, margin: [0, 0, 0, 3] },
+            kvLabel: { fontSize: f.label, color: '#6a6257', bold: false, margin: [0, 0, 0, 1] },
+            kvValue: { fontSize: f.value, bold: true },
+            tableCell: { fontSize: f.table },
+            smallTitle: { fontSize: f.smallTitle, bold: true, alignment: 'center', margin: [0, 0, 0, 2] }
+        };
+    }
+
+    /* ═══════ pdfmake — helpers de construction ═══════ */
+
+    pdfCard(titleText, bodyContent, options = {}) {
+        const c = this.getPdfmakeColors();
+        const content = [];
+        if (titleText) {
+            content.push({ text: this.sanitizePdfText(titleText), style: 'cardTitle' });
+        }
+        if (Array.isArray(bodyContent)) {
+            content.push(...bodyContent);
+        } else if (bodyContent) {
+            content.push(bodyContent);
+        }
+        const pad = options.padding || [5, 4, 5, 4];
+        const cardTable = {
+            table: {
+                widths: ['*'],
+                body: [
+                    [{ stack: content }]
+                ]
+            },
+            layout: {
+                hLineWidth: () => 0.6,
+                vLineWidth: () => 0.6,
+                hLineColor: () => c.border,
+                vLineColor: () => c.border,
+                fillColor: () => c.cardBg,
+                paddingLeft: () => pad[0],
+                paddingRight: () => pad[2],
+                paddingTop: () => pad[1],
+                paddingBottom: () => pad[3],
+                defaultBorder: false,
+                borderRadius: () => 4
+            },
+            margin: options.margin || [0, 0, 0, 6]
+        };
+        
+        // Si unbreakable est activé, wrapper la carte pour éviter les césures
+        if (options.unbreakable !== false) {
+            return { stack: [cardTable], unbreakable: true };
+        }
+        return cardTable;
+    }
+
+    pdfKeyValueGrid(pairs, columns = 2) {
+        const rows = [];
+        for (let i = 0; i < pairs.length; i += columns) {
+            const row = [];
+            for (let j = 0; j < columns; j++) {
+                const pair = pairs[i + j];
+                if (pair) {
+                    const safeLabel = this.sanitizePdfText(pair.label || '', { fallback: '' });
+                    // Wrap long strings properly so they don't break the layout
+                    const safeValue = this.sanitizePdfText(pair.value || '—', { wrapLongWords: true });
+                    row.push({
+                        stack: [
+                            { text: safeLabel, style: 'kvLabel' },
+                            { text: safeValue, style: 'kvValue' }
+                        ]
+                    });
+                } else {
+                    row.push({ text: '' });
+                }
+            }
+            rows.push(row);
+        }
+        const widths = Array(columns).fill('*');
+        return {
+            table: { dontBreakRows: true, widths, body: rows },
+            layout: {
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => '#e7e1d6',
+                vLineColor: () => '#e7e1d6',
+                fillColor: () => '#ffffff',
+                paddingLeft: () => 3,
+                paddingRight: () => 3,
+                paddingTop: () => 2,
+                paddingBottom: () => 2
+            }
+        };
+    }
+
+    pdfDataTable(headers, dataRows, options = {}) {
+        const c = this.getPdfmakeColors();
+        const f = this.getPdfFontScale();
+        const fontSize = options.fontSize || f.table;
+        const cellStyle = options.cellStyle || 'tableCell';
+        const preserveEmptyCells = options.preserveEmptyCells === true;
+        const widths = options.widths || headers.map(() => '*');
+        const noWrapColumns = Array.isArray(options.noWrapColumns) ? options.noWrapColumns : [];
+        const columnAlignments = Array.isArray(options.columnAlignments) ? options.columnAlignments : [];
+        const padding = options.padding || {};
+        const paddingLeft = padding.left == null ? 3 : padding.left;
+        const paddingRight = padding.right == null ? 3 : padding.right;
+        const paddingTop = padding.top == null ? 2 : padding.top;
+        const paddingBottom = padding.bottom == null ? 2 : padding.bottom;
+
+        const headRow = headers.map((h, colIdx) => ({
+            text: this.sanitizePdfText(h, { fallback: '' }),
+            bold: true,
+            fontSize,
+            color: c.labelColor,
+            fillColor: c.headerBg,
+            noWrap: noWrapColumns.includes(colIdx),
+            alignment: columnAlignments[colIdx] || 'left'
+        }));
+
+        const bodyRows = (dataRows.length ? dataRows : [headers.map(() => '—')]).map((row, rowIdx) =>
+            row.map((cell, colIdx) => {
+                const defaultFillColor = rowIdx % 2 === 1 ? c.altRowBg : null;
+                const defaults = {
+                    style: cellStyle,
+                    fontSize,
+                    fillColor: defaultFillColor,
+                    noWrap: noWrapColumns.includes(colIdx),
+                    alignment: columnAlignments[colIdx] || 'left'
+                };
+
+                if (cell && typeof cell === 'object' && !Array.isArray(cell)) {
+                    const structuredCell = { ...cell };
+                    const hasText = Object.prototype.hasOwnProperty.call(structuredCell, 'text');
+                    const normalizedText = hasText
+                        ? (structuredCell.text === ''
+                            ? ''
+                            : this.sanitizePdfText(structuredCell.text == null ? '—' : String(structuredCell.text)))
+                        : '—';
+
+                    return {
+                        ...defaults,
+                        ...structuredCell,
+                        text: normalizedText,
+                        fillColor: Object.prototype.hasOwnProperty.call(structuredCell, 'fillColor')
+                            ? structuredCell.fillColor
+                            : defaults.fillColor,
+                        noWrap: Object.prototype.hasOwnProperty.call(structuredCell, 'noWrap')
+                            ? structuredCell.noWrap
+                            : defaults.noWrap,
+                        alignment: Object.prototype.hasOwnProperty.call(structuredCell, 'alignment')
+                            ? structuredCell.alignment
+                            : defaults.alignment,
+                        fontSize: Object.prototype.hasOwnProperty.call(structuredCell, 'fontSize')
+                            ? structuredCell.fontSize
+                            : defaults.fontSize,
+                        style: Object.prototype.hasOwnProperty.call(structuredCell, 'style')
+                            ? structuredCell.style
+                            : defaults.style
+                    };
+                }
+
+                return {
+                    ...defaults,
+                    text: (cell === '' && preserveEmptyCells)
+                        ? ''
+                        : this.sanitizePdfText(cell == null || cell === '' ? '—' : String(cell))
+                };
+            })
+        );
+
+        return {
+            table: {
+                dontBreakRows: true,
+                headerRows: 1,
+                widths,
+                body: [headRow, ...bodyRows]
+            },
+            layout: {
+                hLineWidth: () => 0.4,
+                vLineWidth: () => 0,
+                hLineColor: () => '#eee7db',
+                paddingLeft: () => paddingLeft,
+                paddingRight: () => paddingRight,
+                paddingTop: () => paddingTop,
+                paddingBottom: () => paddingBottom
+            }
+        };
+    }
+
+    getCanvasDataUrl(canvasEl) {
+        if (!canvasEl) return null;
+        try {
+            return canvasEl.toDataURL('image/png');
+        } catch (e) {
+            return null;
+        }
+    }
+
+    sanitizePdfText(value, options = {}) {
+        if (value == null) return '';
+        const fallback = options.fallback == null ? '—' : String(options.fallback);
+        const preserveLineBreaks = options.preserveLineBreaks !== false;
+        const collapseSpaces = options.collapseSpaces !== false;
+
+        let text = String(value);
+        if (text === '') return fallback;
+
+        // Keep canonical UTF-8 composition for accents and ligatures.
+        text = text.normalize('NFC');
+
+        // Remove invisible direction markers and BOM that can render as parasitic glyphs. (Preserve \u200B for wrapping)
+        text = text.replace(/[\u200C-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g, '');
+
+        // Remove replacement char from broken decoding paths.
+        text = text.replace(/\uFFFD/g, '');
+
+        // Normalize line breaks.
+        text = text.replace(/\r\n?/g, '\n');
+
+        if (collapseSpaces) {
+            text = text.replace(/[\u00A0\u202F\t]+/g, ' ');
+            if (!preserveLineBreaks) {
+                text = text.replace(/\n+/g, ' ');
+            }
+            text = text.replace(/ {2,}/g, ' ').trim();
+        }
+
+        if (options.wrapLongWords) {
+            // Adds zero-width space after punctuation typically found in emails and URLs to allow line wrapping.
+            text = text.replace(/([@._\-/])/g, '$1\u200B');
+        }
+
+        return text || fallback;
+    }
+
+    normalizePdfCurrencyGrouping(text, mode = 'auto') {
+        const compact = String(text || '').replace(/[\u00A0\u202F\s]+/g, ' ').trim();
+        if (!compact) return '0';
+
+        if (mode === 'ascii') {
+            return compact;
+        }
+
+        // Use NBSP for broad viewer compatibility.
+        const nbsp = '\u00A0';
+        const withNbsp = compact.replace(/ /g, nbsp);
+
+        if (mode === 'nbsp') {
+            return withNbsp;
+        }
+
+        // Auto mode: fallback to ASCII only if suspicious control chars remain.
+        if (/[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF\uFFFD]/.test(withNbsp)) {
+            return compact;
+        }
+        return withNbsp;
+    }
+
+    formatPdfDecimal(value, minimumFractionDigits = 0, maximumFractionDigits = 0) {
+        return new Intl.NumberFormat(getValoboisIntlLocale(), {
+            minimumFractionDigits,
+            maximumFractionDigits
+        }).format(Number.isFinite(value) ? value : 0);
+    }
+
+    formatPdfVolume(value) {
+        return this.formatPdfDecimal(parseFloat(value) || 0, 1, 1) + ' m³';
+    }
+
+    formatPdfCurrency(value) {
+        const number = parseFloat(value) || 0;
+        const grouped = new Intl.NumberFormat(getValoboisIntlLocale(), {
+            maximumFractionDigits: 0,
+            minimumFractionDigits: 0,
+            useGrouping: true
+        }).format(number);
+        const groupedSafe = this.normalizePdfCurrencyGrouping(grouped, 'auto');
+        const currencySpace = groupedSafe.includes('\u00A0') ? '\u00A0' : ' ';
+        return groupedSafe + currencySpace + '€';
+    }
+
+    formatPdfPercent(value) {
+        return this.formatPdfDecimal(parseFloat(value) || 0, 1, 1) + ' %';
+    }
+
+    formatPdfSignedScore(value) {
+        if (value == null || value === '') return '—';
+        const number = parseFloat(value);
+        if (!Number.isFinite(number)) return '—';
+        const raw = (number > 0 ? '+' : '') + String(number).replace('.', ',');
+        return this.sanitizePdfText(raw, { preserveLineBreaks: false });
+    }
+
+    getPdfLotLabel(lot, index) {
+        return ((lot && lot.nom) || '').trim() || ('Lot ' + (index + 1));
+    }
+
+    getPdfCategoryDefinitions() {
+        return [
+            { key: 'economique', label: 'Économique' },
+            { key: 'ecologique', label: 'Écologique' },
+            { key: 'mecanique', label: 'Mécanique' },
+            { key: 'historique', label: 'Historique' },
+            { key: 'esthetique', label: 'Esthétique' }
+        ];
+    }
+
+    getPdfSectionDefinitions() {
+        return [
+            {
+                key: 'inspection',
+                title: 'Inspection',
+                rows: [
+                    { key: 'visibilite', label: 'Visibilité - Accessibilité' },
+                    { key: 'instrumentation', label: 'Instrumentation' },
+                    { key: 'integrite', label: 'Intégrité générale' }
+                ]
+            },
+            {
+                key: 'bio',
+                title: 'Biologique',
+                rows: [
+                    { key: 'purge', label: 'Purge' },
+                    { key: 'expansion', label: 'Expansion' },
+                    { key: 'integriteBio', label: 'Intégrité' },
+                    { key: 'exposition', label: 'Exposition' },
+                    { key: 'confianceBio', label: 'Confiance' }
+                ]
+            },
+            {
+                key: 'mech',
+                title: 'Mécanique',
+                rows: [
+                    { key: 'purgeMech', label: 'Purge' },
+                    { key: 'feuMech', label: 'Feu' },
+                    { key: 'integriteMech', label: 'Intégrité' },
+                    { key: 'expositionMech', label: 'Exposition' },
+                    { key: 'confianceMech', label: 'Confiance' }
+                ]
+            },
+            {
+                key: 'usage',
+                title: 'Usage',
+                rows: [
+                    { key: 'confianceUsage', label: 'Confiance' },
+                    { key: 'durabiliteUsage', label: 'Durabilité naturelle' },
+                    { key: 'classementUsage', label: 'Classement estimé' },
+                    { key: 'humiditeUsage', label: 'Humidité' },
+                    { key: 'aspectUsage', label: 'Aspect' }
+                ]
+            },
+            {
+                key: 'denat',
+                title: 'Dénaturation',
+                rows: [
+                    { key: 'depollutionDenat', label: 'Dépollution' },
+                    { key: 'contaminationDenat', label: 'Contamination' },
+                    { key: 'durabiliteConfDenat', label: 'Durabilité conférée' },
+                    { key: 'confianceDenat', label: 'Confiance' },
+                    { key: 'naturaliteDenat', label: 'Naturalité' }
+                ]
+            },
+            {
+                key: 'debit',
+                title: 'Débit',
+                rows: [
+                    { key: 'regulariteDebit', label: 'Régularité' },
+                    { key: 'volumetrieDebit', label: 'Volumétrie' },
+                    { key: 'stabiliteDebit', label: 'Stabilité' },
+                    { key: 'artisanaliteDebit', label: 'Artisanalité' },
+                    { key: 'rusticiteDebit', label: 'Rusticité' }
+                ]
+            },
+            {
+                key: 'geo',
+                title: 'Géométrie',
+                rows: [
+                    { key: 'adaptabiliteGeo', label: 'Adaptabilité' },
+                    { key: 'massiviteGeo', label: 'Massivité' },
+                    { key: 'deformationGeo', label: 'Déformation' },
+                    { key: 'industrialiteGeo', label: 'Industrialité' },
+                    { key: 'inclusiviteGeo', label: 'Inclusivité' }
+                ]
+            },
+            {
+                key: 'essence',
+                title: 'Essence',
+                rows: [
+                    { key: 'confianceEssence', label: 'Confiance' },
+                    { key: 'rareteEcoEssence', label: 'Rareté' },
+                    { key: 'masseVolEssence', label: 'Masse volumique' },
+                    { key: 'rareteHistEssence', label: 'Rareté commerciale' },
+                    { key: 'singulariteEssence', label: 'Singularité' }
+                ]
+            },
+            {
+                key: 'ancien',
+                title: 'Ancienneté',
+                rows: [
+                    { key: 'confianceAncien', label: 'Confiance' },
+                    { key: 'amortissementAncien', label: 'Amortissement' },
+                    { key: 'vieillissementAncien', label: 'Vieillissement' },
+                    { key: 'microhistoireAncien', label: 'Micro-histoire' },
+                    { key: 'demontabiliteAncien', label: 'Démontabilité' }
+                ]
+            },
+            {
+                key: 'traces',
+                title: 'Traces',
+                rows: [
+                    { key: 'confianceTraces', label: 'Confiance' },
+                    { key: 'etiquetageTraces', label: 'Étiquetage' },
+                    { key: 'alterationTraces', label: 'Altération' },
+                    { key: 'documentationTraces', label: 'Documentation' },
+                    { key: 'singularitesTraces', label: 'Singularités' }
+                ]
+            },
+            {
+                key: 'provenance',
+                title: 'Provenance',
+                rows: [
+                    { key: 'confianceProv', label: 'Confiance' },
+                    { key: 'transportProv', label: 'Transport' },
+                    { key: 'reputationProv', label: 'Réputation' },
+                    { key: 'macroProv', label: 'Macro-histoire' },
+                    { key: 'territorialiteProv', label: 'Territorialité' }
+                ]
+            }
+        ];
+    }
+
+    getPdfOrientationSummary(lot) {
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const scores = this.getValueScoresForLot(lot);
+        const total = Object.values(scores).reduce((sum, value) => sum + (parseFloat(value) || 0), 0);
+        const average = total / 5;
+        const percentage = (average / 30) * 100;
+
+        const matrixResult = this.getValoboisOrientationResult(lot)
+            || this.computeOrientationFromMatrix(lot, this.getValoboisActiveMatrixMode());
+
+        let finalCode = matrixResult && matrixResult.orientation ? matrixResult.orientation : 'none';
+        let finalLabel = this.getValoboisOrientationLabel(finalCode);
+
+        if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
+            finalCode = lot.locked.alterationForcedOrientation;
+            finalLabel = this.getValoboisOrientationLabel(finalCode);
+        }
+
+        const activeRejects = (matrixResult && matrixResult.activeRejets && matrixResult.activeRejets[finalCode]) || [];
+        const activeVectors = (matrixResult && matrixResult.activeVectors && matrixResult.activeVectors[finalCode]) || [];
+        const formatDriverItems = (entries) => {
+            if (!entries.length) return [];
+            const unique = [];
+            const seen = new Set();
+            entries.forEach((entry) => {
+                const key = `r${entry.rang}:${entry.levelKey}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                const criterionLabel = (entry.critere || entry.criterionKey || '').toString().trim();
+                const levelText = (entry.levelKey || '').toString().trim().toUpperCase();
+                const noteText = entry.noteLetter ? ` (${String(entry.noteLetter).trim()})` : '';
+                const suffix = levelText ? ` · ${levelText}${noteText}` : '';
+                unique.push({
+                    rang: Number(entry.rang) || 0,
+                    text: `r${entry.rang} ${criterionLabel}${suffix}`.trim()
+                });
+            });
+            return unique.sort((a, b) => a.rang - b.rang);
+        };
+
+        const formatDriverText = (items) => {
+            if (!items.length) return tpdf('pdf.common.none', 'Aucun', 'None');
+            return items.map((item) => item.text).join('\n');
+        };
+
+        const activeRejectsItems = formatDriverItems(activeRejects);
+        const activeVectorsItems = formatDriverItems(activeVectors);
+
+        let statusLabel = tpdf('pdf.orientation.status.confirmed', 'Confirmee', 'Confirmed');
+        if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
+            statusLabel = tpdf('pdf.orientation.status.forced', 'Forcee', 'Forced');
+        } else if (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false) {
+            statusLabel = tpdf('pdf.orientation.status.unconfirmedCombustion', 'Deduite (non confirmee)', 'Inferred (unconfirmed)');
+        } else if (matrixResult && matrixResult.confirmed === false) {
+            statusLabel = tpdf('pdf.orientation.status.inProgress', 'En cours', 'In progress');
+        }
+
+        const combustionCaution = (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false)
+            ? tpdf(
+                'pdf.orientation.combustionCaution',
+                'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                'Orientation inferred by elimination, not positively confirmed by the matrix.'
+            )
+            : '';
+
+        return {
+            label: finalLabel,
+            code: finalCode,
+            percentage,
+            average,
+            scores,
+            statusLabel,
+            combustionCaution,
+            activeRejects,
+            activeVectors,
+            activeRejectsItems,
+            activeVectorsItems,
+            activeRejectsText: formatDriverText(activeRejectsItems),
+            activeVectorsText: formatDriverText(activeVectorsItems)
+        };
+    }
+
+    getPdfOperationSummary(lotIndices = null) {
+        const allLots = this.data.lots || [];
+        const lotEntries = Array.isArray(lotIndices) && lotIndices.length
+            ? lotIndices
+                .map((index) => ({ index, lot: allLots[index] }))
+                .filter((entry) => Number.isInteger(entry.index) && entry.lot)
+            : allLots.map((lot, index) => ({ index, lot }));
+        let volReemploi = 0;
+        let priceReemploi = 0;
+        let volReutil = 0;
+        let priceReutil = 0;
+        let volRecyc = 0;
+        let priceRecyc = 0;
+        let volIncin = 0;
+        let priceIncin = 0;
+        let totalVolGlobal = 0;
+        let bilanMonetaireGlobal = 0;
+        const lotsParOrientation = {
+            reemploi: [],
+            reutilisation: [],
+            recyclage: [],
+            combustion: []
+        };
+        const lotsCirculaires = [];
+
+        lotEntries.forEach(({ lot, index }) => {
+            const allotissement = lot.allotissement || {};
+            const volume = parseFloat(allotissement.volumeLot) || 0;
+            const price = parseFloat(allotissement.prixLot) || 0;
+            const orientation = this.getPdfOrientationSummary(lot).label;
+            const lotLabel = this.getPdfLotLabel(lot, index);
+            totalVolGlobal += volume;
+
+            if (orientation === 'Combustion') {
+                bilanMonetaireGlobal -= price;
+                volIncin += volume;
+                priceIncin += price;
+                lotsParOrientation.combustion.push(lotLabel);
+            } else {
+                bilanMonetaireGlobal += price;
+                if (orientation === 'Réemploi') {
+                    volReemploi += volume;
+                    priceReemploi += price;
+                    lotsParOrientation.reemploi.push(lotLabel);
+                    lotsCirculaires.push(lotLabel);
+                } else if (orientation === 'Réutilisation') {
+                    volReutil += volume;
+                    priceReutil += price;
+                    lotsParOrientation.reutilisation.push(lotLabel);
+                    lotsCirculaires.push(lotLabel);
+                } else if (orientation === 'Recyclage') {
+                    volRecyc += volume;
+                    priceRecyc += price;
+                    lotsParOrientation.recyclage.push(lotLabel);
+                }
+            }
+        });
+
+        const circularite = totalVolGlobal > 0 ? ((volReemploi + volReutil) / totalVolGlobal) * 100 : 0;
+        const volCirculaire = volReemploi + volReutil;
+        const partReemploi = totalVolGlobal > 0 ? (volReemploi / totalVolGlobal) * 100 : 0;
+        const partReutil = totalVolGlobal > 0 ? (volReutil / totalVolGlobal) * 100 : 0;
+        const partRecyc = totalVolGlobal > 0 ? (volRecyc / totalVolGlobal) * 100 : 0;
+        const partIncin = totalVolGlobal > 0 ? (volIncin / totalVolGlobal) * 100 : 0;
+
+        return {
+            orientations: [
+                { label: 'Réemploi', volume: volReemploi, price: priceReemploi, part: partReemploi, lots: lotsParOrientation.reemploi },
+                { label: 'Réutilisation', volume: volReutil, price: priceReutil, part: partReutil, lots: lotsParOrientation.reutilisation },
+                { label: 'Recyclage', volume: volRecyc, price: priceRecyc, part: partRecyc, lots: lotsParOrientation.recyclage },
+                { label: 'Combustion', volume: volIncin, price: priceIncin, part: partIncin, lots: lotsParOrientation.combustion }
+            ],
+            totalVolume: totalVolGlobal,
+            volCirculaire,
+            circularite,
+            bilanMonetaire: bilanMonetaireGlobal,
+            lotsCirculaires
+        };
+    }
+
+    formatPdfLotsList(lots) {
+        return Array.isArray(lots) && lots.length ? lots.join(', ') : '—';
+    }
+
+    getPdfLotCompositionValue(lot, fieldName) {
+        if (!lot || !fieldName) return '—';
+
+        const allotissement = lot.allotissement || {};
+        const aggregated = this.getLotAggregatedTextValue(lot, fieldName);
+
+        // Cas multiples : afficher le décompte "Essence (nb), Essence2 (nb2)"
+        if (aggregated === 'Multiples') {
+            const counted = this.getLotOrientationCountedDisplay(lot, fieldName);
+            return counted || 'Multiples';
+        }
+
+        // Cas valeur unique déjà résolue (depuis pièces ou allotissement)
+        if (aggregated) {
+            if (fieldName === 'essenceNomCommun') {
+                return this.getEssenceCommonLabel(aggregated) || aggregated;
+            }
+            return aggregated;
+        }
+
+        // Dernier recours : lecture directe allotissement
+        if (fieldName === 'essenceNomCommun') {
+            return this.getEssenceCommonLabel(allotissement.essenceNomCommun || allotissement.essence || '') || '—';
+        }
+        return (allotissement.typePiece || allotissement.typePieces || '').toString().trim() || '—';
+    }
+
+    getPdfLotEffectiveUseClasses(lot) {
+        if (!lot || typeof lot !== 'object') return [];
+
+        const orderedClasses = ['1', '2', '3.1', '3.2', '4', '5'];
+        const rank = new Map(orderedClasses.map((label, index) => [label, index]));
+        const classSet = new Set();
+
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((piece) => {
+            const state = this.getLocSitEffectiveClassState(piece, lot);
+            if (state && state.activeClass) classSet.add(state.activeClass);
+        });
+
+        if (Array.isArray(lot.pieces)) {
+            lot.pieces.forEach((piece) => {
+                if (!piece || typeof piece !== 'object') return;
+                const state = this.getLocSitEffectiveClassState(piece, lot);
+                if (state && state.activeClass) classSet.add(state.activeClass);
+            });
+        }
+
+        return Array.from(classSet).sort((a, b) => {
+            const aRank = rank.has(a) ? rank.get(a) : Number.MAX_SAFE_INTEGER;
+            const bRank = rank.has(b) ? rank.get(b) : Number.MAX_SAFE_INTEGER;
+            if (aRank !== bRank) return aRank - bRank;
+            return String(a).localeCompare(String(b));
+        });
+    }
+
+    formatPdfLotEffectiveUseClasses(lot) {
+        const classes = this.getPdfLotEffectiveUseClasses(lot);
+        return classes.length ? classes.join(', ') : '—';
+    }
+
+
+
+
+
+    getPdfNotationRowValue(lot, sectionKey, fieldKey) {
+        if (sectionKey === 'inspection') {
+            const inspection = (lot && lot.inspection) || {};
+
+            if (fieldKey === 'integrite') {
+                const integrite = inspection.integrite || {};
+                if (integrite.ignore) {
+                    return { niveau: 'Ignoré', note: '—' };
+                }
+                if (!integrite.niveau) {
+                    return { niveau: '—', note: '—' };
+                }
+                const label = integrite.niveau === 'forte'
+                    ? 'Forte'
+                    : integrite.niveau === 'moyenne'
+                        ? 'Moyenne'
+                        : 'Faible';
+                return {
+                    niveau: this.sanitizePdfText(label),
+                    note: integrite.coeff != null
+                        ? this.sanitizePdfText('Coeff. ' + String(integrite.coeff).replace('.', ','), { preserveLineBreaks: false })
+                        : '—'
+                };
+            }
+
+            const value = inspection[fieldKey];
+            if (!value) {
+                return { niveau: '—', note: '—' };
+            }
+            const level = value === 'forte' ? 'Forte' : value === 'moyenne' ? 'Moyenne' : 'Faible';
+            const note = value === 'forte' ? '1' : value === 'moyenne' ? '2' : '3';
+            return {
+                niveau: this.sanitizePdfText(level),
+                note: this.sanitizePdfText(note, { preserveLineBreaks: false })
+            };
+        }
+
+        const section = lot && lot[sectionKey];
+        const entry = section && section[fieldKey];
+        if (!entry || (!entry.niveau && entry.valeur == null)) {
+            return { niveau: '—', note: '—' };
+        }
+
+        return {
+            niveau: this.sanitizePdfText(entry.niveau || '—'),
+            note: this.formatPdfSignedScore(entry.valeur)
+        };
+    }
+
+    getPdfLotMultipleMeasurementsSummary(lot) {
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        const detailedPieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
+        const allPieces = [];
+
+        defaultPieces.forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            allPieces.push({ piece, sourceType: 'default', sourceIndex: index });
+        });
+        detailedPieces.forEach((piece, index) => {
+            if (!piece || typeof piece !== 'object') return;
+            allPieces.push({ piece, sourceType: 'detail', sourceIndex: index });
+        });
+
+        let totalSections = 0;
+        let piecesWithMm = 0;
+        let validPieces = 0;
+
+        allPieces.forEach(({ piece }) => {
+            const mm = piece && piece.mesuresMultiples;
+            if (!mm || mm.active !== true || !Array.isArray(mm.sections)) return;
+            const validSections = mm.sections.filter((section) => this.isValidMesuresMultiplesSection(section));
+            if (!validSections.length) return;
+            piecesWithMm += 1;
+            totalSections += validSections.length;
+            if (validSections.length >= 2) {
+                validPieces += 1;
+            }
+        });
+
+        return {
+            hasValid: validPieces > 0,
+            validPieces,
+            piecesWithMm,
+            totalSections
+        };
+    }
+
+    applyRowSpanToMultipleMeasurementsRows(rows, mergeRules = null) {
+        if (!Array.isArray(rows) || !rows.length) return rows;
+
+        const rules = Array.isArray(mergeRules) && mergeRules.length
+            ? mergeRules
+            : [
+                { col: 0, anchors: [] },
+                { col: 1, anchors: [0] },
+                { col: 2, anchors: [0, 1] },
+                { col: 7, anchors: [0, 1, 2] },
+                { col: 8, anchors: [0, 1, 2] }
+            ];
+
+        const output = rows.map((row) => (Array.isArray(row) ? [...row] : []));
+
+        const cellValueAt = (row, colIdx) => {
+            if (!Array.isArray(row) || colIdx < 0 || colIdx >= row.length) return '';
+            const value = row[colIdx];
+            if (value && typeof value === 'object' && !Array.isArray(value)) {
+                return String(value.text == null ? '' : value.text);
+            }
+            return String(value == null ? '' : value);
+        };
+
+        rules.forEach((rule) => {
+            const col = Number(rule && rule.col);
+            const anchors = Array.isArray(rule && rule.anchors) ? rule.anchors : [];
+            if (!Number.isInteger(col) || col < 0) return;
+
+            let start = 0;
+            while (start < rows.length) {
+                const baseRow = rows[start];
+                if (!Array.isArray(baseRow) || col >= baseRow.length) {
+                    start += 1;
+                    continue;
+                }
+
+                const baseValue = cellValueAt(baseRow, col);
+                let end = start + 1;
+
+                while (end < rows.length) {
+                    const candidateRow = rows[end];
+                    if (!Array.isArray(candidateRow) || col >= candidateRow.length) break;
+                    if (cellValueAt(candidateRow, col) !== baseValue) break;
+
+                    const anchorsMatch = anchors.every((anchorCol) => (
+                        cellValueAt(candidateRow, anchorCol) === cellValueAt(baseRow, anchorCol)
+                    ));
+                    if (!anchorsMatch) break;
+                    end += 1;
+                }
+
+                const span = end - start;
+                if (span > 1) {
+                    output[start][col] = {
+                        text: baseValue,
+                        rowSpan: span
+                    };
+                    for (let idx = start + 1; idx < end; idx += 1) {
+                        output[idx][col] = '';
+                    }
+                }
+
+                start = end;
+            }
+        });
+
+        return output;
+    }
+
+    collectPdfMultipleMeasurementsRows(lotIndices = []) {
+        const rows = [];
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data.lots && this.data.lots[lotIndex];
+            if (!lot) return;
+
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+            const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+
+            const pushPieceRows = (piece, sourceLabel, quantityLabel = '—') => {
+                if (!piece || typeof piece !== 'object') return;
+                const mm = piece.mesuresMultiples;
+                if (!mm || mm.active !== true || !Array.isArray(mm.sections) || !mm.sections.length) return;
+
+                const validSections = mm.sections
+                    .filter((section) => this.isValidMesuresMultiplesSection(section))
+                    .map((section) => ({ section, posNum: Number(section && section.position) }))
+                    .sort((a, b) => {
+                        const aVal = Number.isFinite(a.posNum) ? a.posNum : Number.MAX_SAFE_INTEGER;
+                        const bVal = Number.isFinite(b.posNum) ? b.posNum : Number.MAX_SAFE_INTEGER;
+                        return aVal - bVal;
+                    });
+
+                if (!validSections.length) return;
+
+                const pieceLabel = (piece.nom || sourceLabel || '—').toString();
+                const volEnrichi = Number.isFinite(parseFloat(piece.volumePieceEnrichi))
+                    ? this.formatPdfDecimal(parseFloat(piece.volumePieceEnrichi), 4, 4)
+                    : '—';
+
+                const cvL = Number.isFinite(parseFloat(piece.mmCvLargeurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmCvLargeurIntra) * 100, 1, 1)
+                    : '—';
+                const cvE = Number.isFinite(parseFloat(piece.mmCvEpaisseurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmCvEpaisseurIntra) * 100, 1, 1)
+                    : '—';
+                const dL = Number.isFinite(parseFloat(piece.mmDeltaLargeurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmDeltaLargeurIntra), 0, 0)
+                    : '—';
+                const dE = Number.isFinite(parseFloat(piece.mmDeltaEpaisseurIntra))
+                    ? this.formatPdfDecimal(parseFloat(piece.mmDeltaEpaisseurIntra), 0, 0)
+                    : '—';
+                const hasIntraMetric = cvL !== '—' || cvE !== '—' || dL !== '—' || dE !== '—';
+                const intraLabel = hasIntraMetric ? `CV ${cvL}/${cvE}% | Δ ${dL}/${dE}` : '—';
+
+                validSections.forEach(({ section }) => {
+                    const type = ((section && section.typeSection) || '').toString().toLowerCase();
+                    const diam = parseFloat(section && section.diametre);
+                    const larg = parseFloat(section && section.largeur);
+                    const ep = parseFloat(section && section.epaisseur);
+                    const per = parseFloat(section && section.perimetre);
+
+                    const isCirc = type === 'circ' || type === 'circle' || (Number.isFinite(diam) && diam > 0 && !(Number.isFinite(larg) && larg > 0 && Number.isFinite(ep) && ep > 0));
+                    const sectionLabel = isCirc ? 'Circ' : 'Rect';
+                    const dimsLabel = isCirc
+                        ? (Number.isFinite(diam) ? ('ø' + this.formatPdfDecimal(diam, 0, 0)) : '—')
+                        : ((Number.isFinite(larg) ? this.formatPdfDecimal(larg, 0, 0) : '—') + ' × ' + (Number.isFinite(ep) ? this.formatPdfDecimal(ep, 0, 0) : '—'));
+
+                    const positionKey = ((section && section.position) || '').toString().toLowerCase();
+                    const positionLabelMap = {
+                        extremite1: 'E1',
+                        quart1: 'Q1',
+                        milieu: 'M',
+                        quart3: 'Q3',
+                        extremite2: 'E2'
+                    };
+                    let posLabel = positionLabelMap[positionKey] || this._getPositionDisplayLabel(positionKey, section && section.isCustom === true) || '—';
+                    if (Number.isFinite(parseFloat(section && section.position))) {
+                        posLabel += ` ${this.formatPdfDecimal(parseFloat(section.position), 0, 0)}mm`;
+                    }
+
+                    rows.push([
+                        lotLabel,
+                        sourceLabel + (quantityLabel !== '—' ? ` ×${quantityLabel}` : ''),
+                        pieceLabel,
+                        posLabel,
+                        sectionLabel,
+                        dimsLabel,
+                        Number.isFinite(per) ? this.formatPdfDecimal(per, 0, 0) : '—',
+                        volEnrichi,
+                        intraLabel
+                    ]);
+                });
+            };
+
+            defaultPieces.forEach((piece, index) => {
+                const qty = Math.max(0, Math.floor(parseFloat((piece && piece.quantite) || 0) || 0));
+                pushPieceRows(piece, 'Défaut ' + (index + 1), qty > 0 ? String(qty) : '—');
+            });
+
+            detailedPieces.forEach((piece, index) => {
+                pushPieceRows(piece, 'Détail ' + (index + 1), '1');
+            });
+        });
+
+        return rows;
+    }
+
+    buildPdfMultipleMeasurementsAnnexContent(lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const rows = this.collectPdfMultipleMeasurementsRows(lotIndices);
+        const mergedRows = this.applyRowSpanToMultipleMeasurementsRows(rows);
+
+        if (!rows.length) return [];
+
+        const headers = [
+            tpdf('pdf.mmAnnex.lot', 'Lot', 'Lot'),
+            tpdf('pdf.mmAnnex.source', 'Source', 'Source'),
+            tpdf('pdf.mmAnnex.piece', 'Pièce', 'Piece'),
+            tpdf('pdf.mmAnnex.position', 'Position', 'Position'),
+            tpdf('pdf.mmAnnex.section', 'Section', 'Section'),
+            tpdf('pdf.mmAnnex.dimensions', 'Dimensions (mm)', 'Dimensions (mm)'),
+            tpdf('pdf.mmAnnex.perimeter', 'Périmètre (mm)', 'Perimeter (mm)'),
+            tpdf('pdf.mmAnnex.enrichedVol', 'Vol. enrichi (m³)', 'Enriched vol. (m³)'),
+            tpdf('pdf.mmAnnex.intra', 'Intra (CV/Δ)', 'Intra (CV/Δ)')
+        ];
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.title.mmAnnex', 'Annexe technique — Mesures multiples', 'Technical annex — Multiple measurements')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            this.pdfCard(tpdf('pdf.card.mmAnnex', 'Détail pièces et sections', 'Piece and section details'), [
+                this.pdfDataTable(headers, mergedRows, {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', 'auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 1, 3, 4, 5, 6, 7, 8],
+                    columnAlignments: ['left', 'left', 'left', 'left', 'left', 'right', 'right', 'right', 'left'],
+                    preserveEmptyCells: true,
+                    padding: { left: 3.5, right: 3.5, top: 2.5, bottom: 2.5 }
+                })
+            ])
+        ];
+    }
+
+    formatPdfCriteriaAnnexBodyText(value, fieldTitle = '') {
+        if (value == null) return '—';
+
+        // Chemin prioritaire: utiliser directement la structure modale pour éviter
+        // un re-parsing fragile (intro/echelle/info/references).
+        if (this.isStructuredModalContent(value)) {
+            const normalizeTitleToken = (text) => String(text || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+                .trim();
+
+            let intro = String(value.intro || '').replace(/\r\n?/g, '\n').trim();
+            const echelle = (Array.isArray(value.echelle) ? value.echelle : [])
+                .map((item) => {
+                    if (item == null) return '';
+                    if (typeof item === 'string') return item.trim();
+                    if (typeof item !== 'object') return '';
+                    return String(item.texte || item.text || item.description || '').trim();
+                })
+                .filter(Boolean);
+            const info = (Array.isArray(value.info) ? value.info : [])
+                .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+                .filter(Boolean);
+            const references = (Array.isArray(value.references) ? value.references : [])
+                .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+                .filter(Boolean)
+                .map((item) => item.replace(/^[-•*]\s*/, ''));
+
+            const introToken = normalizeTitleToken(intro);
+            const titleToken = normalizeTitleToken(fieldTitle);
+            if (introToken && titleToken && introToken === titleToken) {
+                intro = '';
+            }
+
+            const mainParts = [];
+            if (intro) mainParts.push(intro);
+            if (echelle.length) mainParts.push(echelle.join('\n'));
+            info.forEach((item) => mainParts.push(item));
+
+            const refsLines = references.map((item) => `• ${item}`);
+            let out = mainParts.join('\n\n').trim();
+            if (refsLines.length) {
+                out = [out, 'Références et ressources.', refsLines.join('\n')].filter(Boolean).join('\n\n');
+            }
+
+            return out || '—';
+        }
+
+        const normalizedValue = this.modalStructuredContentToText(value, { includeReferenceHeading: true });
+        const lines = String(normalizedValue)
+            .replace(/\r\n?/g, '\n')
+            .split('\n')
+            .map((line) => line.trim())
+            ;
+
+        while (lines.length && !lines[0]) lines.shift();
+        while (lines.length && !lines[lines.length - 1]) lines.pop();
+
+        if (!lines.length) return '—';
+
+        const normalizeTitleToken = (text) => String(text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+            .trim();
+
+        const firstLine = lines[0] || '';
+        const firstToken = normalizeTitleToken(firstLine);
+        const titleToken = normalizeTitleToken(fieldTitle);
+        if (titleToken && firstToken === titleToken) {
+            lines.shift();
+        }
+
+        const compacted = [];
+        let prevWasEmpty = false;
+        lines.forEach((line) => {
+            if (!line) {
+                if (!prevWasEmpty) compacted.push('');
+                prevWasEmpty = true;
+            } else {
+                compacted.push(line);
+                prevWasEmpty = false;
+            }
+        });
+
+        // Aère les contenus de notation en séparant explicitement les niveaux Fort/Moyen/Faible.
+        const shouldBreakBefore = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+            if (/^(forte?|moyenne|faible)\s*$/i.test(l)) return true;
+            if (/^[-•]\s*(forte?|moyenne|faible)\b/i.test(l)) return true;
+            if (/^une\s+.+[«"]\s*(forte?|moyenne|faible)\s*[»"]/i.test(l)) return true;
+            return false;
+        };
+
+        const leveled = [];
+        compacted.forEach((line, index) => {
+            const needsBreak = shouldBreakBefore(line);
+            const prev = index > 0 ? compacted[index - 1] : '';
+            if (needsBreak && prev && leveled.length && leveled[leveled.length - 1] !== '') {
+                leveled.push('');
+            }
+            leveled.push(line);
+        });
+
+        return leveled.join('\n').trim() || '—';
+    }
+
+    splitPdfCriteriaAnnexReferences(bodyText) {
+        const text = String(bodyText || '').trim();
+        if (!text || text === '—') {
+            return { mainText: '—', referencesText: '' };
+        }
+
+        const markerRegex = /\b(r[eé]f[eé]rences\s+et\s+ressources|references\s+and\s+resources)\b\.?/i;
+        const match = markerRegex.exec(text);
+        if (match) {
+            const markerStart = match.index;
+            const mainText = text.slice(0, markerStart).trim();
+            const referencesText = text.slice(markerStart).trim();
+            return {
+                mainText: mainText || '—',
+                referencesText
+            };
+        }
+
+        // Fallback: détecter le début d'un bloc bibliographique même sans en-tête explicite.
+        const lines = text
+            .split('\n')
+            .map((line) => line.trim());
+        if (!lines.length) {
+            return { mainText: '—', referencesText: '' };
+        }
+
+        const startsReferenceLine = (line) => {
+            const l = String(line || '').trim();
+            if (!l) return false;
+
+            // Signaux forts bibliographiques
+            if (/https?:\/\//i.test(l) || /doi\.org\//i.test(l) || /\bdoi\s*:/i.test(l)) return true;
+            if (/^(voir|see)\b\s*[:.-]?/i.test(l)) return true;
+            if (/^(r[eé]f[eé]rences?|bibliographie)\b\s*[:.-]?/i.test(l)) return true;
+            if (/^\*/.test(l)) return true;
+
+            // Références normatives fréquentes
+            if (/^(nf|en|iso|fd|din|astm|eurocode)\b/i.test(l)) return true;
+            if (/^[-•]\s*(nf|en|iso|fd|din|astm|eurocode)\b/i.test(l)) return true;
+
+            // Format auteur + année entre parenthèses (ex: Nom, X. (2024). ...)
+            if (/\(\d{4}\)/.test(l) && /[A-Za-zÀ-ÿ]/.test(l) && /[.,:]/.test(l)) return true;
+
+            return false;
+        };
+
+        let refStart = -1;
+        for (let i = 0; i < lines.length; i += 1) {
+            if (startsReferenceLine(lines[i])) {
+                refStart = i;
+                break;
+            }
+        }
+
+        if (refStart <= 0) {
+            return { mainText: text, referencesText: '' };
+        }
+
+        const mainText = lines.slice(0, refStart).join('\n').trim();
+        const referencesText = lines.slice(refStart).join('\n').trim();
+        return {
+            mainText: mainText || '—',
+            referencesText
+        };
+    }
+
+    normalizePdfCriteriaModalBlocks(value, fieldTitle = '') {
+        if (value == null) return null;
+
+        const source = this.isStructuredModalContent(value)
+            ? value
+            : this.parseLegacyModalContent(value);
+
+        if (!source || typeof source !== 'object') return null;
+
+        const normalizeTitleToken = (text) => String(text || '')
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[\s.:;!?()\-–—'"«»]+/g, ' ')
+            .trim();
+
+        const normalizeLevel = (raw) => {
+            const token = String(raw || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            if (!token) return '';
+            if (token.startsWith('fort')) return 'fort';
+            if (token.startsWith('moy')) return 'moyen';
+            if (token.startsWith('faibl')) return 'faible';
+            return '';
+        };
+
+        const extractLevelFromSentence = (sentence) => {
+            const match = String(sentence || '').match(/(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?/i);
+            if (!match) return '';
+            return normalizeLevel(match[1]);
+        };
+
+        let intro = String(source.intro || '').replace(/\r\n?/g, '\n').trim();
+        const echelle = (Array.isArray(source.echelle) ? source.echelle : [])
+            .map((item) => {
+                if (item == null) return null;
+                if (typeof item === 'string') {
+                    const text = item.trim();
+                    if (!text) return null;
+                    return {
+                        text,
+                        level: extractLevelFromSentence(text)
+                    };
+                }
+                if (typeof item !== 'object') return null;
+                const text = String(item.texte || item.text || item.description || '').trim();
+                if (!text) return null;
+                const level = normalizeLevel(item.niveau || item.level || '') || extractLevelFromSentence(text);
+                return { text, level };
+            })
+            .filter(Boolean);
+
+        const info = (Array.isArray(source.info) ? source.info : [])
+            .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+            .filter(Boolean);
+
+        const references = (Array.isArray(source.references) ? source.references : [])
+            .map((item) => String(item || '').replace(/\r\n?/g, '\n').trim())
+            .filter(Boolean)
+            .map((item) => item.replace(/^[-•*]\s*/, ''));
+
+        const introToken = normalizeTitleToken(intro);
+        const titleToken = normalizeTitleToken(fieldTitle);
+        if (introToken && titleToken && introToken === titleToken) {
+            intro = '';
+        }
+
+        const hasContent = !!(intro || echelle.length || info.length || references.length);
+        return {
+            intro,
+            echelle,
+            info,
+            references,
+            hasContent
+        };
+    }
+
+    buildPdfCriteriaAnnexTextNodes(text, options = {}) {
+        const content = String(text || '').trim();
+        if (!content || content === '—') {
+            return [{
+                text: '—',
+                fontSize: options.fontSize,
+                lineHeight: options.lineHeight,
+                color: options.color,
+                italics: !!options.italics,
+                margin: [0, 0, 0, options.gap == null ? 0.8 : options.gap]
+            }];
+        }
+
+        const paragraphs = content
+            .split(/\n\s*\n/)
+            .map((p) => p.trim())
+            .filter(Boolean);
+
+        return paragraphs.map((paragraph, index) => ({
+            text: this.sanitizePdfText(paragraph),
+            fontSize: options.fontSize,
+            lineHeight: options.lineHeight,
+            color: options.color,
+            italics: !!options.italics,
+            margin: [0, 0, 0, index === paragraphs.length - 1 ? (options.lastGap == null ? 0.8 : options.lastGap) : (options.paragraphGap == null ? 0.5 : options.paragraphGap)]
+        }));
+    }
+
+    splitPdfCriteriaMainByModalStructure(mainText) {
+        const text = String(mainText || '').trim();
+        if (!text || text === '—') {
+            return { introText: '', levelItems: [], trailingText: '' };
+        }
+
+        const normalizeLevel = (raw) => {
+            const token = String(raw || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+            if (token.startsWith('fort')) return 'fort';
+            if (token.startsWith('moy')) return 'moyen';
+            return 'faible';
+        };
+
+        // Même logique que les modales infos: on détecte des phrases de niveau complètes.
+        const scaleRegex = /(?:Une?|Un|Des)\s+[^\n]*?(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?[^\n]*\[[^\]]+\][^\n]*\.?/gi;
+        const levelItems = [];
+        const matches = [];
+        let match;
+        while ((match = scaleRegex.exec(text)) !== null) {
+            const sentence = String(match[0] || '').trim();
+            if (!sentence) continue;
+            const levelRaw = match[1];
+            levelItems.push({ level: normalizeLevel(levelRaw), text: sentence });
+            matches.push({ index: match.index, length: sentence.length });
+        }
+
+        const distinctLevels = Array.from(new Set(levelItems.map((item) => item.level)));
+        if (levelItems.length < 2 || distinctLevels.length < 2 || !matches.length) {
+            return {
+                introText: '',
+                levelItems: [],
+                trailingText: text
+            };
+        }
+
+        const firstMatch = matches[0];
+        const lastMatch = matches[matches.length - 1];
+        const introText = text.slice(0, firstMatch.index).trim();
+
+        let trailingText = text.slice(lastMatch.index + lastMatch.length).trim();
+        // Supprime les phrases de niveaux du trailing résiduel (si elles ne sont pas contiguës).
+        trailingText = trailingText.replace(scaleRegex, '').replace(/\n{3,}/g, '\n\n').trim();
+
+        return {
+            introText,
+            levelItems,
+            trailingText
+        };
+    }
+
+    buildPdfCriteriaLevelTable(levelItems, typo) {
+        if (!Array.isArray(levelItems) || !levelItems.length) return null;
+
+        const levelFontSize = Number.isFinite(typo?.levelTable) ? typo.levelTable : 7;
+        const descriptionFontSize = Number.isFinite(typo?.levelDescription) ? typo.levelDescription : 7;
+
+        const levelLabel = (level) => {
+            if (level === 'fort') return 'Fort';
+            if (level === 'moyen') return 'Moyen';
+            return 'Faible';
+        };
+
+        const levelFill = (level) => {
+            if (level === 'fort') return '#d1d5db';
+            if (level === 'moyen') return '#e5e7eb';
+            return '#f3f4f6';
+        };
+
+        const rows = levelItems.map((item) => ([
+            {
+                text: this.sanitizePdfText(levelLabel(item.level)),
+                fontSize: levelFontSize,
+                bold: true,
+                color: '#111827',
+                fillColor: levelFill(item.level),
+                alignment: 'center',
+                margin: [0, 1.5, 0, 1.5]
+            },
+            {
+                text: this.sanitizePdfText(item.text),
+                fontSize: descriptionFontSize,
+                lineHeight: typo.lineHeight,
+                color: '#1f2937',
+                margin: [0, 0.8, 0, 0.8]
+            }
+        ]));
+
+        return {
+            table: {
+                widths: [42, '*'],
+                body: rows
+            },
+            layout: {
+                hLineWidth: () => 0.4,
+                vLineWidth: () => 0,
+                hLineColor: () => '#d1d5db',
+                paddingLeft: (i) => (i === 0 ? 0 : 5),
+                paddingRight: () => 0,
+                paddingTop: () => 0,
+                paddingBottom: () => 0
+            },
+            margin: [0, 0.6, 0, 1.1]
+        };
+    }
+
+    buildPdfCriteriaAnnexContent(_lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const annexFontSizes = {
+            sectionTitle: 12,
+            criterionTitle: 10,
+            introInset: 7,
+            levelTable: 7,
+            levelDescription: 6,
+            bodyText: 7,
+            infoInset: 6,
+            references: 6
+        };
+        const criteriaBySection = this.getCriteriaModalContents();
+        const sectionKeys = ['bio', 'mech', 'usage', 'denat', 'debit', 'geo', 'essence', 'ancien', 'traces', 'provenance'];
+
+        const sectionBlocks = [];
+        sectionKeys.forEach((sectionKey, sectionIndex) => {
+            const section = criteriaBySection[sectionKey];
+            if (!section || !section.fieldTitles || !section.contents) return;
+
+            const fieldEntriesRaw = Object.entries(section.fieldTitles)
+                .map(([fieldKey, fieldTitle]) => {
+                    const rawContent = section.contents[fieldKey];
+                    const blocks = this.normalizePdfCriteriaModalBlocks(rawContent, fieldTitle);
+                    const bodyText = this.formatPdfCriteriaAnnexBodyText(rawContent, fieldTitle);
+                    return {
+                        fieldTitle,
+                        bodyText,
+                        blocks: blocks && blocks.hasContent ? blocks : null
+                    };
+                })
+                .filter((entry) => entry.bodyText && entry.bodyText !== '—');
+
+            const estimateCriteriaColumnWeight = (entry) => {
+                if (!entry) return 0;
+                const titleLen = String(entry.fieldTitle || '').length;
+                const baseWeight = 90 + (titleLen * 0.5);
+
+                if (entry.blocks && entry.blocks.hasContent) {
+                    const introLen = String(entry.blocks.intro || '').length;
+                    const echelleItems = Array.isArray(entry.blocks.echelle) ? entry.blocks.echelle : [];
+                    const infoItems = Array.isArray(entry.blocks.info) ? entry.blocks.info : [];
+                    const refItems = Array.isArray(entry.blocks.references) ? entry.blocks.references : [];
+
+                    const echelleTextLen = echelleItems.reduce((acc, item) => acc + String(item?.text || '').length, 0);
+                    const infoTextLen = infoItems.reduce((acc, item) => acc + String(item || '').length, 0);
+                    const refTextLen = refItems.reduce((acc, item) => acc + String(item || '').length, 0);
+
+                    return baseWeight
+                        + (introLen * 0.7)
+                        + (echelleItems.length * 220)
+                        + (echelleTextLen * 0.75)
+                        + (infoItems.length * 130)
+                        + (infoTextLen * 0.7)
+                        + (refItems.length * 180)
+                        + (refTextLen * 0.85);
+                }
+
+                return baseWeight + (String(entry.bodyText || '').length * 0.82);
+            };
+
+            const reorderEntriesByEstimatedHeight = (entries) => {
+                return [...entries].sort((a, b) => (
+                    estimateCriteriaColumnWeight(b) - estimateCriteriaColumnWeight(a)
+                ));
+            };
+
+            const fieldEntries = reorderEntriesByEstimatedHeight(fieldEntriesRaw);
+
+            if (!fieldEntries.length) return;
+
+            const sectionChars = fieldEntries.reduce((acc, entry) => acc + String(entry.bodyText || '').length, 0);
+            const densityTypo = sectionChars > 15000
+                ? { lineHeight: 1.02, gap: 0.5 }
+                : sectionChars > 10000
+                    ? { lineHeight: 1.04, gap: 0.7 }
+                    : sectionChars > 7000
+                        ? { lineHeight: 1.06, gap: 0.8 }
+                        : sectionChars > 4000
+                            ? { lineHeight: 1.08, gap: 1 }
+                            : { lineHeight: 1.1, gap: 1.2 };
+            const typo = {
+                ...densityTypo,
+                ...annexFontSizes
+            };
+
+            const splitEntryForColumns = (entry, { columnCapacity }) => {
+                const splitReferencesForColumnJump = (paragraphs) => {
+                    const items = (Array.isArray(paragraphs) ? paragraphs : [])
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean);
+                    if (items.length <= 1) return null;
+
+                    const totalChars = items.reduce((acc, p) => acc + p.length, 0);
+                    // On évite les découpes de références trop tôt: on ne coupe
+                    // que les ensembles réellement volumineux.
+                    const minCharsForSplit = 1700;
+                    if (totalChars <= minCharsForSplit) return null;
+
+                    const target = totalChars / 2;
+                    let running = 0;
+                    let bestIndex = -1;
+                    let bestDelta = Infinity;
+                    for (let i = 1; i < items.length; i += 1) {
+                        running += items[i - 1].length;
+                        const delta = Math.abs(running - target);
+                        if (delta < bestDelta) {
+                            bestDelta = delta;
+                            bestIndex = i;
+                        }
+                    }
+
+                    if (bestIndex <= 0 || bestIndex >= items.length) return null;
+                    return [items.slice(0, bestIndex), items.slice(bestIndex)];
+                };
+
+                const marker = 'Références et ressources';
+                const buildReferencesOnlyText = (paragraphs) => {
+                    const refs = (Array.isArray(paragraphs) ? paragraphs : [])
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean)
+                        .map((ref) => `• ${ref}`)
+                        .join('\n\n');
+                    if (!refs) return '';
+                    return `${marker}\n\n${refs}`;
+                };
+
+                if (entry.blocks && Array.isArray(entry.blocks.references) && entry.blocks.references.length > 1) {
+                    const refParagraphs = entry.blocks.references
+                        .map((p) => String(p || '').trim())
+                        .filter(Boolean);
+                    if (refParagraphs.length <= 1) return [entry];
+
+                    const referencesOnlyEntry = {
+                        fieldTitle: '',
+                        bodyText: buildReferencesOnlyText(refParagraphs),
+                        referencesOnly: true
+                    };
+                    const referencesWeight = estimateCriteriaColumnWeight(referencesOnlyEntry);
+                    const referencesExceedSingleColumn = referencesWeight > columnCapacity;
+
+                    // Politique stricte: on coupe d'abord avant les références.
+                    // La coupure intra-références n'est autorisée qu'en cas extrême
+                    // (bloc références plus haut qu'une colonne complète).
+                    if (!referencesExceedSingleColumn) {
+                        const firstBlocks = {
+                            ...entry.blocks,
+                            references: []
+                        };
+                        const first = {
+                            fieldTitle: entry.fieldTitle,
+                            blocks: firstBlocks,
+                            bodyText: this.formatPdfCriteriaAnnexBodyText(firstBlocks, entry.fieldTitle)
+                        };
+                        return [first, referencesOnlyEntry];
+                    }
+
+                    const splitChunks = splitReferencesForColumnJump(refParagraphs);
+                    if (!splitChunks) return [entry];
+                    const [firstChunk, secondChunk] = splitChunks;
+
+                    const firstBlocks = {
+                        ...entry.blocks,
+                        references: firstChunk
+                    };
+                    const first = {
+                        fieldTitle: entry.fieldTitle,
+                        blocks: firstBlocks,
+                        bodyText: this.formatPdfCriteriaAnnexBodyText(firstBlocks, entry.fieldTitle)
+                    };
+                    const continuation = [{
+                        fieldTitle: '',
+                        bodyText: buildReferencesOnlyText(secondChunk),
+                        referencesOnly: true
+                    }];
+                    return [first, ...continuation];
+                }
+
+                const bodyParts = this.splitPdfCriteriaAnnexReferences(entry.bodyText);
+                const refs = String(bodyParts.referencesText || '').trim();
+                if (!refs) return [entry];
+
+                const refParagraphs = refs
+                    .split(/\n\s*\n/)
+                    .map((p) => p.trim())
+                    .filter(Boolean);
+                if (refParagraphs.length <= 1) return [entry];
+
+                const referencesOnlyEntry = {
+                    fieldTitle: '',
+                    bodyText: buildReferencesOnlyText(refParagraphs),
+                    referencesOnly: true
+                };
+                const referencesWeight = estimateCriteriaColumnWeight(referencesOnlyEntry);
+                const referencesExceedSingleColumn = referencesWeight > columnCapacity;
+
+                if (!referencesExceedSingleColumn) {
+                    const first = {
+                        fieldTitle: entry.fieldTitle,
+                        bodyText: String(bodyParts.mainText || '').trim()
+                    };
+                    return [first, referencesOnlyEntry];
+                }
+
+                const splitChunks = splitReferencesForColumnJump(refParagraphs);
+                if (!splitChunks) return [entry];
+                const [firstChunk, secondChunk] = splitChunks;
+
+                const first = {
+                    fieldTitle: entry.fieldTitle,
+                    bodyText: [bodyParts.mainText, marker, firstChunk.join('\n\n')].filter(Boolean).join('\n\n')
+                };
+                const continuation = [{
+                    fieldTitle: '',
+                    bodyText: buildReferencesOnlyText(secondChunk),
+                    referencesOnly: true
+                }];
+                return [first, ...continuation];
+            };
+
+            const totalWeight = fieldEntries.reduce((acc, entry) => acc + estimateCriteriaColumnWeight(entry), 0);
+            const columnCapacity = totalWeight / 2;
+
+            const packableItems = fieldEntries.map((entry, index) => {
+                const splitUnits = splitEntryForColumns(entry, { columnCapacity });
+                const splitWeights = splitUnits.map((unit) => estimateCriteriaColumnWeight(unit));
+                return {
+                    id: index,
+                    entry,
+                    fullWeight: estimateCriteriaColumnWeight(entry),
+                    splitUnits,
+                    splitWeights,
+                    canSplit: splitUnits.length > 1
+                };
+            });
+
+            const columns = [[], []];
+            const columnWeights = [0, 0];
+            const remainingItems = [...packableItems];
+
+            const pushEntryToColumn = (entry, weight, columnIndex) => {
+                columns[columnIndex].push(entry);
+                columnWeights[columnIndex] += weight;
+            };
+
+            const removeRemainingItem = (itemId) => {
+                const itemIndex = remainingItems.findIndex((candidate) => candidate.id === itemId);
+                if (itemIndex >= 0) remainingItems.splice(itemIndex, 1);
+            };
+
+            const findBestFitIndex = (items, remainingCapacity) => {
+                let bestIdx = -1;
+                let bestDelta = Number.POSITIVE_INFINITY;
+                for (let i = 0; i < items.length; i += 1) {
+                    const delta = remainingCapacity - items[i].fullWeight;
+                    if (delta < 0) continue;
+                    if (delta < bestDelta) {
+                        bestDelta = delta;
+                        bestIdx = i;
+                    }
+                }
+                return bestIdx;
+            };
+
+            const tryPlaceSplitItem = (item, preferredColumn) => {
+                if (!item || !item.canSplit) return false;
+
+                const remainingPreferred = columnCapacity - columnWeights[preferredColumn];
+                const otherColumn = preferredColumn === 0 ? 1 : 0;
+                const remainingOther = columnCapacity - columnWeights[otherColumn];
+
+                // On n'autorise la coupure qu'en cas de dépassement de l'espace
+                // restant et/ou de la capacité cible de colonne.
+                const exceedsPreferredRemaining = item.fullWeight > remainingPreferred;
+                const exceedsOtherRemaining = item.fullWeight > remainingOther;
+                const exceedsInitialColumn = item.fullWeight > columnCapacity;
+                if (!(exceedsPreferredRemaining && (exceedsOtherRemaining || exceedsInitialColumn))) {
+                    return false;
+                }
+
+                const firstPart = item.splitUnits[0];
+                const firstPartWeight = item.splitWeights[0] || 0;
+                const continuationParts = item.splitUnits.slice(1);
+                const continuationWeight = item.splitWeights.slice(1).reduce((acc, w) => acc + w, 0);
+                const splitTotalWeight = firstPartWeight + continuationWeight;
+
+                // Les poids sont heuristiques: on garde une tolérance modérée
+                // pour éviter des déports visuellement inutiles entre colonnes.
+                const sameColumnOverflowTolerance = Math.max(140, columnCapacity * 0.07);
+                const keepTogetherInPreferred = splitTotalWeight <= (remainingPreferred + sameColumnOverflowTolerance);
+                const keepTogetherInOther = splitTotalWeight <= (remainingOther + sameColumnOverflowTolerance);
+
+                if (keepTogetherInPreferred || keepTogetherInOther) {
+                    const targetColumn = keepTogetherInPreferred ? preferredColumn : otherColumn;
+                    pushEntryToColumn(firstPart, firstPartWeight, targetColumn);
+                    continuationParts.forEach((part, idx) => {
+                        const partWeight = item.splitWeights[idx + 1] || 0;
+                        pushEntryToColumn(part, partWeight, targetColumn);
+                    });
+                    removeRemainingItem(item.id);
+                    return true;
+                }
+
+                const firstFitsPreferred = firstPartWeight <= remainingPreferred;
+                const firstFitsOther = firstPartWeight <= remainingOther;
+
+                let firstColumn = preferredColumn;
+                let continuationColumn = otherColumn;
+
+                if (!firstFitsPreferred && firstFitsOther) {
+                    firstColumn = otherColumn;
+                    continuationColumn = preferredColumn;
+                }
+
+                if (!firstFitsPreferred && !firstFitsOther) {
+                    // Cas extrême: la première partie est déjà plus haute que l'espace restant.
+                    // On la place dans la colonne la moins chargée pour limiter l'overflow visuel.
+                    firstColumn = columnWeights[0] <= columnWeights[1] ? 0 : 1;
+                    continuationColumn = firstColumn === 0 ? 1 : 0;
+                }
+
+                pushEntryToColumn(firstPart, firstPartWeight, firstColumn);
+
+                continuationParts.forEach((part, idx) => {
+                    const partWeight = item.splitWeights[idx + 1] || 0;
+                    pushEntryToColumn(part, partWeight, continuationColumn);
+                });
+
+                // Le second morceau reste avec le critère parent mais dans l'autre colonne,
+                // uniquement quand la coupure est strictement nécessaire.
+                if (continuationParts.length === 0 && continuationWeight > 0) {
+                    columnWeights[continuationColumn] += continuationWeight;
+                }
+
+                removeRemainingItem(item.id);
+                return true;
+            };
+
+            if (remainingItems.length) {
+                // Ancre: on place d'abord le critère le plus long à gauche.
+                const longestIdx = remainingItems.reduce((best, candidate, idx, arr) => {
+                    if (best < 0) return idx;
+                    return candidate.fullWeight > arr[best].fullWeight ? idx : best;
+                }, -1);
+                const longest = remainingItems[longestIdx];
+
+                if (!tryPlaceSplitItem(longest, 0)) {
+                    pushEntryToColumn(longest.entry, longest.fullWeight, 0);
+                    removeRemainingItem(longest.id);
+                }
+            }
+
+            let guard = 0;
+            while (remainingItems.length && guard < 1000) {
+                guard += 1;
+
+                const preferredColumn = (columnCapacity - columnWeights[0]) >= (columnCapacity - columnWeights[1]) ? 0 : 1;
+                const otherColumn = preferredColumn === 0 ? 1 : 0;
+
+                const preferredRemaining = columnCapacity - columnWeights[preferredColumn];
+                const otherRemaining = columnCapacity - columnWeights[otherColumn];
+
+                const fitIdxPreferred = findBestFitIndex(remainingItems, preferredRemaining);
+                if (fitIdxPreferred >= 0) {
+                    const picked = remainingItems[fitIdxPreferred];
+                    pushEntryToColumn(picked.entry, picked.fullWeight, preferredColumn);
+                    removeRemainingItem(picked.id);
+                    continue;
+                }
+
+                const fitIdxOther = findBestFitIndex(remainingItems, otherRemaining);
+                if (fitIdxOther >= 0) {
+                    const picked = remainingItems[fitIdxOther];
+                    pushEntryToColumn(picked.entry, picked.fullWeight, otherColumn);
+                    removeRemainingItem(picked.id);
+                    continue;
+                }
+
+                const splittable = remainingItems
+                    .filter((item) => item.canSplit)
+                    .sort((a, b) => b.fullWeight - a.fullWeight);
+
+                let didSplit = false;
+                for (let i = 0; i < splittable.length; i += 1) {
+                    if (tryPlaceSplitItem(splittable[i], preferredColumn)) {
+                        didSplit = true;
+                        break;
+                    }
+                }
+                if (didSplit) continue;
+
+                // Dernier recours: aucun item ne tient, aucun split pertinent.
+                // On place l'item le plus petit dans la colonne la moins chargée.
+                const smallestIdx = remainingItems.reduce((best, candidate, idx, arr) => {
+                    if (best < 0) return idx;
+                    return candidate.fullWeight < arr[best].fullWeight ? idx : best;
+                }, -1);
+                const fallback = remainingItems[smallestIdx];
+                const targetColumn = columnWeights[0] <= columnWeights[1] ? 0 : 1;
+                pushEntryToColumn(fallback.entry, fallback.fullWeight, targetColumn);
+                removeRemainingItem(fallback.id);
+            }
+
+            const leftEntries = columns[0];
+            const rightEntries = columns[1];
+
+            const buildColumnStack = (entries) => {
+                const pushInsetBox = (stack, text, {
+                    fontSize = 6,
+                    lineHeight = 1.04,
+                    color = '#111827',
+                    fillColor = '#f3f4f6',
+                    borderColor = '#d1d5db',
+                    italics = false,
+                    margin = [0, 0.8, 0, 2.4],
+                    paragraphGap = 1.1
+                } = {}) => {
+                    const content = String(text || '').trim();
+                    if (!content || content === '—') return;
+
+                    const paragraphs = content
+                        .split(/\n\s*\n/)
+                        .map((p) => p.trim())
+                        .filter(Boolean);
+                    if (!paragraphs.length) return;
+
+                    const paragraphNodes = paragraphs.map((paragraph, index) => ({
+                        text: this.sanitizePdfText(paragraph),
+                        fontSize,
+                        lineHeight,
+                        color,
+                        italics,
+                        margin: [0, 0, 0, index === paragraphs.length - 1 ? 0 : paragraphGap]
+                    }));
+
+                    stack.push({
+                        table: {
+                            widths: ['*'],
+                            body: [[{
+                                stack: paragraphNodes
+                            }]]
+                        },
+                        layout: {
+                            hLineWidth: () => 0.4,
+                            vLineWidth: () => 0.4,
+                            hLineColor: () => borderColor,
+                            vLineColor: () => borderColor,
+                            fillColor: () => fillColor,
+                            paddingLeft: () => 4,
+                            paddingRight: () => 4,
+                            paddingTop: () => 3,
+                            paddingBottom: () => 3
+                        },
+                        margin
+                    });
+                };
+
+                const normalizeLevel = (raw) => {
+                    const token = String(raw || '')
+                        .toLowerCase()
+                        .normalize('NFD')
+                        .replace(/[\u0300-\u036f]/g, '');
+                    if (token.startsWith('fort')) return 'fort';
+                    if (token.startsWith('moy')) return 'moyen';
+                    if (token.startsWith('faibl')) return 'faible';
+                    return '';
+                };
+
+                const extractLevelFromSentence = (sentence) => {
+                    const match = String(sentence || '').match(/(?:«\s*)?(fort(?:e|es|s)?|moyen(?:ne|nes|s)?|faible(?:s)?)(?:\s*»)?/i);
+                    if (!match) return '';
+                    return normalizeLevel(match[1]);
+                };
+
+                const stack = [];
+                entries.forEach((entry, idx) => {
+                    if (entry.referencesOnly) {
+                        pushInsetBox(stack, entry.bodyText, {
+                            fontSize: typo.references,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f3f4f6',
+                            borderColor: '#d1d5db',
+                            margin: [0, 0.8, 0, typo.gap + 2],
+                            paragraphGap: 1.1
+                        });
+                        return;
+                    }
+
+                    if (entry.blocks && entry.blocks.hasContent) {
+                        if (entry.fieldTitle) {
+                            stack.push({
+                                text: this.sanitizePdfText(entry.fieldTitle),
+                                fontSize: typo.criterionTitle,
+                                bold: true,
+                                color: '#4b5563',
+                                margin: [0, idx === 0 ? 0 : 10, 0, 2.4]
+                            });
+                        } else {
+                            stack.push({ text: '', margin: [0, 0, 0, 1] });
+                        }
+
+                        if (entry.blocks.intro) {
+                            stack.push({
+                                table: {
+                                    widths: ['*'],
+                                    body: [[{
+                                        text: this.sanitizePdfText(entry.blocks.intro),
+                                        fontSize: typo.introInset,
+                                        bold: true,
+                                        color: '#374151',
+                                        lineHeight: Math.max(1.04, typo.lineHeight - 0.01)
+                                    }]]
+                                },
+                                layout: {
+                                    hLineWidth: () => 0.4,
+                                    vLineWidth: () => 0.4,
+                                    hLineColor: () => '#cbd5e1',
+                                    vLineColor: () => '#cbd5e1',
+                                    fillColor: () => '#f3f4f6',
+                                    paddingLeft: () => 4,
+                                    paddingRight: () => 4,
+                                    paddingTop: () => 3,
+                                    paddingBottom: () => 3
+                                },
+                                margin: [0, 0.8, 0, 2.4]
+                            });
+                        }
+
+                        const levelItems = (entry.blocks.echelle || [])
+                            .map((item) => {
+                                const sentence = String(item?.text || '').trim();
+                                if (!sentence) return null;
+                                const level = normalizeLevel(item?.level) || extractLevelFromSentence(sentence);
+                                if (!level) return null;
+                                return { level, text: sentence };
+                            })
+                            .filter(Boolean);
+
+                        const distinctLevels = Array.from(new Set(levelItems.map((item) => item.level)));
+                        const canUseLevelTable = levelItems.length >= 2 && distinctLevels.length >= 2;
+                        if (canUseLevelTable) {
+                            const levelTable = this.buildPdfCriteriaLevelTable(levelItems, typo);
+                            if (levelTable) stack.push(levelTable);
+                        }
+
+                        const trailingParts = [];
+                        if (!canUseLevelTable && Array.isArray(entry.blocks.echelle) && entry.blocks.echelle.length) {
+                            trailingParts.push(entry.blocks.echelle.map((item) => String(item?.text || '').trim()).filter(Boolean).join('\n'));
+                        }
+                        const infoText = Array.isArray(entry.blocks.info) && entry.blocks.info.length
+                            ? entry.blocks.info.join('\n\n')
+                            : '';
+                        const trailingText = trailingParts.join('\n\n').trim();
+                        if (trailingText) {
+                            stack.push(...this.buildPdfCriteriaAnnexTextNodes(trailingText, {
+                                fontSize: typo.bodyText,
+                                lineHeight: typo.lineHeight,
+                                color: '#1f2937',
+                                paragraphGap: 1.4,
+                                lastGap: (infoText || (entry.blocks.references && entry.blocks.references.length)) ? 2.2 : (typo.gap + 2.6)
+                            }));
+                        }
+
+                        if (infoText) {
+                            pushInsetBox(stack, infoText, {
+                                fontSize: typo.infoInset,
+                                lineHeight: 1.04,
+                                color: '#111827',
+                                fillColor: '#f8fafc',
+                                borderColor: '#cbd5e1',
+                                margin: [0, 0.8, 0, (entry.blocks.references && entry.blocks.references.length) ? 2.2 : (typo.gap + 2)]
+                            });
+                        }
+
+                        if (entry.blocks.references && entry.blocks.references.length) {
+                            const referencesText = entry.blocks.references.map((ref) => `• ${ref}`).join('\n\n');
+                            pushInsetBox(stack, referencesText, {
+                                fontSize: typo.references,
+                                lineHeight: 1.04,
+                                color: '#111827',
+                                fillColor: '#f3f4f6',
+                                borderColor: '#d1d5db',
+                                margin: [0, 0.8, 0, typo.gap + 2],
+                                paragraphGap: 1.1
+                            });
+                        }
+
+                        return;
+                    }
+
+                    const bodyParts = this.splitPdfCriteriaAnnexReferences(entry.bodyText);
+                    const structuredMain = this.splitPdfCriteriaMainByModalStructure(bodyParts.mainText);
+                    if (entry.fieldTitle) {
+                        stack.push({
+                            text: this.sanitizePdfText(entry.fieldTitle),
+                            fontSize: typo.criterionTitle,
+                            bold: true,
+                            color: '#4b5563',
+                            margin: [0, idx === 0 ? 0 : 10, 0, 2.4]
+                        });
+                    } else {
+                        stack.push({ text: '', margin: [0, 0, 0, 1] });
+                    }
+
+                    if (structuredMain.introText) {
+                        stack.push({
+                            table: {
+                                widths: ['*'],
+                                body: [[{
+                                    text: this.sanitizePdfText(structuredMain.introText),
+                                    fontSize: typo.introInset,
+                                    bold: true,
+                                    color: '#374151',
+                                    lineHeight: Math.max(1.04, typo.lineHeight - 0.01)
+                                }]]
+                            },
+                            layout: {
+                                hLineWidth: () => 0.4,
+                                vLineWidth: () => 0.4,
+                                hLineColor: () => '#cbd5e1',
+                                vLineColor: () => '#cbd5e1',
+                                fillColor: () => '#f3f4f6',
+                                paddingLeft: () => 4,
+                                paddingRight: () => 4,
+                                paddingTop: () => 3,
+                                paddingBottom: () => 3
+                            },
+                            margin: [0, 0.8, 0, 2.4]
+                        });
+                    }
+
+                    const levelTable = this.buildPdfCriteriaLevelTable(structuredMain.levelItems, typo);
+                    if (levelTable) stack.push(levelTable);
+
+                    const trailingText = structuredMain.trailingText || (!structuredMain.levelItems.length ? bodyParts.mainText : '');
+                    if (trailingText) {
+                        pushInsetBox(stack, trailingText, {
+                            fontSize: typo.bodyText,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f8fafc',
+                            borderColor: '#cbd5e1',
+                            margin: [0, 0.8, 0, bodyParts.referencesText ? 2.2 : (typo.gap + 2.6)]
+                        });
+                    }
+
+                    if (bodyParts.referencesText) {
+                        pushInsetBox(stack, bodyParts.referencesText, {
+                            fontSize: typo.references,
+                            lineHeight: 1.04,
+                            color: '#111827',
+                            fillColor: '#f3f4f6',
+                            borderColor: '#d1d5db',
+                            margin: [0, 0.8, 0, typo.gap + 2],
+                            paragraphGap: 1.1
+                        });
+                    }
+                });
+                return stack.length ? stack : [{ text: '' }];
+            };
+
+            const blockColumns = {
+                columns: [
+                    { width: '*', stack: buildColumnStack(leftEntries) },
+                    { width: '*', stack: buildColumnStack(rightEntries) }
+                ],
+                columnGap: 9
+            };
+
+            const sectionCard = this.pdfCard(null, [
+                {
+                    text: this.sanitizePdfText(section.sectionTitle),
+                    fontSize: typo.sectionTitle,
+                    bold: true,
+                    color: '#374151',
+                    margin: [0, 1, 0, 5]
+                },
+                blockColumns
+            ], {
+                margin: [0, 0, 0, 20],
+                padding: [8, 6, 8, 6],
+                unbreakable: false
+            });
+            if (sectionIndex > 0) sectionCard.pageBreak = 'before';
+            sectionBlocks.push(sectionCard);
+        });
+
+        if (!sectionBlocks.length) return [];
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.title.criteriaAnnex', 'Annexe — Référentiel des critères de notation', 'Annex — Scoring criteria reference')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            {
+                text: this.sanitizePdfText(tpdf(
+                    'pdf.criteriaAnnex.intro',
+                    'Contenu généré dynamiquement à partir des référentiels détaillés des modales de critères.',
+                    'Content generated dynamically from detailed criteria modal references.'
+                )),
+                fontSize: annexFontSizes.bodyText,
+                color: '#1f2937',
+                margin: [0, 0, 0, 4]
+            },
+            ...sectionBlocks
+        ];
+    }
+
+    /* ═══════ pdfmake — document definitions ═══════ */
+
+    buildPdfOperationEvalContent(lotIndices = null) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const opSummary = this.getPdfOperationSummary(lotIndices);
+        const meta = this.data.meta || {};
+        const geoFrance = this.getDefaultGeoFrance(meta.geoFrance || {});
+        const climate = this.getGeoFranceClimateExportData(geoFrance);
+        const rows = opSummary.orientations.map((item) => [
+            item.label,
+            this.formatPdfVolume(item.volume),
+            this.formatPdfCurrency(item.price),
+            this.formatPdfPercent(item.part),
+            this.formatPdfLotsList(item.lots)
+        ]);
+
+        const summaryPairs = [
+            { label: tpdf('pdf.summary.circularVolume', 'Volume circulaire', 'Circular volume'), value: this.formatPdfVolume(opSummary.volCirculaire) },
+            { label: tpdf('pdf.summary.financialBalance', 'Bilan monétaire', 'Financial balance'), value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
+            { label: tpdf('pdf.summary.circularity', 'Circularité', 'Circularity'), value: this.formatPdfPercent(opSummary.circularite) },
+            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) },
+            { label: tpdf('pdf.summary.geoDepartment', 'Département géographique', 'Geographic department'), value: geoFrance.departementNom || '—' },
+            { label: tpdf('pdf.summary.geoCanton', 'Canton géographique', 'Geographic canton'), value: geoFrance.cantonNom || '—' },
+            { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d’humidification', 'Humidification climatic condition'), value: climate.niveau || '—' },
+            { label: tpdf('pdf.summary.geoWind', 'Vent de pluie dominant', 'Driving rain wind'), value: this.getGeoFranceWindExportData(geoFrance).directions || '—' }
+        ];
+
+        return [
+            this.pdfDataTable([
+                tpdf('pdf.table.orientation', 'Orientation', 'Orientation'),
+                tpdf('pdf.table.volume', 'Volume', 'Volume'),
+                tpdf('pdf.table.price', 'Prix', 'Price'),
+                tpdf('pdf.table.share', 'Part', 'Share'),
+                tpdf('pdf.table.lots', 'Lots', 'Lots')
+            ], rows, {
+                fontSize: f.tableCompact,
+                widths: ['auto', 'auto', 'auto', 'auto', '*'],
+                noWrapColumns: [0, 1, 2, 3],
+                columnAlignments: ['left', 'right', 'right', 'right', 'left'],
+                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+            }),
+            { text: '', margin: [0, 4, 0, 0] },
+            this.pdfKeyValueGrid(summaryPairs, 4)
+        ];
+    }
+
+    buildPdfLotsSummaryCardContent(lotEntries = null) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const allLots = this.data.lots || [];
+
+        const resolvedEntries = Array.isArray(lotEntries)
+            ? lotEntries.filter((entry) => entry && Number.isInteger(entry.index) && entry.lot)
+            : allLots.map((lot, index) => ({ lot, index }));
+
+        const lotIdentityHeaders = [
+            tpdf('pdf.lot.lot', 'Lot', 'Lot'),
+            tpdf('pdf.lot.type', 'Type', 'Type'),
+            tpdf('pdf.lot.product', 'Produit', 'Product'),
+            tpdf('pdf.lot.species', 'Essence', 'Species'),
+            tpdf('pdf.lot.effectiveUseClassShort', 'Classe d’emploi eff.', 'Eff. use class'),
+            tpdf('pdf.lot.volume', 'Volume', 'Volume'),
+            tpdf('pdf.lot.price', 'Prix', 'Price'),
+            tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'),
+            tpdf('pdf.lot.rate', 'Taux', 'Rate')
+        ];
+
+        const lotScoreHeaders = [
+            tpdf('pdf.lot.lot', 'Lot', 'Lot'),
+            tpdf('pdf.lot.scoreEco', 'Éco', 'Eco'),
+            tpdf('pdf.lot.scoreEcolo', 'Écolo', 'Ecol'),
+            tpdf('pdf.lot.scoreMeca', 'Méca', 'Mech'),
+            tpdf('pdf.lot.scoreHist', 'Hist', 'Hist'),
+            tpdf('pdf.lot.scoreEsth', 'Esth', 'Aes')
+        ];
+
+        const lotIdentityRows = resolvedEntries.map(({ lot, index }) => {
+            const allotissement = lot.allotissement || {};
+            const orientation = this.getPdfOrientationSummary(lot);
+            return [
+                this.getPdfLotLabel(lot, index),
+                this.getPdfLotCompositionValue(lot, 'typePiece'),
+                this.getPdfLotCompositionValue(lot, 'typeProduit'),
+                this.getPdfLotCompositionValue(lot, 'essenceNomCommun'),
+                this.formatPdfLotEffectiveUseClasses(lot),
+                this.formatPdfVolume(allotissement.volumeLot),
+                this.formatPdfCurrency(allotissement.prixLot),
+                orientation.label,
+                this.formatPdfPercent(orientation.percentage)
+            ];
+        });
+
+        const lotScoreRows = resolvedEntries.map(({ lot, index }) => {
+            const orientation = this.getPdfOrientationSummary(lot);
+            return [
+                this.getPdfLotLabel(lot, index),
+                ...this.getPdfCategoryDefinitions().map((c) => this.formatPdfDecimal(parseFloat(orientation.scores[c.key]) || 0, 0, 0) + '/30')
+            ];
+        });
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.lots.identitySection', 'Données lot', 'Lot data')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            this.pdfDataTable(
+                lotIdentityHeaders,
+                lotIdentityRows.length ? lotIdentityRows : [lotIdentityHeaders.map(() => '—')],
+                {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 4, 5, 6, 7, 8],
+                    columnAlignments: ['left', 'left', 'left', 'left', 'center', 'right', 'right', 'left', 'right'],
+                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                }
+            ),
+            { text: '', margin: [0, 4, 0, 0] },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.lots.scoreSection', 'Scores de valeur', 'Value scores')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            this.pdfDataTable(
+                lotScoreHeaders,
+                lotScoreRows.length ? lotScoreRows : [lotScoreHeaders.map(() => '—')],
+                {
+                    fontSize: f.tableCompact,
+                    widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    noWrapColumns: [0, 1, 2, 3, 4, 5],
+                    columnAlignments: ['left', 'right', 'right', 'right', 'right', 'right'],
+                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                }
+            )
+        ];
+    }
+
+    buildPdfSelectedLotsCoverContent(validLotIndices) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+        const lots = this.data.lots || [];
+        const selectedLotEntries = validLotIndices
+            .map((index) => ({ index, lot: lots[index] }))
+            .filter((entry) => Number.isInteger(entry.index) && entry.lot);
+        const evalContent = this.buildPdfOperationEvalContent(validLotIndices);
+
+        const selectedLots = validLotIndices.map((idx) => {
+            const lot = lots[idx] || {};
+            return this.getPdfLotLabel(lot, idx);
+        });
+
+        const metaPairs = [
+            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
+            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
+            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
+            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
+            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' },
+            { label: tpdf('pdf.cover.lotsCount', 'Nombre de lots exportés', 'Exported lots count'), value: String(validLotIndices.length) }
+        ];
+
+        return [
+            { text: this.sanitizePdfText(tpdf('pdf.title.synthesis.cover', 'Synthèse de l\'évaluation', 'Assessment summary')), style: 'title', margin: [0, 0, 0, 10] },
+            this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [
+                this.pdfKeyValueGrid(metaPairs, 3)
+            ]),
+            this.pdfCard(tpdf('pdf.cover.selectedLots', 'Lots inclus', 'Included lots'), [
+                {
+                    text: this.sanitizePdfText(selectedLots.length ? selectedLots.join(' • ') : '—'),
+                    fontSize: f.body,
+                    color: '#1f2937'
+                }
+            ]),
+            this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent(selectedLotEntries)),
+            this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\'opération', 'Operation evaluation'), evalContent)
+        ];
+    }
+
+    buildPdfSynthesisDocDef() {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+
+        const metaPairs = [
+            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
+            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
+            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
+            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
+            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' }
+        ];
+
+        const evalContent = this.buildPdfOperationEvalContent();
+
+        return {
+            pageSize: 'A4',
+            pageOrientation: 'portrait',
+            pageMargins: [20, 24, 20, 30],
+            info: this.getPdfDocInfo('synthese'),
+            defaultStyle: { font: 'Roboto', fontSize: f.body },
+            styles: this.getPdfmakeStyles(),
+            footer: (currentPage, pageCount) => ({
+                text: tpdf('pdf.footer.page', 'Page', 'Page') + ' ' + currentPage + ' / ' + pageCount,
+                alignment: 'center',
+                fontSize: f.footer,
+                color: '#464646',
+                margin: [0, 8, 0, 0]
+            }),
+            content: [
+                { text: this.sanitizePdfText(tpdf('pdf.title.synthesis', 'Synthèse de l\u2019évaluation', 'Assessment summary')), style: 'title' },
+                this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [this.pdfKeyValueGrid(metaPairs, 5)]),
+                this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent()),
+                this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\u2019opération', 'Operation evaluation'), evalContent)
+            ]
+        };
+    }
+
+    // ── Helper: Generate a single gauge SVG ──
+    generateGaugeSvg(percent, width = 48, height = 210, color = '#888888') {
+        // Ensure percent is between 0 and 100
+        percent = Math.min(100, Math.max(0, percent));
+        
+        // Calculate dimensions for the fill bar
+        const fillHeight = (percent / 100) * height;
+        const barWidth = Math.round(width * 0.6);  // 60% of width for the bar
+        const barX = (width - barWidth) / 2;  // Center horizontally
+        const radius = Math.min(barWidth / 2, 6);  // Rounded corners
+        
+        // Colors
+        const backgroundColor = '#E6E6E6';
+        const borderColor = '#999999';
+        const fillColor = color;
+        
+        // SVG group with rounded rect for background + rounded rect for fill
+        return `<g>
+      <rect x="${barX}" y="0" width="${barWidth}" height="${height}" fill="${backgroundColor}" rx="${radius}" ry="${radius}" stroke="${borderColor}" stroke-width="0.5"/>
+      <rect x="${barX}" y="${height - fillHeight}" width="${barWidth}" height="${fillHeight}" fill="${fillColor}" rx="${radius}" ry="${radius}"/>
+    </g>`;
+    }
+
+    // ── Helper: Generate a single horizontal gauge SVG ──
+    generateHorizontalGaugeSvg(percent, width = 210, height = 12, color = '#888888') {
+        percent = Math.min(100, Math.max(0, percent));
+        // We use full width for the bar itself, and center within `height` if needed
+        const fillWidth = (percent / 100) * width;
+        // In horizontal layout, thickness usually takes most of the height. 
+        // We'll occupy 80% of the given height bounding box.
+        const barHeight = Math.round(height * 0.8);
+        const barY = (height - barHeight) / 2;
+        const radius = Math.min(barHeight / 2, 4);
+
+        const backgroundColor = '#E6E6E6';
+        const borderColor = '#999999';
+        const fillColor = color;
+
+        return `<g>
+      <rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="${backgroundColor}" rx="${radius}" ry="${radius}" stroke="${borderColor}" stroke-width="0.5"/>
+      <rect x="0" y="${barY}" width="${fillWidth}" height="${barHeight}" fill="${fillColor}" rx="${radius}" ry="${radius}"/>
+    </g>`;
+    }
+
+    generatePdfCategoryGaugeSvg(categoryData, width = 240, height = 16) {
+        if (!categoryData) return '';
+        
+        const { letterPoints, letterColors, minScore, maxScore, rawScore, zeroPct } = categoryData;
+        if (!letterPoints || !letterColors || !Number.isFinite(minScore) || !Number.isFinite(maxScore)) {
+            return '';
+        }
+        
+        const scoreSpan = Math.max(1, maxScore - minScore);
+        const barHeight = Math.round(height * 0.7);
+        const barY = (height - barHeight) / 2;
+        const radius = 1;
+        
+        // Positions des bandes négatives (D à gauche de zéro, E plus à gauche)
+        const pctPerPoint = 100 / scoreSpan;
+        const negativeDWidth = Math.abs(letterPoints.D || 0) * pctPerPoint;
+        const negativeEWidth = Math.abs(letterPoints.E || 0) * pctPerPoint;
+        const positiveCWidth = (letterPoints.C || 0) * pctPerPoint;
+        const positiveBWidth = (letterPoints.B || 0) * pctPerPoint;
+        const positiveAWidth = (letterPoints.A || 0) * pctPerPoint;
+        
+        // Zéro position en %
+        const zeroPixels = (zeroPct / 100) * width;
+        
+        // Générer les bandes
+        let bandsHtml = '';
+        
+        // Bande E (à gauche du D)
+        if (negativeEWidth > 0) {
+            const xPos = Math.max(0, zeroPixels - negativeDWidth - negativeEWidth);
+            const w = Math.min(negativeEWidth, zeroPixels - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.E || '#d55e00'}" stroke="none"/>`;
+        }
+        
+        // Bande D
+        if (negativeDWidth > 0) {
+            const xPos = Math.max(0, zeroPixels - negativeDWidth);
+            const w = Math.min(negativeDWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.D || '#e69f00'}" stroke="none"/>`;
+        }
+        
+        // Bande C
+        if (positiveCWidth > 0) {
+            const xPos = zeroPixels;
+            const w = Math.min(positiveCWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.C || '#9aba89'}" stroke="none"/>`;
+        }
+        
+        // Bande B
+        if (positiveBWidth > 0) {
+            const xPos = Math.min(width, zeroPixels + positiveCWidth);
+            const w = Math.min(positiveBWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.B || '#60914b'}" stroke="none"/>`;
+        }
+        
+        // Bande A
+        if (positiveAWidth > 0) {
+            const xPos = Math.min(width, zeroPixels + positiveCWidth + positiveBWidth);
+            const w = Math.min(positiveAWidth, width - xPos);
+            bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.A || '#009e73'}" stroke="none"/>`;
+        }
+        
+        // Contour global
+        const bgHtml = `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="none" stroke="#999999" stroke-width="0.5" rx="${radius}" ry="${radius}"/>`;
+        
+        // Ligne zéro (pointillés gris)
+        const zeroLineHtml = `<line x1="${zeroPixels.toFixed(1)}" y1="${barY}" x2="${zeroPixels.toFixed(1)}" y2="${barY + barHeight}" stroke="#cccccc" stroke-width="0.5" stroke-dasharray="2,2"/>`;
+        
+        return `<g>${bandsHtml}${bgHtml}${zeroLineHtml}</g>`;
+    }
+
+    escapeSvgText(value) {
+        return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    generateRadarSvg(data) {
+        if (!data || !Array.isArray(data.labels) || !Array.isArray(data.values) || !data.labels.length || data.labels.length !== data.values.length) {
+            return null;
+        }
+
+        const width = 400;
+        const height = 310;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 100;        // Radar bounds maximized
+        const labelRadius = 115;   // Rapproché du radar relatif
+        const pointRadius = 5;
+        const gridLevels = Array.isArray(data.thresholdLevels) && data.thresholdLevels.length
+            ? data.thresholdLevels.map((level) => Math.max(0, Math.min(100, level.value)))
+            : [25, 50, 75, 100];
+        const axisCount = data.labels.length;
+        const startAngle = -Math.PI / 2;
+        const angleStep = (Math.PI * 2) / axisCount;
+        const toPoint = (value, axisIndex, scaleRadius = radius) => {
+            const angle = startAngle + axisIndex * angleStep;
+            const scaledRadius = (Math.max(0, Math.min(100, value)) / 100) * scaleRadius;
+            return {
+                x: Math.cos(angle) * scaledRadius,
+                y: Math.sin(angle) * scaledRadius
+            };
+        };
+
+        const circles = gridLevels.map((level, index) => {
+            const ringRadius = (level / 100) * radius;
+            const threshold = data.thresholdLevels && data.thresholdLevels[index];
+            const stroke = threshold && threshold.color ? threshold.color : '#d9d4ca';
+            return `<circle cx="0" cy="0" r="${ringRadius.toFixed(2)}" fill="none" stroke="${stroke}" stroke-opacity="0.45" stroke-width="${level === 100 ? 1.5 : 1.0}"/>`;
+        }).join('');
+
+        const axes = data.labels.map((_, axisIndex) => {
+            const point = toPoint(100, axisIndex);
+            return `<line x1="0" y1="0" x2="${point.x.toFixed(2)}" y2="${point.y.toFixed(2)}" stroke="#000000" stroke-opacity="0.18" stroke-width="1.0"/>`;
+        }).join('');
+
+        const polygonPoints = data.values.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `${point.x.toFixed(2)},${point.y.toFixed(2)}`;
+        }).join(' ');
+
+        const dataPoints = data.values.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="#000000"/>`;
+        }).join('');
+
+        const labels = data.labels.map((label, axisIndex) => {
+            const point = toPoint(100, axisIndex, labelRadius);
+            const textAnchor = Math.abs(point.x) < 15 ? 'middle' : (point.x > 0 ? 'start' : 'end');
+            let textY = point.y;
+            if (point.y < -15) textY -= 8;
+            else if (point.y > 15) textY += 16;
+            else textY += 6;
+            return `<text x="${point.x.toFixed(2)}" y="${textY.toFixed(2)}" font-size="18" font-weight="bold" fill="#464646" text-anchor="${textAnchor}">${this.escapeSvgText(label)}</text>`;
+        }).join('');
+
+        const thresholdLabels = Array.isArray(data.thresholdLevels)
+            ? data.thresholdLevels.map((level) => {
+                const y = -((Math.max(0, Math.min(100, level.value)) / 100) * radius);
+                const yPos = (y - 4).toFixed(2);
+                const text = this.escapeSvgText(level.label);
+                // Le contour blanc évite que le texte soit masqué par la grille ou la couleur de fond
+                return `<text x="8" y="${yPos}" font-size="9.75" fill="#ffffff" stroke="#ffffff" stroke-width="3" stroke-linejoin="round" text-anchor="start">${text}</text>
+                        <text x="8" y="${yPos}" font-size="9.75" fill="${level.color}" text-anchor="start">${text}</text>`;
+            }).join('')
+            : '';
+
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}<polygon points="${polygonPoints}" fill="#000000" fill-opacity="0.15" stroke="#000000" stroke-width="1.5"/>${dataPoints}${labels}${thresholdLabels}</g></svg>`;
+    }
+
+    generatePdfRadarSvg(data) {
+        // Génère un radar SVG avec 3 datasets: net (couleur), bruts positifs (gris), bruts négatifs (gris pointillé)
+        if (!data || !Array.isArray(data.labels) || !Array.isArray(data.netValues) || data.labels.length !== data.netValues.length) {
+            return '';
+        }
+        
+        const width = 280;
+        const height = 260;
+        const centerX = width / 2;
+        const centerY = height / 2;
+        const radius = 90;
+        const labelRadius = 105;
+        const pointRadius = 3;
+        const gridLevels = [25, 50, 75, 100];
+        const axisCount = data.labels.length;
+        const startAngle = -Math.PI / 2;
+        const angleStep = (Math.PI * 2) / axisCount;
+        
+        const toPoint = (value, axisIndex, scaleRadius = radius) => {
+            const angle = startAngle + axisIndex * angleStep;
+            const scaledRadius = (Math.max(0, Math.min(100, value)) / 100) * scaleRadius;
+            return {
+                x: Math.cos(angle) * scaledRadius,
+                y: Math.sin(angle) * scaledRadius
+            };
+        };
+        
+        // Grille de cercles concentriques
+        const circles = gridLevels.map((level) => {
+            const ringRadius = (level / 100) * radius;
+            const stroke = level === 100 ? '#333333' : '#d9d4ca';
+            const strokeWidth = level === 100 ? 1.2 : 0.8;
+            return `<circle cx="0" cy="0" r="${ringRadius.toFixed(2)}" fill="none" stroke="${stroke}" stroke-opacity="0.4" stroke-width="${strokeWidth}"/>`;
+        }).join('');
+        
+        // Axes radiaux
+        const axes = data.labels.map((_, axisIndex) => {
+            const point = toPoint(100, axisIndex);
+            return `<line x1="0" y1="0" x2="${point.x.toFixed(2)}" y2="${point.y.toFixed(2)}" stroke="#000000" stroke-opacity="0.12" stroke-width="0.8"/>`;
+        }).join('');
+        
+        // Dataset 1: Bruts négatifs (pointillés gris)
+        const negPoints = data.grossNegativeValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const negPolygon = negPoints.length > 0 ? `<polygon points="${negPoints}" fill="none" stroke="rgba(120,120,120,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>` : '';
+        
+        // Dataset 2: Bruts positifs (gris)
+        const posPoints = data.grossPositiveValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const posPolygon = posPoints.length > 0 ? `<polygon points="${posPoints}" fill="none" stroke="rgba(95,95,95,0.5)" stroke-width="1.4"/>` : '';
+        
+        // Dataset 3: Net (couleur orientation)
+        const netPoints = data.netValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const netColor = data.netColor || '#7A7A7A';
+        const netPolygon = netPoints.length > 0 ? `<polygon points="${netPoints}" fill="${netColor}22" stroke="${netColor}" stroke-width="2.0"/><polygon points="${netPoints}" fill="none" stroke="${netColor}" stroke-width="0" />` : '';
+        
+        // Points sur le net
+        const dataPoints = data.netValues.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="${netColor}" stroke="${netColor}" stroke-width="0.5"/>`;
+        }).join('');
+        
+        // Labels des axes
+        const labels = data.labels.map((label, axisIndex) => {
+            const point = toPoint(100, axisIndex, labelRadius);
+            const textAnchor = Math.abs(point.x) < 15 ? 'middle' : (point.x > 0 ? 'start' : 'end');
+            let textY = point.y;
+            if (point.y < -15) textY -= 6;
+            else if (point.y > 15) textY += 12;
+            else textY += 4;
+            const textStr = this.escapeSvgText(label);
+            return `<text x="${point.x.toFixed(2)}" y="${textY.toFixed(2)}" font-size="10" font-weight="500" fill="#3a3a3a" text-anchor="${textAnchor}">${textStr}</text>`;
+        }).join('');
+        
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}${negPolygon}${posPolygon}${netPolygon}${dataPoints}${labels}</g></svg>`;
+    }
+
+    buildPdfActiveLotDocDef(lotIndex) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const currentLot = this.data.lots && this.data.lots[lotIndex];
+        if (!currentLot) return null;
+
+        // Page geometry (pdfmake uses points, A4 height ≈ 841.89 pt)
+        const MM_TO_PT = 72 / 25.4;
+        const pageMargins = [10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT];
+        // Layout preset fixe: même structure visuelle pour tous les lots.
+        const layoutPresets = {
+            compact: {
+                cardPadding: [4, 3, 4, 3],
+                blockGap: 3,
+                kvRowHeight: 16,
+                tableRowHeight: 11,
+                tableCompactRowHeight: 10,
+                notationRowHeight: 10,
+                notationFont: Math.max(5, f.notation - 0.4),
+                sectionTitleFont: Math.max(7, f.sectionTitle - 0.4),
+                gaugeBarWidth: 44,
+                gaugeHeight: 96,
+                radarVisualSize: 190
+            }
+        };
+        const preset = layoutPresets.compact;
+
+        const allotissement = currentLot.allotissement || {};
+        const integrity = currentLot.inspection && currentLot.inspection.integrite;
+
+        const blockGapPt = preset.blockGap;
+        const cardPadding = preset.cardPadding;
+        const notationFontSize = preset.notationFont;
+        const sectionTitleFontSize = preset.sectionTitleFont;
+
+        // ── Fiche lot card ──
+        const hasDetailDimensions = this.getLotQuantityFromDetail(currentLot) > 0;
+        const displayLongueur = hasDetailDimensions ? String(Math.round(allotissement._avgLongueur || 0)) : (allotissement.longueur || '');
+        const displayLargeur  = hasDetailDimensions ? String(Math.round(allotissement._avgLargeur  || 0)) : (allotissement.largeur  || '');
+        const displayEpaisseur  = hasDetailDimensions ? String(Math.round(allotissement._avgEpaisseur  || 0)) : (allotissement.epaisseur  || '');
+        const displayDiametre = allotissement.diametre || '';
+        const hasDim = displayLongueur !== '' || displayLargeur !== '' || displayEpaisseur !== '' || displayDiametre !== '';
+        let dimensionsValue;
+        if (!hasDim) {
+            dimensionsValue = '—';
+        } else if (displayDiametre !== '') {
+            dimensionsValue = (displayLongueur ? displayLongueur + ' × ' : '') + 'ø' + displayDiametre;
+        } else {
+            dimensionsValue = [displayLongueur, displayLargeur, displayEpaisseur].map((v) => v || '0').join(' × ');
+        }
+
+        const similarityStrategy = (allotissement.similarityStrategy || this.getSimilarityStrategy(currentLot) || '').toString().toLowerCase();
+        const similarityStrategyLabel = similarityStrategy === 'multiple'
+            ? tpdf('pdf.lot.similarityStrategy.multiple', 'Multiple', 'Multiple')
+            : similarityStrategy === 'single'
+                ? tpdf('pdf.lot.similarityStrategy.single', 'Unique', 'Single')
+                : '—';
+
+        const mmProfileKey = (allotissement.mmGeometryProfile || this.getLotMultipleMeasurementsGeometryProfile(currentLot) || '').toString().toLowerCase();
+        const mmProfileLabel = mmProfileKey === 'rect-present'
+            ? tpdf('pdf.lot.mmProfile.rectPresent', 'Rectangulaire présent', 'Rectangular present')
+            : mmProfileKey === 'circle-only'
+                ? tpdf('pdf.lot.mmProfile.circleOnly', 'Circulaire uniquement', 'Circular only')
+                : mmProfileKey === 'none'
+                    ? tpdf('pdf.lot.mmProfile.none', 'Aucun', 'None')
+                    : '—';
+
+        const formatPercentMetric = (value, fractionDigits = 0) => {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? this.formatPdfDecimal(n, fractionDigits, fractionDigits) + ' %' : '—';
+        };
+
+        const formatScoreMetric = (value) => {
+            const n = parseFloat(value);
+            return Number.isFinite(n) ? this.formatPdfDecimal(n, 0, 0) : '—';
+        };
+
+        const conformiteRaw = allotissement.conformiteLot;
+        const conformiteTaux = conformiteRaw && typeof conformiteRaw === 'object'
+            ? conformiteRaw.tauxConformite
+            : conformiteRaw;
+
+        const medoideLabel = allotissement.medoideLabel ? String(allotissement.medoideLabel) : '—';
+        const medoideScore = formatPercentMetric(allotissement.medoideScore, 0);
+        const scoreMinPieceLabel = allotissement.scoreMinPieceLabel ? String(allotissement.scoreMinPieceLabel) : '—';
+        const scoreMinDelta = formatScoreMetric(allotissement.scoreMinDelta);
+        const mmSummary = this.getPdfLotMultipleMeasurementsSummary(currentLot);
+        const mmValidLabel = mmSummary.hasValid
+            ? tpdf('pdf.common.yes', 'Oui', 'Yes') + ` (${this.formatPdfDecimal(mmSummary.validPieces, 0, 0)})`
+            : tpdf('pdf.common.no', 'Non', 'No');
+        const mmSectionsLabel = mmSummary.totalSections > 0 ? this.formatPdfDecimal(mmSummary.totalSections, 0, 0) : '—';
+        const lotSituationExport = this.getLocSitLotSituationExportSummary(currentLot);
+        const orientationSummary = this.getPdfOrientationSummary(currentLot);
+
+        const lotPairs = [
+            { label: tpdf('pdf.lot.pieceType', 'Type de pièces', 'Piece type'), value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
+            { label: tpdf('pdf.lot.productType', 'Type de produit', 'Product type'), value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
+            { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
+            { label: tpdf('pdf.lot.effectiveUseClass', 'Classe d’emploi effective', 'Effective use class'), value: this.formatPdfLotEffectiveUseClasses(currentLot) },
+            { label: tpdf('pdf.lot.situationNormRef', 'Réf. normative situation', 'Situation norm ref'), value: lotSituationExport.normRef || '—' },
+            { label: tpdf('pdf.lot.situationGuide', 'Note guide situation', 'Situation guide note'), value: lotSituationExport.guideShort || '—' },
+            { label: tpdf('pdf.lot.quantity', 'Quantité', 'Quantity'), value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
+            { label: tpdf('pdf.lot.avgDims', 'Dimensions moyennes (mm) (L × l × e)', 'Average dimensions (mm) (L × W × T)'), value: dimensionsValue },
+            { label: tpdf('pdf.lot.volumeLot', 'Volume lot', 'Lot volume'), value: this.formatPdfVolume(allotissement.volumeLot) },
+            { label: tpdf('pdf.lot.marketPrice', 'Prix marché /m³', 'Market price /m³'), value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
+            { label: tpdf('pdf.lot.integrityCoeff', 'Coeff. intégrité', 'Integrity coeff.'), value: integrity && integrity.ignore ? tpdf('pdf.common.ignored', 'Ignoré', 'Ignored') : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
+            { label: tpdf('pdf.lot.lotPrice', 'Prix lot', 'Lot price'), value: this.formatPdfCurrency(allotissement.prixLot) },
+            { label: tpdf('pdf.lot.similarityStrategy', 'Stratégie similarité', 'Similarity strategy'), value: similarityStrategyLabel },
+            { label: tpdf('pdf.lot.mmProfile', 'Profil géométrie MM', 'MM geometry profile'), value: mmProfileLabel },
+            { label: tpdf('pdf.lot.similarityRate', 'Taux similarité', 'Similarity rate'), value: formatPercentMetric(allotissement.tauxSimilarite, 0) },
+            { label: tpdf('pdf.lot.conformityRate', 'Taux conformité', 'Conformity rate'), value: formatPercentMetric(conformiteTaux, 0) },
+            { label: tpdf('pdf.lot.dispersionScore', 'Dispersion scores', 'Score dispersion'), value: formatPercentMetric(allotissement.dispersionScores, 0) },
+            { label: tpdf('pdf.lot.medoid', 'Pièce médoïde', 'Medoid piece'), value: medoideLabel + ' (' + medoideScore + ')' },
+            { label: tpdf('pdf.lot.minPieceDelta', 'Pièce min / Delta', 'Min piece / Delta'), value: scoreMinPieceLabel + ' (Δ ' + scoreMinDelta + ')' },
+            { label: tpdf('pdf.lot.mmValid', 'Mesures multiples valides', 'Valid multiple measurements'), value: mmValidLabel },
+            { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel },
+            { label: tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'), value: orientationSummary.label || '—' },
+            { label: tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status'), value: orientationSummary.statusLabel || '—' },
+            { label: tpdf('pdf.lot.combustionCaution', 'Alerte combustion', 'Combustion warning'), value: orientationSummary.combustionCaution || '—' }
+        ];
+
+        // ── Inspection card ──
+        const inspectionRows = this.getPdfSectionDefinitions()
+            .find((s) => s.key === 'inspection')
+            .rows.map((rowDef) => {
+                const rv = this.getPdfNotationRowValue(currentLot, 'inspection', rowDef.key);
+                return [rowDef.label, rv.niveau, rv.note];
+            });
+
+        // ── Labels & Jauges (colonnes individuelles) ──
+        let jaugesData = null;
+        const categoryDefs = this.getPdfCategoryDefinitions();
+        const categoryScores = this.getValueScoresForLot(currentLot);
+        if (Array.isArray(categoryDefs) && categoryDefs.length) {
+            const rawScores = this.getRawValueScoresForLot(currentLot);
+            const scoreRanges = this.getValueScoreRangesForLot(currentLot);
+            const letterColors = { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
+            
+            jaugesData = categoryDefs.map((category) => {
+                const rawScore = parseFloat(rawScores[category.key]) || 0;
+                const score = parseFloat(categoryScores[category.key]) || 0;
+                const range = scoreRanges[category.key] || { min: 0, max: 30 };
+                const { letterCounts, letterPoints } = this.getLetterDistributionForCategory(currentLot, category.key);
+                
+                const minScore = Math.min(0, Number(range.min) || 0);
+                const maxScore = Math.max(1, Number(range.max) || 30);
+                const scoreSpan = Math.max(1, maxScore - minScore);
+                const zeroPct = Math.max(0, Math.min(100, ((0 - minScore) / scoreSpan) * 100));
+                const scorePct = Math.max(0, Math.min(100, ((rawScore - minScore) / scoreSpan) * 100));
+                
+                return {
+                    labelStr: category.label,
+                    scoreStr: this.formatPdfDecimal(score, 0, 0) + '/30',
+                    letterCounts,
+                    letterPoints,
+                    letterColors,
+                    scorePct,
+                    zeroPct,
+                    minScore,
+                    maxScore,
+                    rawScore
+                };
+            });
+        }
+
+        // ── Radar (vecteur SVG) ──
+        const radarScores = this.getValueScoresForLot(currentLot);
+        const radarLabels = [
+            tpdf('pdf.axis.economic', 'Économique', 'Economic'),
+            tpdf('pdf.axis.ecological', 'Écologique', 'Ecological'),
+            tpdf('pdf.axis.mechanical', 'Mécanique', 'Mechanical'),
+            tpdf('pdf.axis.historical', 'Historique', 'Historical'),
+            tpdf('pdf.axis.aesthetic', 'Esthétique', 'Aesthetic')
+        ];
+        const toRadarPercent = (score) => Math.min(100, Math.max(0, Math.round(((score || 0) / 30) * 100)));
+        const radarValues = [
+            toRadarPercent(radarScores.economique),
+            toRadarPercent(radarScores.ecologique),
+            toRadarPercent(radarScores.mecanique),
+            toRadarPercent(radarScores.historique),
+            toRadarPercent(radarScores.esthetique)
+        ];
+        
+        // Calculer les 3 datasets radar : net + bruts +/-
+        const axisKeys = ['economique', 'ecologique', 'mecanique', 'historique', 'esthetique'];
+        const rawScores = this.getRawValueScoresForLot(currentLot);
+        const scoreRanges = this.getValueScoreRangesForLot(currentLot);
+        
+        const globalMinScore = Math.min(...axisKeys.map(key => Math.min(0, Number((scoreRanges[key] || {}).min) || 0)));
+        const globalMaxScore = Math.max(...axisKeys.map(key => Math.max(1, Number((scoreRanges[key] || {}).max) || 30)), 30);
+        const globalSpan = Math.max(1, globalMaxScore - globalMinScore);
+        const toRadarScale = (value) => Math.max(0, Math.min(100, ((value - globalMinScore) / globalSpan) * 100));
+        
+        const netDataset = axisKeys.map(key => toRadarScale(Number(rawScores[key]) || 0));
+        const grossPositiveDataset = [];
+        const grossNegativeDataset = [];
+        
+        axisKeys.forEach(key => {
+            const dist = this.getLetterDistributionForCategory(currentLot, key);
+            const lp = dist.letterPoints || {};
+            const posTotal = Math.max(0, (lp.A || 0) + (lp.B || 0) + (lp.C || 0));
+            const negTotal = Math.min(0, (lp.D || 0) + (lp.E || 0));
+            grossPositiveDataset.push(toRadarScale(posTotal));
+            grossNegativeDataset.push(toRadarScale(negTotal));
+        });
+        
+        // Couleur d'orientation du lot
+        const orientationResult = this.getValoboisOrientationResult(currentLot) || this.computeOrientationFromMatrix(currentLot, this.getValoboisActiveMatrixMode());
+        const orientationCode = (orientationResult && orientationResult.orientation) || currentLot.orientationCode || 'none';
+        const orientationColors = {
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#D55E00',
+            none: '#7A7A7A'
+        };
+        const netColor = orientationColors[orientationCode] || orientationColors.none;
+        
+        const radarSvg = this.generatePdfRadarSvg({
+            labels: radarLabels,
+            netValues: netDataset,
+            grossPositiveValues: grossPositiveDataset,
+            grossNegativeValues: grossNegativeDataset,
+            netColor: netColor
+        });
+
+        const inspectionCard = this.pdfCard(tpdf('pdf.card.inspection', 'Inspection', 'Inspection'), [
+            this.pdfDataTable([
+                tpdf('pdf.table.criteria', 'Critère', 'Criterion'),
+                tpdf('pdf.table.level', 'Niveau', 'Level'),
+                tpdf('pdf.table.note', 'Note', 'Score')
+            ], inspectionRows, {
+                fontSize: f.table,
+                columnAlignments: ['left', 'left', 'right'],
+                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+            })
+        ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
+        const lotCard = this.pdfCard(tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'), [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
+
+        const buildOrientationDriversList = (items, emptyText) => {
+            if (!Array.isArray(items) || !items.length) {
+                return {
+                    text: this.sanitizePdfText(emptyText),
+                    fontSize: f.tableCompact,
+                    color: '#6b7280',
+                    italics: true,
+                    margin: [0, 1, 0, 3]
+                };
+            }
+            return {
+                ul: items.map((item) => this.sanitizePdfText(item && item.text ? item.text : '—')),
+                fontSize: f.tableCompact,
+                color: '#1f2937',
+                margin: [0, 1, 0, 3]
+            };
+        };
+
+        const orientationJustificationCard = this.pdfCard(
+            tpdf('pdf.card.orientationJustification', 'Justification de l\'orientation', 'Orientation rationale'),
+            [
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientation', 'Orientation', 'Orientation')} : ${orientationSummary.label || '—'}`),
+                    fontSize: f.body,
+                    bold: true,
+                    margin: [0, 0, 0, 2]
+                },
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status')} : ${orientationSummary.statusLabel || '—'}`),
+                    fontSize: f.label,
+                    color: '#374151',
+                    margin: [0, 0, 0, 4]
+                },
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects')} (${orientationSummary.activeRejectsItems.length})`),
+                    fontSize: f.label,
+                    bold: true,
+                    color: '#4b5563',
+                    margin: [0, 0, 0, 1]
+                },
+                buildOrientationDriversList(
+                    orientationSummary.activeRejectsItems,
+                    tpdf('pdf.orientation.emptyRejects', 'Aucun rejet actif pour cette orientation.', 'No active reject for this orientation.')
+                ),
+                {
+                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors')} (${orientationSummary.activeVectorsItems.length})`),
+                    fontSize: f.label,
+                    bold: true,
+                    color: '#4b5563',
+                    margin: [0, 1, 0, 1]
+                },
+                buildOrientationDriversList(
+                    orientationSummary.activeVectorsItems,
+                    tpdf('pdf.orientation.emptyVectors', 'Aucun vecteur actif pour cette orientation.', 'No active vector for this orientation.')
+                )
+            ],
+            { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: false }
+        );
+
+        const pageWidthPt = 595.28; // A4 width in points
+        const usableWidthPt = pageWidthPt - pageMargins[0] - pageMargins[2];
+        const columnGapPt = 8;
+        const leftWidth = Math.floor((usableWidthPt - columnGapPt) * 0.52);
+        const rightWidth = usableWidthPt - columnGapPt - leftWidth;
+
+        // ── Contraindre les visuels à halfWidth ──
+        const visualPad = cardPadding[0] + cardPadding[2] + 2; // padding horizontal total + marge table
+        const maxVisualContentWidth = leftWidth - visualPad;
+
+        // Build Gauges Card with horizontal stacked layout
+        const buildGaugesStacked = (totalAvailableWidth) => {
+            const gaugeThickness = 12; // Thin horizontal bars
+            const labelWidth = 65;
+            const valueWidth = 55;
+            const gap = 5;
+            const barWidth = Math.max(80, totalAvailableWidth - labelWidth - valueWidth - (gap * 2));
+
+            const rows = jaugesData.map(g => {
+                const svgContent = this.generatePdfCategoryGaugeSvg(g, barWidth, gaugeThickness);
+                const svgString = svgContent ? `<svg width="${barWidth}" height="${gaugeThickness}" viewBox="0 0 ${barWidth} ${gaugeThickness}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>` : '';
+                
+                // Format: "Net: +12 (X2, B1)"
+                const netStr = g.rawScore > 0 ? `+${Math.round(g.rawScore)}` : `${Math.round(g.rawScore)}`;
+                const letterList = ['A', 'B', 'C', 'D', 'E']
+                    .filter(l => (g.letterCounts[l] || 0) > 0)
+                    .map(l => `${l}${g.letterCounts[l]}`)
+                    .join(', ');
+                const valueStr = letterList ? `${netStr} (${letterList})` : `${netStr}`;
+                
+                return {
+                    columns: [
+                        { width: labelWidth, text: g.labelStr, bold: true, fontSize: f.gaugeLabel, alignment: 'right', margin: [0, 1.5, 0, 0] },
+                        { width: barWidth, svg: svgString, margin: [0, 1.5, 0, 0] },
+                        { width: valueWidth, text: valueStr, fontSize: f.gaugeLabel, bold: false, alignment: 'left', margin: [0, 1.5, 0, 0] }
+                    ],
+                    columnGap: gap,
+                    margin: [0, 0, 0, 6] // vertical gap between gauges
+                };
+            });
+
+            if (rows.length > 0) {
+                rows[rows.length - 1].margin = [0, 0, 0, 0];
+            }
+
+            return {
+                stack: rows
+            };
+        };
+
+        let gaugesCard = null;
+        let radarCard = null;
+        if (jaugesData && jaugesData.length > 0) {
+            const gaugesStack = buildGaugesStacked(maxVisualContentWidth);
+            gaugesCard = this.pdfCard(null, [gaugesStack], {
+                margin: [0, 0, 0, blockGapPt],
+                padding: [Math.max(3, cardPadding[0] - 1), Math.max(4, cardPadding[1] + 2), Math.max(3, cardPadding[2] - 1), Math.max(4, cardPadding[3] + 2)],
+                unbreakable: true
+            });
+        }
+
+        if (radarSvg) {
+            const scaledRadarSize = Math.floor(Math.min(preset.radarVisualSize, maxVisualContentWidth));
+            radarCard = this.pdfCard(null, [
+                { svg: radarSvg, width: scaledRadarSize, alignment: 'center' }
+            ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding.map(p => Math.ceil(p / 2)), unbreakable: true });
+        }
+
+        // Colonne gauche : Inspection -> Fiche lot (sans visuels)
+        const visualBlocks = [];
+        if (gaugesCard) visualBlocks.push(gaugesCard);
+        if (radarCard) visualBlocks.push(radarCard);
+
+        const mainLeftStack = [inspectionCard, lotCard];
+        mainLeftStack.push(orientationJustificationCard);
+        if (mainLeftStack.length) {
+            mainLeftStack[mainLeftStack.length - 1].margin = [0, 0, 0, 0];
+        }
+
+        // Titre pleine largeur
+        const topCards = [
+            { text: this.sanitizePdfText(this.getPdfLotLabel(currentLot, lotIndex)), style: 'smallTitle' }
+        ];
+
+        // ── Bottom grid: 10 notation sections in 5-col layout ──
+        // Flatten to a single table per section (no pdfCard wrapper) to avoid 3-level nesting
+        const c = this.getPdfmakeColors();
+        const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
+        const notationCells = notationSections.map((sectionDef) => {
+            const headRow = [
+                    { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText(tpdf('pdf.table.level', 'Niveau', 'Level')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
+                    { text: this.sanitizePdfText(tpdf('pdf.table.note', 'Note', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg }
+            ];
+            const dataRows = sectionDef.rows.map((rowDef, rowIdx) => {
+                const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
+                const bg = rowIdx % 2 === 1 ? c.altRowBg : null;
+                return [
+                        { text: this.sanitizePdfText(rowDef.label), fontSize: notationFontSize, fillColor: bg },
+                        { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, fillColor: bg },
+                        { text: this.sanitizePdfText(rv.note), fontSize: notationFontSize, fillColor: bg }
+                ];
+            });
+            return {
+                stack: [
+                    { text: this.sanitizePdfText(sectionDef.title), bold: true, fontSize: sectionTitleFontSize, margin: [0, 0, 0, 2] },
+                    {
+                        table: { dontBreakRows: true, headerRows: 1, widths: ['auto', '*', 'auto'], body: [headRow, ...dataRows] },
+                        layout: {
+                            hLineWidth: () => 0.3,
+                            vLineWidth: () => 0,
+                            hLineColor: () => '#eee7db',
+                            paddingLeft: () => 3,
+                            paddingRight: () => 3,
+                            paddingTop: () => 2,
+                            paddingBottom: () => 2
+                        }
+                    }
+                ],
+                fillColor: c.cardBg,
+                unbreakable: true
+            };
+        });
+
+        // Build grid rows (2 columns × 5 rows)
+        const gridRows = [];
+        for (let i = 0; i < notationCells.length; i += 2) {
+            const row = [];
+            for (let j = 0; j < 2; j++) {
+                row.push(notationCells[i + j] || { text: '' });
+            }
+            gridRows.push(row);
+        }
+
+        const notationGrid = {
+            table: {
+                dontBreakRows: true,
+                widths: ['*', '*'],
+                body: gridRows
+            },
+            layout: {
+                hLineWidth: () => 0.5,
+                vLineWidth: () => 0.5,
+                hLineColor: () => c.border,
+                vLineColor: () => c.border,
+                paddingLeft: () => 3,
+                paddingRight: () => 3,
+                paddingTop: () => 3,
+                paddingBottom: () => 3,
+                defaultBorder: false,
+                borderRadius: () => 4
+            },
+            unbreakable: true
+        };
+
+        // Colonne gauche unifiée : Inspection + Lot + Visuels
+        const fullLeftStack = [
+            ...mainLeftStack
+        ];
+
+        const mainColumns = {
+            columns: [
+                {
+                    width: leftWidth,
+                    stack: fullLeftStack
+                },
+                {
+                    width: rightWidth,
+                    stack: [
+                        notationGrid,
+                        ...(visualBlocks.length ? [
+                            { text: '', margin: [0, blockGapPt, 0, 0] },
+                            ...visualBlocks
+                        ] : [])
+                    ]
+                }
+            ],
+            columnGap: columnGapPt,
+            unbreakable: true // Force l'ensemble à rester sur la même page
+        };
+
+        const content = [...topCards, mainColumns];
+
+        return {
+            pageSize: 'A4',
+            pageOrientation: 'portrait',
+            pageMargins,
+            info: this.getPdfDocInfo('lot', this.getPdfLotLabel(currentLot, lotIndex)),
+            defaultStyle: { font: 'Roboto', fontSize: f.body },
+            styles: this.getPdfmakeStyles(),
+            footer: (currentPage, pageCount) => ({
+                text: tpdf('pdf.footer.page', 'Page', 'Page') + ' ' + currentPage + ' / ' + pageCount,
+                alignment: 'center',
+                fontSize: f.footer,
+                color: '#464646',
+                margin: [0, 6, 0, 0]
+            }),
+            content
+        };
+    }
+
+
+
+
+
+    normalizeDecimalForCsv(value) {
+        if (value == null) return '';
+        if (typeof value === 'number') return Number.isFinite(value) ? value : '';
+        return String(value).replace(/(\d),(\d)/g, '$1.$2');
+    }
+
+    escapeCsvValue(value) {
+        const normalized = value == null ? '' : String(value);
+        return '"' + normalized.replace(/"/g, '""') + '"';
+    }
+
+    downloadCsvFile(filename, headers, rows) {
+        const lines = [];
+        lines.push(headers.map((h) => this.escapeCsvValue(h)).join(';'));
+        rows.forEach((row) => {
+            lines.push(row.map((cell) => this.escapeCsvValue(cell)).join(';'));
+        });
+
+        const csvContent = '\uFEFF' + lines.join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    buildCsvRowsForPiecesDetailed(lotIndices) {
+        const categories = this.getPdfCategoryDefinitions();
+        const sections = this.getPdfSectionDefinitions();
+        const meta = this.data.meta || {};
+
+        const headers = [
+            'Index lot',
+            'Nom du lot',
+            'Index pièce (lot)',
+            'Type source pièce',
+            'Occurrence source',
+            'ID source pièce',
+            'Nom pièce',
+            'Localisation pièce',
+            'Situation pièce',
+            'Référence normative situation pièce',
+            'Note guide courte situation pièce',
+            'Classe d’emploi effective pièce',
+            'Type de pièce',
+            'Type de produit',
+            'Essence (nom commun)',
+            'Essence (nom scientifique)',
+            'Essence (libellé)',
+            'Longueur (mm)',
+            'Largeur (mm)',
+            'Hauteur / Epaisseur (mm)',
+            'Diamètre (mm)',
+            'Surface pièce (m2)',
+            'Volume pièce (m3)',
+            'Prix unité',
+            'Prix marché',
+            'Prix pièce (€)',
+            'Prix pièce ajusté intégrité (€)',
+            'Masse volumique est. (kg/m3)',
+            'Masse volumique mesurée (kg/m3)',
+            'Masse pièce mesurée (kg)',
+            'Humidité (%)',
+            'Fraction carbonée (%)',
+            'Proportion de bois (%)',
+            'Age arbre',
+            'Date mise en service',
+            'Masse pièce (kg)',
+            'Carbone biogénique pièce (kgCO₂eq)',
+            'Largeur moyenne intra (mm)',
+            'Epaisseur moyenne intra (mm)',
+            'CV largeur intra (%)',
+            'CV epaisseur intra (%)',
+            'Delta largeur intra (mm)',
+            'Delta epaisseur intra (mm)',
+            'Quantité source (pièce par défaut)',
+            'Localisation lot',
+            'Situation lot',
+            'Référence normative situation lot',
+            'Note guide courte situation lot',
+            'Classe(s) d’emploi effective(s) lot',
+            'Destination lot',
+            'Type pièce lot',
+            'Type produit lot',
+            'Essence lot',
+            'Quantité lot',
+            'Longueur lot (mm)',
+            'Largeur lot (mm)',
+            'Hauteur / Epaisseur lot (mm)',
+            'Diamètre lot (mm)',
+            'Surface lot (m2)',
+            'Volume lot (m3)',
+            'Linéaire lot (m)',
+            'Masse lot (kg)',
+            'Carbone biogénique lot (kgCO₂eq)',
+            'Prix lot base (€)',
+            'Prix lot aj. intégrité (€)',
+            'Orientation',
+            'Orientation (%)',
+            'Référence gisement',
+            'Date du diagnostic',
+            'Opération',
+            'Version de l\'étude',
+            'Statut de l\'étude',
+            'Type d\'opération',
+            'Surface à démolir (m²)',
+            'Surface à rénover (m²)',
+            'Nb bâtiments (démolition)',
+            'Nb bâtiments (rénovation)',
+            'Date estimée début chantier',
+            'Date estimée fin chantier',
+            'Révision',
+            'Diagnostiqueur (Structure)',
+            'Diagnostiqueur (Contact)',
+            'Diagnostiqueur (Mail)',
+            'Diagnostiqueur (Tél)',
+            'Diagnostiqueur (Adresse)',
+            'Maîtrise d\'ouvrage (Structure)',
+            'Maîtrise d\'ouvrage (Contact)',
+            'Maîtrise d\'ouvrage (Mail)',
+            'Maîtrise d\'ouvrage (Tél)',
+            'Maîtrise d\'ouvrage (Adresse)',
+            'Maîtrise d\'œuvre (Structure)',
+            'Maîtrise d\'œuvre (Contact)',
+            'Maîtrise d\'œuvre (Mail)',
+            'Maîtrise d\'œuvre (Tél)',
+            'Maîtrise d\'œuvre (Adresse)',
+            'Ent. curage/déconstruction (Struct.)',
+            'Ent. curage/déconstruction (Contact)',
+            'Ent. curage/déconstruction (Mail)',
+            'Ent. curage/déconstruction (Tél)',
+            'Ent. curage/déconstruction (Adresse)',
+            'Type de bâtiment',
+            'Période de construction',
+            'Date / année permis de construire',
+            'Historique rénovation importante',
+            'Historique décontamination',
+            'Historique autre intervention',
+            'Phase d\'intervention',
+            'Localisation',
+            'Département géographique',
+            'Code département géographique',
+            'Canton géographique',
+            'Code canton géographique',
+            'Condition climatique d’humidification',
+            'Source climat d’humidification',
+            'Conditionnement',
+            'Protection',
+            'Diagnostic Structure',
+            'Diagnostic Amiante',
+            'Diagnostic Plomb',
+            'Diagnostic Termites',
+            'DOE disponible',
+            'Plans disponibles',
+            'Diagnostiqueur PEMD (Structure)',
+            'Diagnostiqueur PEMD (Contact)',
+            'Diagnostiqueur PEMD (Mail)',
+            'Diagnostiqueur PEMD (Tél)',
+            'Diagnostiqueur PEMD (Adresse)',
+            'Diagnostiqueur PEMD (SIRET/SIREN)',
+            'Assurance PEMD (Compagnie)',
+            'Assurance PEMD (Police)',
+            'Assurance PEMD (Du)',
+            'Assurance PEMD (Au)',
+            'PEMD compétences justifiables',
+            'Date visite PEMD',
+            'Parties visitées PEMD',
+            'Parties non visitées PEMD',
+            'Raisons non-visite PEMD',
+            'Vices apparents',
+            'Précautions démolition/rénovation',
+            'Commentaires généraux',
+            'Stratégie de similarité',
+            'Profil géométrie MM',
+            'CV longueur lot (%)',
+            'CV largeur lot (%)',
+            'CV epaisseur lot (%)',
+            'CV diamètre lot (%)',
+            'EIQ longueur lot',
+            'EIQ largeur lot',
+            'EIQ epaisseur lot',
+            'EIQ diamètre lot',
+            'EIQ abs longueur lot',
+            'EIQ abs largeur lot',
+            'EIQ abs epaisseur lot',
+            'EIQ abs diamètre lot',
+            'MAD longueur lot',
+            'MAD largeur lot',
+            'MAD epaisseur lot',
+            'MAD diamètre lot',
+            'Conformité lot',
+            'Taux similarité lot (%)',
+            'Seuil suggestion',
+            'Inspection visibilité',
+            'Inspection instrumentation',
+            'Inspection intégrité (niveau)',
+            'Inspection intégrité ignorée',
+            'Inspection intégrité coeff.'
+        ];
+
+        categories.forEach((category) => {
+            headers.push(`Score ${category.label} (/30)`);
+        });
+
+        sections.forEach((section) => {
+            section.rows.forEach((rowDef) => {
+                headers.push(`${section.title} - ${rowDef.label} (Niveau)`);
+                headers.push(`${section.title} - ${rowDef.label} (Note)`);
+            });
+        });
+
+        const rows = [];
+        const withDash = (value) => (value != null && value !== '' ? value : '-');
+        const getPieceValue = (piece, lotValue) => (piece != null && piece !== '' ? piece : lotValue);
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data.lots[lotIndex];
+            if (!lot) return;
+
+            const allotissement = lot.allotissement || {};
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const orientation = this.getPdfOrientationSummary(lot);
+            const lotEffectiveUseClasses = this.formatPdfLotEffectiveUseClasses(lot);
+            const lotSituationExport = this.getLocSitLotSituationExportSummary(lot);
+            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+            const expandedPieces = [];
+
+            defaultPieces.forEach((defaultPiece) => {
+                const quantity = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < quantity; q++) {
+                    expandedPieces.push({
+                        piece: defaultPiece,
+                        sourceType: 'default',
+                        sourceOccurrence: q + 1,
+                        sourceQuantity: defaultPiece && defaultPiece.quantite != null ? defaultPiece.quantite : ''
+                    });
+                }
+            });
+
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => {
+                    if (!piece || typeof piece !== 'object') return;
+                    expandedPieces.push({
+                        piece,
+                        sourceType: 'detail',
+                        sourceOccurrence: '',
+                        sourceQuantity: ''
+                    });
+                });
+            }
+
+            expandedPieces.forEach((entry, pieceIndex) => {
+                const piece = entry.piece || {};
+                const sectionValues = [];
+                const climate = this.getGeoFranceClimateExportData(meta.geoFrance || {});
+                const pieceSituation = getPieceValue(piece.situation, lot.situation);
+                const pieceSituationExport = this.getLocSitSituationExportInfoByValue(pieceSituation);
+
+                sections.forEach((section) => {
+                    section.rows.forEach((rowDef) => {
+                        const rv = this.getPdfNotationRowValue(lot, section.key, rowDef.key);
+                        sectionValues.push(withDash(rv.niveau));
+                        sectionValues.push(withDash(rv.note));
+                    });
+                });
+
+                const row = [
+                    lotIndex + 1,
+                    withDash(lotLabel),
+                    pieceIndex + 1,
+                    entry.sourceType,
+                    withDash(entry.sourceOccurrence),
+                    withDash(piece.id || piece.sourceDefaultPieceId),
+                    withDash(piece.nom),
+                    withDash(getPieceValue(piece.localisation, lot.localisation)),
+                    withDash(pieceSituation),
+                    withDash(pieceSituationExport.normRef),
+                    withDash(pieceSituationExport.guideShort),
+                    withDash((this.getLocSitEffectiveClassState(piece, lot) || {}).activeClass),
+                    withDash(getPieceValue(piece.typePiece, allotissement.typePiece)),
+                    withDash(getPieceValue(piece.typeProduit, allotissement.typeProduit)),
+                    withDash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)),
+                    withDash(getPieceValue(piece.essenceNomScientifique, allotissement.essenceNomScientifique)),
+                    withDash(getPieceValue(piece.essence, allotissement.essence)),
+                    withDash(getPieceValue(piece.longueur, allotissement.longueur)),
+                    withDash(getPieceValue(piece.largeur, allotissement.largeur)),
+                    withDash(getPieceValue(piece.epaisseur, allotissement.epaisseur)),
+                    withDash(getPieceValue(piece.diametre, allotissement.diametre)),
+                    withDash(getPieceValue(piece.surfacePiecem2, piece.surfacePiece)),
+                    withDash(getPieceValue(piece.volumePiecem3, piece.volumePiece)),
+                    withDash(((piece.prixMode || '') + '').toLowerCase() === 't' ? 't' : getPieceValue(piece.prixUnite, allotissement.prixUnite)),
+                    withDash(getPieceValue(piece.prixMarche, allotissement.prixMarche)),
+                    withDash(piece.prixPiece),
+                    withDash(piece.prixPieceAjusteIntegrite),
+                    withDash(getPieceValue(piece.masseVolumique, allotissement.masseVolumique)),
+                    withDash(piece.masseVolumiqueMesuree),
+                    withDash(piece.massePieceMesuree),
+                    withDash(getPieceValue(piece.humidite, allotissement.humidite)),
+                    withDash(getPieceValue(piece.fractionCarbonee, allotissement.fractionCarbonee)),
+                    withDash(getPieceValue(piece.bois, allotissement.bois)),
+                    withDash(piece.ageArbre),
+                    withDash(piece.dateMiseEnService),
+                    withDash(piece.massePiece),
+                    withDash(getPieceValue(piece.carboneBiogeniqueEstimeExact, piece.carboneBiogeniqueEstime)),
+                    withDash(piece.mmLargeurMoyenne),
+                    withDash(piece.mmEpaisseurMoyenne),
+                    withDash(piece.mmCvLargeurIntra),
+                    withDash(piece.mmCvEpaisseurIntra),
+                    withDash(piece.mmDeltaLargeurIntra),
+                    withDash(piece.mmDeltaEpaisseurIntra),
+                    withDash(entry.sourceQuantity),
+                    withDash(lot.localisation),
+                    withDash(lot.situation),
+                    withDash(lotSituationExport.normRef),
+                    withDash(lotSituationExport.guideShort),
+                    withDash(lotEffectiveUseClasses),
+                    withDash(allotissement.destination),
+                    withDash(allotissement.typePiece),
+                    withDash(allotissement.typeProduit),
+                    withDash(allotissement.essenceNomCommun || allotissement.essence),
+                    withDash(allotissement.quantite),
+                    withDash(allotissement.longueur),
+                    withDash(allotissement.largeur),
+                    withDash(allotissement.epaisseur),
+                    withDash(allotissement.diametre),
+                    withDash(allotissement.surfaceLot),
+                    withDash(allotissement.volumeLot),
+                    withDash(allotissement.lineaireLot),
+                    withDash(allotissement.masseLot),
+                    withDash(allotissement.carboneBiogeniqueEstime),
+                    withDash(allotissement.prixLot),
+                    withDash(allotissement.prixLotAjusteIntegrite),
+                    withDash(orientation.label),
+                    withDash(this.formatPdfDecimal(orientation.percentage, 1, 1)),
+                    withDash(this.getReferenceGisement(meta)),
+                    withDash(meta.date),
+                    withDash(meta.operation),
+                    withDash(meta.versionEtude),
+                    withDash(meta.statutEtude),
+                    withDash(meta.typeOperation),
+                    withDash(meta.surfacePlancher_demolition),
+                    withDash(meta.surfacePlancher_renovation),
+                    withDash(meta.nbBatiments_demolition),
+                    withDash(meta.nbBatiments_renovation),
+                    withDash(meta.dateDebutChantier),
+                    withDash(meta.dateFinChantier),
+                    withDash(meta.revision),
+                    withDash(meta.diagnostiqueurNom),
+                    withDash(meta.diagnostiqueurContact),
+                    withDash(meta.diagnostiqueurMail),
+                    withDash(meta.diagnostiqueurTelephone),
+                    withDash(meta.diagnostiqueurAdresse),
+                    withDash(meta.maitriseOuvrageNom),
+                    withDash(meta.maitriseOuvrageContact),
+                    withDash(meta.maitriseOuvrageMail),
+                    withDash(meta.maitriseOuvrageTelephone),
+                    withDash(meta.maitriseOuvrageAdresse),
+                    withDash(meta.maitriseOeuvreNom),
+                    withDash(meta.maitriseOeuvreContact),
+                    withDash(meta.maitriseOeuvreMail),
+                    withDash(meta.maitriseOeuvreTelephone),
+                    withDash(meta.maitriseOeuvreAdresse),
+                    withDash(meta.entrepriseDeconstructionNom),
+                    withDash(meta.entrepriseDeconstructionContact),
+                    withDash(meta.entrepriseDeconstructionMail),
+                    withDash(meta.entrepriseDeconstructionTelephone),
+                    withDash(meta.entrepriseDeconstructionAdresse),
+                    withDash(meta.typeBatiment),
+                    withDash(meta.periodeConstruction),
+                    withDash(meta.datePermisConstruction),
+                    withDash(meta.historiqueRenovationImportante),
+                    withDash(meta.historiqueDecontamination),
+                    withDash(meta.historiqueAutreIntervention),
+                    withDash(meta.phaseIntervention),
+                    withDash(meta.localisation),
+                    withDash((meta.geoFrance || {}).departementNom),
+                    withDash((meta.geoFrance || {}).departementCode),
+                    withDash((meta.geoFrance || {}).cantonNom),
+                    withDash((meta.geoFrance || {}).cantonCode),
+                    withDash(climate.niveau),
+                    withDash(climate.source),
+                    withDash(meta.conditionnementType),
+                    withDash(meta.protectionType),
+                    withDash(meta.diagnosticStructure),
+                    withDash(meta.diagnosticAmiante),
+                    withDash(meta.diagnosticPlomb),
+                    withDash(meta.diagnosticTermites),
+                    withDash(meta.documentDOE),
+                    withDash(meta.documentPlans),
+                    withDash(meta.diagPEMDNom),
+                    withDash(meta.diagPEMDContact),
+                    withDash(meta.diagPEMDMail),
+                    withDash(meta.diagPEMDTelephone),
+                    withDash(meta.diagPEMDAdresse),
+                    withDash(meta.diagPEMDSiret),
+                    withDash(meta.diagPEMDAssuranceCompagnie),
+                    withDash(meta.diagPEMDAssurancePolice),
+                    withDash(meta.diagPEMDAssuranceDebut),
+                    withDash(meta.diagPEMDAssuranceFin),
+                    withDash(meta.diagPEMDCompetencesJustifiables),
+                    withDash(meta.dateVisite),
+                    withDash(meta.partiesVisitees),
+                    withDash(meta.partiesNonVisitees),
+                    withDash(meta.raisonsNonVisite),
+                    withDash(meta.vicesApparents),
+                    withDash(meta.precautionsDemolition),
+                    withDash(meta.commentaires),
+                    withDash(allotissement.similarityStrategy),
+                    withDash(allotissement.mmGeometryProfile),
+                    withDash(allotissement.cvLongueur),
+                    withDash(allotissement.cvLargeur),
+                    withDash(allotissement.cvEpaisseur),
+                    withDash(allotissement.cvDiametre),
+                    withDash(allotissement.eiqLongueur),
+                    withDash(allotissement.eiqLargeur),
+                    withDash(allotissement.eiqEpaisseur),
+                    withDash(allotissement.eiqDiametre),
+                    withDash(allotissement.eiqAbsLongueur),
+                    withDash(allotissement.eiqAbsLargeur),
+                    withDash(allotissement.eiqAbsEpaisseur),
+                    withDash(allotissement.eiqAbsDiametre),
+                    withDash(allotissement.madLongueur),
+                    withDash(allotissement.madLargeur),
+                    withDash(allotissement.madEpaisseur),
+                    withDash(allotissement.madDiametre),
+                    withDash(allotissement.conformiteLot),
+                    withDash(allotissement.tauxSimilarite),
+                    withDash(allotissement.seuilSuggest),
+                    withDash((lot.inspection || {}).visibilite),
+                    withDash((lot.inspection || {}).instrumentation),
+                    withDash(((lot.inspection || {}).integrite || {}).niveau),
+                    ((lot.inspection || {}).integrite || {}).ignore ? 'Oui' : 'Non',
+                    withDash(((lot.inspection || {}).integrite || {}).coeff)
+                ];
+
+                categories.forEach((category) => {
+                    row.push(withDash(orientation.scores[category.key]));
+                });
+
+                sectionValues.forEach((value) => row.push(value));
+                rows.push(row.map((cell) => this.normalizeDecimalForCsv(cell)));
+            });
+        });
+
+        return { headers, rows };
+    }
+
+    buildCsvRowsForLots(lotIndices) {
+        const categories = this.getPdfCategoryDefinitions();
+        const sections = this.getPdfSectionDefinitions();
+        const meta = this.data.meta || {};
+
+        const headers = ['Champ'].concat(
+            lotIndices.map((index) => this.getPdfLotLabel(this.data.lots[index], index))
+        );
+
+        const fieldDefs = [
+            // --- MÉTA-DONNÉES GLOBALES ---
+            { label: 'Référence gisement', getValue: () => this.getReferenceGisement(meta) || '-' },
+            { label: 'Date du diagnostic', getValue: () => meta.date || '-' },
+            { label: 'Opération', getValue: () => meta.operation || '-' },
+            { label: 'Version de l\'étude', getValue: () => meta.versionEtude || '-' },
+            { label: 'Statut de l\'étude', getValue: () => meta.statutEtude || '-' },
+            { label: 'Type d\'opération', getValue: () => meta.typeOperation || '-' },
+            { label: 'Surface à démolir (m²)', getValue: () => meta.surfacePlancher_demolition || '-' },
+            { label: 'Surface à rénover (m²)', getValue: () => meta.surfacePlancher_renovation || '-' },
+            { label: 'Nb bâtiments (démolition)', getValue: () => meta.nbBatiments_demolition || '-' },
+            { label: 'Nb bâtiments (rénovation)', getValue: () => meta.nbBatiments_renovation || '-' },
+            { label: 'Date estimée début chantier', getValue: () => meta.dateDebutChantier || '-' },
+            { label: 'Date estimée fin chantier', getValue: () => meta.dateFinChantier || '-' },
+            { label: 'Révision', getValue: () => meta.revision !== undefined ? meta.revision : '-' },
+            { label: 'Référentiel Loc-Sit (version)', getValue: () => this.getLocSitReferentialMeta().versionRef || '-' },
+            { label: 'Référentiel Loc-Sit (mise à jour)', getValue: () => this.getLocSitReferentialMeta().updatedAt || '-' },
+            { label: 'Référentiel Loc-Sit (validation)', getValue: () => this.getLocSitReferentialMeta().validatedBy || '-' },
+            
+            // --- DIAGNOSTIQUEUR ---
+            { label: 'Diagnostiqueur (Structure)', getValue: () => meta.diagnostiqueurNom || '-' },
+            { label: 'Diagnostiqueur (Contact)', getValue: () => meta.diagnostiqueurContact || '-' },
+            { label: 'Diagnostiqueur (Mail)', getValue: () => meta.diagnostiqueurMail || '-' },
+            { label: 'Diagnostiqueur (Tél)', getValue: () => meta.diagnostiqueurTelephone || '-' },
+            { label: 'Diagnostiqueur (Adresse)', getValue: () => meta.diagnostiqueurAdresse || '-' },
+            
+            // --- MAÎTRISE D'OUVRAGE ---
+            { label: 'Maîtrise d\'ouvrage (Structure)', getValue: () => meta.maitriseOuvrageNom || '-' },
+            { label: 'Maîtrise d\'ouvrage (Contact)', getValue: () => meta.maitriseOuvrageContact || '-' },
+            { label: 'Maîtrise d\'ouvrage (Mail)', getValue: () => meta.maitriseOuvrageMail || '-' },
+            { label: 'Maîtrise d\'ouvrage (Tél)', getValue: () => meta.maitriseOuvrageTelephone || '-' },
+            { label: 'Maîtrise d\'ouvrage (Adresse)', getValue: () => meta.maitriseOuvrageAdresse || '-' },
+
+            // --- MAÎTRISE D'ŒUVRE ---
+            { label: 'Maîtrise d\'œuvre (Structure)', getValue: () => meta.maitriseOeuvreNom || '-' },
+            { label: 'Maîtrise d\'œuvre (Contact)', getValue: () => meta.maitriseOeuvreContact || '-' },
+            { label: 'Maîtrise d\'œuvre (Mail)', getValue: () => meta.maitriseOeuvreMail || '-' },
+            { label: 'Maîtrise d\'œuvre (Tél)', getValue: () => meta.maitriseOeuvreTelephone || '-' },
+            { label: 'Maîtrise d\'œuvre (Adresse)', getValue: () => meta.maitriseOeuvreAdresse || '-' },
+
+            // --- DECONSTRUCTION / CURAGE ---
+            { label: 'Ent. curage/déconstruction (Struct.)', getValue: () => meta.entrepriseDeconstructionNom || '-' },
+            { label: 'Ent. curage/déconstruction (Contact)', getValue: () => meta.entrepriseDeconstructionContact || '-' },
+            { label: 'Ent. curage/déconstruction (Mail)', getValue: () => meta.entrepriseDeconstructionMail || '-' },
+            { label: 'Ent. curage/déconstruction (Tél)', getValue: () => meta.entrepriseDeconstructionTelephone || '-' },
+            { label: 'Ent. curage/déconstruction (Adresse)', getValue: () => meta.entrepriseDeconstructionAdresse || '-' },
+
+            // --- CONTEXTE TECHNIQUE ---
+            { label: 'Type de bâtiment', getValue: () => meta.typeBatiment || '-' },
+            { label: 'Période de construction', getValue: () => meta.periodeConstruction || '-' },
+            { label: 'Date / année permis de construire', getValue: () => meta.datePermisConstruction || '-' },
+            { label: 'Historique rénovation importante', getValue: () => meta.historiqueRenovationImportante || '-' },
+            { label: 'Historique décontamination', getValue: () => meta.historiqueDecontamination || '-' },
+            { label: 'Historique autre intervention', getValue: () => meta.historiqueAutreIntervention || '-' },
+            { label: 'Phase d\'intervention', getValue: () => meta.phaseIntervention || '-' },
+            { label: 'Localisation', getValue: () => meta.localisation || '-' },
+            { label: 'Département géographique', getValue: () => ((meta.geoFrance || {}).departementNom || '-') },
+            { label: 'Code département géographique', getValue: () => ((meta.geoFrance || {}).departementCode || '-') },
+            { label: 'Canton géographique', getValue: () => ((meta.geoFrance || {}).cantonNom || '-') },
+            { label: 'Code canton géographique', getValue: () => ((meta.geoFrance || {}).cantonCode || '-') },
+            { label: 'Condition climatique d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).niveau || '-' },
+            { label: 'Source climat d’humidification', getValue: () => this.getGeoFranceClimateExportData(meta.geoFrance || {}).source || '-' },
+            { label: 'Vent de pluie dominant', getValue: () => this.getGeoFranceWindExportData(meta.geoFrance || {}).directions || '-' },
+            { label: 'Station vent de pluie (réf.)', getValue: () => this.getGeoFranceWindExportData(meta.geoFrance || {}).station || '-' },
+            { label: 'Conditionnement', getValue: () => meta.conditionnementType || '-' },
+            { label: 'Protection', getValue: () => meta.protectionType || '-' },
+            { label: 'Diagnostic Structure', getValue: () => meta.diagnosticStructure || '-' },
+            { label: 'Diagnostic Amiante', getValue: () => meta.diagnosticAmiante || '-' },
+            { label: 'Diagnostic Plomb', getValue: () => meta.diagnosticPlomb || '-' },
+            { label: 'Diagnostic Termites', getValue: () => meta.diagnosticTermites || '-' },
+            { label: 'DOE disponible', getValue: () => meta.documentDOE || '-' },
+            { label: 'Plans disponibles', getValue: () => meta.documentPlans || '-' },
+            { label: 'Diagnostiqueur PEMD (Structure)', getValue: () => meta.diagPEMDNom || '-' },
+            { label: 'Diagnostiqueur PEMD (Contact)', getValue: () => meta.diagPEMDContact || '-' },
+            { label: 'Diagnostiqueur PEMD (Mail)', getValue: () => meta.diagPEMDMail || '-' },
+            { label: 'Diagnostiqueur PEMD (Tél)', getValue: () => meta.diagPEMDTelephone || '-' },
+            { label: 'Diagnostiqueur PEMD (Adresse)', getValue: () => meta.diagPEMDAdresse || '-' },
+            { label: 'Diagnostiqueur PEMD (SIRET/SIREN)', getValue: () => meta.diagPEMDSiret || '-' },
+            { label: 'Assurance PEMD (Compagnie)', getValue: () => meta.diagPEMDAssuranceCompagnie || '-' },
+            { label: 'Assurance PEMD (Police)', getValue: () => meta.diagPEMDAssurancePolice || '-' },
+            { label: 'Assurance PEMD (Du)', getValue: () => meta.diagPEMDAssuranceDebut || '-' },
+            { label: 'Assurance PEMD (Au)', getValue: () => meta.diagPEMDAssuranceFin || '-' },
+            { label: 'PEMD compétences justifiables', getValue: () => meta.diagPEMDCompetencesJustifiables || '-' },
+            { label: 'Date visite PEMD', getValue: () => meta.dateVisite || '-' },
+            { label: 'Parties visitées PEMD', getValue: () => meta.partiesVisitees || '-' },
+            { label: 'Parties non visitées PEMD', getValue: () => meta.partiesNonVisitees || '-' },
+            { label: 'Raisons non-visite PEMD', getValue: () => meta.raisonsNonVisite || '-' },
+            { label: 'Vices apparents', getValue: () => meta.vicesApparents || '-' },
+            { label: 'Précautions démolition/rénovation', getValue: () => meta.precautionsDemolition || '-' },
+            { label: 'Commentaires généraux', getValue: () => meta.commentaires || '-' },
+
+            // --- INFORMATIONS DU LOT ---
+            { label: 'Nom du lot', getValue: (lot) => (lot && lot.nom) || '-' },
+            { label: 'Localisation du lot', getValue: (lot) => (lot && lot.localisation) || '-' },
+            { label: 'Situation du lot', getValue: (lot) => (lot && lot.situation) || '-' },
+            { label: 'Référence normative situation lot', getValue: (lot) => this.getLocSitLotSituationExportSummary(lot).normRef },
+            { label: 'Note guide courte situation lot', getValue: (lot) => this.getLocSitLotSituationExportSummary(lot).guideShort },
+            { label: 'Classe(s) d’emploi effective(s) du lot', getValue: (lot) => this.formatPdfLotEffectiveUseClasses(lot) },
+            { label: 'Destination', getValue: (lot) => ((lot && lot.allotissement) || {}).destination || '-' },
+            { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '-' },
+            { label: 'Type de produit', getValue: (lot) => ((lot && lot.allotissement) || {}).typeProduit || '-' },
+            { label: 'Essence', getValue: (lot) => {
+                const allotissement = (lot && lot.allotissement) || {};
+                return allotissement.essenceNomCommun || allotissement.essence || '-';
+            } },
+
+            // --- CARACTÉRISTIQUES DIMENSIONNELLES ---
+            { label: 'Quantité', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).quantite;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            { label: 'Longueur (mm)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).longueur;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            { label: 'Largeur (mm)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).largeur;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            { label: 'Hauteur / Epaisseur (mm)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).epaisseur;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            { label: 'Diamètre (mm)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).diametre;
+                return (v != null && v !== '') ? v : '-';
+            } },
+            
+            // --- VOLUMÉTRIE & MASSES ---
+            { label: 'Surface par pièce (m2)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).surfacePiece;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Surface lot (m2)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).surfaceLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Volume par pièce (m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).volumePiece;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Volume lot (m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).volumeLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Linéaire lot (m)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).lineaireLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            
+            // --- MASSE & CARBONE ---
+            { label: 'Masse volumique est. (kg/m3)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).masseVolumique;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Humidité (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).humidite;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Fraction carbonée (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).fractionCarbonee;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Proportion de bois (%)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).bois;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Masse du lot (kg)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).masseLot;
+                return (v ? parseFloat(v) : '-') || '-';
+            } },
+            { label: 'Carbone biogénique (kgCO₂eq)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).carboneBiogeniqueEstime;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+
+            // --- ASPECT ÉCONOMIQUE ---
+            { label: 'Unité de tarification', getValue: (lot) => {
+                const allotissement = ((lot && lot.allotissement) || {});
+                return ((allotissement.prixMode || '') + '').toLowerCase() === 't' ? 't' : (allotissement.prixUnite || '-');
+            } },
+            { label: 'Prix marché', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixMarche;
+                return (v != null && v !== '') ? parseFloat(v) : '-';
+            } },
+            { label: 'Prix lot base (€)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixLot;
+                return (v != null && v !== '') ? Math.round(parseFloat(v)) : '-';
+            } },
+            { label: 'Prix lot aj. intégrité (€)', getValue: (lot) => {
+                const v = ((lot && lot.allotissement) || {}).prixLotAjusteIntegrite;
+                return (v != null && v !== '') ? Math.round(parseFloat(v)) : '-';
+            } },
+
+            // --- RÉSULTATS D'AIDE À LA DÉCISION ---
+            { label: 'Orientation', getValue: (lot) => this.getPdfOrientationSummary(lot).label || '-' },
+            { label: 'Orientation (%)', getValue: (lot) => {
+                const v = this.getPdfOrientationSummary(lot).percentage;
+                return (v != null && v !== '') ? this.formatPdfDecimal(v, 1, 1) : '-';
+            } }
+        ];
+
+        categories.forEach((category) => {
+            fieldDefs.push({
+                label: `Score ${category.label} (/30)`,
+                getValue: (lot) => parseFloat(this.getPdfOrientationSummary(lot).scores[category.key]) || 0
+            });
+        });
+
+        sections.forEach((section) => {
+            section.rows.forEach((rowDef) => {
+                fieldDefs.push({
+                    label: `${section.title} - ${rowDef.label} (Niveau)`,
+                    getValue: (lot) => this.getPdfNotationRowValue(lot, section.key, rowDef.key).niveau || '-'
+                });
+                fieldDefs.push({
+                    label: `${section.title} - ${rowDef.label} (Note)`,
+                    getValue: (lot) => {
+                        const note = this.getPdfNotationRowValue(lot, section.key, rowDef.key).note;
+                        return (note != null && note !== '') ? note : '-';
+                    }
+                });
+            });
+        });
+
+        const rows = fieldDefs.map((field) => {
+            const row = [field.label];
+            lotIndices.forEach((index) => {
+                row.push(this.normalizeDecimalForCsv(field.getValue(this.data.lots[index], index)));
+            });
+            return row;
+        });
+
+        return { headers, rows };
+    }
+
+    exportToCsv(mode = 'synthese', lotIndices = []) {
+        let validLotIndices = [];
+
+        if (mode === 'synthese') {
+            validLotIndices = (this.data.lots || []).map((_, index) => index);
+        } else {
+            validLotIndices = Array.isArray(lotIndices)
+                ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index])
+                : [];
+        }
+
+        if (!validLotIndices.length) {
+            alert('Aucun lot valide sélectionné pour l’export CSV.');
+            return;
+        }
+
+        const isPiecesDetailed = mode === 'pieces-detaillees';
+        const { headers, rows } = isPiecesDetailed
+            ? this.buildCsvRowsForPiecesDetailed(validLotIndices)
+            : this.buildCsvRowsForLots(validLotIndices);
+
+        if (!rows.length) {
+            alert('Aucune donnée disponible pour l’export CSV.');
+            return;
+        }
+
+        const stamp = new Date().toISOString().slice(0, 10);
+        const suffix = mode === 'synthese'
+            ? 'synthese'
+            : mode === 'pieces-detaillees'
+                ? 'pieces_detaillees'
+            : (validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne');
+
+        this.downloadCsvFile(`valobois_evaluation_${suffix}_${stamp}.csv`, headers, rows);
+    }
+
+
+    /**
+     * Export GLB (3D) : génère un fichier .glb par pièce pour chaque lot sélectionné.
+     * Itère sur les pièces par défaut expansées (quantite) + les pièces individuelles.
+     * Utilise window.buildGLB (js/lib/build-glb.js).
+     */
+    exportToGLB(selectedLotIndices = []) {
+        if (typeof window.buildGLB !== 'function') {
+            alert(window.t('editor.alerts.glbError'));
+            return;
+        }
+
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+
+        const nCircRaw = parseInt(document.getElementById('exportGlbPrecisionSelect')?.value || '16', 10);
+        const nCirc    = (nCircRaw % 8 === 0 && nCircRaw >= 8) ? nCircRaw : 16;
+
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+
+        const grouped = document.getElementById('exportGlbGroupCheck')?.checked ?? false;
+
+        /**
+         * Construit la liste complète des pièces d'un lot
+         * (pièces par défaut × quantité + pièces individuelles).
+         */
+        const buildAllPieces = (lot) => {
+            const allPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((defaultPiece) => {
+                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
+            });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
+            }
+            return allPieces;
+        };
+
+        const buildMetadata = (lot, lotIdx, piece) => ({
+            lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
+            essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
+            typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
+            longueur_mm:    piece.longueur,
+            volumePiece_m3: piece.volumePiece,
+            orientation:    lot.orientationLabel || '',
+        });
+
+        if (grouped) {
+            // ── Mode regroupé : un .glb par lot, toutes pièces dedans ──────────
+            targetLotIndices.forEach((lotIdx, lotPos) => {
+                const lot       = lots[lotIdx];
+                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+                const allPieces = buildAllPieces(lot);
+                if (!allPieces.length) return;
+
+                const piecesData = allPieces.map((piece) => ({
+                    piece,
+                    metadata: buildMetadata(lot, lotIdx, piece),
+                }));
+
+                setTimeout(() => {
+                    try {
+                        const uint8 = window.buildMultiGLB(piecesData, { nCirc });
+                        const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
+                        const url   = URL.createObjectURL(blob);
+                        const a     = document.createElement('a');
+                        a.href     = url;
+                        a.download = 'VALOBOIS_' + lotSlug + '.glb';
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    } catch (err) {
+                        console.error('exportToGLB (grouped):', err);
+                    }
+                }, lotPos * 300);
+            });
+        } else {
+            // ── Mode individuel : un .glb par pièce (comportement d'origine) ───
+            let downloadCount = 0;
+
+            targetLotIndices.forEach((lotIdx) => {
+                const lot       = lots[lotIdx];
+                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+                const allPieces = buildAllPieces(lot);
+
+                allPieces.forEach((piece, pieceIndex) => {
+                    const metadata = buildMetadata(lot, lotIdx, piece);
+                    const delay    = downloadCount * 200;
+                    downloadCount++;
+
+                    setTimeout(() => {
+                        try {
+                            const uint8 = window.buildGLB(piece, metadata, { nCirc });
+                            const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
+                            const url   = URL.createObjectURL(blob);
+                            const a     = document.createElement('a');
+                            a.href     = url;
+                            a.download = 'VALOBOIS_' + lotSlug + '_piece_' + (pieceIndex + 1) + '.glb';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                        } catch (err) {
+                            console.error('exportToGLB :', window.t('editor.alerts.glbError'), err);
+                        }
+                    }, delay);
+                });
+            });
+        }
+    }
+
+    exportToDAE(selectedLotIndices = []) {
+        if (typeof window.buildMultiDAE !== 'function') {
+            alert('Export DAE indisponible.');
+            return;
+        }
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const nCircRaw = parseInt(document.getElementById('exportGlbPrecisionSelect')?.value || '16', 10);
+        const nCirc    = (nCircRaw % 8 === 0 && nCircRaw >= 8) ? nCircRaw : 16;
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const buildAllPieces = (lot) => {
+            const allPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((defaultPiece) => {
+                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
+            });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
+            }
+            return allPieces;
+        };
+        const buildMetadata = (lot, lotIdx, piece) => ({
+            lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
+            essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
+            typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
+            longueur_mm:    piece.longueur,
+            volumePiece_m3: piece.volumePiece,
+            orientation:    lot.orientationLabel || '',
+        });
+        targetLotIndices.forEach((lotIdx, lotPos) => {
+            const lot       = lots[lotIdx];
+            const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
+            const allPieces = buildAllPieces(lot);
+            if (!allPieces.length) return;
+            const piecesData = allPieces.map((piece) => ({
+                piece,
+                metadata: buildMetadata(lot, lotIdx, piece),
+            }));
+            setTimeout(() => {
+                try {
+                    const blob = window.buildMultiDAE(piecesData, { nCirc });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href     = url;
+                    a.download = 'VALOBOIS_' + lotSlug + '.dae';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } catch (err) {
+                    console.error('exportToDAE:', err);
+                }
+            }, lotPos * 300);
+        });
+    }
+
+    exportToIFC(selectedLotIndices = [], psetConfig, ifcMode = 'library') {
+        if (typeof window.buildIFC !== 'function') {
+            alert('Export IFC indisponible.');
+            return;
+        }
+        if (!Array.isArray(selectedLotIndices) || !selectedLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const lots = this.data.lots || [];
+        const targetLotIndices = selectedLotIndices.filter(
+            (i) => Number.isInteger(i) && lots[i]
+        );
+        if (!targetLotIndices.length) {
+            alert(window.t('editor.alerts.selectLotExport'));
+            return;
+        }
+        const activePset = psetConfig || DEFAULT_PSET_CONFIG;
+        const exportMeta = (this.data && this.data.meta) || null;
+
+        targetLotIndices.forEach((lotIdx, lotPos) => {
+            const lot = lots[lotIdx];
+
+            // Combiner pièces par défaut et pièces détaillées (comme GLB/DAE)
+            const combinedPieces = [];
+            const defaultPieces = this.ensureDefaultPiecesData(lot);
+            defaultPieces.forEach((p) => { if (p) combinedPieces.push(p); });
+            if (Array.isArray(lot.pieces)) {
+                lot.pieces.forEach((p) => { if (p && typeof p === 'object') combinedPieces.push(p); });
+            }
+            const lotForIfc = Object.assign({}, lot, { pieces: combinedPieces });
+
+            const lotSlug = ((lot.nomLot || lot.nom || ('lot_' + (lotIdx + 1))) + '')
+                .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '').toLowerCase();
+
+            setTimeout(() => {
+                try {
+                    const ifcText = window.buildIFC(lotForIfc, activePset, ifcMode, exportMeta);
+                    const blob = new Blob([ifcText], { type: 'application/x-step' });
+                    const url  = URL.createObjectURL(blob);
+                    const a    = document.createElement('a');
+                    a.href     = url;
+                    a.download = 'VALOBOIS_' + lotSlug + '.ifc';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 2000);
+                } catch (err) {
+                    console.error('exportToIFC:', err);
+                }
+            }, lotPos * 300);
+        });
+    }
+
+    exportToPdf(mode = 'synthese', lotIndices = []) {
+        if (typeof pdfMake === 'undefined') {
+            alert('Export PDF indisponible (bibliothèque pdfmake manquante).');
+            return;
+        }
+
+        if (mode === 'lots-selectionnes') {
+            this.exportSelectedLotsToPdf(lotIndices);
+            return;
+        }
+
+        try {
+            const docDef = this.buildPdfSynthesisDocDef();
+            const stamp = new Date().toISOString().slice(0, 10);
+            pdfMake.createPdf(docDef).download('valobois_evaluation_synthese_' + stamp + '.pdf');
+        } catch (error) {
+            console.error(error);
+            alert('Une erreur est survenue pendant la génération du PDF.');
+        }
+    }
+
+    exportSelectedLotsToPdf(lotIndices) {
+        const validLotIndices = Array.isArray(lotIndices) ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index]) : [];
+        if (!validLotIndices.length) {
+            alert('Aucun lot valide sélectionné pour l\u2019export.');
+            return;
+        }
+
+        if (typeof pdfMake === 'undefined') {
+            alert('Export PDF indisponible (bibliothèque pdfmake manquante).');
+            return;
+        }
+
+        try {
+            const docDefPages = [];
+
+            for (let i = 0; i < validLotIndices.length; i++) {
+                const lotIndex = validLotIndices[i];
+                const lotDocDef = this.buildPdfActiveLotDocDef(lotIndex);
+                if (!lotDocDef) continue;
+                docDefPages.push(lotDocDef);
+            }
+
+            if (!docDefPages.length) {
+                alert('Aucun lot valide à exporter.');
+                return;
+            }
+
+            // Merge all lot doc definitions into a single document
+            const mergedContent = [];
+            const includeCoverPage = validLotIndices.length > 1;
+
+            if (includeCoverPage) {
+                const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
+                mergedContent.push(...coverContent);
+            }
+
+            docDefPages.forEach((dd, idx) => {
+                if ((includeCoverPage && idx === 0) || idx > 0) {
+                    mergedContent.push({ text: '', pageBreak: 'before' });
+                }
+                mergedContent.push(...(Array.isArray(dd.content) ? dd.content : [dd.content]));
+            });
+
+            const mmAnnexContent = this.buildPdfMultipleMeasurementsAnnexContent(validLotIndices);
+            if (mmAnnexContent.length) {
+                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push(...mmAnnexContent);
+            }
+
+            const criteriaAnnexContent = this.buildPdfCriteriaAnnexContent(validLotIndices);
+            if (criteriaAnnexContent.length) {
+                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push(...criteriaAnnexContent);
+            }
+
+            const mergedDocDef = {
+                ...docDefPages[0],
+                content: mergedContent,
+                info: this.getPdfDocInfo(includeCoverPage ? 'lots-selectionnes' : 'lot-selectionne')
+            };
+
+            const stamp = new Date().toISOString().slice(0, 10);
+            const suffix = validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne';
+            pdfMake.createPdf(mergedDocDef).download('valobois_evaluation_' + suffix + '_' + stamp + '.pdf');
+        } catch (error) {
+            console.error(error);
+            alert('Une erreur est survenue pendant la génération du PDF.');
+        }
+    }
+
+    // ── Durabilité naturelle EN 350 ───────────────────────────────────
+
+    /**
+     * Met à jour l'accordéon "Durabilité naturelle" d'un formulaire.
+     * @param {HTMLElement} accordion - L'élément <details> de l'accordéon
+     * @param {string} essenceNomUsuel - Nom usuel de l'essence sélectionnée
+     */
+    updateDurabiliteNaturelleAccordion(accordion, essenceNomUsuel, essenceNomScientifique = '') {
+        if (!accordion) return;
+        const list = accordion.querySelector('.durab-nat-list');
+        if (!list) return;
+
+        const essence = this.resolveDurabiliteNaturelleEssenceFromNames(essenceNomUsuel, essenceNomScientifique);
+
+        list.innerHTML = '';
+
+        if (!essence) {
+            accordion.removeAttribute('open');
+            return;
+        }
+        const lang = (window.getValoboisLang ? window.getValoboisLang() : 'fr');
+
+        const rows = this.getDurabiliteNaturelleRows(essence, lang, { withHtml: true });
+
+        rows.forEach((row) => {
+            const item = document.createElement('div');
+            item.className = 'durab-nat-item';
+            if (row.isND) item.classList.add('durab-nat-item--nd');
+            item.innerHTML = `<div class="durab-nat-item-label">${this.escapeHtml(row.label)}</div>
+                <div class="durab-nat-item-row">
+                    <span class="durab-nat-item-value">${row.htmlValue || this.escapeHtml(row.value || 'n/d')}</span>
+                    <span class="durab-nat-item-ref">${this.escapeHtml(row.ref)}</span>
+                </div>`;
+            list.appendChild(item);
+        });
+
+        if (essence.remarques) {
+            const item = document.createElement('div');
+            item.className = 'durab-nat-row--remarques';
+            item.innerHTML = `<div class="durab-nat-remarques">⚠ ${essence.remarques}</div>`;
+            list.appendChild(item);
+        }
+    }
+
+   
+} // FERMETURE DE LA CLASSE ValoboisApp
+
+window.addEventListener('DOMContentLoaded', () => {
+    new ValoboisApp();
+});
