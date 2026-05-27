@@ -5416,6 +5416,8 @@
                                     <span class="barcode-composer__badge" data-i18n="editor.common.barcodeFieldRequired">obligatoire</span>
                                 </div>
 
+                                <div class="barcode-composer__section-title" data-i18n="editor.common.barcodeSectionPiece">Données de la pièce</div>
+
                             <label class="barcode-composer__field" data-field="essence">
                                 <input type="checkbox" class="barcode-composer__check" data-field="essence">
                                 <span class="barcode-composer__ai">(91)</span>
@@ -5448,6 +5450,48 @@
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldEpaisseurLabel">Épaisseur (mm)</span>
                             </label>
 
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesE1">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesE1">
+                                <span class="barcode-composer__ai">(E1)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesE1">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesE1Label">Mesures multiples E1</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesQ1">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesQ1">
+                                <span class="barcode-composer__ai">(Q1)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesQ1">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesQ1Label">Mesures multiples Q1</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesMi">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesMi">
+                                <span class="barcode-composer__ai">(MI)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesMi">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesMiLabel">Mesures multiples MI</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesQ3">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesQ3">
+                                <span class="barcode-composer__ai">(Q3)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesQ3">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesQ3Label">Mesures multiples Q3</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesE2">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesE2">
+                                <span class="barcode-composer__ai">(E2)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesE2">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesE2Label">Mesures multiples E2</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="mesuresMultiplesDetail">
+                                <input type="checkbox" class="barcode-composer__check" data-field="mesuresMultiplesDetail">
+                                <span class="barcode-composer__ai">(3M)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMesuresMultiplesDetail">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMesuresMultiplesDetailLabel">Mesures multiples détaillées</span>
+                            </label>
+
                             <label class="barcode-composer__field" data-field="largeurExtremes">
                                 <input type="checkbox" class="barcode-composer__check" data-field="largeurExtremes">
                                 <span class="barcode-composer__ai">(3W)</span>
@@ -5462,11 +5506,11 @@
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldEpaisseurExtremesLabel">Extrêmes épaisseurs (mm)</span>
                             </label>
 
-                            <label class="barcode-composer__field" data-field="orientationAbbr">
-                                <input type="checkbox" class="barcode-composer__check" data-field="orientationAbbr">
-                                <span class="barcode-composer__ai">(OR)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewOrientationAbbr">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldOrientationAbbrLabel">Orientation abrégée</span>
+                            <label class="barcode-composer__field" data-field="diametreExtremes">
+                                <input type="checkbox" class="barcode-composer__check" data-field="diametreExtremes">
+                                <span class="barcode-composer__ai">(3O)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewDiametreExtremes">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldDiametreExtremesLabel">Extrêmes diamètres (mm)</span>
                             </label>
 
                             <label class="barcode-composer__field" data-field="prixUnitaire">
@@ -5518,6 +5562,22 @@
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldVolumeUnitaireLabel">Volume unitaire</span>
                             </label>
 
+                            <label class="barcode-composer__field" data-field="durabiliteNaturelle">
+                                <input type="checkbox" class="barcode-composer__check" data-field="durabiliteNaturelle">
+                                <span class="barcode-composer__ai">(DN)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewDurabiliteNaturelle">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldDurabiliteNaturelleLabel">Durabilité naturelle</span>
+                            </label>
+
+                            <div class="barcode-composer__section-title" data-i18n="editor.common.barcodeSectionLot">Données du lot</div>
+
+                            <label class="barcode-composer__field" data-field="orientationAbbr">
+                                <input type="checkbox" class="barcode-composer__check" data-field="orientationAbbr">
+                                <span class="barcode-composer__ai">(OR)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewOrientationAbbr">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldOrientationAbbrLabel">Orientation abrégée</span>
+                            </label>
+
                             <label class="barcode-composer__field" data-field="scoreNetMax">
                                 <input type="checkbox" class="barcode-composer__check" data-field="scoreNetMax">
                                 <span class="barcode-composer__ai">(SN)</span>
@@ -5530,13 +5590,6 @@
                                 <span class="barcode-composer__ai">(CL)</span>
                                 <span class="barcode-composer__preview" id="bcPreviewClassementEstime">—</span>
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldClassementEstimeLabel">Classement estimé</span>
-                            </label>
-
-                            <label class="barcode-composer__field" data-field="durabiliteNaturelle">
-                                <input type="checkbox" class="barcode-composer__check" data-field="durabiliteNaturelle">
-                                <span class="barcode-composer__ai">(DN)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewDurabiliteNaturelle">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldDurabiliteNaturelleLabel">Durabilité naturelle</span>
                             </label>
 
                             <label class="barcode-composer__field" data-field="macroHistoire">
@@ -5616,6 +5669,7 @@
     <script defer src="js/lib/valobois-firestore-sync.js"></script>
     <script defer src="js/app/auth-header.js"></script>
     <script defer src="js/app/valobois-app.js"></script>
+    <script defer src="js/app/barcode-composer-availability-patch.js"></script>
     <script defer src="js/app/editor-tab-general.js"></script>
     <script defer src="js/app/editor-tab-lots.js"></script>
     <script defer src="js/app/editor-tab-notation.js"></script>

@@ -3270,7 +3270,7 @@ body.day-mode .lot-group--collapsible summary::after {
 
 .valobois-matrix-vector-cell {
     padding: 4px 6px;
-    text-align: left;
+    text-align: center;
     width: 96px;
     min-width: 96px;
     max-width: 96px;
@@ -3279,9 +3279,10 @@ body.day-mode .lot-group--collapsible summary::after {
 .valobois-matrix-vector-inner {
     display: flex;
     flex-direction: column;
-    align-items: stretch;
+    align-items: flex-start;
     justify-content: flex-start;
     gap: 2px;
+    width: 100%;
 }
 
 .valobois-matrix-checkbox-row {
@@ -3291,6 +3292,7 @@ body.day-mode .lot-group--collapsible summary::after {
     gap: 6px;
     padding: 3px 6px;
     border-radius: 3px;
+    width: 100%;
 }
 
 .valobois-matrix-checkbox-row.is-checked {
@@ -11920,6 +11922,23 @@ body.day-mode .lot-group--collapsible summary:hover {
             margin-bottom: 0.2rem;
         }
 
+        #etiqueterBackdrop .barcode-composer__section-title {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--color-text-muted, #666);
+            margin: 0.2rem 0 0.15rem;
+            padding-top: 0.25rem;
+            border-top: 1px dashed var(--color-divider, #d7d7d2);
+        }
+
+        #etiqueterBackdrop .barcode-composer__section-title:first-of-type {
+            border-top: 0;
+            margin-top: 0;
+            padding-top: 0;
+        }
+
         #etiqueterBackdrop .barcode-composer__field {
             display: grid;
             grid-template-columns: 1.2rem 2.6rem minmax(0, 8.5rem) minmax(0, 1fr) auto;
@@ -11995,6 +12014,62 @@ body.day-mode .lot-group--collapsible summary:hover {
             line-height: 1;
             cursor: help;
             box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.65);
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-dot--muted {
+            background: #97a0a8;
+            color: #ffffff;
+            box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.75);
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-dot--partial {
+            background: #d98324;
+            color: #ffffff;
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-summary {
+            margin-bottom: 0.5rem;
+            padding: 0.4rem 0.55rem;
+            border-radius: var(--radius-sm, 4px);
+            font-size: 0.74rem;
+            line-height: 1.3;
+            border: 1px solid #e2e2e2;
+            background: #f6f7f8;
+            color: var(--color-text-muted, #666);
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-summary[data-state="warn"] {
+            border-color: #efc0bb;
+            background: #fff2f0;
+            color: #8a2c22;
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-summary[data-state="partial"] {
+            border-color: #f4d1a5;
+            background: #fff7ed;
+            color: #8a4d08;
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-summary[data-state="ok"] {
+            border-color: #b9e0cb;
+            background: #ecf9f2;
+            color: #19613e;
+        }
+
+        .barcode-composer-availability-tooltip {
+            position: fixed;
+            z-index: 12000;
+            max-width: 24rem;
+            padding: 0.45rem 0.55rem;
+            border-radius: var(--radius-sm, 4px);
+            border: 1px solid rgba(17, 17, 17, 0.15);
+            background: rgba(20, 20, 22, 0.96);
+            color: #ffffff;
+            font-size: 0.72rem;
+            line-height: 1.35;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+            pointer-events: none;
+            white-space: normal;
         }
 
         #etiqueterBackdrop .barcode-composer__inline-select {
@@ -18050,8 +18125,11 @@ body.day-mode .inspection-ignore-box {
 .valobois-custom-alert-cell {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 3px;
     min-width: 135px;
+    margin: 0 auto;
+    text-align: center;
 }
 
 .valobois-custom-alert-cell__mode {
@@ -18064,7 +18142,9 @@ body.day-mode .inspection-ignore-box {
 .valobois-custom-alert-cell__actions {
     display: flex;
     flex-direction: column;
+    align-items: center;
     gap: 3px;
+    width: 100%;
 }
 
 .valobois-custom-alert-cell__btn {
@@ -18072,6 +18152,8 @@ body.day-mode .inspection-ignore-box {
     padding: 2px 6px;
     font-size: 11px;
     line-height: 1.1;
+    width: 100%;
+    text-align: center;
 }
 
 .valobois-custom-alert-cell__btn:disabled {
@@ -18083,6 +18165,7 @@ body.day-mode .inspection-ignore-box {
     font-size: 10px;
     line-height: 1.1;
     color: #64748b;
+    text-align: center;
 }
 
 .valobois-alert-config {
@@ -18285,7 +18368,16 @@ body.day-mode .inspection-ignore-box {
 }
 
 .valobois-matrix-free-editor__table tbody td {
-    vertical-align: top;
+    vertical-align: middle;
+}
+
+.valobois-matrix-table td.valobois-matrix-col-notation,
+.valobois-matrix-table td.valobois-matrix-col-gate,
+.valobois-matrix-table td.valobois-matrix-col-alert,
+.valobois-matrix-table td.valobois-matrix-col-score,
+.valobois-matrix-table td.valobois-matrix-vector-cell {
+    text-align: center;
+    vertical-align: middle;
 }
 .valobois-matrix-free-editor__table tr:last-child td {
     border-bottom: none !important;

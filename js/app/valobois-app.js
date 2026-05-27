@@ -641,7 +641,7 @@ class ValoboisApp {
         this._geoFranceMapZoom = { level: 1, minLevel: 1, maxLevel: 4, centerX: 500, centerY: 360 };
         this._geoFranceMapPan = { active: false, pointerId: null, startX: 0, startY: 0, startCenterX: 500, startCenterY: 360, moved: false, suppressClickUntil: 0 };
         this._locSitInfoDictionaryBound = false;
-        this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false, importReplaceCustom: false };
+        this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
         this._valoboisMatrixLastThresholdError = '';
         this._valoboisMatrixLastFlowWarning = '';
         this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
@@ -20085,7 +20085,17 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     try {
                         const text = String(reader.result || '');
                         const parsed = JSON.parse(text);
-                        if (!this.applyEvaluationPayload(parsed)) {
+                        let replaceCustomFreeCriteria = true;
+                        if (
+                            parsed
+                            && parsed.valoboisMatrixConfig
+                            && typeof parsed.valoboisMatrixConfig === 'object'
+                            && Array.isArray(parsed.valoboisMatrixConfig.customFreeCriteria)
+                            && parsed.valoboisMatrixConfig.customFreeCriteria.length
+                        ) {
+                            replaceCustomFreeCriteria = this.promptValoboisCustomCriteriaImportMode('des donnees');
+                        }
+                        if (!this.applyEvaluationPayload(parsed, { replaceCustomFreeCriteria })) {
                             alert(
                                 'Fichier JSON invalide : la structure doit contenir un tableau « lots » (export VALOBOIS / nuage).'
                             );
@@ -34915,7 +34925,8 @@ buildValoboisMatrixConfigExportDiff() {
 
 handleValoboisMatrixConfigImport(file, options = {}) {
     if (!file) return;
-    const replaceCustomFreeCriteria = !!(options && options.replaceCustomFreeCriteria);
+    const hasExplicitMode = options && Object.prototype.hasOwnProperty.call(options, 'replaceCustomFreeCriteria');
+    let replaceCustomFreeCriteria = !!(options && options.replaceCustomFreeCriteria);
     const reader = new FileReader();
     reader.onload = () => {
         try {
@@ -34934,6 +34945,10 @@ handleValoboisMatrixConfigImport(file, options = {}) {
                 importedCustomFreeCriteria.push(...parsed.criteriaSnapshot.customFreeCriteria);
             }
             const convertedLegacyCustomCriteria = this.convertValoboisLegacyCustomCriteriaToCustomFreeList(parsed.customCriteria);
+            const hasIncomingCustomFreeCriteria = importedCustomFreeCriteria.length > 0 || convertedLegacyCustomCriteria.length > 0;
+            if (!hasExplicitMode && hasIncomingCustomFreeCriteria) {
+                replaceCustomFreeCriteria = this.promptValoboisCustomCriteriaImportMode('de la configuration Matrice');
+            }
             const mergedRaw = {
                 ...current,
                 thresholds: {
@@ -35010,8 +35025,7 @@ renderMatrice() {
         customBadgeEl.classList.toggle('hidden', !this.hasValoboisMatrixCustomConfig());
     }
 
-    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false, importReplaceCustom: false });
-    if (typeof ui.importReplaceCustom !== 'boolean') ui.importReplaceCustom = false;
+    const ui = this._valoboisMatrixUiState || (this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false });
     const entries = this.getValoboisMatrixDataset();
     const thresholdConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
 
@@ -35080,9 +35094,6 @@ renderMatrice() {
             <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
             <button type="button" class="btn" id="valoboisMatrixExportConfig" ${ui.editMode ? '' : 'disabled'}>Exporter la configuration</button>
             <button type="button" class="btn" id="valoboisMatrixImportConfig" ${ui.editMode ? '' : 'disabled'}>Importer une configuration</button>
-            <label class="valobois-matrix-control-check">
-                <input type="checkbox" id="valoboisMatrixImportReplaceCustom" ${ui.importReplaceCustom ? 'checked' : ''} ${ui.editMode ? '' : 'disabled'}> Remplacer les critères personnalisés
-            </label>
             <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden ${ui.editMode ? '' : 'disabled'}>
         </div>
     `;
@@ -35608,7 +35619,7 @@ renderMatrice() {
     const resetFiltersBtn = document.getElementById('valoboisMatrixResetFilters');
     if (resetFiltersBtn) {
         resetFiltersBtn.addEventListener('click', () => {
-            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode, selectedDuplicateSource: ui.selectedDuplicateSource, importReplaceCustom: ui.importReplaceCustom };
+            this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: ui.editMode, selectedDuplicateSource: ui.selectedDuplicateSource };
             this.renderMatrice();
         });
     }
@@ -35662,20 +35673,13 @@ renderMatrice() {
             URL.revokeObjectURL(url);
         });
     }
-
     const importBtn = document.getElementById('valoboisMatrixImportConfig');
     const importInput = document.getElementById('valoboisMatrixImportInput');
-    const importReplaceCustom = document.getElementById('valoboisMatrixImportReplaceCustom');
-    if (importReplaceCustom) {
-        importReplaceCustom.addEventListener('change', () => {
-            ui.importReplaceCustom = !!importReplaceCustom.checked;
-        });
-    }
     if (importBtn && importInput) {
         importBtn.addEventListener('click', () => importInput.click());
         importInput.addEventListener('change', () => {
             const file = importInput.files && importInput.files[0];
-            this.handleValoboisMatrixConfigImport(file, { replaceCustomFreeCriteria: !!ui.importReplaceCustom });
+            this.handleValoboisMatrixConfigImport(file);
             importInput.value = '';
         });
     }
@@ -38847,8 +38851,14 @@ renderRadar() {
         btn.disabled = !show;
     }
 
+    promptValoboisCustomCriteriaImportMode(importKindLabel = 'des donnees') {
+        return window.confirm(
+            `Import ${importKindLabel}: gestion des criteres personnalises ?\n\nOK: remplacer les criteres existants par ceux du fichier importe.\nAnnuler: fusionner (conserver l'existant et ajouter l'importe).`
+        );
+    }
+
     /** Applique un objet racine identique au payload Firestore (méta, ui, lots). */
-    applyEvaluationPayload(parsed) {
+    applyEvaluationPayload(parsed, options = {}) {
         if (!parsed || !parsed.lots || !Array.isArray(parsed.lots)) return false;
         this.data = parsed;
         this.data.meta = this.getDefaultMeta(this.data.meta || {});
@@ -38863,7 +38873,16 @@ renderRadar() {
             }
         });
         if (parsed.valoboisMatrixConfig && typeof parsed.valoboisMatrixConfig === 'object') {
-            this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(parsed.valoboisMatrixConfig);
+            const replaceCustomFreeCriteria = options.replaceCustomFreeCriteria !== false;
+            const importedConfig = this.normalizeValoboisMatrixConfig(parsed.valoboisMatrixConfig);
+            if (!replaceCustomFreeCriteria) {
+                const currentConfig = this.normalizeValoboisMatrixConfig(this.valoboisMatrixConfig);
+                importedConfig.customFreeCriteria = this.normalizeValoboisCustomFreeCriteria([
+                    ...(Array.isArray(currentConfig.customFreeCriteria) ? currentConfig.customFreeCriteria : []),
+                    ...(Array.isArray(importedConfig.customFreeCriteria) ? importedConfig.customFreeCriteria : [])
+                ]);
+            }
+            this.valoboisMatrixConfig = importedConfig;
             this.saveValoboisMatrixConfig();
         }
         const n = this.data.lots.length;
@@ -39166,8 +39185,42 @@ renderRadar() {
         ];
     }
 
-    getBarcodeComposerValueFromPieceOnly(piece, key) {
-        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+    getBarcodeComposerLinkedDefaultPiece(piece, lot = null) {
+        if (!piece || !lot || typeof lot !== 'object') return null;
+        const defaultPieceId = piece && piece.sourceDefaultPieceId;
+        if (!defaultPieceId || typeof this.ensureDefaultPiecesData !== 'function') return null;
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        return Array.isArray(defaultPieces)
+            ? (defaultPieces.find((entry) => entry && entry.id === defaultPieceId) || null)
+            : null;
+    }
+
+    getBarcodeComposerResolvedPieceSource(piece, lot = null) {
+        const rawPiece = piece && piece.sourcePieceRaw && typeof piece.sourcePieceRaw === 'object'
+            ? piece.sourcePieceRaw
+            : (piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece);
+        const defaultPiece = (piece && piece.sourceType === 'default' && rawPiece && typeof rawPiece === 'object')
+            ? rawPiece
+            : this.getBarcodeComposerLinkedDefaultPiece(piece, lot);
+        const resolved = {};
+        const assign = (source) => {
+            if (!source || typeof source !== 'object') return;
+            Object.keys(source).forEach((key) => {
+                const value = source[key];
+                if (value == null) return;
+                if (typeof value === 'string' && String(value).trim() === '') return;
+                if (resolved[key] == null || (typeof resolved[key] === 'string' && String(resolved[key]).trim() === '')) {
+                    resolved[key] = value;
+                }
+            });
+        };
+        assign(rawPiece);
+        assign(defaultPiece);
+        return resolved;
+    }
+
+    getBarcodeComposerValueFromPieceOnly(piece, key, lot = null) {
+        const pieceSource = this.getBarcodeComposerResolvedPieceSource(piece, lot);
         const pieceValue = pieceSource && pieceSource[key] != null && String(pieceSource[key]).trim() !== ''
             ? pieceSource[key]
             : (piece && piece[key]);
@@ -39175,9 +39228,9 @@ renderRadar() {
         return '';
     }
 
-    resolveBarcodeEssenceEn13556(piece) {
-        const common = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun') || '').trim();
-        const scientific = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique') || '').trim();
+    resolveBarcodeEssenceEn13556(piece, lot = null) {
+        const common = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun', lot) || '').trim();
+        const scientific = String(this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique', lot) || '').trim();
         const resolved = this.resolveDurabiliteNaturelleEssenceFromNames(common, scientific);
         return resolved && resolved.codeEn13556 ? String(resolved.codeEn13556).trim().toUpperCase() : '';
     }
@@ -39194,6 +39247,79 @@ renderRadar() {
         const max = Math.round(Math.max(...values));
         if (!(min > 0 && max > 0)) return '';
         return `${min}-${max}`;
+    }
+
+
+
+    getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat = 'compact') {
+        const mm = piece && piece.mesuresMultiples;
+        const empty = { e1: '', q1: '', mi: '', q3: '', e2: '' };
+        if (!mm || !Array.isArray(mm.sections) || !mm.sections.length) return empty;
+
+        const parseNumeric = (value) => {
+            if (value == null) return NaN;
+            if (typeof value === 'number') return value;
+            return parseFloat(String(value).replace(',', '.'));
+        };
+
+        const format = String(outputFormat || 'compact').toLowerCase() === 'complete' ? 'complete' : 'compact';
+        const positionDefs = {
+            extremite1: { key: 'e1', code: 'E1', label: 'Extremite 1' },
+            quart1: { key: 'q1', code: 'Q1', label: 'Quart 1' },
+            milieu: { key: 'mi', code: 'MI', label: 'Milieu' },
+            quart3: { key: 'q3', code: 'Q3', label: 'Quart 3' },
+            extremite2: { key: 'e2', code: 'E2', label: 'Extremite 2' }
+        };
+        const details = { e1: '', q1: '', mi: '', q3: '', e2: '' };
+
+        mm.sections.forEach((section) => {
+            if (!section || typeof section !== 'object') return;
+            const posKey = String(section.position || '').trim().toLowerCase();
+            const def = positionDefs[posKey];
+            if (!def || details[def.key]) return;
+
+            const type = String(section.typeSection || '').trim().toLowerCase();
+            const d = parseNumeric(section.diametre);
+            const l = parseNumeric(section.largeur);
+            const e = parseNumeric(section.epaisseur);
+
+            if ((type === 'circ' || type === 'circle') && Number.isFinite(d) && d > 0) {
+                details[def.key] = format === 'complete'
+                    ? (def.label + ' : ' + Math.round(d) + ' mm de O')
+                    : (def.code + ':' + Math.round(d) + 'O');
+                return;
+            }
+
+            if ((type === 'rect' || type === 'rectangle' || !type)
+                && Number.isFinite(l) && l > 0
+                && Number.isFinite(e) && e > 0) {
+                details[def.key] = format === 'complete'
+                    ? (def.label + ' : ' + Math.round(l) + ' x ' + Math.round(e))
+                    : (def.code + ':' + Math.round(l) + 'x' + Math.round(e));
+                return;
+            }
+
+            if (Number.isFinite(d) && d > 0) {
+                details[def.key] = format === 'complete'
+                    ? (def.label + ' : ' + Math.round(d) + ' mm de O')
+                    : (def.code + ':' + Math.round(d) + 'O');
+            }
+        });
+
+        return details;
+    }
+
+    getBarcodeComposerMesuresMultiplesPositionDetail(piece, positionKey, outputFormat = 'compact') {
+        const details = this.getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat);
+        const key = String(positionKey || '').trim().toLowerCase();
+        return Object.prototype.hasOwnProperty.call(details, key) ? details[key] : '';
+    }
+
+    getBarcodeComposerMesuresMultiplesDetail(piece, outputFormat = 'compact') {
+        const details = this.getBarcodeComposerMesuresMultiplesDetailsMap(piece, outputFormat);
+        const ordered = [details.e1, details.q1, details.mi, details.q3, details.e2].filter(Boolean);
+        const mode = String(outputFormat || 'compact').toLowerCase() === 'complete' ? 'complete' : 'compact';
+        return mode === 'complete' ? ordered.join(' ; ') : ordered.join(';');
     }
 
     formatBarcodeComposerNumber(value, digits = 0) {
@@ -39295,7 +39421,7 @@ renderRadar() {
     }
 
     getBarcodeComposerPieceCriterionLevel(piece, sectionKey, fieldKey, lot = null) {
-        const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+        const pieceSource = this.getBarcodeComposerResolvedPieceSource(piece, lot);
         if (!pieceSource || typeof pieceSource !== 'object') return '';
 
         const section = pieceSource[sectionKey];
@@ -39421,27 +39547,41 @@ renderRadar() {
             }
         })();
 
-        const essenceNom = this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun');
+        const essenceNom = this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun', lot);
         const essenceAbbr = essenceNom ? this.abbreviateEssence(essenceNom, 4, 2) : '';
-        const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece);
+        const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece, lot);
         const essenceValue = mode === 'en13556' ? essenceEn13556 : essenceAbbr;
 
-        const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'longueur'));
+        const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'longueur', lot));
         const largeur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'largeur'));
         const epaisseur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'epaisseur'));
+        const mesuresMultiplesDetails = this.getBarcodeComposerMesuresMultiplesDetailsMap(pieceSource, 'compact');
+        const mesuresMultiplesE1 = mesuresMultiplesDetails.e1 || '';
+        const mesuresMultiplesQ1 = mesuresMultiplesDetails.q1 || '';
+        const mesuresMultiplesMi = mesuresMultiplesDetails.mi || '';
+        const mesuresMultiplesQ3 = mesuresMultiplesDetails.q3 || '';
+        const mesuresMultiplesE2 = mesuresMultiplesDetails.e2 || '';
+        const mesuresMultiplesDetail = [mesuresMultiplesE1, mesuresMultiplesQ1, mesuresMultiplesMi, mesuresMultiplesQ3, mesuresMultiplesE2]
+            .filter(Boolean)
+            .join(';');
         const largeurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'largeur');
         const epaisseurExtremes = this.getBarcodeComposerMesuresExtremes(pieceSource, 'epaisseur');
+        const diametreExtremesRaw = this.getBarcodeComposerMesuresExtremes(pieceSource, 'diametre');
+        const diametreExtremes = diametreExtremesRaw ? `⌀${diametreExtremesRaw}` : '';
 
-        const orientationRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'orientation');
+        const orientationRaw = this.getBarcodeComposerValueFromPieceOrLot(piece, lot, 'orientation')
+            || (pieceSource && pieceSource.orientationLabel && pieceSource.orientationLabel !== '…' ? pieceSource.orientationLabel : '')
+            || (piece && piece.orientationLabel && piece.orientationLabel !== '…' ? piece.orientationLabel : '')
+            || (lot && lot.orientationLabel && lot.orientationLabel !== '…' ? lot.orientationLabel : '');
         const orientationAbbr = this.abbreviateCompactToken(orientationRaw, 4);
 
         const prixUnitaireRaw = this.formatBarcodeComposerPriceCompactEur(
-            this.getBarcodeComposerValueFromPieceOnly(piece, 'prixPiece')
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'prixPiece', lot)
             || (computedPiece ? computedPiece.prixPiece : '')
         );
         const prixUnitaire = prixUnitaireRaw ? `${prixUnitaireRaw}€` : '';
         const masseUnitaireRaw = this.formatBarcodeComposerMassCompactKg(
-            this.getBarcodeComposerValueFromPieceOnly(piece, 'massePiece')
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'massePiece', lot)
             || (computedPiece ? computedPiece.massePiece : '')
         );
         const masseUnitaire = masseUnitaireRaw ? `${masseUnitaireRaw}kg` : '';
@@ -39454,12 +39594,12 @@ renderRadar() {
             : (Number.isFinite(pco2Fallback) && pco2Fallback > 0 ? pco2Fallback : null);
         const pco2UnitaireRaw = this.formatBarcodeComposerPco2CompactKg(pco2ValueKg);
         const pco2Unitaire = pco2UnitaireRaw ? `${pco2UnitaireRaw}kg` : '';
-        const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOnly(piece, 'typePiece'), 4);
+        const typePieceAbbr = this.abbreviateCompactToken(this.getBarcodeComposerValueFromPieceOnly(piece, 'typePiece', lot), 4);
 
         const allot = lot && lot.allotissement && typeof lot.allotissement === 'object' ? lot.allotissement : null;
-        const ageArbre = this.getBarcodeComposerValueFromPieceOnly(piece, 'ageArbre')
+        const ageArbre = this.getBarcodeComposerValueFromPieceOnly(piece, 'ageArbre', lot)
             || (allot && allot._avgAgeArbre != null ? allot._avgAgeArbre : '');
-        const dateMiseEnServiceRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'dateMiseEnService')
+        const dateMiseEnServiceRaw = this.getBarcodeComposerValueFromPieceOnly(piece, 'dateMiseEnService', lot)
             || (allot && allot._avgServiceYear != null ? allot._avgServiceYear : '')
             || (allot && allot.dateMiseEnService != null ? allot.dateMiseEnService : '');
         const amortissementRaw = this.computeAmortissementBiologique(ageArbre, dateMiseEnServiceRaw);
@@ -39484,8 +39624,8 @@ renderRadar() {
         );
 
         const durabResolved = this.resolveDurabiliteNaturelleEssenceFromNames(
-            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun'),
-            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique')
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun', lot),
+            this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomScientifique', lot)
         );
         const durabiliteNaturelle = this.formatBarcodeComposerDurabiliteNaturelleToken(
             durabResolved && durabResolved.durabiliteChampignons ? durabResolved.durabiliteChampignons : ''
@@ -39506,8 +39646,15 @@ renderRadar() {
             longueur: { value: longueur, preview: longueur || '—' },
             largeur: { value: largeur, preview: largeur || '—' },
             epaisseur: { value: epaisseur, preview: epaisseur || '—' },
+            mesuresMultiplesE1: { value: mesuresMultiplesE1, preview: mesuresMultiplesE1 || '—' },
+            mesuresMultiplesQ1: { value: mesuresMultiplesQ1, preview: mesuresMultiplesQ1 || '—' },
+            mesuresMultiplesMi: { value: mesuresMultiplesMi, preview: mesuresMultiplesMi || '—' },
+            mesuresMultiplesQ3: { value: mesuresMultiplesQ3, preview: mesuresMultiplesQ3 || '—' },
+            mesuresMultiplesE2: { value: mesuresMultiplesE2, preview: mesuresMultiplesE2 || '—' },
+            mesuresMultiplesDetail: { value: mesuresMultiplesDetail, preview: mesuresMultiplesDetail || '—' },
             largeurExtremes: { value: largeurExtremes, preview: largeurExtremes || '—' },
             epaisseurExtremes: { value: epaisseurExtremes, preview: epaisseurExtremes || '—' },
+            diametreExtremes: { value: diametreExtremes, preview: diametreExtremes || '—' },
             orientationAbbr: { value: orientationAbbr, preview: orientationAbbr || '—' },
             prixUnitaire: { value: prixUnitaire, preview: prixUnitaire || '—' },
             masseUnitaire: { value: masseUnitaire, preview: masseUnitaire || '—' },
@@ -39534,8 +39681,15 @@ renderRadar() {
             longueur: true,
             largeur: true,
             epaisseur: false,
+            mesuresMultiplesE1: false,
+            mesuresMultiplesQ1: false,
+            mesuresMultiplesMi: false,
+            mesuresMultiplesQ3: false,
+            mesuresMultiplesE2: false,
+            mesuresMultiplesDetail: false,
             largeurExtremes: false,
             epaisseurExtremes: false,
+            diametreExtremes: false,
             orientationAbbr: false,
             prixUnitaire: false,
             masseUnitaire: false,
@@ -39592,6 +39746,29 @@ renderRadar() {
         return '';
     }
 
+    getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode = 'abbr') {
+        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        const lotIndex = Number.isInteger(piece && piece.sourceLotIndex)
+            ? piece.sourceLotIndex
+            : (Array.isArray(this.data && this.data.lots) ? this.data.lots.indexOf(lot) : -1);
+        const pieceIndex = Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex : -1;
+        const fallbackUid = String(piece && piece.uid ? piece.uid : '').trim();
+        return `${mode}|${lotIndex}|${pieceIndex}|${fallbackUid}`;
+    }
+
+    getBarcodeComposerValueMapCached(lot, piece, essenceMode = 'abbr') {
+        if (!this._barcodeComposerValueMapCache || typeof this._barcodeComposerValueMapCache !== 'object') {
+            this._barcodeComposerValueMapCache = {};
+        }
+        const cacheKey = this.getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode);
+        if (this._barcodeComposerValueMapCache[cacheKey]) {
+            return this._barcodeComposerValueMapCache[cacheKey];
+        }
+        const map = this.buildBarcodeComposerValueMap(lot, piece, essenceMode);
+        this._barcodeComposerValueMapCache[cacheKey] = map;
+        return map;
+    }
+
     buildBarcodeContent(lot, piece, lotIndex, pieceIndex, formula, config = {}) {
         const normalizedFormula = this.normalizeCodeFormula(formula);
         const cfg = {
@@ -39609,7 +39786,7 @@ renderRadar() {
         const isComplete = supportsComplete && cfg.payloadFormat === 'complet';
 
         if (isComplete) {
-            const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
+            const pieceSource = this.getBarcodeComposerResolvedPieceSource(piece, lot);
             const completeSegments = [`Lot ${lotNum}`, `Pièce ${pieceNum}`];
             const add = (label, value) => {
                 const cleaned = String(value || '').trim();
@@ -39886,7 +40063,7 @@ renderRadar() {
         if (!lot || !item) return -1;
         const config = this.getBarcodeComposerConfig();
         const essenceMode = String(config && config.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
-        const valueMap = this.buildBarcodeComposerValueMap(lot, item, essenceMode);
+        const valueMap = this.getBarcodeComposerValueMapCached(lot, item, essenceMode);
         let score = 0;
 
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
@@ -39914,7 +40091,7 @@ renderRadar() {
             if (!Array.isArray(items) || !items.length) return;
 
             items.forEach((item) => {
-                const valueMap = this.buildBarcodeComposerValueMap(lot, item, mode);
+                const valueMap = this.getBarcodeComposerValueMapCached(lot, item, mode);
                 this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
                     if (availability[field]) return;
                     const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
@@ -39929,6 +40106,13 @@ renderRadar() {
     getBarcodeComposerPreviewCandidates() {
         const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
         const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+        if (!this._barcodeComposerPreviewCandidatesCache || typeof this._barcodeComposerPreviewCandidatesCache !== 'object') {
+            this._barcodeComposerPreviewCandidatesCache = {};
+        }
+        const cacheKey = lotIndices.filter((value) => Number.isInteger(value) && value >= 0).join(',');
+        if (this._barcodeComposerPreviewCandidatesCache[cacheKey]) {
+            return this._barcodeComposerPreviewCandidatesCache[cacheKey];
+        }
         const candidates = [];
 
         lotIndices.forEach((lotIndex) => {
@@ -39951,7 +40135,7 @@ renderRadar() {
                 });
             });
         });
-
+        this._barcodeComposerPreviewCandidatesCache[cacheKey] = candidates;
         return candidates;
     }
 
@@ -40031,7 +40215,7 @@ renderRadar() {
         if (essenceModeEl) essenceModeEl.value = essenceMode;
         if (payloadFormatEl) payloadFormatEl.value = this.normalizeBarcodePayloadFormat(currentState.payloadFormat);
 
-        const valueMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, essenceMode);
+        const valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, essenceMode);
         const availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(essenceMode);
         const previewIds = {
             ref: 'bcPreviewRef',
@@ -40039,8 +40223,15 @@ renderRadar() {
             longueur: 'bcPreviewLongueur',
             largeur: 'bcPreviewLargeur',
             epaisseur: 'bcPreviewEpaisseur',
+            mesuresMultiplesE1: 'bcPreviewMesuresMultiplesE1',
+            mesuresMultiplesQ1: 'bcPreviewMesuresMultiplesQ1',
+            mesuresMultiplesMi: 'bcPreviewMesuresMultiplesMi',
+            mesuresMultiplesQ3: 'bcPreviewMesuresMultiplesQ3',
+            mesuresMultiplesE2: 'bcPreviewMesuresMultiplesE2',
+            mesuresMultiplesDetail: 'bcPreviewMesuresMultiplesDetail',
             largeurExtremes: 'bcPreviewLargeurExtremes',
             epaisseurExtremes: 'bcPreviewEpaisseurExtremes',
+            diametreExtremes: 'bcPreviewDiametreExtremes',
             orientationAbbr: 'bcPreviewOrientationAbbr',
             prixUnitaire: 'bcPreviewPrixUnitaire',
             masseUnitaire: 'bcPreviewMasseUnitaire',
@@ -40116,7 +40307,7 @@ renderRadar() {
             const requestedFormat = this.normalizeBarcodePayloadFormat(payloadFormatEl && payloadFormatEl.value);
             const nextPayloadFormat = this.isBarcodePayloadFormatAvailable(selectedFormula) ? requestedFormat : 'compact';
             if (payloadFormatEl) payloadFormatEl.value = nextPayloadFormat;
-            const currentMap = this.buildBarcodeComposerValueMap(context.lot, context.piece, nextEssenceMode);
+            const currentMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, nextEssenceMode);
             const currentAvailabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(nextEssenceMode);
             const config = {
                 lotNum: true,
@@ -40756,110 +40947,142 @@ renderRadar() {
 
     buildEtiquettePieceItems(lot, lotIndex) {
         const items = [];
-        const allot = (lot && lot.allotissement) || {};
-        const meta = this.data.meta || {};
-        const defaultPieces = this.ensureDefaultPiecesData(lot);
-        const orientation = this.getPdfOrientationSummary(lot);
+        const lotSafe = lot && typeof lot === 'object' ? lot : {};
+        const allot = lotSafe.allotissement && typeof lotSafe.allotissement === 'object' ? lotSafe.allotissement : {};
+        const meta = this.data && this.data.meta && typeof this.data.meta === 'object' ? this.data.meta : {};
+        const defaultPieces = this.ensureDefaultPiecesData(lotSafe, { createIfEmpty: false });
+        const orientationSummary = this.getPdfOrientationSummary(lotSafe);
+        const lotRef = this.getPdfLotLabel(lotSafe, lotIndex);
 
         const asText = (value) => (value == null ? '' : String(value)).trim();
         const firstFilled = (...values) => values.map(asText).find(Boolean) || '';
-        const asNumber = (value) => {
-            const num = parseFloat(value);
-            return Number.isFinite(num) && num > 0 ? num : null;
+        const asPositiveNumber = (value) => {
+            const parsed = parseFloat(value);
+            return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
         };
         const formatMm = (value) => {
-            const num = parseFloat(value);
-            return Number.isFinite(num) && num > 0 ? `${Math.round(num)} mm` : '—';
+            const mm = asPositiveNumber(value);
+            return mm != null ? String(Math.round(mm)) + ' mm' : '—';
         };
-        const formatDimensionsLabel = (longueur, largeur, epaisseur) => {
-            return `${formatMm(longueur)} (L) - ${formatMm(largeur)} (l) - ${formatMm(epaisseur)} (e)`;
+        const formatDimensionsLabel = (longueur, largeur, epaisseur, diametre) => {
+            const d = asPositiveNumber(diametre);
+            if (d != null && !asPositiveNumber(largeur) && !asPositiveNumber(epaisseur)) {
+                return formatMm(longueur) + ' (L) - Ø ' + String(Math.round(d)) + ' mm';
+            }
+            return formatMm(longueur) + ' (L) - ' + formatMm(largeur) + ' (l) - ' + formatMm(epaisseur) + ' (e)';
         };
         const joinCompanyAndEmail = (company, email) => {
             const parts = [asText(company), asText(email)].filter(Boolean);
             return parts.length ? parts.join(' - ') : '';
         };
-
-        const lotRef = this.getPdfLotLabel(lot, lotIndex);
-        const vol = parseFloat(allot.volumeLot) || 0;
-        const diagInfo = joinCompanyAndEmail(
-            firstFilled(meta.diagnostiqueurNom, meta.diagnostiqueurContact),
-            firstFilled(meta.diagnostiqueurMail, meta.diagnostiqueurEmail)
-        );
-        const deconInfo = joinCompanyAndEmail(
-            firstFilled(meta.entrepriseDeconstructionNom, meta.deconstructeurNom),
-            firstFilled(meta.entrepriseDeconstructionMail, meta.entrepriseDeconstructionEmail, meta.deconstructeurMail)
-        );
-        const destinationInfo = joinCompanyAndEmail(
-            firstFilled(allot.destination),
-            firstFilled(allot.destinationMail, allot.destinationEmail)
-        );
-        let pieceOrdinal = 0;
-
-        const createBaseItem = (pieceLabel, typePiece, essenceNomCommun, dims, volumePiece, sourcePieceIndex = null) => {
-            pieceOrdinal += 1;
-            const normalizedPieceIndex = Number.isInteger(sourcePieceIndex) ? sourcePieceIndex : (pieceOrdinal - 1);
-            return {
-                uid: `lot${String(lotIndex + 1).padStart(2, '0')}-p${String(pieceOrdinal).padStart(4, '0')}`,
-                lotRef,
-                pieceLabel,
-                sourceLotIndex: Number.isInteger(lotIndex) ? lotIndex : 0,
-                sourcePieceIndex: normalizedPieceIndex,
-                dimensionsLabel: formatDimensionsLabel(dims.longueur, dims.largeur, dims.epaisseur),
-                longueur: asNumber(dims.longueur),
-                largeur: asNumber(dims.largeur),
-                epaisseur: asNumber(dims.epaisseur),
-                typePiece: asText(typePiece) || '—',
-                essenceNomCommun: asText(essenceNomCommun) || '—',
-                essenceNomScientifique: asText(allot.essenceNomScientifique) || null,
-                orientationCode: orientation.code || 'none',
-                orientationLabel: orientation.label || '—',
-                volumeLot: vol,
-                volumePiece: asNumber(volumePiece),
-                origine: asText(meta.localisation) || '—',
-                diagnostiqueur: diagInfo || '—',
-                deconstructeur: deconInfo || '—',
-                destination: destinationInfo || '—',
-                sourcePiece: dims && dims.sourcePiece ? dims.sourcePiece : null,
-                mainDimensionLabel: '—'
-            };
+        const resolvePieceValue = (pieceLike, defaultPieceLike, key) => {
+            return firstFilled(pieceLike && pieceLike[key], defaultPieceLike && defaultPieceLike[key]);
+        };
+        const resolvePieceData = (pieceLike, defaultPieceLike) => {
+            const keys = [
+                'typePiece', 'essenceNomCommun', 'essenceNomScientifique',
+                'longueur', 'largeur', 'epaisseur', 'diametre',
+                'volumePiece', 'massePiece', 'prixPiece',
+                'dateMiseEnService', 'ageArbre',
+                'prixUnite', 'prixMode', 'prixMarche',
+                'masseVolumique', 'humidite', 'fractionCarbonee', 'bois'
+            ];
+            const resolved = {};
+            keys.forEach((key) => {
+                const value = resolvePieceValue(pieceLike, defaultPieceLike, key);
+                if (value !== '') resolved[key] = value;
+            });
+            resolved.mesuresMultiples = (pieceLike && pieceLike.mesuresMultiples) || (defaultPieceLike && defaultPieceLike.mesuresMultiples) || null;
+            return resolved;
         };
 
-        const pieces = Array.isArray(lot && lot.pieces) ? lot.pieces : [];
+        const lotPad = String((Number.isInteger(lotIndex) ? lotIndex : 0) + 1).padStart(2, '0');
+        let runningPieceIndex = 0;
+        const defaultPieceById = new Map();
+        defaultPieces.forEach((defaultPiece) => {
+            if (defaultPiece && defaultPiece.id) defaultPieceById.set(defaultPiece.id, defaultPiece);
+        });
+
+        const commonPayload = {
+            lotRef,
+            volumeLot: asPositiveNumber(allot.volumeLot) || 0,
+            origine: asText(meta.localisation) || '—',
+            diagnostiqueur: joinCompanyAndEmail(
+                firstFilled(meta.diagnostiqueurNom, meta.diagnostiqueurContact),
+                firstFilled(meta.diagnostiqueurMail, meta.diagnostiqueurEmail)
+            ) || '—',
+            deconstructeur: joinCompanyAndEmail(
+                firstFilled(meta.entrepriseDeconstructionNom, meta.deconstructeurNom),
+                firstFilled(meta.entrepriseDeconstructionMail, meta.entrepriseDeconstructionEmail, meta.deconstructeurMail)
+            ) || '—',
+            destination: joinCompanyAndEmail(
+                firstFilled(allot.destination),
+                firstFilled(allot.destinationMail, allot.destinationEmail)
+            ) || '—',
+            operation: asText(meta.operation) || '—',
+            orientationCode: asText(orientationSummary && orientationSummary.code) || 'none',
+            orientationLabel: asText(orientationSummary && orientationSummary.label) || '—'
+        };
+
+        const pushItem = (pieceData, pieceLabel, sourceType = 'piece', sourceDefaultPiece = null) => {
+            const rawPiece = pieceData && typeof pieceData === 'object' ? pieceData : {};
+            const linkedDefaultPiece = sourceDefaultPiece && typeof sourceDefaultPiece === 'object' ? sourceDefaultPiece : null;
+            const sourcePiece = resolvePieceData(rawPiece, linkedDefaultPiece);
+            const longueur = firstFilled(sourcePiece.longueur);
+            const largeur = firstFilled(sourcePiece.largeur);
+            const epaisseur = firstFilled(sourcePiece.epaisseur);
+            const diametre = firstFilled(sourcePiece.diametre);
+            const pieceIndex = runningPieceIndex;
+            const uid = 'lot' + lotPad + '-p' + String(pieceIndex + 1).padStart(3, '0');
+
+            items.push({
+                ...commonPayload,
+                uid,
+                sourceType,
+                sourceDefaultPieceId: firstFilled(rawPiece && rawPiece.sourceDefaultPieceId, linkedDefaultPiece && linkedDefaultPiece.id) || null,
+                sourceDefaultPiece: linkedDefaultPiece,
+                sourcePieceRaw: rawPiece,
+                sourcePiece,
+                sourceLotIndex: Number.isInteger(lotIndex) ? lotIndex : 0,
+                sourcePieceIndex: pieceIndex,
+                pieceLabel: asText(pieceLabel) || ('Pièce ' + String(pieceIndex + 1)),
+                typePiece: firstFilled(sourcePiece.typePiece) || '—',
+                essenceNomCommun: firstFilled(sourcePiece.essenceNomCommun) || '—',
+                essenceNomScientifique: firstFilled(sourcePiece.essenceNomScientifique) || '',
+                longueur,
+                largeur,
+                epaisseur,
+                diametre,
+                volumePiece: firstFilled(sourcePiece.volumePiece),
+                massePiece: firstFilled(sourcePiece.massePiece),
+                prixPiece: firstFilled(sourcePiece.prixPiece),
+                dateMiseEnService: firstFilled(sourcePiece.dateMiseEnService),
+                ageArbre: firstFilled(sourcePiece.ageArbre),
+                mesuresMultiples: sourcePiece.mesuresMultiples,
+                dimensionsLabel: formatDimensionsLabel(longueur, largeur, epaisseur, diametre),
+                mainDimensionLabel: this.formatEtiquetteMainDimension({ sourcePiece, longueur, largeur, epaisseur })
+            });
+
+            runningPieceIndex += 1;
+        };
+
+        const pieces = Array.isArray(lotSafe.pieces) ? lotSafe.pieces : [];
         pieces.forEach((piece, index) => {
-            const longueur = firstFilled(piece && piece.longueur, allot.longueur);
-            const largeur = firstFilled(piece && piece.largeur, allot.largeur);
-            const epaisseur = firstFilled(piece && piece.epaisseur, allot.epaisseur);
-            items.push(createBaseItem(
-                `Pièce ${index + 1}`,
-                firstFilled(piece && piece.typePiece, allot.typePiece),
-                firstFilled(piece && piece.essenceNomCommun, allot.essenceNomCommun),
-                { longueur, largeur, epaisseur, sourcePiece: piece },
-                piece && piece.volumePiece,
-                index
-            ));
+            const explicitLabel = asText(piece && piece.nom);
+            const linkedDefaultPiece = piece && piece.sourceDefaultPieceId
+                ? (defaultPieceById.get(piece.sourceDefaultPieceId) || null)
+                : null;
+            pushItem(piece, explicitLabel || ('Pièce ' + String(index + 1)), 'piece', linkedDefaultPiece);
         });
 
-        let defaultPieceOccurrenceIndex = 0;
-        defaultPieces.forEach((defaultPiece, defaultPieceIndex) => {
-            const defaultQty = Math.max(0, Math.round(parseFloat(defaultPiece.quantite || 0) || 0));
-            for (let i = 0; i < defaultQty; i += 1) {
-                const longueur = firstFilled(defaultPiece.longueur, allot.longueur);
-                const largeur = firstFilled(defaultPiece.largeur, allot.largeur);
-                const epaisseur = firstFilled(defaultPiece.epaisseur, allot.epaisseur);
-                items.push(createBaseItem(
-                    `Pièce par défaut ${defaultPieceIndex + 1} n°${i + 1}`,
-                    firstFilled(defaultPiece.typePiece, allot.typePiece),
-                    firstFilled(defaultPiece.essenceNomCommun, allot.essenceNomCommun),
-                    { longueur, largeur, epaisseur, sourcePiece: defaultPiece },
-                    defaultPiece && defaultPiece.volumePiece,
-                    pieces.length + defaultPieceOccurrenceIndex
-                ));
-                defaultPieceOccurrenceIndex += 1;
+        defaultPieces.forEach((defaultPiece, defaultIndex) => {
+            const qty = Math.max(0, Math.round(parseFloat(defaultPiece && defaultPiece.quantite) || 0));
+            if (!qty) return;
+            const baseName = asText(defaultPiece && defaultPiece.nom) || ('Pièce par défaut ' + String(defaultIndex + 1));
+            for (let repeatIndex = 0; repeatIndex < qty; repeatIndex += 1) {
+                const label = qty > 1 ? (baseName + ' n°' + String(repeatIndex + 1)) : baseName;
+                pushItem(defaultPiece, label, 'default', defaultPiece);
             }
-        });
-
-        items.forEach((item) => {
-            item.mainDimensionLabel = this.formatEtiquetteMainDimension(item);
         });
 
         return items;
