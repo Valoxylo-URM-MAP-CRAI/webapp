@@ -2518,6 +2518,7 @@ class ValoboisApp {
             bois: '',
             ageArbre: '',
             dateMiseEnService: '',
+            customInfos: [],
             mmLargeurMoyenne: null,
             mmEpaisseurMoyenne: null,
             mmCvLargeurIntra: null,
@@ -2560,6 +2561,7 @@ class ValoboisApp {
         if (target.bois == null) target.bois = '';
         if (target.ageArbre == null) target.ageArbre = '';
         if (target.dateMiseEnService == null) target.dateMiseEnService = '';
+        this.ensurePieceCustomInfos(target);
         if (target.mmLargeurMoyenne == null) target.mmLargeurMoyenne = null;
         if (target.mmEpaisseurMoyenne == null) target.mmEpaisseurMoyenne = null;
         if (target.mmCvLargeurIntra == null) target.mmCvLargeurIntra = null;
@@ -2663,6 +2665,7 @@ class ValoboisApp {
         defaultPiece.bois = '';
         defaultPiece.ageArbre = '';
         defaultPiece.dateMiseEnService = '';
+        defaultPiece.customInfos = [];
         defaultPiece.quantite = '0';
     }
 
@@ -2702,6 +2705,17 @@ class ValoboisApp {
         piece.humidite = source.humidite !== '' && source.humidite != null ? String(source.humidite) : (a.humidite !== undefined ? String(a.humidite) : '');
         piece.fractionCarbonee = source.fractionCarbonee !== '' && source.fractionCarbonee != null ? String(source.fractionCarbonee) : (a.fractionCarbonee !== undefined ? String(a.fractionCarbonee) : '');
         piece.bois = source.bois !== '' && source.bois != null ? String(source.bois) : (a.bois !== undefined ? String(a.bois) : '');
+        piece.customInfos = this.ensurePieceCustomInfos(source).map((entry, idx) => ({
+            id: this.createCustomInfoId('ci-row'),
+            label: entry.label,
+            labelKey: entry.labelKey,
+            values: Array.isArray(entry.values) ? [...entry.values] : [],
+            valueType: entry.valueType === 'select' ? 'select' : 'text',
+            optionSetId: entry.optionSetId || '',
+            inheritMode: 'synced',
+            sourceDefaultInfoId: entry.id,
+            order: idx
+        }));
         if (source.volumePieceEnrichi != null) piece.volumePieceEnrichi = source.volumePieceEnrichi;
         if (source.mesuresMultiples != null) piece.mesuresMultiples = source.mesuresMultiples;
         return piece;
@@ -2787,7 +2801,18 @@ class ValoboisApp {
             fractionCarbonee: source.fractionCarbonee || '',
             bois: source.bois || '',
             ageArbre: source.ageArbre || '',
-            dateMiseEnService: source.dateMiseEnService || ''
+            dateMiseEnService: source.dateMiseEnService || '',
+            customInfos: this.ensurePieceCustomInfos(source).map((entry, idx) => ({
+                id: this.createCustomInfoId('ci-row'),
+                label: entry.label,
+                labelKey: entry.labelKey,
+                values: Array.isArray(entry.values) ? [...entry.values] : [],
+                valueType: entry.valueType === 'select' ? 'select' : 'text',
+                optionSetId: entry.optionSetId || '',
+                inheritMode: 'local',
+                sourceDefaultInfoId: '',
+                order: idx
+            }))
         };
         
         // Normaliser la structure du clone
@@ -3727,6 +3752,7 @@ class ValoboisApp {
             if (piece.mmCvEpaisseurIntra == null) piece.mmCvEpaisseurIntra = null;
             if (piece.mmDeltaLargeurIntra == null) piece.mmDeltaLargeurIntra = null;
             if (piece.mmDeltaEpaisseurIntra == null) piece.mmDeltaEpaisseurIntra = null;
+            this.ensurePieceCustomInfos(piece);
         });
         this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
         if (!lot.poidsSimilarite || typeof lot.poidsSimilarite !== 'object') {
@@ -3998,6 +4024,7 @@ class ValoboisApp {
             bois: '',
             ageArbre: '',
             dateMiseEnService: '',
+            customInfos: [],
             massePiece: 0,
             carboneBiogeniqueEstimeExact: '',
             carboneBiogeniqueEstime: '',
@@ -4097,8 +4124,434 @@ class ValoboisApp {
                 baseOverrides: { ...(existingUi?.priceCategoryPresets?.baseOverrides || {}) },
                 custom: existingCustom.length > 0 ? existingCustom : seedCustom
             },
-            locSitCustomSituations: existingLocSitCustom
+            locSitCustomSituations: existingLocSitCustom,
+            customInfoOptionSets: Array.isArray(existingUi?.customInfoOptionSets)
+                ? existingUi.customInfoOptionSets.map((entry) => ({ ...(entry || {}) }))
+                : []
         };
+    }
+
+    createCustomInfoId(prefix = 'ci') {
+        return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    normalizeCustomInfoKey(value) {
+        return String(value || '')
+            .trim()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, ' ');
+    }
+
+    normalizeCustomInfoValue(value) {
+        if (value == null) return '';
+        return String(value);
+    }
+
+    normalizePieceCustomInfos(piece) {
+        if (!piece || typeof piece !== 'object') return [];
+        const raw = Array.isArray(piece.customInfos) ? piece.customInfos : [];
+        const normalized = [];
+        const seenKeys = new Set();
+        raw.forEach((entry, idx) => {
+            if (!entry || typeof entry !== 'object') return;
+            const label = String(entry.label || '').trim();
+            if (!label) return;
+            const labelKey = this.normalizeCustomInfoKey(label);
+            if (!labelKey || seenKeys.has(labelKey)) return;
+            seenKeys.add(labelKey);
+            const valueType = String(entry.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+            const valuesRaw = Array.isArray(entry.values)
+                ? entry.values
+                : (entry.value != null ? [entry.value] : []);
+            const values = valuesRaw
+                .map((item) => this.normalizeCustomInfoValue(item).trim())
+                .filter((item) => item !== '');
+            normalized.push({
+                id: String(entry.id || this.createCustomInfoId('ci-row')),
+                label,
+                labelKey,
+                values,
+                valueType,
+                optionSetId: String(entry.optionSetId || '').trim(),
+                inheritMode: String(entry.inheritMode || '').trim() === 'local' ? 'local' : 'synced',
+                sourceDefaultInfoId: String(entry.sourceDefaultInfoId || '').trim(),
+                order: Number.isFinite(Number(entry.order)) ? Number(entry.order) : idx
+            });
+        });
+        piece.customInfos = normalized;
+        return normalized;
+    }
+
+    ensurePieceCustomInfos(piece) {
+        return this.normalizePieceCustomInfos(piece);
+    }
+
+    normalizeCustomInfoOptionSets(ui = this.data?.ui) {
+        if (!ui || typeof ui !== 'object') return;
+        const raw = Array.isArray(ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
+        const normalized = [];
+        const seen = new Set();
+        raw.forEach((entry, idx) => {
+            if (!entry || typeof entry !== 'object') return;
+            const label = String(entry.label || entry.displayLabel || '').trim();
+            if (!label) return;
+            const labelKey = this.normalizeCustomInfoKey(label);
+            if (!labelKey || seen.has(labelKey)) return;
+            seen.add(labelKey);
+            const options = (Array.isArray(entry.options) ? entry.options : [])
+                .map((item) => String(item || '').trim())
+                .filter(Boolean);
+            normalized.push({
+                id: String(entry.id || this.createCustomInfoId('ci-set')),
+                label,
+                labelKey,
+                options: Array.from(new Set(options)),
+                symbol: String(entry.symbol || '✓')
+            });
+        });
+        ui.customInfoOptionSets = normalized;
+    }
+
+    getCustomInfoOptionSetByLabel(label, ui = this.data?.ui) {
+        const labelKey = this.normalizeCustomInfoKey(label);
+        if (!labelKey) return null;
+        this.normalizeCustomInfoOptionSets(ui);
+        const source = Array.isArray(ui && ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
+        return source.find((entry) => entry && entry.labelKey === labelKey) || null;
+    }
+
+    getCustomInfoValueDisplay(entry) {
+        if (!entry || !Array.isArray(entry.values)) return '';
+        return entry.values.join(' | ');
+    }
+
+    hasDuplicateCustomInfoLabel(piece, label, exceptId = '') {
+        const labelKey = this.normalizeCustomInfoKey(label);
+        if (!labelKey) return false;
+        const except = String(exceptId || '').trim();
+        return this.ensurePieceCustomInfos(piece).some((entry) => {
+            if (!entry) return false;
+            if (except && String(entry.id || '') === except) return false;
+            return entry.labelKey === labelKey;
+        });
+    }
+
+    addCustomInfoToPiece(piece, payload = {}) {
+        if (!piece || typeof piece !== 'object') return null;
+        const infos = this.ensurePieceCustomInfos(piece);
+        const existingKeys = new Set(infos.map((entry) => entry.labelKey).filter(Boolean));
+        let label = String(payload.label || '').trim();
+        if (!label) {
+            let index = infos.length + 1;
+            while (!label) {
+                const candidate = `Information ${index}`;
+                const candidateKey = this.normalizeCustomInfoKey(candidate);
+                if (!existingKeys.has(candidateKey)) label = candidate;
+                index += 1;
+            }
+        }
+
+        const labelKey = this.normalizeCustomInfoKey(label);
+        if (!labelKey || existingKeys.has(labelKey)) return null;
+        const valueType = String(payload.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+        const valuesRaw = Array.isArray(payload.values)
+            ? payload.values
+            : (payload.value != null ? [payload.value] : []);
+        const values = valuesRaw
+            .map((item) => this.normalizeCustomInfoValue(item).trim())
+            .filter(Boolean);
+
+        const entry = {
+            id: String(payload.id || this.createCustomInfoId('ci-row')),
+            label,
+            labelKey,
+            values,
+            valueType,
+            optionSetId: String(payload.optionSetId || '').trim(),
+            inheritMode: String(payload.inheritMode || '').trim() === 'local' ? 'local' : 'synced',
+            sourceDefaultInfoId: String(payload.sourceDefaultInfoId || '').trim(),
+            order: infos.length
+        };
+        infos.push(entry);
+        piece.customInfos = infos;
+        return entry;
+    }
+
+    updateCustomInfoOnPiece(piece, customInfoId, updates = {}, { markAsLocal = false } = {}) {
+        if (!piece || typeof piece !== 'object') return null;
+        const infos = this.ensurePieceCustomInfos(piece);
+        const id = String(customInfoId || '').trim();
+        if (!id) return null;
+        const target = infos.find((entry) => String(entry.id || '') === id);
+        if (!target) return null;
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'label')) {
+            const nextLabel = String(updates.label || '').trim();
+            if (!nextLabel) return null;
+            if (this.hasDuplicateCustomInfoLabel(piece, nextLabel, id)) return null;
+            target.label = nextLabel;
+            target.labelKey = this.normalizeCustomInfoKey(nextLabel);
+            const linkedSet = this.getCustomInfoOptionSetByLabel(nextLabel);
+            if (linkedSet) {
+                target.optionSetId = linkedSet.id;
+                if (target.valueType === 'select') {
+                    const allowed = new Set((linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+                    target.values = target.values.filter((item) => allowed.has(item));
+                }
+            }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'valueType')) {
+            target.valueType = String(updates.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'value')) {
+            const normalized = this.normalizeCustomInfoValue(updates.value).trim();
+            target.values = normalized ? [normalized] : [];
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'optionSetId')) {
+            target.optionSetId = String(updates.optionSetId || '').trim();
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'inheritMode')) {
+            target.inheritMode = String(updates.inheritMode || '').trim() === 'local' ? 'local' : 'synced';
+        } else if (markAsLocal) {
+            target.inheritMode = 'local';
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'sourceDefaultInfoId')) {
+            target.sourceDefaultInfoId = String(updates.sourceDefaultInfoId || '').trim();
+        }
+
+        return target;
+    }
+
+    deleteCustomInfoFromPiece(piece, customInfoId) {
+        if (!piece || typeof piece !== 'object') return false;
+        const infos = this.ensurePieceCustomInfos(piece);
+        const id = String(customInfoId || '').trim();
+        if (!id) return false;
+        const next = infos.filter((entry) => String(entry && entry.id || '') !== id)
+            .map((entry, idx) => ({ ...entry, order: idx }));
+        if (next.length === infos.length) return false;
+        piece.customInfos = next;
+        return true;
+    }
+
+    syncDetailedCustomInfosFromDefault(lot, defaultPiece) {
+        if (!lot || !defaultPiece || !defaultPiece.id || !Array.isArray(lot.pieces)) return;
+        const sourceInfos = this.ensurePieceCustomInfos(defaultPiece).map((entry, idx) => ({ ...entry, order: idx }));
+
+        lot.pieces.forEach((piece) => {
+            if (!piece || piece.sourceDefaultPieceId !== defaultPiece.id) return;
+            const existing = this.ensurePieceCustomInfos(piece);
+            const existingBySourceId = new Map();
+            existing.forEach((entry) => {
+                if (!entry || !entry.sourceDefaultInfoId) return;
+                existingBySourceId.set(entry.sourceDefaultInfoId, entry);
+            });
+
+            const keptIndependentLocal = existing.filter((entry) => {
+                if (!entry) return false;
+                return !entry.sourceDefaultInfoId;
+            });
+
+            const synced = sourceInfos.map((sourceEntry, idx) => {
+                const linked = existingBySourceId.get(sourceEntry.id);
+                if (linked && linked.inheritMode === 'local') {
+                    return {
+                        ...linked,
+                        sourceDefaultInfoId: sourceEntry.id,
+                        order: idx
+                    };
+                }
+                return {
+                    id: linked && linked.id ? linked.id : this.createCustomInfoId('ci-row'),
+                    label: sourceEntry.label,
+                    labelKey: sourceEntry.labelKey,
+                    values: Array.isArray(sourceEntry.values) ? [...sourceEntry.values] : [],
+                    valueType: sourceEntry.valueType === 'select' ? 'select' : 'text',
+                    optionSetId: sourceEntry.optionSetId || '',
+                    inheritMode: 'synced',
+                    sourceDefaultInfoId: sourceEntry.id,
+                    order: idx
+                };
+            });
+
+            piece.customInfos = synced
+                .concat(keptIndependentLocal)
+                .map((entry, idx) => ({ ...entry, order: idx }));
+        });
+    }
+
+    renderPieceCustomInfoPanelHTML(piece, { isDefault = false, defaultPieceId = '', pieceIndex = null } = {}) {
+        const infos = this.ensurePieceCustomInfos(piece);
+        const contextTokenRaw = isDefault ? `default-${defaultPieceId}` : `piece-${pieceIndex}`;
+        const contextToken = String(contextTokenRaw || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+        const attrValue = (value) => String(value == null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/\"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        const rowsHtml = infos.map((entry) => {
+            const optionSet = entry.valueType === 'select' ? this.getCustomInfoOptionSetByLabel(entry.label) : null;
+            const listId = optionSet ? `custom-info-options-${contextToken}-${String(entry.id || '').replace(/[^a-zA-Z0-9_-]+/g, '-')}` : '';
+            const optionsHtml = optionSet
+                ? `<datalist id="${attrValue(listId)}">${(optionSet.options || []).map((opt) => `<option value="${attrValue(opt)}"></option>`).join('')}</datalist>`
+                : '';
+            const valueDisplay = this.getCustomInfoValueDisplay(entry);
+            const modeLabel = entry.valueType === 'select' ? 'Liste' : 'Texte';
+            const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
+                ? '<span class="piece-custom-info-badge">hérité</span>'
+                : '';
+
+            return `
+                <div class="piece-custom-info-row" data-custom-info-row data-custom-info-id="${attrValue(entry.id)}">
+                    <div class="piece-custom-info-main">
+                        <div class="piece-custom-info-label-wrap">
+                            <input type="text" class="lot-input" value="${attrValue(entry.label)}" placeholder="Libellé" data-custom-info-label>
+                            ${inheritedBadge}
+                        </div>
+                        <input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value${listId ? ` list="${attrValue(listId)}"` : ''}>
+                        ${optionsHtml}
+                    </div>
+                    <div class="piece-custom-info-actions">
+                        <button type="button" class="lot-price-unit-btn" data-custom-info-toggle-mode aria-label="Basculer le type de valeur">${modeLabel}</button>
+                        <button type="button" class="piece-delete-btn" data-custom-info-delete aria-label="Supprimer l'information">✕</button>
+                    </div>
+                </div>`;
+        }).join('');
+
+        return `
+            <div class="lot-group piece-custom-info-group" data-custom-info-group>
+                <p class="lot-group-title">Informations personnalisées</p>
+                <div class="piece-custom-info-list" data-custom-info-list>
+                    ${rowsHtml || '<p class="piece-custom-info-empty">Aucune information personnalisée.</p>'}
+                </div>
+                <button type="button" class="piece-duplicate-btn piece-custom-info-add" data-custom-info-add>Ajouter une information</button>
+            </div>`;
+    }
+
+    bindPieceCustomInfoPanel(cardRoot, piece, lot, {
+        isDefault = false,
+        defaultPieceId = '',
+        pieceIndex = null
+    } = {}) {
+        if (!cardRoot || !piece || !lot) return;
+        const cardKey = isDefault ? `default:${defaultPieceId}` : `piece:${pieceIndex}`;
+        const group = cardRoot.querySelector('[data-custom-info-group]');
+        if (!group) return;
+
+        const persistSilent = () => {
+            this.saveData();
+            if (typeof this.invalidateBarcodeComposerCaches === 'function') this.invalidateBarcodeComposerCaches();
+            if (typeof this.refreshBarcodeComposerAvailability === 'function') this.refreshBarcodeComposerAvailability();
+        };
+
+        const persistAndRerender = () => {
+            persistSilent();
+            this.renderDetailLot();
+        };
+
+        const syncIfDefault = () => {
+            if (!isDefault) return;
+            this.syncDetailedCustomInfosFromDefault(lot, piece);
+        };
+
+        const addBtn = group.querySelector('[data-custom-info-add]');
+        if (addBtn) {
+            addBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                const created = this.addCustomInfoToPiece(piece, { inheritMode: 'local' });
+                if (!created) return;
+                syncIfDefault();
+                persistAndRerender();
+            });
+        }
+
+        group.querySelectorAll('[data-custom-info-row]').forEach((row) => {
+            const customInfoId = (row.getAttribute('data-custom-info-id') || '').trim();
+            if (!customInfoId) return;
+
+            const labelInput = row.querySelector('[data-custom-info-label]');
+            if (labelInput) {
+                labelInput.addEventListener('click', (e) => e.stopPropagation());
+                labelInput.addEventListener('focus', () => {
+                    labelInput.dataset.previousValue = labelInput.value;
+                });
+                const commitLabel = () => {
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const previous = labelInput.dataset.previousValue || '';
+                    const next = (labelInput.value || '').trim();
+                    if (!next) {
+                        labelInput.value = previous;
+                        return;
+                    }
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { label: next }, { markAsLocal: !isDefault });
+                    if (!updated) {
+                        labelInput.value = previous;
+                        window.alert('Ce libellé existe déjà pour cette pièce.');
+                        return;
+                    }
+                    labelInput.dataset.previousValue = updated.label;
+                    syncIfDefault();
+                    persistAndRerender();
+                };
+                labelInput.addEventListener('change', commitLabel);
+                labelInput.addEventListener('blur', commitLabel);
+            }
+
+            const valueInput = row.querySelector('[data-custom-info-value]');
+            if (valueInput) {
+                const updateValue = (event) => {
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { value: valueInput.value }, { markAsLocal: !isDefault });
+                    if (!updated) return;
+                    syncIfDefault();
+                    if (event.type === 'input') {
+                        persistSilent();
+                    } else {
+                        persistAndRerender();
+                    }
+                };
+                valueInput.addEventListener('click', (e) => e.stopPropagation());
+                valueInput.addEventListener('input', updateValue);
+                valueInput.addEventListener('change', updateValue);
+                valueInput.addEventListener('blur', updateValue);
+            }
+
+            const modeBtn = row.querySelector('[data-custom-info-toggle-mode]');
+            if (modeBtn) {
+                modeBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const current = this.ensurePieceCustomInfos(piece).find((entry) => String(entry.id || '') === customInfoId);
+                    if (!current) return;
+                    const nextMode = current.valueType === 'select' ? 'text' : 'select';
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { valueType: nextMode }, { markAsLocal: !isDefault });
+                    if (!updated) return;
+                    syncIfDefault();
+                    persistAndRerender();
+                });
+            }
+
+            const deleteBtn = row.querySelector('[data-custom-info-delete]');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const deleted = this.deleteCustomInfoFromPiece(piece, customInfoId);
+                    if (!deleted) return;
+                    syncIfDefault();
+                    persistAndRerender();
+                });
+            }
+        });
     }
 
     getPricePresetBaseDefinitions() {
@@ -5209,6 +5662,7 @@ class ValoboisApp {
         data.notationModeOrientationThresholds = this.normalizeNotationModeOrientationThresholds(data.notationModeOrientationThresholds);
         this.normalizePriceCategoryPresets(data.ui);
         this.normalizeLocSitCustomSituationRows(data.ui);
+        this.normalizeCustomInfoOptionSets(data.ui);
         data.lots = data.lots.filter((lot) => lot && typeof lot === 'object');
         if (!data.lots.length) {
             data.lots = [this.createEmptyLot(0)];
@@ -24873,6 +25327,7 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
+                ${this.renderPieceCustomInfoPanelHTML(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
             </div>
         </div>`;
     }
@@ -25242,6 +25697,7 @@ closeEvalOpModal() {
                         </button>
                     </div>
                 </div>
+                ${this.renderPieceCustomInfoPanelHTML(piece, { isDefault: false, defaultPieceId: '', pieceIndex })}
             </div>
         </div>
         </div>`;
@@ -26023,7 +26479,6 @@ closeEvalOpModal() {
                 </div>
             </div>
         `;
-
         // Gestion du clic pour activer le lot
         card.addEventListener('click', () => {
             if (this.currentLotIndex !== index) this.setCurrentLotIndex(index);
@@ -27506,6 +27961,12 @@ closeEvalOpModal() {
                 input.addEventListener('change', updateDefaultPieceField);
                 input.addEventListener('blur', updateDefaultPieceField);
             });
+
+            this.bindPieceCustomInfoPanel(defaultPieceCard, this.ensureDefaultPieceData(lot, defaultPieceId), lot, {
+                isDefault: true,
+                defaultPieceId,
+                pieceIndex: null
+            });
         });
 
         // Bouton ajouter pièce
@@ -27922,6 +28383,12 @@ closeEvalOpModal() {
                 input.addEventListener('input', updatePieceField);
                 input.addEventListener('change', updatePieceField);
                 input.addEventListener('blur', updatePieceField);
+            });
+
+            this.bindPieceCustomInfoPanel(pieceCard, piece, lot, {
+                isDefault: false,
+                defaultPieceId: '',
+                pieceIndex: pi
             });
         });
 

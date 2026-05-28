@@ -2914,6 +2914,11 @@ body.day-mode .accueil-collapsible-summary:hover {
     margin-bottom: var(--space-2);
 }
 
+.lot-form-grid > .lot-group:has([data-display="carboneBiogeniqueEstime"]),
+.lot-form-grid > .lot-group:has([data-display="avgAmortissementBiologique"]) {
+    grid-column: 1 / -1;
+}
+
 .lot-field-block--full {
     grid-column: 1 / -1;
     gap: 12px;
@@ -18803,4 +18808,80 @@ body.day-mode .inspection-ignore-box {
         min-height: 42px;
     }
 }
+
+    .piece-custom-info-group {
+        margin-top: 6px;
+    }
+
+    .piece-custom-info-list {
+        display: grid;
+        gap: 8px;
+    }
+
+    .piece-custom-info-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #d7dee6;
+        border-radius: 8px;
+        background: #f8fafc;
+    }
+
+    .piece-custom-info-main {
+        display: grid;
+        grid-template-columns: minmax(150px, 0.9fr) minmax(0, 1.1fr);
+        gap: 8px;
+        align-items: center;
+    }
+
+    .piece-custom-info-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .piece-custom-info-label-wrap {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .piece-custom-info-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 22px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: #e7f3ff;
+        color: #165e99;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .piece-custom-info-add {
+        margin-top: 8px;
+    }
+
+    .piece-custom-info-empty {
+        margin: 0;
+        color: #6a7685;
+        font-size: 12px;
+    }
+
+    @media (max-width: 900px) {
+        .piece-custom-info-row {
+            grid-template-columns: 1fr;
+        }
+
+        .piece-custom-info-main {
+            grid-template-columns: 1fr;
+        }
+
+        .piece-custom-info-actions {
+            justify-content: flex-end;
+        }
+    }
 
