@@ -18819,9 +18819,7 @@ body.day-mode .inspection-ignore-box {
     }
 
     .piece-custom-info-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 8px;
+        display: block;
         padding: 8px;
         border: 1px solid #d7dee6;
         border-radius: 8px;
@@ -18830,9 +18828,168 @@ body.day-mode .inspection-ignore-box {
 
     .piece-custom-info-main {
         display: grid;
-        grid-template-columns: minmax(150px, 0.9fr) minmax(0, 1.1fr);
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .piece-custom-info-row-actions {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .piece-custom-info-mode-toggle {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 6px;
+        flex: 1 1 auto;
+        min-width: 0;
+    }
+
+    .piece-custom-info-mode-toggle .lot-price-unit-btn {
+        min-height: 28px;
+        padding: 0 8px;
+        width: 100%;
+    }
+
+    .piece-custom-info-set-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 6px;
+    }
+
+    .piece-custom-info-set-action-btn {
+        width: 100%;
+        min-height: 30px;
+    }
+
+    .piece-custom-info-set-current {
+        display: flex;
+        align-items: baseline;
+        gap: 6px;
+        font-size: 12px;
+        color: #5b6672;
+    }
+
+    .piece-custom-info-set-current-label {
+        font-weight: 600;
+        color: #4b5563;
+    }
+
+    .piece-custom-info-set-current-value {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .piece-custom-info-list-modal {
+        max-width: 760px;
+        width: min(760px, 96vw);
+    }
+
+    .piece-custom-info-modal-recent {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0;
+    }
+
+    .piece-custom-info-recent-chip {
+        min-height: 26px;
+        padding: 0 10px;
+        border-radius: 999px;
+        font-size: 12px;
+    }
+
+    .piece-custom-info-modal-choose-grid,
+    .piece-custom-info-modal-create-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
         gap: 8px;
         align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .piece-custom-info-set-editor {
+        display: grid;
+        gap: 8px;
+        margin-top: 8px;
+    }
+
+    .piece-custom-info-set-editor-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .piece-custom-info-set-editor-head-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .piece-custom-info-set-create-grid {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+
+    .piece-custom-info-option-row {
+        padding: 6px;
+    }
+
+    .piece-custom-info-option-grid {
+        grid-template-columns: minmax(0, 1fr) 110px;
+    }
+
+    .piece-custom-info-option-grid--rich {
+        grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, 1fr) 110px;
+    }
+
+    .piece-custom-info-option-head {
+        align-items: center;
+        margin: 2px 0 0;
+        padding: 0 8px;
+        color: #6b7280;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+    }
+
+    .piece-custom-info-option-create-grid {
+        grid-template-columns: minmax(0, 1fr) 110px;
+    }
+
+    .piece-custom-info-option-create-grid--rich {
+        grid-template-columns: minmax(0, 1.4fr) 110px minmax(0, 1fr) 110px;
+    }
+
+    @media (max-width: 640px) {
+        .piece-custom-info-set-actions,
+        .piece-custom-info-modal-choose-grid,
+        .piece-custom-info-modal-create-grid,
+        .piece-custom-info-set-editor-head,
+        .piece-custom-info-option-grid,
+        .piece-custom-info-option-create-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .piece-custom-info-modal-recent {
+            gap: 4px;
+        }
+    }
+
+    .piece-custom-info-inline-actions {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        flex-shrink: 0;
+    }
+
+    .piece-custom-info-topline {
+        display: block;
     }
 
     .piece-custom-info-actions {
@@ -18842,9 +18999,39 @@ body.day-mode .inspection-ignore-box {
     }
 
     .piece-custom-info-label-wrap {
-        display: inline-flex;
+        display: flex;
         align-items: center;
         gap: 6px;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .piece-custom-info-label-wrap .lot-input {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+    }
+
+    .piece-custom-info-action-btn {
+        width: 28px;
+        min-width: 28px;
+        height: 28px;
+        min-height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        line-height: 1;
+    }
+
+    .piece-custom-info-action-btn svg {
+        width: 12px;
+        height: 12px;
+        display: block;
+    }
+
+    .piece-custom-info-delete-btn {
+        padding: 0;
     }
 
     .piece-custom-info-badge {
@@ -18865,23 +19052,27 @@ body.day-mode .inspection-ignore-box {
         margin-top: 8px;
     }
 
+    .piece-custom-info-footer-actions {
+        margin-top: 0;
+        margin-bottom: 8px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        width: 100%;
+    }
+
+    .piece-custom-info-footer-actions .piece-custom-info-add {
+        margin-top: 0;
+        width: 100%;
+    }
+
+    .piece-custom-info-help-btn {
+        width: 100%;
+    }
+
     .piece-custom-info-empty {
         margin: 0;
         color: #6a7685;
         font-size: 12px;
-    }
-
-    @media (max-width: 900px) {
-        .piece-custom-info-row {
-            grid-template-columns: 1fr;
-        }
-
-        .piece-custom-info-main {
-            grid-template-columns: 1fr;
-        }
-
-        .piece-custom-info-actions {
-            justify-content: flex-end;
-        }
     }
 

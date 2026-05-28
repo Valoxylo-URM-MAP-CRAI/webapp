@@ -671,6 +671,8 @@ class ValoboisApp {
         this._analysisLotSelectorOpenSectionKey = null;
         /** Mémorise l'état ouvert/fermé des accordéons mesures multiples entre re-renders. Clé : "default:<id>" ou "piece:<index>". */
         this._accordionOpenStates = new Map();
+        /** Mémorise l'état ouvert/fermé de l'accordéon informations personnalisées (scopé lot + carte). */
+        this._customInfoAccordionOpenStates = new Map();
         // Carte pièce active par lot dans le panneau détail : état UI uniquement (hors `data`, non synchronisé nuage).
         this._detailLotActiveCardByLot = {};
         this._geoFranceHandlersBound = false;
@@ -2751,7 +2753,8 @@ class ValoboisApp {
             label: entry.label,
             labelKey: entry.labelKey,
             values: Array.isArray(entry.values) ? [...entry.values] : [],
-            valueType: entry.valueType === 'select' ? 'select' : 'text',
+            valueMode: this.normalizeCustomInfoMode(entry.valueMode, entry.valueType),
+            valueType: this.normalizeCustomInfoMode(entry.valueMode, entry.valueType) === 'free' ? 'text' : 'select',
             optionSetId: entry.optionSetId || '',
             inheritMode: 'synced',
             sourceDefaultInfoId: entry.id,
@@ -2848,7 +2851,8 @@ class ValoboisApp {
                 label: entry.label,
                 labelKey: entry.labelKey,
                 values: Array.isArray(entry.values) ? [...entry.values] : [],
-                valueType: entry.valueType === 'select' ? 'select' : 'text',
+                valueMode: this.normalizeCustomInfoMode(entry.valueMode, entry.valueType),
+                valueType: this.normalizeCustomInfoMode(entry.valueMode, entry.valueType) === 'free' ? 'text' : 'select',
                 optionSetId: entry.optionSetId || '',
                 inheritMode: 'local',
                 sourceDefaultInfoId: '',
@@ -4191,6 +4195,13 @@ class ValoboisApp {
         return String(value);
     }
 
+    normalizeCustomInfoMode(modeRaw, legacyValueType = 'text') {
+        const mode = String(modeRaw || '').trim().toLowerCase();
+        if (mode === 'free' || mode === 'list' || mode === 'hybrid') return mode;
+        const legacy = String(legacyValueType || '').trim().toLowerCase();
+        return legacy === 'select' ? 'list' : 'free';
+    }
+
     normalizePieceCustomInfos(piece) {
         if (!piece || typeof piece !== 'object') return [];
         const raw = Array.isArray(piece.customInfos) ? piece.customInfos : [];
@@ -4203,7 +4214,8 @@ class ValoboisApp {
             const labelKey = this.normalizeCustomInfoKey(label);
             if (!labelKey || seenKeys.has(labelKey)) return;
             seenKeys.add(labelKey);
-            const valueType = String(entry.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+            const valueMode = this.normalizeCustomInfoMode(entry.valueMode, entry.valueType);
+            const valueType = valueMode === 'free' ? 'text' : 'select';
             const valuesRaw = Array.isArray(entry.values)
                 ? entry.values
                 : (entry.value != null ? [entry.value] : []);
@@ -4215,6 +4227,7 @@ class ValoboisApp {
                 label,
                 labelKey,
                 values,
+                valueMode,
                 valueType,
                 optionSetId: String(entry.optionSetId || '').trim(),
                 inheritMode: String(entry.inheritMode || '').trim() === 'local' ? 'local' : 'synced',
@@ -4242,18 +4255,26 @@ class ValoboisApp {
             const labelKey = this.normalizeCustomInfoKey(label);
             if (!labelKey || seen.has(labelKey)) return;
             seen.add(labelKey);
-            const options = (Array.isArray(entry.options) ? entry.options : [])
-                .map((item) => String(item || '').trim())
-                .filter(Boolean);
+            const items = this.normalizeCustomInfoOptionItems(entry.items, entry.options);
+            const options = this.normalizeCustomInfoOptionsList(items.map((item) => item.value));
             normalized.push({
                 id: String(entry.id || this.createCustomInfoId('ci-set')),
                 label,
                 labelKey,
-                options: Array.from(new Set(options)),
+                options,
+                items,
                 symbol: String(entry.symbol || '✓')
             });
         });
         ui.customInfoOptionSets = normalized;
+    }
+
+    getCustomInfoOptionSetById(id, ui = this.data?.ui) {
+        const targetId = String(id || '').trim();
+        if (!targetId) return null;
+        this.normalizeCustomInfoOptionSets(ui);
+        const source = Array.isArray(ui && ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
+        return source.find((entry) => entry && String(entry.id || '').trim() === targetId) || null;
     }
 
     getCustomInfoOptionSetByLabel(label, ui = this.data?.ui) {
@@ -4262,6 +4283,200 @@ class ValoboisApp {
         this.normalizeCustomInfoOptionSets(ui);
         const source = Array.isArray(ui && ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
         return source.find((entry) => entry && entry.labelKey === labelKey) || null;
+    }
+
+    getCustomInfoOptionSetForEntry(entry, ui = this.data?.ui) {
+        if (!entry || typeof entry !== 'object') return null;
+        const byId = this.getCustomInfoOptionSetById(entry.optionSetId, ui);
+        if (byId) return byId;
+        return this.getCustomInfoOptionSetByLabel(entry.label, ui);
+    }
+
+    normalizeCustomInfoOptionsList(optionsRaw) {
+        return Array.from(new Set((Array.isArray(optionsRaw) ? optionsRaw : [])
+            .map((item) => String(item || '').trim())
+            .filter(Boolean)));
+    }
+
+    normalizeCustomInfoOptionItems(itemsRaw, fallbackOptionsRaw = []) {
+        const source = Array.isArray(itemsRaw) && itemsRaw.length > 0
+            ? itemsRaw
+            : (Array.isArray(fallbackOptionsRaw) ? fallbackOptionsRaw : []);
+        const normalized = [];
+        source.forEach((entry) => {
+            if (entry == null) return;
+            let value = '';
+            let unit = '';
+            let note = '';
+            if (typeof entry === 'object') {
+                value = String(entry.value ?? entry.label ?? entry.option ?? '').trim();
+                unit = String(entry.unit ?? '').trim();
+                note = String(entry.note ?? entry.meta ?? entry.details ?? '').trim();
+            } else {
+                value = String(entry || '').trim();
+            }
+            if (!value) return;
+            normalized.push({ value, unit, note });
+        });
+        return normalized;
+    }
+
+    parseCustomInfoOptionsText(textRaw) {
+        const text = String(textRaw || '');
+        const chunks = text
+            .split(/\n|\r|,|;|\|/g)
+            .map((item) => item.trim())
+            .filter(Boolean);
+        return this.normalizeCustomInfoOptionsList(chunks);
+    }
+
+    upsertCustomInfoOptionSet(payload = {}, ui = this.data?.ui) {
+        if (!ui || typeof ui !== 'object') return null;
+        this.normalizeCustomInfoOptionSets(ui);
+        const source = Array.isArray(ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
+        const label = String(payload.label || '').trim();
+        const labelKey = this.normalizeCustomInfoKey(label);
+        if (!labelKey) return null;
+        const items = this.normalizeCustomInfoOptionItems(payload.items, payload.options);
+        const options = this.normalizeCustomInfoOptionsList(items.map((item) => item.value));
+        const targetId = String(payload.id || '').trim();
+
+        let existing = null;
+        if (targetId) {
+            existing = source.find((entry) => entry && String(entry.id || '').trim() === targetId) || null;
+        }
+        if (!existing) {
+            existing = source.find((entry) => entry && entry.labelKey === labelKey) || null;
+        }
+
+        if (existing) {
+            existing.label = label;
+            existing.labelKey = labelKey;
+            existing.options = options;
+            existing.items = items;
+            return existing;
+        }
+
+        const created = {
+            id: targetId || this.createCustomInfoId('ci-set'),
+            label,
+            labelKey,
+            options,
+            items,
+            symbol: '✓'
+        };
+        source.push(created);
+        ui.customInfoOptionSets = source;
+        return created;
+    }
+
+    createUniqueCustomInfoOptionSetLabel(baseLabelRaw, ui = this.data?.ui) {
+        this.normalizeCustomInfoOptionSets(ui);
+        const source = Array.isArray(ui && ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
+        const baseLabel = String(baseLabelRaw || 'Liste').trim() || 'Liste';
+        const normalize = (value) => this.normalizeCustomInfoKey(value);
+        const usedKeys = new Set(source.map((entry) => normalize(entry && entry.label)).filter(Boolean));
+        let index = 0;
+        while (index < 5000) {
+            const candidate = index === 0 ? `${baseLabel} (copie)` : `${baseLabel} (copie ${index + 1})`;
+            const key = normalize(candidate);
+            if (key && !usedKeys.has(key)) return candidate;
+            index += 1;
+        }
+        return `${baseLabel} (copie ${Date.now()})`;
+    }
+
+    openCustomInfoDuplicateModeModal({ onConfirm = null } = {}) {
+        let backdrop = document.getElementById('customInfoDuplicateModeModalBackdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'customInfoDuplicateModeModalBackdrop';
+            backdrop.className = 'modal-backdrop hidden';
+            backdrop.setAttribute('aria-hidden', 'true');
+            backdrop.innerHTML = `
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="customInfoDuplicateModeModalTitle">
+                    <div class="modal-header">
+                        <h2 id="customInfoDuplicateModeModalTitle">Dupliquer l'information</h2>
+                        <button type="button" class="modal-close" id="btnCloseCustomInfoDuplicateModeModal" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="modal-body" id="customInfoDuplicateModeModalBody"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" id="btnCancelCustomInfoDuplicateModeModal">Annuler</button>
+                        <button type="button" class="btn btn-primary" id="btnConfirmCustomInfoDuplicateModeModal">Dupliquer</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(backdrop);
+        }
+
+        const bodyEl = backdrop.querySelector('#customInfoDuplicateModeModalBody');
+        const closeBtn = backdrop.querySelector('#btnCloseCustomInfoDuplicateModeModal');
+        const cancelBtn = backdrop.querySelector('#btnCancelCustomInfoDuplicateModeModal');
+        const confirmBtn = backdrop.querySelector('#btnConfirmCustomInfoDuplicateModeModal');
+        if (!bodyEl || !confirmBtn) return;
+
+        const closeModal = () => {
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+            bodyEl.innerHTML = '';
+        };
+
+        bodyEl.innerHTML = `
+            <p class="valobois-matrix-duplicate-modal__intro">Choisissez le comportement de la liste associée à la copie.</p>
+            <div class="valobois-matrix-duplicate-options">
+                <label class="valobois-matrix-duplicate-option is-selected" data-custom-info-dup-mode-option>
+                    <input type="radio" name="customInfoDupMode" value="shared" checked>
+                    <span class="valobois-matrix-duplicate-option__body">
+                        <span class="valobois-matrix-duplicate-option__label">Réutiliser la même liste</span>
+                        <span class="valobois-matrix-duplicate-option__meta">La copie reste liée à la liste existante.</span>
+                    </span>
+                </label>
+                <label class="valobois-matrix-duplicate-option" data-custom-info-dup-mode-option>
+                    <input type="radio" name="customInfoDupMode" value="detached">
+                    <span class="valobois-matrix-duplicate-option__body">
+                        <span class="valobois-matrix-duplicate-option__label">Dupliquer la liste</span>
+                        <span class="valobois-matrix-duplicate-option__meta">La copie utilise une nouvelle liste indépendante.</span>
+                    </span>
+                </label>
+                <label class="valobois-matrix-duplicate-option" data-custom-info-dup-mode-option>
+                    <input type="radio" name="customInfoDupMode" value="none">
+                    <span class="valobois-matrix-duplicate-option__body">
+                        <span class="valobois-matrix-duplicate-option__label">Sans liste</span>
+                        <span class="valobois-matrix-duplicate-option__meta">La copie passe en mode Libre sans liaison.</span>
+                    </span>
+                </label>
+            </div>`;
+
+        bodyEl.querySelectorAll('[data-custom-info-dup-mode-option]').forEach((labelEl) => {
+            const input = labelEl.querySelector('input[type="radio"]');
+            labelEl.addEventListener('click', () => {
+                if (input) input.checked = true;
+                bodyEl.querySelectorAll('[data-custom-info-dup-mode-option]').forEach((item) => item.classList.remove('is-selected'));
+                labelEl.classList.add('is-selected');
+            });
+            if (input) {
+                input.addEventListener('change', () => {
+                    bodyEl.querySelectorAll('[data-custom-info-dup-mode-option]').forEach((item) => item.classList.remove('is-selected'));
+                    labelEl.classList.add('is-selected');
+                });
+            }
+        });
+
+        const confirmSelection = () => {
+            const checked = bodyEl.querySelector('input[name="customInfoDupMode"]:checked');
+            const mode = String(checked && checked.value || 'shared').trim();
+            if (typeof onConfirm === 'function') onConfirm(mode);
+            closeModal();
+        };
+
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (cancelBtn) cancelBtn.onclick = closeModal;
+        confirmBtn.onclick = confirmSelection;
+        backdrop.onclick = (event) => {
+            if (event.target === backdrop) closeModal();
+        };
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
     }
 
     getCustomInfoValueDisplay(entry) {
@@ -4273,10 +4488,12 @@ class ValoboisApp {
         const labelKey = this.normalizeCustomInfoKey(label);
         if (!labelKey) return false;
         const except = String(exceptId || '').trim();
-        return this.ensurePieceCustomInfos(piece).some((entry) => {
+        const source = Array.isArray(piece && piece.customInfos) ? piece.customInfos : [];
+        return source.some((entry) => {
             if (!entry) return false;
             if (except && String(entry.id || '') === except) return false;
-            return entry.labelKey === labelKey;
+            const entryKey = entry.labelKey || this.normalizeCustomInfoKey(entry.label);
+            return entryKey === labelKey;
         });
     }
 
@@ -4297,7 +4514,8 @@ class ValoboisApp {
 
         const labelKey = this.normalizeCustomInfoKey(label);
         if (!labelKey || existingKeys.has(labelKey)) return null;
-        const valueType = String(payload.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+        const valueMode = this.normalizeCustomInfoMode(payload.valueMode, payload.valueType);
+        const valueType = valueMode === 'free' ? 'text' : 'select';
         const valuesRaw = Array.isArray(payload.values)
             ? payload.values
             : (payload.value != null ? [payload.value] : []);
@@ -4310,6 +4528,7 @@ class ValoboisApp {
             label,
             labelKey,
             values,
+            valueMode,
             valueType,
             optionSetId: String(payload.optionSetId || '').trim(),
             inheritMode: String(payload.inheritMode || '').trim() === 'local' ? 'local' : 'synced',
@@ -4335,18 +4554,36 @@ class ValoboisApp {
             if (this.hasDuplicateCustomInfoLabel(piece, nextLabel, id)) return null;
             target.label = nextLabel;
             target.labelKey = this.normalizeCustomInfoKey(nextLabel);
-            const linkedSet = this.getCustomInfoOptionSetByLabel(nextLabel);
-            if (linkedSet) {
-                target.optionSetId = linkedSet.id;
-                if (target.valueType === 'select') {
-                    const allowed = new Set((linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+            if (!String(target.optionSetId || '').trim()) {
+                const linkedSet = this.getCustomInfoOptionSetByLabel(nextLabel);
+                if (linkedSet) {
+                    target.optionSetId = linkedSet.id;
+                }
+            }
+            if (target.valueMode === 'list') {
+                const activeSet = this.getCustomInfoOptionSetForEntry(target);
+                const allowed = new Set((activeSet && activeSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+                if (allowed.size > 0) {
+                    target.values = target.values.filter((item) => allowed.has(item));
+                }
+            }
+        }
+
+        if (Object.prototype.hasOwnProperty.call(updates, 'valueMode')) {
+            target.valueMode = this.normalizeCustomInfoMode(updates.valueMode, target.valueType);
+            target.valueType = target.valueMode === 'free' ? 'text' : 'select';
+            if (target.valueMode === 'list') {
+                const linkedSet = this.getCustomInfoOptionSetByLabel(target.label);
+                const allowed = new Set((linkedSet && linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+                if (allowed.size > 0) {
                     target.values = target.values.filter((item) => allowed.has(item));
                 }
             }
         }
 
         if (Object.prototype.hasOwnProperty.call(updates, 'valueType')) {
-            target.valueType = String(updates.valueType || '').trim().toLowerCase() === 'select' ? 'select' : 'text';
+            target.valueMode = this.normalizeCustomInfoMode(updates.valueMode, updates.valueType);
+            target.valueType = target.valueMode === 'free' ? 'text' : 'select';
         }
 
         if (Object.prototype.hasOwnProperty.call(updates, 'value')) {
@@ -4356,6 +4593,13 @@ class ValoboisApp {
 
         if (Object.prototype.hasOwnProperty.call(updates, 'optionSetId')) {
             target.optionSetId = String(updates.optionSetId || '').trim();
+            if (target.valueMode === 'list') {
+                const activeSet = this.getCustomInfoOptionSetForEntry(target);
+                const allowed = new Set((activeSet && activeSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+                if (allowed.size > 0) {
+                    target.values = target.values.filter((item) => allowed.has(item));
+                }
+            }
         }
 
         if (Object.prototype.hasOwnProperty.call(updates, 'inheritMode')) {
@@ -4381,6 +4625,49 @@ class ValoboisApp {
         if (next.length === infos.length) return false;
         piece.customInfos = next;
         return true;
+    }
+
+    duplicateCustomInfoOnPiece(piece, customInfoId, { markAsLocal = false } = {}) {
+        if (!piece || typeof piece !== 'object') return null;
+        const infos = this.ensurePieceCustomInfos(piece);
+        const id = String(customInfoId || '').trim();
+        if (!id) return null;
+        const source = infos.find((entry) => String(entry && entry.id || '') === id);
+        if (!source) return null;
+
+        const existingKeys = new Set(infos.map((entry) => entry && entry.labelKey).filter(Boolean));
+        const baseLabel = String(source.label || 'Information').trim() || 'Information';
+        const buildCandidate = (idx) => idx === 0 ? `${baseLabel} (copie)` : `${baseLabel} (copie ${idx + 1})`;
+        let candidateIndex = 0;
+        let nextLabel = '';
+        while (!nextLabel) {
+            const candidate = buildCandidate(candidateIndex);
+            const candidateKey = this.normalizeCustomInfoKey(candidate);
+            if (candidateKey && !existingKeys.has(candidateKey)) {
+                nextLabel = candidate;
+            }
+            candidateIndex += 1;
+        }
+
+        const duplicated = {
+            id: this.createCustomInfoId('ci-row'),
+            label: nextLabel,
+            labelKey: this.normalizeCustomInfoKey(nextLabel),
+            values: Array.isArray(source.values) ? [...source.values] : [],
+            valueMode: this.normalizeCustomInfoMode(source.valueMode, source.valueType),
+            valueType: this.normalizeCustomInfoMode(source.valueMode, source.valueType) === 'free' ? 'text' : 'select',
+            optionSetId: String(source.optionSetId || '').trim(),
+            inheritMode: markAsLocal ? 'local' : (String(source.inheritMode || '').trim() === 'local' ? 'local' : 'synced'),
+            sourceDefaultInfoId: markAsLocal ? '' : String(source.sourceDefaultInfoId || '').trim(),
+            order: 0
+        };
+
+        const insertIndex = infos.findIndex((entry) => String(entry && entry.id || '') === id);
+        if (insertIndex < 0) return null;
+        const next = infos.slice();
+        next.splice(insertIndex + 1, 0, duplicated);
+        piece.customInfos = next.map((entry, idx) => ({ ...entry, order: idx }));
+        return duplicated;
     }
 
     syncDetailedCustomInfosFromDefault(lot, defaultPiece) {
@@ -4415,7 +4702,8 @@ class ValoboisApp {
                     label: sourceEntry.label,
                     labelKey: sourceEntry.labelKey,
                     values: Array.isArray(sourceEntry.values) ? [...sourceEntry.values] : [],
-                    valueType: sourceEntry.valueType === 'select' ? 'select' : 'text',
+                    valueMode: this.normalizeCustomInfoMode(sourceEntry.valueMode, sourceEntry.valueType),
+                    valueType: this.normalizeCustomInfoMode(sourceEntry.valueMode, sourceEntry.valueType) === 'free' ? 'text' : 'select',
                     optionSetId: sourceEntry.optionSetId || '',
                     inheritMode: 'synced',
                     sourceDefaultInfoId: sourceEntry.id,
@@ -4429,24 +4717,455 @@ class ValoboisApp {
         });
     }
 
-    renderPieceCustomInfoPanelHTML(piece, { isDefault = false, defaultPieceId = '', pieceIndex = null } = {}) {
+    openCustomInfoOptionSetModal({
+        piece,
+        customInfoId,
+        isDefault = false,
+        initialPanel = 'choose',
+        onDataChange = null,
+        onClose = null
+    } = {}) {
+        if (!piece || !customInfoId) return;
+
+        let backdrop = document.getElementById('customInfoSetModalBackdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'customInfoSetModalBackdrop';
+            backdrop.className = 'modal-backdrop hidden';
+            backdrop.setAttribute('aria-hidden', 'true');
+            backdrop.innerHTML = `
+                <div class="modal modal--info-sheet piece-custom-info-list-modal" role="dialog" aria-modal="true" aria-labelledby="customInfoSetModalTitle">
+                    <div class="modal-header">
+                        <h2 id="customInfoSetModalTitle">Gestion des listes</h2>
+                        <button type="button" class="modal-close" id="btnCloseCustomInfoSetModal" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="modal-body" id="customInfoSetModalBody"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" id="btnCloseCustomInfoSetModalFooter">Fermer</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(backdrop);
+        }
+
+        const modalEl = backdrop.querySelector('.modal');
+        const bodyEl = backdrop.querySelector('#customInfoSetModalBody');
+        const closeBtn = backdrop.querySelector('#btnCloseCustomInfoSetModal');
+        const closeFooterBtn = backdrop.querySelector('#btnCloseCustomInfoSetModalFooter');
+        if (!modalEl || !bodyEl) return;
+
+        const state = {
+            closed: false,
+            searchQuery: '',
+            selectedSetId: '',
+            newValueDraft: {
+                value: '',
+                unit: '',
+                note: ''
+            }
+        };
+
+        const findCurrentInfo = () => this.ensurePieceCustomInfos(piece)
+            .find((entry) => String(entry && entry.id || '') === String(customInfoId || '')) || null;
+
+        const applySyncAndPersist = ({ rerender = false } = {}) => {
+            if (typeof onDataChange === 'function') onDataChange({ rerender });
+        };
+
+        const closeModal = () => {
+            if (state.closed) return;
+            state.closed = true;
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+            bodyEl.innerHTML = '';
+            document.removeEventListener('keydown', handleEscape);
+            if (typeof onClose === 'function') onClose();
+        };
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') closeModal();
+        };
+
+        const render = () => {
+            const currentInfo = findCurrentInfo();
+            if (!currentInfo) {
+                closeModal();
+                return;
+            }
+
+            this.normalizeCustomInfoOptionSets(this.data && this.data.ui);
+            const allSets = Array.isArray(this.data && this.data.ui && this.data.ui.customInfoOptionSets)
+                ? this.data.ui.customInfoOptionSets
+                : [];
+            const linkedSet = this.getCustomInfoOptionSetForEntry(currentInfo, this.data && this.data.ui);
+            const selectedSetId = String(state.selectedSetId || linkedSet && linkedSet.id || '').trim();
+            if (!state.selectedSetId && selectedSetId) state.selectedSetId = selectedSetId;
+            const selectedSet = this.getCustomInfoOptionSetById(selectedSetId, this.data && this.data.ui);
+            const editableSet = selectedSet || linkedSet;
+            const editableItems = editableSet && Array.isArray(editableSet.items)
+                ? editableSet.items
+                : this.normalizeCustomInfoOptionItems([], editableSet && editableSet.options);
+            const query = this.normalizeCustomInfoKey(state.searchQuery || '');
+            const filteredSets = query
+                ? allSets.filter((entry) => this.normalizeCustomInfoKey(entry && entry.label).includes(query))
+                : allSets;
+            const pieceRecentIds = Array.from(new Set(this.ensurePieceCustomInfos(piece)
+                .map((entry) => String(entry && entry.optionSetId || '').trim())
+                .filter(Boolean)));
+            const recentSets = pieceRecentIds
+                .map((id) => this.getCustomInfoOptionSetById(id, this.data && this.data.ui))
+                .filter(Boolean)
+                .slice(0, 6);
+            const optionsRowsHtml = editableSet && editableItems.length > 0
+                ? editableItems.map((opt, idx) => `
+                    <article class="price-preset-row piece-custom-info-option-row" data-custom-info-modal-option-row data-option-index="${idx}">
+                        <div class="price-preset-row__head">
+                            <span class="price-preset-row__badge price-preset-row__badge--custom">Valeur</span>
+                        </div>
+                        <div class="price-preset-row__grid piece-custom-info-option-grid piece-custom-info-option-grid--rich">
+                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.value || '')}" placeholder="Valeur" data-custom-info-modal-option-value>
+                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.unit || '')}" placeholder="Unite" data-custom-info-modal-option-unit>
+                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.note || '')}" placeholder="Infos connexes" data-custom-info-modal-option-note>
+                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-option-delete>Supprimer</button>
+                        </div>
+                    </article>
+                `).join('')
+                : '<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>';
+
+            const libraryPanelHtml = `
+                <section class="info-sheet-section info-sheet-section--price-presets">
+                    <h3>Bibliothèque des listes</h3>
+                    <input type="search" class="lot-input" value="${this.escapeHtml(state.searchQuery || '')}" placeholder="Rechercher une liste" data-custom-info-modal-search>
+                    ${recentSets.length > 0
+                        ? `<div class="piece-custom-info-modal-recent" data-custom-info-modal-recent>
+                                ${recentSets.map((setEntry) => `<button type="button" class="piece-duplicate-btn piece-custom-info-recent-chip" data-custom-info-modal-recent-set="${this.escapeHtml(setEntry.id)}">${this.escapeHtml(setEntry.label || '')}</button>`).join('')}
+                           </div>`
+                        : ''}
+                    <div class="piece-custom-info-modal-choose-grid">
+                        <select class="lot-input" data-custom-info-modal-choose-select>
+                            <option value="">Aucune liste associée</option>
+                            ${filteredSets.map((setEntry) => `<option value="${this.escapeHtml(setEntry.id)}"${selectedSetId === String(setEntry.id || '') ? ' selected' : ''}>${this.escapeHtml(setEntry.label || '')}</option>`).join('')}
+                        </select>
+                        <button type="button" class="btn btn-primary" data-custom-info-modal-choose-apply>Associer</button>
+                    </div>
+                    <div class="piece-custom-info-modal-create-grid">
+                        <input type="text" class="lot-input" value="${this.escapeHtml((currentInfo.label || 'Liste personnalisee').trim() || 'Liste personnalisee')}" placeholder="Nom de la liste" data-custom-info-modal-create-label>
+                        <button type="button" class="btn btn-primary" data-custom-info-modal-create-apply>Créer la liste</button>
+                    </div>
+                </section>`;
+
+            const editPanelHtml = editableSet
+                ? `
+                    <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor">
+                        <h3>Éditer la liste active</h3>
+                        <div class="piece-custom-info-set-editor-head">
+                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
+                            <div class="piece-custom-info-set-editor-head-actions">
+                                <span class="price-preset-row__badge price-preset-row__badge--custom">Liste</span>
+                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-set-delete>Supprimer</button>
+                            </div>
+                        </div>
+                        <div class="piece-custom-info-option-head piece-custom-info-option-grid piece-custom-info-option-grid--rich" aria-hidden="true">
+                            <span>Valeur</span>
+                            <span>Unite</span>
+                            <span>Infos connexes</span>
+                            <span>Action</span>
+                        </div>
+                        <div class="price-preset-editor__list" data-custom-info-modal-options-list>
+                            ${optionsRowsHtml}
+                        </div>
+                        <div class="price-preset-editor__create">
+                            <h4>Ajouter une valeur</h4>
+                            <div class="price-preset-editor__create-grid piece-custom-info-option-create-grid piece-custom-info-option-create-grid--rich">
+                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.value || '')}" placeholder="Nouvelle valeur" data-custom-info-modal-option-new-value>
+                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.unit || '')}" placeholder="Unite" data-custom-info-modal-option-new-unit>
+                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.note || '')}" placeholder="Infos connexes" data-custom-info-modal-option-new-note>
+                                <button type="button" class="btn btn-primary" data-custom-info-modal-option-add>Ajouter</button>
+                            </div>
+                        </div>
+                    </section>`
+                : '';
+
+            bodyEl.innerHTML = `
+                ${libraryPanelHtml}
+                ${editPanelHtml}`;
+
+            const searchInput = bodyEl.querySelector('[data-custom-info-modal-search]');
+            if (searchInput) {
+                searchInput.addEventListener('input', () => {
+                    state.searchQuery = String(searchInput.value || '');
+                    render();
+                });
+            }
+
+            bodyEl.querySelectorAll('[data-custom-info-modal-recent-set]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    state.selectedSetId = String(btn.getAttribute('data-custom-info-modal-recent-set') || '').trim();
+                    render();
+                });
+            });
+
+            const chooseSelectEl = bodyEl.querySelector('[data-custom-info-modal-choose-select]');
+            if (chooseSelectEl) {
+                chooseSelectEl.addEventListener('change', () => {
+                    state.selectedSetId = String(chooseSelectEl.value || '').trim();
+                });
+            }
+
+            const chooseApplyBtn = bodyEl.querySelector('[data-custom-info-modal-choose-apply]');
+            if (chooseApplyBtn) {
+                chooseApplyBtn.addEventListener('click', () => {
+                    const nextSetId = String(state.selectedSetId || '').trim();
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: nextSetId }, { markAsLocal: !isDefault });
+                    if (!updated) return;
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                });
+            }
+
+            const createApplyBtn = bodyEl.querySelector('[data-custom-info-modal-create-apply]');
+            if (createApplyBtn) {
+                createApplyBtn.addEventListener('click', () => {
+                    const labelEl = bodyEl.querySelector('[data-custom-info-modal-create-label]');
+                    const nextLabel = String(labelEl && labelEl.value || '').trim();
+                    if (!nextLabel) {
+                        window.alert('Le nom de liste est requis.');
+                        return;
+                    }
+                    const created = this.upsertCustomInfoOptionSet({ label: nextLabel, items: [] }, this.data && this.data.ui);
+                    if (!created) return;
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: created.id }, { markAsLocal: !isDefault });
+                    if (!updated) return;
+                    applySyncAndPersist({ rerender: false });
+                    state.selectedSetId = created.id;
+                    render();
+                });
+            }
+
+            const setDeleteBtn = bodyEl.querySelector('[data-custom-info-modal-set-delete]');
+            if (setDeleteBtn && editableSet) {
+                setDeleteBtn.addEventListener('click', () => {
+                    if (!window.confirm(`Supprimer la liste "${editableSet.label}" ?`)) return;
+                    const ui = this.data && this.data.ui;
+                    this.normalizeCustomInfoOptionSets(ui);
+                    if (!ui || !Array.isArray(ui.customInfoOptionSets)) return;
+                    ui.customInfoOptionSets = ui.customInfoOptionSets
+                        .filter((entry) => String(entry && entry.id || '') !== String(editableSet.id || ''));
+
+                    const targetSetId = String(editableSet.id || '');
+                    const clearSetRef = (pieceLike) => {
+                        if (!pieceLike || typeof pieceLike !== 'object') return;
+                        const infos = this.ensurePieceCustomInfos(pieceLike);
+                        infos.forEach((entry) => {
+                            if (String(entry && entry.optionSetId || '') !== targetSetId) return;
+                            entry.optionSetId = '';
+                            if (entry.valueMode === 'list') {
+                                entry.valueMode = 'free';
+                                entry.valueType = 'text';
+                            }
+                        });
+                    };
+
+                    (this.data && Array.isArray(this.data.lots) ? this.data.lots : []).forEach((lotItem) => {
+                        if (!lotItem || typeof lotItem !== 'object') return;
+                        (Array.isArray(lotItem.pieces) ? lotItem.pieces : []).forEach((pieceItem) => clearSetRef(pieceItem));
+                        this.ensureDefaultPiecesData(lotItem).forEach((defaultPieceItem) => clearSetRef(defaultPieceItem));
+                    });
+
+                    clearSetRef(piece);
+                    state.selectedSetId = '';
+                    this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: '', valueMode: 'free' }, { markAsLocal: !isDefault });
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                });
+            }
+
+            const setLabelInput = bodyEl.querySelector('[data-custom-info-modal-set-label]');
+            if (setLabelInput && editableSet) {
+                setLabelInput.addEventListener('focus', () => {
+                    setLabelInput.dataset.previousValue = setLabelInput.value;
+                });
+                const commitSetLabel = () => {
+                    const nextLabel = String(setLabelInput.value || '').trim();
+                    if (!nextLabel) {
+                        setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
+                        return;
+                    }
+                    const upserted = this.upsertCustomInfoOptionSet({
+                        id: editableSet.id,
+                        label: nextLabel,
+                        items: Array.isArray(editableSet.items)
+                            ? editableSet.items
+                            : this.normalizeCustomInfoOptionItems([], editableSet.options)
+                    }, this.data && this.data.ui);
+                    if (!upserted) {
+                        setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
+                        return;
+                    }
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                };
+                setLabelInput.addEventListener('change', commitSetLabel);
+                setLabelInput.addEventListener('blur', commitSetLabel);
+            }
+
+            bodyEl.querySelectorAll('[data-custom-info-modal-option-row]').forEach((optionRow) => {
+                const optionIndex = Number.parseInt(optionRow.getAttribute('data-option-index') || '-1', 10);
+                if (!Number.isFinite(optionIndex) || optionIndex < 0 || !editableSet) return;
+
+                const optionValueInput = optionRow.querySelector('[data-custom-info-modal-option-value]');
+                const optionUnitInput = optionRow.querySelector('[data-custom-info-modal-option-unit]');
+                const optionNoteInput = optionRow.querySelector('[data-custom-info-modal-option-note]');
+
+                const commitOption = () => {
+                    const nextValue = String(optionValueInput && optionValueInput.value || '').trim();
+                    const nextUnit = String(optionUnitInput && optionUnitInput.value || '').trim();
+                    const nextNote = String(optionNoteInput && optionNoteInput.value || '').trim();
+                    const nextItems = Array.isArray(editableSet.items)
+                        ? editableSet.items.map((item) => ({ ...item }))
+                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                    if (!nextValue) {
+                        nextItems.splice(optionIndex, 1);
+                    } else {
+                        nextItems[optionIndex] = { value: nextValue, unit: nextUnit, note: nextNote };
+                    }
+                    const upserted = this.upsertCustomInfoOptionSet({
+                        id: editableSet.id,
+                        label: editableSet.label,
+                        items: nextItems
+                    }, this.data && this.data.ui);
+                    if (!upserted) return;
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                };
+
+                [optionValueInput, optionUnitInput, optionNoteInput].forEach((inputEl) => {
+                    if (!inputEl) return;
+                    inputEl.addEventListener('change', commitOption);
+                    inputEl.addEventListener('blur', commitOption);
+                });
+
+                const optionDeleteBtn = optionRow.querySelector('[data-custom-info-modal-option-delete]');
+                if (optionDeleteBtn) {
+                    optionDeleteBtn.addEventListener('click', () => {
+                        const nextItems = Array.isArray(editableSet.items)
+                            ? editableSet.items.map((item) => ({ ...item }))
+                            : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                        nextItems.splice(optionIndex, 1);
+                        const upserted = this.upsertCustomInfoOptionSet({
+                            id: editableSet.id,
+                            label: editableSet.label,
+                            items: nextItems
+                        }, this.data && this.data.ui);
+                        if (!upserted) return;
+                        applySyncAndPersist({ rerender: false });
+                        render();
+                    });
+                }
+            });
+
+            const addOptionBtn = bodyEl.querySelector('[data-custom-info-modal-option-add]');
+            if (addOptionBtn && editableSet) {
+                const newOptionValueInput = bodyEl.querySelector('[data-custom-info-modal-option-new-value]');
+                const newOptionUnitInput = bodyEl.querySelector('[data-custom-info-modal-option-new-unit]');
+                const newOptionNoteInput = bodyEl.querySelector('[data-custom-info-modal-option-new-note]');
+
+                const syncDraftFromInputs = () => {
+                    state.newValueDraft = {
+                        value: String(newOptionValueInput && newOptionValueInput.value || ''),
+                        unit: String(newOptionUnitInput && newOptionUnitInput.value || ''),
+                        note: String(newOptionNoteInput && newOptionNoteInput.value || '')
+                    };
+                };
+
+                [newOptionValueInput, newOptionUnitInput, newOptionNoteInput].forEach((inputEl) => {
+                    if (!inputEl) return;
+                    inputEl.addEventListener('input', syncDraftFromInputs);
+                    inputEl.addEventListener('change', syncDraftFromInputs);
+                    inputEl.addEventListener('keydown', (event) => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        addOptionBtn.click();
+                    });
+                });
+
+                addOptionBtn.addEventListener('click', () => {
+                    syncDraftFromInputs();
+                    const nextOption = String(state.newValueDraft.value || '').trim();
+                    const nextUnit = String(state.newValueDraft.unit || '').trim();
+                    const nextNote = String(state.newValueDraft.note || '').trim();
+                    if (!nextOption) return;
+                    const nextItems = Array.isArray(editableSet.items)
+                        ? editableSet.items.map((item) => ({ ...item }))
+                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                    nextItems.push({ value: nextOption, unit: nextUnit, note: nextNote });
+                    const upserted = this.upsertCustomInfoOptionSet({
+                        id: editableSet.id,
+                        label: editableSet.label,
+                        items: nextItems
+                    }, this.data && this.data.ui);
+                    if (!upserted) return;
+                    state.newValueDraft = { value: '', unit: '', note: '' };
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                });
+            }
+
+
+        };
+
+        if (closeBtn) closeBtn.onclick = closeModal;
+        if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
+        backdrop.onclick = (event) => {
+            if (event.target === backdrop) closeModal();
+        };
+
+        backdrop.classList.remove('hidden');
+        backdrop.setAttribute('aria-hidden', 'false');
+        document.addEventListener('keydown', handleEscape);
+        render();
+    }
+
+    renderPieceCustomInfoPanelHTML(piece, { lot = null, isDefault = false, defaultPieceId = '', pieceIndex = null } = {}) {
         const infos = this.ensurePieceCustomInfos(piece);
         const contextTokenRaw = isDefault ? `default-${defaultPieceId}` : `piece-${pieceIndex}`;
         const contextToken = String(contextTokenRaw || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
+        const lotStateKey = (lot && lot.id) ? `lot:${lot.id}` : `lot-index:${this.currentLotIndex}`;
+        const cardStateKey = isDefault ? `default:${defaultPieceId}` : `piece:${pieceIndex}`;
+        const accordionStateKey = `custom-info:${lotStateKey}:${cardStateKey}`;
+        const isAccordionOpen = this._customInfoAccordionOpenStates.has(accordionStateKey)
+            ? !!this._customInfoAccordionOpenStates.get(accordionStateKey)
+            : false;
         const attrValue = (value) => String(value == null ? '' : value)
             .replace(/&/g, '&amp;')
             .replace(/\"/g, '&quot;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
+        this.normalizeCustomInfoOptionSets(this.data && this.data.ui);
 
         const rowsHtml = infos.map((entry) => {
-            const optionSet = entry.valueType === 'select' ? this.getCustomInfoOptionSetByLabel(entry.label) : null;
+            const entryLabel = String(entry.label || '').trim();
+            const hasAutoNumberedLabel = /^Information\s+\d+$/i.test(entryLabel);
+            const labelInputValue = hasAutoNumberedLabel ? '' : entryLabel;
+            const labelPlaceholder = hasAutoNumberedLabel ? 'Label information personnalisée' : 'Libellé';
+            const valueMode = this.normalizeCustomInfoMode(entry.valueMode, entry.valueType);
+            const optionSet = valueMode === 'free' ? null : this.getCustomInfoOptionSetForEntry(entry, this.data && this.data.ui);
             const listId = optionSet ? `custom-info-options-${contextToken}-${String(entry.id || '').replace(/[^a-zA-Z0-9_-]+/g, '-')}` : '';
             const optionsHtml = optionSet
                 ? `<datalist id="${attrValue(listId)}">${(optionSet.options || []).map((opt) => `<option value="${attrValue(opt)}"></option>`).join('')}</datalist>`
                 : '';
+            const optionSetActionsHtml = valueMode === 'free'
+                ? ''
+                : `<div class="piece-custom-info-set-actions" role="group" aria-label="Actions liste personnalisee">
+                        <button type="button" class="piece-duplicate-btn piece-custom-info-set-action-btn" data-custom-info-set-open-manage>
+                            Gérer les listes
+                        </button>
+                    </div>
+                    <div class="piece-custom-info-set-current">
+                        <span class="piece-custom-info-set-current-label">Liste:</span>
+                        <span class="piece-custom-info-set-current-value">${optionSet ? attrValue(optionSet.label || '') : 'Aucune liste associée'}</span>
+                    </div>`;
             const valueDisplay = this.getCustomInfoValueDisplay(entry);
-            const modeLabel = entry.valueType === 'select' ? 'Liste' : 'Texte';
+            const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
                 ? '<span class="piece-custom-info-badge">hérité</span>'
                 : '';
@@ -4454,27 +5173,57 @@ class ValoboisApp {
             return `
                 <div class="piece-custom-info-row" data-custom-info-row data-custom-info-id="${attrValue(entry.id)}">
                     <div class="piece-custom-info-main">
-                        <div class="piece-custom-info-label-wrap">
-                            <input type="text" class="lot-input" value="${attrValue(entry.label)}" placeholder="Libellé" data-custom-info-label>
-                            ${inheritedBadge}
+                        <div class="piece-custom-info-row-actions">
+                            <div class="piece-custom-info-mode-toggle" role="group" aria-label="Mode de valeur personnalisée">
+                                <button type="button" class="lot-price-unit-btn" data-custom-info-mode="free" aria-pressed="${valueMode === 'free' ? 'true' : 'false'}">Libre</button>
+                                <button type="button" class="lot-price-unit-btn" data-custom-info-mode="list" aria-pressed="${valueMode === 'list' ? 'true' : 'false'}">Liste</button>
+                                <button type="button" class="lot-price-unit-btn" data-custom-info-mode="hybrid" aria-pressed="${valueMode === 'hybrid' ? 'true' : 'false'}">Hybride</button>
+                            </div>
+                            <div class="piece-custom-info-inline-actions">
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-action-btn piece-custom-info-duplicate-btn" data-custom-info-duplicate aria-label="Dupliquer l'information" title="Dupliquer">
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <rect x="9" y="9" width="10" height="10" rx="1.5"></rect>
+                                        <rect x="5" y="5" width="10" height="10" rx="1.5"></rect>
+                                    </svg>
+                                </button>
+                                <button type="button" class="piece-delete-btn piece-custom-info-action-btn piece-custom-info-delete-btn" data-custom-info-delete aria-label="Supprimer l'information" title="Supprimer">
+                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="6" y1="12" x2="18" y2="12"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
-                        <input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value${listId ? ` list="${attrValue(listId)}"` : ''}>
+                        <div class="piece-custom-info-topline">
+                            <div class="piece-custom-info-label-wrap">
+                                <input type="text" class="lot-input" value="${attrValue(labelInputValue)}" placeholder="${attrValue(labelPlaceholder)}" data-custom-info-label>
+                                ${inheritedBadge}
+                            </div>
+                        </div>
+                        ${optionSetActionsHtml}
+                        <input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>
                         ${optionsHtml}
-                    </div>
-                    <div class="piece-custom-info-actions">
-                        <button type="button" class="lot-price-unit-btn" data-custom-info-toggle-mode aria-label="Basculer le type de valeur">${modeLabel}</button>
-                        <button type="button" class="piece-delete-btn" data-custom-info-delete aria-label="Supprimer l'information">✕</button>
                     </div>
                 </div>`;
         }).join('');
 
+        const infoCount = infos.length;
+        const hasInfos = infoCount > 0;
         return `
-            <div class="lot-group piece-custom-info-group" data-custom-info-group>
-                <p class="lot-group-title">Informations personnalisées</p>
-                <div class="piece-custom-info-list" data-custom-info-list>
-                    ${rowsHtml || '<p class="piece-custom-info-empty">Aucune information personnalisée.</p>'}
-                </div>
-                <button type="button" class="piece-duplicate-btn piece-custom-info-add" data-custom-info-add>Ajouter une information</button>
+            <div class="piece-custom-info-group" data-custom-info-group>
+                <details class="mesures-accordion mesures-accordion--with-actions piece-custom-info-accordion" data-custom-info-accordion data-custom-info-acc-state-key="${attrValue(accordionStateKey)}"${isAccordionOpen ? ' open' : ''}>
+                    <summary class="mesures-accordion-summary">
+                        <span class="mesures-accordion-chevron" aria-hidden="true">&#x25B6;</span>
+                        <span class="mesures-accordion-title-text">Informations personnalisées</span>
+                        <span class="mesures-accordion-badge">${infoCount}</span>
+                    </summary>
+                    <div class="mesures-inline-widget piece-custom-info-content">
+                        <div class="piece-custom-info-footer-actions">
+                            <button type="button" class="piece-duplicate-btn piece-custom-info-add" data-custom-info-add>+ Ajouter</button>
+                            <button type="button" class="piece-duplicate-btn piece-custom-info-help-btn" data-custom-info-help>Info</button>
+                        </div>
+                        ${hasInfos ? `<div class="piece-custom-info-list" data-custom-info-list>${rowsHtml}</div>` : ''}
+                    </div>
+                </details>
             </div>`;
     }
 
@@ -4487,6 +5236,23 @@ class ValoboisApp {
         const cardKey = isDefault ? `default:${defaultPieceId}` : `piece:${pieceIndex}`;
         const group = cardRoot.querySelector('[data-custom-info-group]');
         if (!group) return;
+        const accordionEl = group.querySelector('[data-custom-info-accordion]');
+        if (accordionEl && !accordionEl.dataset.customInfoAccordionBound) {
+            accordionEl.dataset.customInfoAccordionBound = '1';
+            accordionEl.addEventListener('toggle', () => {
+                const stateKey = (accordionEl.getAttribute('data-custom-info-acc-state-key') || '').trim();
+                if (!stateKey) return;
+                this._customInfoAccordionOpenStates.set(stateKey, accordionEl.open);
+            });
+            const accordionSummary = accordionEl.querySelector('summary');
+            if (accordionSummary) {
+                accordionSummary.addEventListener('click', (e) => {
+                    if (!e.target.closest('.mesures-accordion-chevron')) {
+                        e.preventDefault();
+                    }
+                });
+            }
+        }
 
         const persistSilent = () => {
             this.saveData();
@@ -4513,6 +5279,18 @@ class ValoboisApp {
                 if (!created) return;
                 syncIfDefault();
                 persistAndRerender();
+            });
+        }
+
+        const helpBtn = group.querySelector('[data-custom-info-help]');
+        if (helpBtn) {
+            helpBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.openSharedAlertPiecesModal(
+                    'Informations personnalisées',
+                    'Ajoutez des champs libres pour documenter des caractéristiques propres à cette pièce (état, marquage, finition, usage, etc.). Ces informations sont exportées dans les sorties compatibles.',
+                    { textAlign: 'left', whiteSpace: 'normal' }
+                );
             });
         }
 
@@ -4550,10 +5328,31 @@ class ValoboisApp {
 
             const valueInput = row.querySelector('[data-custom-info-value]');
             if (valueInput) {
+                valueInput.addEventListener('focus', () => {
+                    valueInput.dataset.previousValue = valueInput.value;
+                });
                 const updateValue = (event) => {
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    const modeRaw = (valueInput.getAttribute('data-custom-info-value-mode') || '').trim();
+                    const mode = this.normalizeCustomInfoMode(modeRaw, 'text');
+                    if (mode === 'list' && event.type === 'input') {
+                        return;
+                    }
+                    if (mode === 'list' && (event.type === 'change' || event.type === 'blur')) {
+                        const currentInfo = this.ensurePieceCustomInfos(piece).find((entry) => String(entry.id || '') === customInfoId);
+                        if (!currentInfo) return;
+                        const linkedSet = this.getCustomInfoOptionSetForEntry(currentInfo, this.data && this.data.ui);
+                        const allowed = new Set((linkedSet && linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
+                        const candidateValue = String(valueInput.value || '').trim();
+                        if (candidateValue && allowed.size > 0 && !allowed.has(candidateValue)) {
+                            valueInput.value = valueInput.dataset.previousValue || '';
+                            window.alert('Mode Liste : choisissez une valeur proposee.');
+                            return;
+                        }
+                    }
                     const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { value: valueInput.value }, { markAsLocal: !isDefault });
                     if (!updated) return;
+                    valueInput.dataset.previousValue = valueInput.value;
                     syncIfDefault();
                     if (event.type === 'input') {
                         persistSilent();
@@ -4567,18 +5366,80 @@ class ValoboisApp {
                 valueInput.addEventListener('blur', updateValue);
             }
 
-            const modeBtn = row.querySelector('[data-custom-info-toggle-mode]');
-            if (modeBtn) {
+            row.querySelectorAll('[data-custom-info-mode]').forEach((modeBtn) => {
                 modeBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
-                    const current = this.ensurePieceCustomInfos(piece).find((entry) => String(entry.id || '') === customInfoId);
-                    if (!current) return;
-                    const nextMode = current.valueType === 'select' ? 'text' : 'select';
-                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { valueType: nextMode }, { markAsLocal: !isDefault });
+                    const nextMode = String(modeBtn.getAttribute('data-custom-info-mode') || '').trim().toLowerCase();
+                    if (!nextMode) return;
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { valueMode: nextMode }, { markAsLocal: !isDefault });
                     if (!updated) return;
                     syncIfDefault();
                     persistAndRerender();
+                });
+            });
+
+            const openManageBtn = row.querySelector('[data-custom-info-set-open-manage]');
+            if (openManageBtn) {
+                openManageBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    this.openCustomInfoOptionSetModal({
+                        piece,
+                        customInfoId,
+                        isDefault,
+                        initialPanel: 'choose',
+                        onDataChange: () => {
+                            syncIfDefault();
+                            persistSilent();
+                        },
+                        onClose: () => {
+                            syncIfDefault();
+                            persistAndRerender();
+                        }
+                    });
+                });
+            }
+
+            const duplicateBtn = row.querySelector('[data-custom-info-duplicate]');
+            if (duplicateBtn) {
+                duplicateBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                    this.openCustomInfoDuplicateModeModal({
+                        onConfirm: (mode) => {
+                            const source = this.ensurePieceCustomInfos(piece).find((entry) => String(entry && entry.id || '') === customInfoId);
+                            if (!source) return;
+                            const duplicated = this.duplicateCustomInfoOnPiece(piece, customInfoId, { markAsLocal: !isDefault });
+                            if (!duplicated) return;
+
+                            if (mode === 'none') {
+                                this.updateCustomInfoOnPiece(piece, duplicated.id, {
+                                    optionSetId: '',
+                                    valueMode: 'free'
+                                }, { markAsLocal: !isDefault });
+                            } else if (mode === 'detached') {
+                                const sourceSet = this.getCustomInfoOptionSetById(source.optionSetId, this.data && this.data.ui);
+                                if (sourceSet) {
+                                    const uniqueLabel = this.createUniqueCustomInfoOptionSetLabel(sourceSet.label, this.data && this.data.ui);
+                                    const copiedSet = this.upsertCustomInfoOptionSet({
+                                        label: uniqueLabel,
+                                        items: Array.isArray(sourceSet.items)
+                                            ? sourceSet.items.map((item) => ({ ...item }))
+                                            : this.normalizeCustomInfoOptionItems([], sourceSet.options)
+                                    }, this.data && this.data.ui);
+                                    if (copiedSet) {
+                                        this.updateCustomInfoOnPiece(piece, duplicated.id, {
+                                            optionSetId: copiedSet.id
+                                        }, { markAsLocal: !isDefault });
+                                    }
+                                }
+                            }
+
+                            syncIfDefault();
+                            persistAndRerender();
+                        }
+                    });
                 });
             }
 
@@ -18676,7 +19537,11 @@ class ValoboisApp {
     }
 
     setCurrentLotIndex(index) {
+        const hasChanged = this.currentLotIndex !== index;
         this.currentLotIndex = index;
+        if (hasChanged) {
+            this._customInfoAccordionOpenStates.clear();
+        }
         const activeLot = this.getCurrentLot();
         if (activeLot) {
             this.computeOrientation(activeLot);
@@ -19155,6 +20020,7 @@ deleteLot(index) {
         // Replier tous les accordéons au changement d'onglet
         window.addEventListener('valobois-editor-tab', () => {
             this._accordionOpenStates.clear();
+            this._customInfoAccordionOpenStates.clear();
         });
 
         // Toggle À propos
@@ -25428,7 +26294,7 @@ closeEvalOpModal() {
                         </div>
                     </div>
                 </div>
-                ${this.renderPieceCustomInfoPanelHTML(defaultPiece, { isDefault: true, defaultPieceId, pieceIndex: null })}
+                ${this.renderPieceCustomInfoPanelHTML(defaultPiece, { lot, isDefault: true, defaultPieceId, pieceIndex: null })}
             </div>
         </div>`;
     }
@@ -25814,7 +26680,7 @@ closeEvalOpModal() {
                     </div>
                 </div>
             </div>
-            ${this.renderPieceCustomInfoPanelHTML(piece, { isDefault: false, defaultPieceId: '', pieceIndex })}
+            ${this.renderPieceCustomInfoPanelHTML(piece, { lot, isDefault: false, defaultPieceId: '', pieceIndex })}
         </div>
         </div>`;
     }
