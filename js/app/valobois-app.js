@@ -4252,6 +4252,7 @@ class ValoboisApp {
             if (!entry || typeof entry !== 'object') return;
             const label = String(entry.label || entry.displayLabel || '').trim();
             if (!label) return;
+            const subtitle = String(entry.subtitle || entry.displaySubtitle || '').trim();
             const labelKey = this.normalizeCustomInfoKey(label);
             if (!labelKey || seen.has(labelKey)) return;
             seen.add(labelKey);
@@ -4260,6 +4261,7 @@ class ValoboisApp {
             normalized.push({
                 id: String(entry.id || this.createCustomInfoId('ci-set')),
                 label,
+                subtitle,
                 labelKey,
                 options,
                 items,
@@ -4335,6 +4337,8 @@ class ValoboisApp {
         this.normalizeCustomInfoOptionSets(ui);
         const source = Array.isArray(ui.customInfoOptionSets) ? ui.customInfoOptionSets : [];
         const label = String(payload.label || '').trim();
+        const hasSubtitlePayload = Object.prototype.hasOwnProperty.call(payload || {}, 'subtitle');
+        const subtitle = hasSubtitlePayload ? String(payload.subtitle || '').trim() : undefined;
         const labelKey = this.normalizeCustomInfoKey(label);
         if (!labelKey) return null;
         const items = this.normalizeCustomInfoOptionItems(payload.items, payload.options);
@@ -4351,6 +4355,7 @@ class ValoboisApp {
 
         if (existing) {
             existing.label = label;
+            existing.subtitle = hasSubtitlePayload ? subtitle : String(existing.subtitle || '').trim();
             existing.labelKey = labelKey;
             existing.options = options;
             existing.items = items;
@@ -4360,6 +4365,7 @@ class ValoboisApp {
         const created = {
             id: targetId || this.createCustomInfoId('ci-set'),
             label,
+            subtitle: hasSubtitlePayload ? subtitle : '',
             labelKey,
             options,
             items,
@@ -4753,10 +4759,41 @@ class ValoboisApp {
         const closeFooterBtn = backdrop.querySelector('#btnCloseCustomInfoSetModalFooter');
         if (!modalEl || !bodyEl) return;
 
+        let confirmBackdrop = document.getElementById('customInfoSetDeleteConfirmBackdrop');
+        if (!confirmBackdrop) {
+            confirmBackdrop = document.createElement('div');
+            confirmBackdrop.id = 'customInfoSetDeleteConfirmBackdrop';
+            confirmBackdrop.className = 'modal-backdrop hidden';
+            confirmBackdrop.setAttribute('aria-hidden', 'true');
+            confirmBackdrop.innerHTML = `
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="customInfoSetDeleteConfirmTitle">
+                    <div class="modal-header">
+                        <h2 id="customInfoSetDeleteConfirmTitle">Confirmation</h2>
+                        <button type="button" class="modal-close" id="btnCloseCustomInfoSetDeleteConfirm" aria-label="Fermer">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="customInfoSetDeleteConfirmMessage"></p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn" id="btnCancelCustomInfoSetDeleteConfirm">Annuler</button>
+                        <button type="button" class="btn btn-danger" id="btnConfirmCustomInfoSetDeleteConfirm">Supprimer</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(confirmBackdrop);
+        }
+
+        const confirmTitleEl = confirmBackdrop.querySelector('#customInfoSetDeleteConfirmTitle');
+        const confirmMessageEl = confirmBackdrop.querySelector('#customInfoSetDeleteConfirmMessage');
+        const confirmCloseBtn = confirmBackdrop.querySelector('#btnCloseCustomInfoSetDeleteConfirm');
+        const confirmCancelBtn = confirmBackdrop.querySelector('#btnCancelCustomInfoSetDeleteConfirm');
+        const confirmActionBtn = confirmBackdrop.querySelector('#btnConfirmCustomInfoSetDeleteConfirm');
+
         const state = {
             closed: false,
-            searchQuery: '',
             selectedSetId: '',
+            listDraftLabel: '',
+            forceNewListMode: false,
+            pendingConfirmAction: null,
             newValueDraft: {
                 value: '',
                 unit: '',
@@ -4776,9 +4813,29 @@ class ValoboisApp {
             state.closed = true;
             backdrop.classList.add('hidden');
             backdrop.setAttribute('aria-hidden', 'true');
+            closeConfirmModal();
             bodyEl.innerHTML = '';
             document.removeEventListener('keydown', handleEscape);
             if (typeof onClose === 'function') onClose();
+        };
+
+        const closeConfirmModal = () => {
+            state.pendingConfirmAction = null;
+            if (!confirmBackdrop) return;
+            confirmBackdrop.classList.add('hidden');
+            confirmBackdrop.setAttribute('aria-hidden', 'true');
+            backdrop.setAttribute('aria-hidden', 'false');
+        };
+
+        const openConfirmModal = ({ title = 'Confirmation', message = '', confirmLabel = 'Supprimer', onConfirm = null } = {}) => {
+            if (!confirmBackdrop || !confirmTitleEl || !confirmMessageEl || !confirmActionBtn) return;
+            state.pendingConfirmAction = typeof onConfirm === 'function' ? onConfirm : null;
+            confirmTitleEl.textContent = String(title || 'Confirmation');
+            confirmMessageEl.textContent = String(message || 'Confirmer cette action ?');
+            confirmActionBtn.textContent = String(confirmLabel || 'Supprimer');
+            backdrop.setAttribute('aria-hidden', 'true');
+            confirmBackdrop.classList.remove('hidden');
+            confirmBackdrop.setAttribute('aria-hidden', 'false');
         };
 
         const handleEscape = (event) => {
@@ -4796,30 +4853,29 @@ class ValoboisApp {
             const allSets = Array.isArray(this.data && this.data.ui && this.data.ui.customInfoOptionSets)
                 ? this.data.ui.customInfoOptionSets
                 : [];
-            const linkedSet = this.getCustomInfoOptionSetForEntry(currentInfo, this.data && this.data.ui);
-            const selectedSetId = String(state.selectedSetId || linkedSet && linkedSet.id || '').trim();
-            if (!state.selectedSetId && selectedSetId) state.selectedSetId = selectedSetId;
+            const selectedSetId = String(state.selectedSetId || '').trim();
             const selectedSet = this.getCustomInfoOptionSetById(selectedSetId, this.data && this.data.ui);
-            const editableSet = selectedSet || linkedSet;
+            const editableSet = selectedSet;
             const editableItems = editableSet && Array.isArray(editableSet.items)
                 ? editableSet.items
                 : this.normalizeCustomInfoOptionItems([], editableSet && editableSet.options);
-            const query = this.normalizeCustomInfoKey(state.searchQuery || '');
-            const filteredSets = query
-                ? allSets.filter((entry) => this.normalizeCustomInfoKey(entry && entry.label).includes(query))
-                : allSets;
-            const pieceRecentIds = Array.from(new Set(this.ensurePieceCustomInfos(piece)
-                .map((entry) => String(entry && entry.optionSetId || '').trim())
-                .filter(Boolean)));
-            const recentSets = pieceRecentIds
-                .map((id) => this.getCustomInfoOptionSetById(id, this.data && this.data.ui))
-                .filter(Boolean)
-                .slice(0, 6);
+            const findSetByLabel = (label) => {
+                const key = this.normalizeCustomInfoKey(label || '');
+                if (!key) return null;
+                return allSets.find((entry) => this.normalizeCustomInfoKey(entry && entry.label || '') === key) || null;
+            };
+            const matchedByLabel = findSetByLabel(state.listDraftLabel);
+            const effectiveSet = matchedByLabel || selectedSet;
+            const primaryActionLabel = effectiveSet ? 'Modifier' : '+ Ajouter';
             const optionsRowsHtml = editableSet && editableItems.length > 0
                 ? editableItems.map((opt, idx) => `
                     <article class="price-preset-row piece-custom-info-option-row" data-custom-info-modal-option-row data-option-index="${idx}">
                         <div class="price-preset-row__head">
                             <span class="price-preset-row__badge price-preset-row__badge--custom">Valeur</span>
+                            <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre d'apparition">
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="up"${idx === 0 ? ' disabled' : ''} aria-label="Monter">↑</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="down"${idx === editableItems.length - 1 ? ' disabled' : ''} aria-label="Descendre">↓</button>
+                            </div>
                         </div>
                         <div class="price-preset-row__grid piece-custom-info-option-grid piece-custom-info-option-grid--rich">
                             <input type="text" class="lot-input" value="${this.escapeHtml(opt.value || '')}" placeholder="Valeur" data-custom-info-modal-option-value>
@@ -4832,31 +4888,28 @@ class ValoboisApp {
                 : '<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>';
 
             const libraryPanelHtml = `
-                <section class="info-sheet-section info-sheet-section--price-presets">
-                    <h3>Bibliothèque des listes</h3>
-                    <input type="search" class="lot-input" value="${this.escapeHtml(state.searchQuery || '')}" placeholder="Rechercher une liste" data-custom-info-modal-search>
-                    ${recentSets.length > 0
-                        ? `<div class="piece-custom-info-modal-recent" data-custom-info-modal-recent>
-                                ${recentSets.map((setEntry) => `<button type="button" class="piece-duplicate-btn piece-custom-info-recent-chip" data-custom-info-modal-recent-set="${this.escapeHtml(setEntry.id)}">${this.escapeHtml(setEntry.label || '')}</button>`).join('')}
-                           </div>`
-                        : ''}
-                    <div class="piece-custom-info-modal-choose-grid">
-                        <select class="lot-input" data-custom-info-modal-choose-select>
-                            <option value="">Aucune liste associée</option>
-                            ${filteredSets.map((setEntry) => `<option value="${this.escapeHtml(setEntry.id)}"${selectedSetId === String(setEntry.id || '') ? ' selected' : ''}>${this.escapeHtml(setEntry.label || '')}</option>`).join('')}
-                        </select>
-                        <button type="button" class="btn btn-primary" data-custom-info-modal-choose-apply>Associer</button>
+                <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-modal-lists">
+                    <div class="piece-custom-info-modal-section-head">
+                        <h3>Listes créées</h3>
+                        <span class="piece-custom-info-modal-count">${allSets.length}</span>
                     </div>
-                    <div class="piece-custom-info-modal-create-grid">
-                        <input type="text" class="lot-input" value="${this.escapeHtml((currentInfo.label || 'Liste personnalisee').trim() || 'Liste personnalisee')}" placeholder="Nom de la liste" data-custom-info-modal-create-label>
-                        <button type="button" class="btn btn-primary" data-custom-info-modal-create-apply>Créer la liste</button>
+                    <p class="piece-custom-info-modal-note">Choisissez une liste existante ou saisissez un nouveau nom de liste.</p>
+                    <div class="piece-custom-info-modal-choose-grid">
+                        <input type="text" class="lot-input piece-custom-info-modal-set-combobox" list="customInfoModalSetChoices" value="${this.escapeHtml(state.listDraftLabel || '')}" placeholder="Nouvelle liste" data-custom-info-modal-set-combobox>
+                        <datalist id="customInfoModalSetChoices">
+                            ${allSets.map((setEntry) => `<option value="${this.escapeHtml(setEntry && setEntry.label || '')}"></option>`).join('')}
+                        </datalist>
+                        <button type="button" class="btn btn-primary" data-custom-info-modal-primary-action>${primaryActionLabel}</button>
                     </div>
                 </section>`;
 
             const editPanelHtml = editableSet
                 ? `
                     <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor">
-                        <h3>Éditer la liste active</h3>
+                        <div class="piece-custom-info-modal-section-head">
+                            <h3>Contenu de la liste sélectionnée</h3>
+                        </div>
+                        <p class="piece-custom-info-modal-note">Modifiez le nom de la liste puis gérez ses valeurs.</p>
                         <div class="piece-custom-info-set-editor-head">
                             <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
                             <div class="piece-custom-info-set-editor-head-actions">
@@ -4864,6 +4917,7 @@ class ValoboisApp {
                                 <button type="button" class="price-preset-row__remove" data-custom-info-modal-set-delete>Supprimer</button>
                             </div>
                         </div>
+                        <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
                         <div class="piece-custom-info-option-head piece-custom-info-option-grid piece-custom-info-option-grid--rich" aria-hidden="true">
                             <span>Valeur</span>
                             <span>Unite</span>
@@ -4883,50 +4937,51 @@ class ValoboisApp {
                             </div>
                         </div>
                     </section>`
-                : '';
+                : `<section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor piece-custom-info-set-editor--empty">
+                        <div class="piece-custom-info-modal-section-head">
+                            <h3>Contenu de la liste sélectionnée</h3>
+                        </div>
+                        <p class="piece-custom-info-modal-empty">Aucune liste sélectionnée. Choisissez une liste dans “Listes créées” pour afficher et gérer ses valeurs.</p>
+                    </section>`;
 
             bodyEl.innerHTML = `
                 ${libraryPanelHtml}
                 ${editPanelHtml}`;
 
-            const searchInput = bodyEl.querySelector('[data-custom-info-modal-search]');
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    state.searchQuery = String(searchInput.value || '');
-                    render();
-                });
+            const listCombobox = bodyEl.querySelector('[data-custom-info-modal-set-combobox]');
+            if (listCombobox) {
+                const syncFromCombobox = ({ rerender = false } = {}) => {
+                    state.listDraftLabel = String(listCombobox.value || '');
+                    const matched = findSetByLabel(state.listDraftLabel);
+                    const previousSetId = String(state.selectedSetId || '').trim();
+                    const nextSetId = matched ? String(matched.id || '').trim() : '';
+                    state.selectedSetId = nextSetId;
+                    state.forceNewListMode = !matched;
+                    const actionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
+                    if (actionBtn) actionBtn.textContent = matched ? 'Modifier' : '+ Ajouter';
+                    if (rerender || nextSetId !== previousSetId) render();
+                };
+                listCombobox.addEventListener('input', () => syncFromCombobox({ rerender: false }));
+                listCombobox.addEventListener('change', () => syncFromCombobox({ rerender: true }));
             }
 
-            bodyEl.querySelectorAll('[data-custom-info-modal-recent-set]').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    state.selectedSetId = String(btn.getAttribute('data-custom-info-modal-recent-set') || '').trim();
-                    render();
-                });
-            });
+            const primaryActionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
+            if (primaryActionBtn) {
+                primaryActionBtn.addEventListener('click', () => {
+                    const matched = findSetByLabel(state.listDraftLabel);
+                    if (matched) {
+                        const nextSetId = String(matched.id || '').trim();
+                        const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: nextSetId }, { markAsLocal: !isDefault });
+                        if (!updated) return;
+                        state.forceNewListMode = false;
+                        state.selectedSetId = nextSetId;
+                        state.listDraftLabel = String(matched.label || '');
+                        applySyncAndPersist({ rerender: false });
+                        render();
+                        return;
+                    }
 
-            const chooseSelectEl = bodyEl.querySelector('[data-custom-info-modal-choose-select]');
-            if (chooseSelectEl) {
-                chooseSelectEl.addEventListener('change', () => {
-                    state.selectedSetId = String(chooseSelectEl.value || '').trim();
-                });
-            }
-
-            const chooseApplyBtn = bodyEl.querySelector('[data-custom-info-modal-choose-apply]');
-            if (chooseApplyBtn) {
-                chooseApplyBtn.addEventListener('click', () => {
-                    const nextSetId = String(state.selectedSetId || '').trim();
-                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: nextSetId }, { markAsLocal: !isDefault });
-                    if (!updated) return;
-                    applySyncAndPersist({ rerender: false });
-                    render();
-                });
-            }
-
-            const createApplyBtn = bodyEl.querySelector('[data-custom-info-modal-create-apply]');
-            if (createApplyBtn) {
-                createApplyBtn.addEventListener('click', () => {
-                    const labelEl = bodyEl.querySelector('[data-custom-info-modal-create-label]');
-                    const nextLabel = String(labelEl && labelEl.value || '').trim();
+                    const nextLabel = String(state.listDraftLabel || '').trim();
                     if (!nextLabel) {
                         window.alert('Le nom de liste est requis.');
                         return;
@@ -4935,8 +4990,10 @@ class ValoboisApp {
                     if (!created) return;
                     const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: created.id }, { markAsLocal: !isDefault });
                     if (!updated) return;
+                    state.forceNewListMode = false;
+                    state.selectedSetId = String(created.id || '').trim();
+                    state.listDraftLabel = String(created.label || '');
                     applySyncAndPersist({ rerender: false });
-                    state.selectedSetId = created.id;
                     render();
                 });
             }
@@ -4944,38 +5001,47 @@ class ValoboisApp {
             const setDeleteBtn = bodyEl.querySelector('[data-custom-info-modal-set-delete]');
             if (setDeleteBtn && editableSet) {
                 setDeleteBtn.addEventListener('click', () => {
-                    if (!window.confirm(`Supprimer la liste "${editableSet.label}" ?`)) return;
-                    const ui = this.data && this.data.ui;
-                    this.normalizeCustomInfoOptionSets(ui);
-                    if (!ui || !Array.isArray(ui.customInfoOptionSets)) return;
-                    ui.customInfoOptionSets = ui.customInfoOptionSets
-                        .filter((entry) => String(entry && entry.id || '') !== String(editableSet.id || ''));
+                    openConfirmModal({
+                        title: 'Supprimer la liste',
+                        message: `Supprimer la liste "${editableSet.label}" ?`,
+                        confirmLabel: 'Supprimer',
+                        onConfirm: () => {
+                            const ui = this.data && this.data.ui;
+                            this.normalizeCustomInfoOptionSets(ui);
+                            if (!ui || !Array.isArray(ui.customInfoOptionSets)) return;
+                            ui.customInfoOptionSets = ui.customInfoOptionSets
+                                .filter((entry) => String(entry && entry.id || '') !== String(editableSet.id || ''));
 
-                    const targetSetId = String(editableSet.id || '');
-                    const clearSetRef = (pieceLike) => {
-                        if (!pieceLike || typeof pieceLike !== 'object') return;
-                        const infos = this.ensurePieceCustomInfos(pieceLike);
-                        infos.forEach((entry) => {
-                            if (String(entry && entry.optionSetId || '') !== targetSetId) return;
-                            entry.optionSetId = '';
-                            if (entry.valueMode === 'list') {
-                                entry.valueMode = 'free';
-                                entry.valueType = 'text';
-                            }
-                        });
-                    };
+                            const targetSetId = String(editableSet.id || '');
+                            const clearSetRef = (pieceLike) => {
+                                if (!pieceLike || typeof pieceLike !== 'object') return;
+                                const infos = this.ensurePieceCustomInfos(pieceLike);
+                                infos.forEach((entry) => {
+                                    if (String(entry && entry.optionSetId || '') !== targetSetId) return;
+                                    entry.optionSetId = '';
+                                    if (entry.valueMode === 'list') {
+                                        entry.valueMode = 'free';
+                                        entry.valueType = 'text';
+                                    }
+                                });
+                            };
 
-                    (this.data && Array.isArray(this.data.lots) ? this.data.lots : []).forEach((lotItem) => {
-                        if (!lotItem || typeof lotItem !== 'object') return;
-                        (Array.isArray(lotItem.pieces) ? lotItem.pieces : []).forEach((pieceItem) => clearSetRef(pieceItem));
-                        this.ensureDefaultPiecesData(lotItem).forEach((defaultPieceItem) => clearSetRef(defaultPieceItem));
+                            (this.data && Array.isArray(this.data.lots) ? this.data.lots : []).forEach((lotItem) => {
+                                if (!lotItem || typeof lotItem !== 'object') return;
+                                (Array.isArray(lotItem.pieces) ? lotItem.pieces : []).forEach((pieceItem) => clearSetRef(pieceItem));
+                                this.ensureDefaultPiecesData(lotItem).forEach((defaultPieceItem) => clearSetRef(defaultPieceItem));
+                            });
+
+                            clearSetRef(piece);
+                            state.forceNewListMode = true;
+                            state.selectedSetId = '';
+                            state.listDraftLabel = '';
+                            this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: '', valueMode: 'free' }, { markAsLocal: !isDefault });
+                            applySyncAndPersist({ rerender: false });
+                            closeConfirmModal();
+                            render();
+                        }
                     });
-
-                    clearSetRef(piece);
-                    state.selectedSetId = '';
-                    this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: '', valueMode: 'free' }, { markAsLocal: !isDefault });
-                    applySyncAndPersist({ rerender: false });
-                    render();
                 });
             }
 
@@ -4993,6 +5059,7 @@ class ValoboisApp {
                     const upserted = this.upsertCustomInfoOptionSet({
                         id: editableSet.id,
                         label: nextLabel,
+                        subtitle: editableSet.subtitle,
                         items: Array.isArray(editableSet.items)
                             ? editableSet.items
                             : this.normalizeCustomInfoOptionItems([], editableSet.options)
@@ -5001,11 +5068,38 @@ class ValoboisApp {
                         setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
                         return;
                     }
+                    state.listDraftLabel = String(upserted.label || '');
                     applySyncAndPersist({ rerender: false });
                     render();
                 };
                 setLabelInput.addEventListener('change', commitSetLabel);
                 setLabelInput.addEventListener('blur', commitSetLabel);
+            }
+
+            const setSubtitleInput = bodyEl.querySelector('[data-custom-info-modal-set-subtitle]');
+            if (setSubtitleInput && editableSet) {
+                setSubtitleInput.addEventListener('focus', () => {
+                    setSubtitleInput.dataset.previousValue = setSubtitleInput.value;
+                });
+                const commitSetSubtitle = () => {
+                    const nextSubtitle = String(setSubtitleInput.value || '').trim();
+                    const upserted = this.upsertCustomInfoOptionSet({
+                        id: editableSet.id,
+                        label: editableSet.label,
+                        subtitle: nextSubtitle,
+                        items: Array.isArray(editableSet.items)
+                            ? editableSet.items
+                            : this.normalizeCustomInfoOptionItems([], editableSet.options)
+                    }, this.data && this.data.ui);
+                    if (!upserted) {
+                        setSubtitleInput.value = setSubtitleInput.dataset.previousValue || editableSet.subtitle || '';
+                        return;
+                    }
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                };
+                setSubtitleInput.addEventListener('change', commitSetSubtitle);
+                setSubtitleInput.addEventListener('blur', commitSetSubtitle);
             }
 
             bodyEl.querySelectorAll('[data-custom-info-modal-option-row]').forEach((optionRow) => {
@@ -5047,20 +5141,51 @@ class ValoboisApp {
                 const optionDeleteBtn = optionRow.querySelector('[data-custom-info-modal-option-delete]');
                 if (optionDeleteBtn) {
                     optionDeleteBtn.addEventListener('click', () => {
-                        const nextItems = Array.isArray(editableSet.items)
-                            ? editableSet.items.map((item) => ({ ...item }))
-                            : this.normalizeCustomInfoOptionItems([], editableSet.options);
-                        nextItems.splice(optionIndex, 1);
-                        const upserted = this.upsertCustomInfoOptionSet({
-                            id: editableSet.id,
-                            label: editableSet.label,
-                            items: nextItems
-                        }, this.data && this.data.ui);
-                        if (!upserted) return;
-                        applySyncAndPersist({ rerender: false });
-                        render();
+                        openConfirmModal({
+                            title: 'Supprimer la valeur',
+                            message: 'Supprimer cette valeur de la liste ? ',
+                            confirmLabel: 'Supprimer',
+                            onConfirm: () => {
+                                const nextItems = Array.isArray(editableSet.items)
+                                    ? editableSet.items.map((item) => ({ ...item }))
+                                    : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                                nextItems.splice(optionIndex, 1);
+                                const upserted = this.upsertCustomInfoOptionSet({
+                                    id: editableSet.id,
+                                    label: editableSet.label,
+                                    items: nextItems
+                                }, this.data && this.data.ui);
+                                if (!upserted) return;
+                                applySyncAndPersist({ rerender: false });
+                                closeConfirmModal();
+                                render();
+                            }
+                        });
                     });
                 }
+
+                const moveUpBtn = optionRow.querySelector('[data-custom-info-modal-option-move="up"]');
+                const moveDownBtn = optionRow.querySelector('[data-custom-info-modal-option-move="down"]');
+                const moveOption = (delta) => {
+                    const sourceItems = Array.isArray(editableSet.items)
+                        ? editableSet.items.map((item) => ({ ...item }))
+                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                    const nextIndex = optionIndex + delta;
+                    if (nextIndex < 0 || nextIndex >= sourceItems.length) return;
+                    const buffer = sourceItems[optionIndex];
+                    sourceItems[optionIndex] = sourceItems[nextIndex];
+                    sourceItems[nextIndex] = buffer;
+                    const upserted = this.upsertCustomInfoOptionSet({
+                        id: editableSet.id,
+                        label: editableSet.label,
+                        items: sourceItems
+                    }, this.data && this.data.ui);
+                    if (!upserted) return;
+                    applySyncAndPersist({ rerender: false });
+                    render();
+                };
+                if (moveUpBtn) moveUpBtn.addEventListener('click', () => moveOption(-1));
+                if (moveDownBtn) moveDownBtn.addEventListener('click', () => moveOption(1));
             });
 
             const addOptionBtn = bodyEl.querySelector('[data-custom-info-modal-option-add]');
@@ -5113,6 +5238,24 @@ class ValoboisApp {
 
         };
 
+        if (confirmCloseBtn) confirmCloseBtn.onclick = closeConfirmModal;
+        if (confirmCancelBtn) confirmCancelBtn.onclick = closeConfirmModal;
+        if (confirmActionBtn) {
+            confirmActionBtn.onclick = () => {
+                const action = state.pendingConfirmAction;
+                if (typeof action === 'function') {
+                    action();
+                } else {
+                    closeConfirmModal();
+                }
+            };
+        }
+        if (confirmBackdrop) {
+            confirmBackdrop.onclick = (event) => {
+                if (event.target === confirmBackdrop) closeConfirmModal();
+            };
+        }
+
         if (closeBtn) closeBtn.onclick = closeModal;
         if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
         backdrop.onclick = (event) => {
@@ -5141,6 +5284,9 @@ class ValoboisApp {
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
         this.normalizeCustomInfoOptionSets(this.data && this.data.ui);
+        const availableSets = Array.isArray(this.data && this.data.ui && this.data.ui.customInfoOptionSets)
+            ? this.data.ui.customInfoOptionSets
+            : [];
 
         const rowsHtml = infos.map((entry) => {
             const entryLabel = String(entry.label || '').trim();
@@ -5153,22 +5299,34 @@ class ValoboisApp {
             const optionsHtml = optionSet
                 ? `<datalist id="${attrValue(listId)}">${(optionSet.options || []).map((opt) => `<option value="${attrValue(opt)}"></option>`).join('')}</datalist>`
                 : '';
-            const optionSetActionsHtml = valueMode === 'free'
-                ? ''
-                : `<div class="piece-custom-info-set-actions" role="group" aria-label="Actions liste personnalisee">
-                        <button type="button" class="piece-duplicate-btn piece-custom-info-set-action-btn" data-custom-info-set-open-manage>
-                            Gérer les listes
-                        </button>
-                    </div>
-                    <div class="piece-custom-info-set-current">
-                        <span class="piece-custom-info-set-current-label">Liste:</span>
-                        <span class="piece-custom-info-set-current-value">${optionSet ? attrValue(optionSet.label || '') : 'Aucune liste associée'}</span>
-                    </div>`;
+            const orderedOptions = optionSet && Array.isArray(optionSet.items) && optionSet.items.length > 0
+                ? optionSet.items.map((item) => String(item && item.value || '').trim()).filter(Boolean)
+                : (optionSet && Array.isArray(optionSet.options) ? optionSet.options.map((opt) => String(opt || '').trim()).filter(Boolean) : []);
+            const optionSetSubtitle = optionSet ? String(optionSet.subtitle || '').trim() : '';
             const valueDisplay = this.getCustomInfoValueDisplay(entry);
             const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
                 ? '<span class="piece-custom-info-badge">hérité</span>'
                 : '';
+            const topLineFieldHtml = valueMode === 'free'
+                ? `<div class="piece-custom-info-label-wrap">
+                        <input type="text" class="lot-input" value="${attrValue(labelInputValue)}" placeholder="${attrValue(labelPlaceholder)}" data-custom-info-label>
+                        ${inheritedBadge}
+                    </div>`
+                : `<div class="piece-custom-info-label-wrap piece-custom-info-label-wrap--set-select">
+                        <div class="piece-custom-info-set-inline" role="group" aria-label="Selection de liste personnalisee">
+                            <select class="lot-input" data-custom-info-set-select>
+                                <option value="">Aucune liste associée</option>
+                                ${availableSets.map((setEntry) => {
+                                    const setId = String(setEntry && setEntry.id || '').trim();
+                                    const selected = setId && optionSet && String(optionSet.id || '') === setId;
+                                    return `<option value="${attrValue(setId)}"${selected ? ' selected' : ''}>${attrValue(setEntry && setEntry.label || '')}</option>`;
+                                }).join('')}
+                            </select>
+                        </div>
+                        ${optionSetSubtitle ? `<p class="piece-custom-info-set-subtitle">${attrValue(optionSetSubtitle)}</p>` : ''}
+                        ${inheritedBadge}
+                    </div>`;
 
             return `
                 <div class="piece-custom-info-row" data-custom-info-row data-custom-info-id="${attrValue(entry.id)}">
@@ -5194,13 +5352,14 @@ class ValoboisApp {
                             </div>
                         </div>
                         <div class="piece-custom-info-topline">
-                            <div class="piece-custom-info-label-wrap">
-                                <input type="text" class="lot-input" value="${attrValue(labelInputValue)}" placeholder="${attrValue(labelPlaceholder)}" data-custom-info-label>
-                                ${inheritedBadge}
-                            </div>
+                            ${topLineFieldHtml}
                         </div>
-                        ${optionSetActionsHtml}
-                        <input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>
+                        ${valueMode === 'list' && optionSet
+                            ? `<select class="lot-input" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}">
+                                    <option value="">Valeur</option>
+                                    ${orderedOptions.map((opt) => `<option value="${attrValue(opt)}"${opt === String(valueDisplay || '').trim() ? ' selected' : ''}>${attrValue(opt)}</option>`).join('')}
+                               </select>`
+                            : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`}
                         ${optionsHtml}
                     </div>
                 </div>`;
@@ -5219,6 +5378,7 @@ class ValoboisApp {
                     <div class="mesures-inline-widget piece-custom-info-content">
                         <div class="piece-custom-info-footer-actions">
                             <button type="button" class="piece-duplicate-btn piece-custom-info-add" data-custom-info-add>+ Ajouter</button>
+                            <button type="button" class="piece-duplicate-btn piece-custom-info-manage-btn" data-custom-info-open-manage-sets>Gérer les listes</button>
                             <button type="button" class="piece-duplicate-btn piece-custom-info-help-btn" data-custom-info-help>Info</button>
                         </div>
                         ${hasInfos ? `<div class="piece-custom-info-list" data-custom-info-list>${rowsHtml}</div>` : ''}
@@ -5291,6 +5451,36 @@ class ValoboisApp {
                     'Ajoutez des champs libres pour documenter des caractéristiques propres à cette pièce (état, marquage, finition, usage, etc.). Ces informations sont exportées dans les sorties compatibles.',
                     { textAlign: 'left', whiteSpace: 'normal' }
                 );
+            });
+        }
+
+        const manageSetsBtn = group.querySelector('[data-custom-info-open-manage-sets]');
+        if (manageSetsBtn) {
+            manageSetsBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.isDetailLotCardActive(lot, cardKey)) return;
+                const currentInfos = this.ensurePieceCustomInfos(piece);
+                const targetInfo = currentInfos.find((entry) => this.normalizeCustomInfoMode(entry && entry.valueMode, entry && entry.valueType) !== 'free')
+                    || currentInfos[0]
+                    || null;
+                if (!targetInfo || !targetInfo.id) {
+                    window.alert('Ajoutez d\'abord une information personnalisée pour gérer les listes.');
+                    return;
+                }
+                this.openCustomInfoOptionSetModal({
+                    piece,
+                    customInfoId: targetInfo.id,
+                    isDefault,
+                    initialPanel: 'choose',
+                    onDataChange: () => {
+                        syncIfDefault();
+                        persistSilent();
+                    },
+                    onClose: () => {
+                        syncIfDefault();
+                        persistAndRerender();
+                    }
+                });
             });
         }
 
@@ -5379,25 +5569,18 @@ class ValoboisApp {
                 });
             });
 
-            const openManageBtn = row.querySelector('[data-custom-info-set-open-manage]');
-            if (openManageBtn) {
-                openManageBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
+            const setSelect = row.querySelector('[data-custom-info-set-select]');
+            if (setSelect) {
+                setSelect.addEventListener('click', (e) => e.stopPropagation());
+                setSelect.addEventListener('change', () => {
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
-                    this.openCustomInfoOptionSetModal({
-                        piece,
-                        customInfoId,
-                        isDefault,
-                        initialPanel: 'choose',
-                        onDataChange: () => {
-                            syncIfDefault();
-                            persistSilent();
-                        },
-                        onClose: () => {
-                            syncIfDefault();
-                            persistAndRerender();
-                        }
-                    });
+                    const nextSetId = String(setSelect.value || '').trim();
+                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, {
+                        optionSetId: nextSetId
+                    }, { markAsLocal: !isDefault });
+                    if (!updated) return;
+                    syncIfDefault();
+                    persistAndRerender();
                 });
             }
 
@@ -5424,6 +5607,7 @@ class ValoboisApp {
                                     const uniqueLabel = this.createUniqueCustomInfoOptionSetLabel(sourceSet.label, this.data && this.data.ui);
                                     const copiedSet = this.upsertCustomInfoOptionSet({
                                         label: uniqueLabel,
+                                        subtitle: sourceSet.subtitle,
                                         items: Array.isArray(sourceSet.items)
                                             ? sourceSet.items.map((item) => ({ ...item }))
                                             : this.normalizeCustomInfoOptionItems([], sourceSet.options)
