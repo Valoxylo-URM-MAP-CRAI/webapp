@@ -421,19 +421,6 @@ const NOTATION_MODE_CONFIG = {
     }
 };
 
-const NOTATION_MODE_SECTION_SELECTORS = [
-    { section: 'bio', rowSelector: '.bio-row', fieldAttr: 'data-bio-field' },
-    { section: 'mech', rowSelector: '.mech-row', fieldAttr: 'data-mech-field' },
-    { section: 'usage', rowSelector: '.usage-row', fieldAttr: 'data-usage-field' },
-    { section: 'denat', rowSelector: '.denat-row', fieldAttr: 'data-denat-field' },
-    { section: 'debit', rowSelector: '.debit-row', fieldAttr: 'data-debit-field' },
-    { section: 'geo', rowSelector: '.geo-row', fieldAttr: 'data-geo-field' },
-    { section: 'essence', rowSelector: '.essence-row', fieldAttr: 'data-essence-field' },
-    { section: 'ancien', rowSelector: '.ancien-row', fieldAttr: 'data-ancien-field' },
-    { section: 'traces', rowSelector: '.traces-row', fieldAttr: 'data-traces-field' },
-    { section: 'provenance', rowSelector: '.provenance-row', fieldAttr: 'data-provenance-field' }
-];
-
 const NOTATION_CRITERION_SCORE_STEPS = {
     purge: [-3, 1, 3],
     expansion: [-10, -3, 3],
@@ -642,12 +629,12 @@ const LOC_SIT_BASE_SITUATIONS = [
 class ValoboisApp {
     constructor() {
         if (typeof window !== 'undefined') window.__valoboisApp = this;
-        this.storageKey = 'valobois_v1';
-        this.storageBackupKey = 'valobois_v1_backup';
-        this.cloudDraftStoragePrefix = 'valobois_cloud_draft_v1';
-        this.matrixConfigStorageKey = 'valobois_matrix_config';
-        this.locSitGlobalStorageKey = 'valobois_locsit_custom_global_v1';
-        this.rareteCustomGlobalStorageKey = 'valobois_rarete_custom_global_v1';
+        this.storageKey = VALOBOIS_STORAGE_KEYS.storageKey;
+        this.storageBackupKey = VALOBOIS_STORAGE_KEYS.storageBackupKey;
+        this.cloudDraftStoragePrefix = VALOBOIS_STORAGE_KEYS.cloudDraftStoragePrefix;
+        this.matrixConfigStorageKey = VALOBOIS_STORAGE_KEYS.matrixConfigStorageKey;
+        this.locSitGlobalStorageKey = VALOBOIS_STORAGE_KEYS.locSitGlobalStorageKey;
+        this.rareteCustomGlobalStorageKey = VALOBOIS_STORAGE_KEYS.rareteCustomGlobalStorageKey;
         /** 'guest' = persistance LocalStorage uniquement ; 'cloud' = Firestore uniquement (pas de payload en local). */
         this.persistenceMode = 'guest';
         this.data = this.loadGuestDataFromLocalStorage();
@@ -687,6 +674,7 @@ class ValoboisApp {
         this._valoboisMatrixUiState = { axis: 'all', family: 'all', gatesOnly: false, query: '', showVectors: true, showRejects: true, editMode: false };
         this._valoboisMatrixLastThresholdError = '';
         this._valoboisMatrixLastFlowWarning = '';
+        this._lastEvaluationImportError = null;
         this.valoboisMatrixConfig = this.loadValoboisMatrixConfig();
         this.applyValoboisMatrixConfigToData();
         this.ensureTermesBoisDatalist();
@@ -1824,6 +1812,19 @@ class ValoboisApp {
         }
 
         return null;
+    }
+    getSimilarityStrategyLabels() {
+        return window.VALOBOIS_SIMILARITY_STRATEGY_LABELS || { single: 'Mesure unique', multiple: 'Mesures multiples' };
+    }
+
+    getDetailModalTitles(sectionKey) {
+        const allTitles = window.VALOBOIS_DETAIL_MODAL_TITLES || {};
+        const titles = allTitles[sectionKey];
+        return titles && typeof titles === 'object' ? titles : {};
+    }
+
+    getInspectionDetailModalTitles(isEnglish) {
+        return this.getDetailModalTitles(isEnglish ? 'inspection_en' : 'inspection_fr');
     }
 
     isPointOnSegment(point, start, end, tolerance = 1e-10) {
@@ -4084,6 +4085,7 @@ class ValoboisApp {
 
     createInitialData() {
         return {
+            schemaVersion: '1.0',
             meta: this.getDefaultMeta(),
             ui: this.getDefaultUi(),
             notationMode: null,
@@ -4105,6 +4107,7 @@ class ValoboisApp {
 
     buildEvaluationJsonExportData() {
         const exported = this.prepareDataForCloudSnapshot();
+        exported.schemaVersion = '1.0';
         exported.meta = this.getDefaultMeta(exported.meta || {});
         exported.meta.geoFrance = this.getDefaultGeoFrance(exported.meta.geoFrance || {});
         exported.meta.geoFrance.conditionClimatiqueHumidification = this.getGeoFranceClimateExportData(exported.meta.geoFrance);
@@ -4122,6 +4125,39 @@ class ValoboisApp {
             if (parsed.ui.collapsibles != null) delete parsed.ui.collapsibles;
             if (parsed.ui.detailLotActiveCardByLot != null) delete parsed.ui.detailLotActiveCardByLot;
         }
+    }
+
+    normalizeEvaluationImportPayload(rawPayload) {
+        if (!rawPayload || typeof rawPayload !== 'object') return null;
+
+        const candidatePayloads = [
+            rawPayload,
+            rawPayload.data,
+            rawPayload.payload,
+            rawPayload.evaluation
+        ].filter((candidate) => candidate && typeof candidate === 'object');
+
+        for (const candidate of candidatePayloads) {
+            const cloned = JSON.parse(JSON.stringify(candidate));
+            let lots = cloned.lots;
+
+            if (!Array.isArray(lots) && lots && typeof lots === 'object') {
+                lots = Object.values(lots).filter((lot) => lot && typeof lot === 'object');
+            }
+
+            if (!Array.isArray(lots) || !lots.length) continue;
+
+            cloned.lots = lots.filter((lot) => lot && typeof lot === 'object');
+            if (!cloned.lots.length) continue;
+
+            cloned.schemaVersion = typeof cloned.schemaVersion === 'string' && cloned.schemaVersion.trim()
+                ? cloned.schemaVersion.trim()
+                : '1.0';
+
+            return cloned;
+        }
+
+        return null;
     }
 
     getDefaultUi(existingUi = {}) {
@@ -4308,17 +4344,30 @@ class ValoboisApp {
         source.forEach((entry) => {
             if (entry == null) return;
             let value = '';
-            let unit = '';
-            let note = '';
             if (typeof entry === 'object') {
                 value = String(entry.value ?? entry.label ?? entry.option ?? '').trim();
-                unit = String(entry.unit ?? '').trim();
-                note = String(entry.note ?? entry.meta ?? entry.details ?? '').trim();
             } else {
                 value = String(entry || '').trim();
             }
             if (!value) return;
-            normalized.push({ value, unit, note });
+            // Normalize connexes array — migrate legacy unit/note fields on first read
+            let connexes = [];
+            if (typeof entry === 'object' && Array.isArray(entry.connexes) && entry.connexes.length > 0) {
+                connexes = entry.connexes
+                    .filter((c) => c && typeof c === 'object')
+                    .map((c) => ({
+                        id: String(c.id || this.createCustomInfoId('ci-cn')),
+                        label: String(c.label ?? '').trim(),
+                        value: String(c.value ?? '').trim()
+                    }));
+            } else if (typeof entry === 'object') {
+                // Migrate legacy unit / note fields
+                const legacyUnit = String(entry.unit ?? '').trim();
+                const legacyNote = String(entry.note ?? entry.meta ?? entry.details ?? '').trim();
+                if (legacyUnit) connexes.push({ id: this.createCustomInfoId('ci-cn'), label: 'Unité', value: legacyUnit });
+                if (legacyNote) connexes.push({ id: this.createCustomInfoId('ci-cn'), label: 'Infos connexes', value: legacyNote });
+            }
+            normalized.push({ value, connexes });
         });
         return normalized;
     }
@@ -4796,8 +4845,7 @@ class ValoboisApp {
             pendingConfirmAction: null,
             newValueDraft: {
                 value: '',
-                unit: '',
-                note: ''
+                connexes: []
             }
         };
 
@@ -4868,23 +4916,36 @@ class ValoboisApp {
             const effectiveSet = matchedByLabel || selectedSet;
             const primaryActionLabel = effectiveSet ? 'Modifier' : '+ Ajouter';
             const optionsRowsHtml = editableSet && editableItems.length > 0
-                ? editableItems.map((opt, idx) => `
+                ? editableItems.map((opt, idx) => {
+                    const connexesHtml = (Array.isArray(opt.connexes) ? opt.connexes : []).map((cn, cidx) => `
+                        <div class="piece-custom-info-connexe-row" data-connexe-index="${cidx}">
+                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.label || '')}" placeholder="Libellé" data-custom-info-modal-connexe-label>
+                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.value || '')}" placeholder="Valeur" data-custom-info-modal-connexe-value>
+                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-connexe-delete data-connexe-index="${cidx}" aria-label="Supprimer ce champ connexe"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                        </div>
+                    `).join('');
+                    return `
                     <article class="price-preset-row piece-custom-info-option-row" data-custom-info-modal-option-row data-option-index="${idx}">
                         <div class="price-preset-row__head">
                             <span class="price-preset-row__badge price-preset-row__badge--custom">Valeur</span>
                             <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre d'apparition">
                                 <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="up"${idx === 0 ? ' disabled' : ''} aria-label="Monter">↑</button>
                                 <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="down"${idx === editableItems.length - 1 ? ' disabled' : ''} aria-label="Descendre">↓</button>
+                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-option-delete aria-label="Supprimer cette valeur"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
                             </div>
                         </div>
                         <div class="price-preset-row__grid piece-custom-info-option-grid piece-custom-info-option-grid--rich">
+                            <p class="piece-custom-info-field-section-label">Valeur principale</p>
                             <input type="text" class="lot-input" value="${this.escapeHtml(opt.value || '')}" placeholder="Valeur" data-custom-info-modal-option-value>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.unit || '')}" placeholder="Unite" data-custom-info-modal-option-unit>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.note || '')}" placeholder="Infos connexes" data-custom-info-modal-option-note>
-                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-option-delete>Supprimer</button>
+                            <p class="piece-custom-info-field-section-label">Données connexes</p>
+                            <div class="piece-custom-info-connexes" data-custom-info-modal-connexes-list>
+                                ${connexesHtml}
+                                <button type="button" class="piece-custom-info-connexes-add-btn" data-custom-info-modal-connexe-add>+ Ajouter un champ connexe</button>
+                            </div>
                         </div>
                     </article>
-                `).join('')
+                    `;
+                }).join('')
                 : '<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>';
 
             const libraryPanelHtml = `
@@ -4914,25 +4975,30 @@ class ValoboisApp {
                             <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
                             <div class="piece-custom-info-set-editor-head-actions">
                                 <span class="price-preset-row__badge price-preset-row__badge--custom">Liste</span>
-                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-set-delete>Supprimer</button>
+                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-set-delete aria-label="Supprimer la liste"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
                             </div>
                         </div>
                         <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
                         <div class="piece-custom-info-option-head piece-custom-info-option-grid piece-custom-info-option-grid--rich" aria-hidden="true">
-                            <span>Valeur</span>
-                            <span>Unite</span>
-                            <span>Infos connexes</span>
-                            <span>Action</span>
-                        </div>
                         <div class="price-preset-editor__list" data-custom-info-modal-options-list>
                             ${optionsRowsHtml}
                         </div>
                         <div class="price-preset-editor__create">
                             <h4>Ajouter une valeur</h4>
                             <div class="price-preset-editor__create-grid piece-custom-info-option-create-grid piece-custom-info-option-create-grid--rich">
+                                <p class="piece-custom-info-field-section-label">Valeur principale</p>
                                 <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.value || '')}" placeholder="Nouvelle valeur" data-custom-info-modal-option-new-value>
-                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.unit || '')}" placeholder="Unite" data-custom-info-modal-option-new-unit>
-                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.note || '')}" placeholder="Infos connexes" data-custom-info-modal-option-new-note>
+                                <p class="piece-custom-info-field-section-label">Données connexes</p>
+                                <div class="piece-custom-info-connexes" data-custom-info-modal-connexes-new-list>
+                                    ${(Array.isArray(state.newValueDraft.connexes) ? state.newValueDraft.connexes : []).map((cn, cidx) => `
+                                        <div class="piece-custom-info-connexe-row" data-connexe-new-index="${cidx}">
+                                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.label || '')}" placeholder="Libellé" data-custom-info-modal-connexe-new-label>
+                                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.value || '')}" placeholder="Valeur" data-custom-info-modal-connexe-new-value>
+                                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-connexe-new-delete data-connexe-new-index="${cidx}" aria-label="Supprimer ce champ connexe"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                                        </div>
+                                    `).join('')}
+                                    <button type="button" class="piece-custom-info-connexes-add-btn" data-custom-info-modal-connexe-new-add>+ Ajouter un champ connexe</button>
+                                </div>
                                 <button type="button" class="btn btn-primary" data-custom-info-modal-option-add>Ajouter</button>
                             </div>
                         </div>
@@ -5107,21 +5173,13 @@ class ValoboisApp {
                 if (!Number.isFinite(optionIndex) || optionIndex < 0 || !editableSet) return;
 
                 const optionValueInput = optionRow.querySelector('[data-custom-info-modal-option-value]');
-                const optionUnitInput = optionRow.querySelector('[data-custom-info-modal-option-unit]');
-                const optionNoteInput = optionRow.querySelector('[data-custom-info-modal-option-note]');
 
-                const commitOption = () => {
-                    const nextValue = String(optionValueInput && optionValueInput.value || '').trim();
-                    const nextUnit = String(optionUnitInput && optionUnitInput.value || '').trim();
-                    const nextNote = String(optionNoteInput && optionNoteInput.value || '').trim();
-                    const nextItems = Array.isArray(editableSet.items)
-                        ? editableSet.items.map((item) => ({ ...item }))
-                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
-                    if (!nextValue) {
-                        nextItems.splice(optionIndex, 1);
-                    } else {
-                        nextItems[optionIndex] = { value: nextValue, unit: nextUnit, note: nextNote };
-                    }
+                // Helper : rebuild items array with deep copy of connexes
+                const cloneItems = () => (Array.isArray(editableSet.items)
+                    ? editableSet.items.map((item) => ({ ...item, connexes: Array.isArray(item.connexes) ? item.connexes.map((c) => ({ ...c })) : [] }))
+                    : this.normalizeCustomInfoOptionItems([], editableSet.options));
+
+                const upsertItems = (nextItems) => {
                     const upserted = this.upsertCustomInfoOptionSet({
                         id: editableSet.id,
                         label: editableSet.label,
@@ -5132,23 +5190,36 @@ class ValoboisApp {
                     render();
                 };
 
-                [optionValueInput, optionUnitInput, optionNoteInput].forEach((inputEl) => {
-                    if (!inputEl) return;
-                    inputEl.addEventListener('change', commitOption);
-                    inputEl.addEventListener('blur', commitOption);
-                });
+                // Commit value principale
+                const commitOption = () => {
+                    const nextValue = String(optionValueInput && optionValueInput.value || '').trim();
+                    const nextItems = cloneItems();
+                    const currentConnexes = Array.isArray(nextItems[optionIndex] && nextItems[optionIndex].connexes)
+                        ? nextItems[optionIndex].connexes
+                        : [];
+                    if (!nextValue) {
+                        nextItems.splice(optionIndex, 1);
+                    } else {
+                        nextItems[optionIndex] = { value: nextValue, connexes: currentConnexes };
+                    }
+                    upsertItems(nextItems);
+                };
 
+                if (optionValueInput) {
+                    optionValueInput.addEventListener('change', commitOption);
+                    optionValueInput.addEventListener('blur', commitOption);
+                }
+
+                // Delete item
                 const optionDeleteBtn = optionRow.querySelector('[data-custom-info-modal-option-delete]');
                 if (optionDeleteBtn) {
                     optionDeleteBtn.addEventListener('click', () => {
                         openConfirmModal({
                             title: 'Supprimer la valeur',
-                            message: 'Supprimer cette valeur de la liste ? ',
+                            message: 'Supprimer cette valeur de la liste ?',
                             confirmLabel: 'Supprimer',
                             onConfirm: () => {
-                                const nextItems = Array.isArray(editableSet.items)
-                                    ? editableSet.items.map((item) => ({ ...item }))
-                                    : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                                const nextItems = cloneItems();
                                 nextItems.splice(optionIndex, 1);
                                 const upserted = this.upsertCustomInfoOptionSet({
                                     id: editableSet.id,
@@ -5164,72 +5235,156 @@ class ValoboisApp {
                     });
                 }
 
+                // Move up/down
                 const moveUpBtn = optionRow.querySelector('[data-custom-info-modal-option-move="up"]');
                 const moveDownBtn = optionRow.querySelector('[data-custom-info-modal-option-move="down"]');
                 const moveOption = (delta) => {
-                    const sourceItems = Array.isArray(editableSet.items)
-                        ? editableSet.items.map((item) => ({ ...item }))
-                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
+                    const sourceItems = cloneItems();
                     const nextIndex = optionIndex + delta;
                     if (nextIndex < 0 || nextIndex >= sourceItems.length) return;
                     const buffer = sourceItems[optionIndex];
                     sourceItems[optionIndex] = sourceItems[nextIndex];
                     sourceItems[nextIndex] = buffer;
-                    const upserted = this.upsertCustomInfoOptionSet({
-                        id: editableSet.id,
-                        label: editableSet.label,
-                        items: sourceItems
-                    }, this.data && this.data.ui);
-                    if (!upserted) return;
-                    applySyncAndPersist({ rerender: false });
-                    render();
+                    upsertItems(sourceItems);
                 };
                 if (moveUpBtn) moveUpBtn.addEventListener('click', () => moveOption(-1));
                 if (moveDownBtn) moveDownBtn.addEventListener('click', () => moveOption(1));
+
+                // Connexes : add
+                const connexeAddBtn = optionRow.querySelector('[data-custom-info-modal-connexe-add]');
+                if (connexeAddBtn) {
+                    connexeAddBtn.addEventListener('click', () => {
+                        const nextItems = cloneItems();
+                        const item = nextItems[optionIndex];
+                        if (!item) return;
+                        item.connexes = Array.isArray(item.connexes) ? item.connexes : [];
+                        item.connexes.push({ id: this.createCustomInfoId('ci-cn'), label: '', value: '' });
+                        upsertItems(nextItems);
+                    });
+                }
+
+                // Connexes : delete
+                optionRow.querySelectorAll('[data-custom-info-modal-connexe-delete]').forEach((deleteBtn) => {
+                    const connexeIndex = Number.parseInt(deleteBtn.getAttribute('data-connexe-index') || '-1', 10);
+                    if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
+                    deleteBtn.addEventListener('click', () => {
+                        const nextItems = cloneItems();
+                        const item = nextItems[optionIndex];
+                        if (!item || !Array.isArray(item.connexes)) return;
+                        item.connexes.splice(connexeIndex, 1);
+                        upsertItems(nextItems);
+                    });
+                });
+
+                // Connexes : edit label / value
+                const connexesList = optionRow.querySelector('[data-custom-info-modal-connexes-list]');
+                if (connexesList) {
+                    connexesList.querySelectorAll('[data-connexe-index]').forEach((connexeRow) => {
+                        const connexeIndex = Number.parseInt(connexeRow.getAttribute('data-connexe-index') || '-1', 10);
+                        if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
+                        const labelInput = connexeRow.querySelector('[data-custom-info-modal-connexe-label]');
+                        const valueInput = connexeRow.querySelector('[data-custom-info-modal-connexe-value]');
+                        const commitConnexe = () => {
+                            const nextItems = cloneItems();
+                            const item = nextItems[optionIndex];
+                            if (!item || !Array.isArray(item.connexes) || !item.connexes[connexeIndex]) return;
+                            item.connexes[connexeIndex] = {
+                                ...item.connexes[connexeIndex],
+                                label: String(labelInput && labelInput.value || '').trim(),
+                                value: String(valueInput && valueInput.value || '').trim()
+                            };
+                            upsertItems(nextItems);
+                        };
+                        [labelInput, valueInput].forEach((inp) => {
+                            if (!inp) return;
+                            inp.addEventListener('change', commitConnexe);
+                            inp.addEventListener('blur', commitConnexe);
+                        });
+                    });
+                }
             });
 
+            // Zone "Ajouter une valeur"
             const addOptionBtn = bodyEl.querySelector('[data-custom-info-modal-option-add]');
             if (addOptionBtn && editableSet) {
                 const newOptionValueInput = bodyEl.querySelector('[data-custom-info-modal-option-new-value]');
-                const newOptionUnitInput = bodyEl.querySelector('[data-custom-info-modal-option-new-unit]');
-                const newOptionNoteInput = bodyEl.querySelector('[data-custom-info-modal-option-new-note]');
 
-                const syncDraftFromInputs = () => {
-                    state.newValueDraft = {
-                        value: String(newOptionValueInput && newOptionValueInput.value || ''),
-                        unit: String(newOptionUnitInput && newOptionUnitInput.value || ''),
-                        note: String(newOptionNoteInput && newOptionNoteInput.value || '')
-                    };
+                const syncDraftValue = () => {
+                    state.newValueDraft.value = String(newOptionValueInput && newOptionValueInput.value || '');
                 };
 
-                [newOptionValueInput, newOptionUnitInput, newOptionNoteInput].forEach((inputEl) => {
-                    if (!inputEl) return;
-                    inputEl.addEventListener('input', syncDraftFromInputs);
-                    inputEl.addEventListener('change', syncDraftFromInputs);
-                    inputEl.addEventListener('keydown', (event) => {
+                if (newOptionValueInput) {
+                    newOptionValueInput.addEventListener('input', syncDraftValue);
+                    newOptionValueInput.addEventListener('change', syncDraftValue);
+                    newOptionValueInput.addEventListener('keydown', (event) => {
                         if (event.key !== 'Enter') return;
                         event.preventDefault();
                         addOptionBtn.click();
                     });
+                }
+
+                // Connexes draft : add
+                const connexeNewAddBtn = bodyEl.querySelector('[data-custom-info-modal-connexe-new-add]');
+                if (connexeNewAddBtn) {
+                    connexeNewAddBtn.addEventListener('click', () => {
+                        syncDraftValue();
+                        if (!Array.isArray(state.newValueDraft.connexes)) state.newValueDraft.connexes = [];
+                        state.newValueDraft.connexes.push({ id: this.createCustomInfoId('ci-cn'), label: '', value: '' });
+                        render();
+                    });
+                }
+
+                // Connexes draft : delete
+                bodyEl.querySelectorAll('[data-custom-info-modal-connexe-new-delete]').forEach((deleteBtn) => {
+                    const connexeIndex = Number.parseInt(deleteBtn.getAttribute('data-connexe-new-index') || '-1', 10);
+                    if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
+                    deleteBtn.addEventListener('click', () => {
+                        syncDraftValue();
+                        if (!Array.isArray(state.newValueDraft.connexes)) return;
+                        state.newValueDraft.connexes.splice(connexeIndex, 1);
+                        render();
+                    });
+                });
+
+                // Connexes draft : edit
+                bodyEl.querySelectorAll('[data-connexe-new-index]').forEach((connexeRow) => {
+                    const connexeIndex = Number.parseInt(connexeRow.getAttribute('data-connexe-new-index') || '-1', 10);
+                    if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
+                    const labelInput = connexeRow.querySelector('[data-custom-info-modal-connexe-new-label]');
+                    const valueInput = connexeRow.querySelector('[data-custom-info-modal-connexe-new-value]');
+                    const syncConnexeDraft = () => {
+                        if (!Array.isArray(state.newValueDraft.connexes) || !state.newValueDraft.connexes[connexeIndex]) return;
+                        state.newValueDraft.connexes[connexeIndex] = {
+                            ...state.newValueDraft.connexes[connexeIndex],
+                            label: String(labelInput && labelInput.value || '').trim(),
+                            value: String(valueInput && valueInput.value || '').trim()
+                        };
+                    };
+                    [labelInput, valueInput].forEach((inp) => {
+                        if (!inp) return;
+                        inp.addEventListener('change', syncConnexeDraft);
+                        inp.addEventListener('blur', syncConnexeDraft);
+                    });
                 });
 
                 addOptionBtn.addEventListener('click', () => {
-                    syncDraftFromInputs();
+                    syncDraftValue();
                     const nextOption = String(state.newValueDraft.value || '').trim();
-                    const nextUnit = String(state.newValueDraft.unit || '').trim();
-                    const nextNote = String(state.newValueDraft.note || '').trim();
                     if (!nextOption) return;
+                    const nextConnexes = Array.isArray(state.newValueDraft.connexes)
+                        ? state.newValueDraft.connexes.map((c) => ({ ...c }))
+                        : [];
                     const nextItems = Array.isArray(editableSet.items)
-                        ? editableSet.items.map((item) => ({ ...item }))
+                        ? editableSet.items.map((item) => ({ ...item, connexes: Array.isArray(item.connexes) ? item.connexes.map((c) => ({ ...c })) : [] }))
                         : this.normalizeCustomInfoOptionItems([], editableSet.options);
-                    nextItems.push({ value: nextOption, unit: nextUnit, note: nextNote });
+                    nextItems.push({ value: nextOption, connexes: nextConnexes });
                     const upserted = this.upsertCustomInfoOptionSet({
                         id: editableSet.id,
                         label: editableSet.label,
                         items: nextItems
                     }, this.data && this.data.ui);
                     if (!upserted) return;
-                    state.newValueDraft = { value: '', unit: '', note: '' };
+                    state.newValueDraft = { value: '', connexes: [] };
                     applySyncAndPersist({ rerender: false });
                     render();
                 });
@@ -5304,6 +5459,16 @@ class ValoboisApp {
                 : (optionSet && Array.isArray(optionSet.options) ? optionSet.options.map((opt) => String(opt || '').trim()).filter(Boolean) : []);
             const optionSetSubtitle = optionSet ? String(optionSet.subtitle || '').trim() : '';
             const valueDisplay = this.getCustomInfoValueDisplay(entry);
+            const selectedValueStr = String(valueDisplay || '').trim();
+            const selectedItem = (valueMode === 'list' && optionSet && Array.isArray(optionSet.items))
+                ? optionSet.items.find((item) => String(item && item.value || '').trim() === selectedValueStr) || null
+                : null;
+            const activeConnexes = (selectedItem && Array.isArray(selectedItem.connexes))
+                ? selectedItem.connexes.filter((c) => c && (c.label || c.value))
+                : [];
+            const connexesReadonlyHtml = activeConnexes.length > 0
+                ? `<ul class="piece-custom-info-connexes-readonly">${activeConnexes.map((c) => `<li class="piece-custom-info-connexe-readonly-item"><span class="ci-connexe-label">${attrValue(c.label)}${c.label ? ' :' : ''}</span><span class="ci-connexe-value">${attrValue(c.value)}</span></li>`).join('')}</ul>`
+                : '';
             const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
                 ? '<span class="piece-custom-info-badge">hérité</span>'
@@ -5355,10 +5520,10 @@ class ValoboisApp {
                             ${topLineFieldHtml}
                         </div>
                         ${valueMode === 'list' && optionSet
-                            ? `<select class="lot-input" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}">
+                                ? `<select class="lot-input" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}">
                                     <option value="">Valeur</option>
                                     ${orderedOptions.map((opt) => `<option value="${attrValue(opt)}"${opt === String(valueDisplay || '').trim() ? ' selected' : ''}>${attrValue(opt)}</option>`).join('')}
-                               </select>`
+                                   </select>${connexesReadonlyHtml}`
                             : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`}
                         ${optionsHtml}
                     </div>
@@ -5854,36 +6019,37 @@ class ValoboisApp {
 
     getAllowedBasePresetIdsForOrientationFamily(familyRaw) {
         const family = ((familyRaw || '') + '').toLowerCase();
-        const map = {
-            'réemploi': new Set([
+        const map = window.VALOBOIS_ALLOWED_BASE_PRESET_IDS_BY_ORIENTATION_FAMILY || {
+            'réemploi': [
                 'base-reemploi-bois-a',
                 'base-reemploi-br12',
                 'base-scie-entree',
                 'base-scie-sortie',
                 'base-grande-distribution'
-            ]),
-            'réutilisation': new Set([
+            ],
+            'réutilisation': [
                 'base-reutilisation-bois-a',
                 'base-reutilisation-br12',
                 'base-reutilisation-bois-c',
                 'base-scie-entree',
                 'base-scie-sortie',
                 'base-grande-distribution'
-            ]),
-            'recyclage': new Set([
+            ],
+            recyclage: [
                 'base-recyclage-bois-a',
                 'base-recyclage-bois-br1',
                 'base-recyclage-bois-br2',
                 'base-gratuite-rep-pmcb'
-            ]),
-            'combustion': new Set([
+            ],
+            combustion: [
                 'base-combustion-bois-a',
                 'base-combustion-bois-br1',
                 'base-combustion-bois-br2',
                 'base-combustion-bois-c'
-            ])
+            ]
         };
-        return map[family] || null;
+        const ids = map[family];
+        return Array.isArray(ids) ? new Set(ids) : null;
     }
 
     isPricePresetAllowedForLot(preset, lot) {
@@ -5892,22 +6058,27 @@ class ValoboisApp {
         const familyKey = ((family || '') + '').toLowerCase();
         const presetId = ((preset.id || '') + '').trim();
 
-        const ceebExcludedForReuseFamilies = new Set([
-            'base-ceeb-chutes-2t-broyees-a',
-            'base-ceeb-chutes-2t-broyees-b',
-            'base-ceeb-recyclage-classe-a-vrac',
-            'base-ceeb-plaquettes-scierie',
-            'base-ceeb-broyats-emballage-ssd'
-        ]);
-        const ceebAllowedForRecyclage = new Set([
-            'base-ceeb-chutes-2t-broyees-a',
-            'base-ceeb-chutes-2t-broyees-b',
-            'base-ceeb-recyclage-classe-a-vrac',
-            'base-ceeb-broyats-emballage-ssd'
-        ]);
-        const ceebAllowedForCombustion = new Set([
-            'base-ceeb-plaquettes-scierie'
-        ]);
+        const ceebRules = window.VALOBOIS_CEEB_PRESET_RULES || {
+            excludedForReuseFamilies: [
+                'base-ceeb-chutes-2t-broyees-a',
+                'base-ceeb-chutes-2t-broyees-b',
+                'base-ceeb-recyclage-classe-a-vrac',
+                'base-ceeb-plaquettes-scierie',
+                'base-ceeb-broyats-emballage-ssd'
+            ],
+            allowedForRecyclage: [
+                'base-ceeb-chutes-2t-broyees-a',
+                'base-ceeb-chutes-2t-broyees-b',
+                'base-ceeb-recyclage-classe-a-vrac',
+                'base-ceeb-broyats-emballage-ssd'
+            ],
+            allowedForCombustion: [
+                'base-ceeb-plaquettes-scierie'
+            ]
+        };
+        const ceebExcludedForReuseFamilies = new Set(ceebRules.excludedForReuseFamilies || []);
+        const ceebAllowedForRecyclage = new Set(ceebRules.allowedForRecyclage || []);
+        const ceebAllowedForCombustion = new Set(ceebRules.allowedForCombustion || []);
 
         const isCeeebPreset = presetId.startsWith('base-ceeb-') || (((preset.source || '') + '').toUpperCase() === 'CEEB');
         if (isCeeebPreset) {
@@ -6755,6 +6926,10 @@ class ValoboisApp {
             data.lots = [this.createEmptyLot(0)];
         }
 
+        data.schemaVersion = typeof data.schemaVersion === 'string' && data.schemaVersion.trim()
+            ? data.schemaVersion.trim()
+            : '1.0';
+
         data.lots.forEach((lot) => {
             this.normalizeLotEssenceFields(lot);
             this.normalizeLotAllotissementFields(lot);
@@ -6837,10 +7012,16 @@ class ValoboisApp {
     }
 
     getDefaultNotationModeOrientationThresholds() {
-        return {
-            recyclage:    { fort: 9,  moyen: 9,  faible: 9  },
+        const source = window.VALOBOIS_DEFAULT_NOTATION_MODE_ORIENTATION_THRESHOLDS || {
+            recyclage: { fort: 9, moyen: 9, faible: 9 },
             reutilisation: { fort: 15, moyen: 15, faible: 15 },
-            reemploi:     { fort: 21, moyen: 21, faible: 21 }
+            reemploi: { fort: 21, moyen: 21, faible: 21 }
+        };
+
+        return {
+            recyclage: { ...source.recyclage },
+            reutilisation: { ...source.reutilisation },
+            reemploi: { ...source.reemploi }
         };
     }
 
@@ -9053,170 +9234,75 @@ class ValoboisApp {
     hasIncompleteOperationReferenceFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const operationReferenceFields = [
-            'operation',
-            'date',
-            'versionEtude',
-            'statutEtude',
-            'typeOperation',
-            'surfacePlancher_demolition',
-            'surfacePlancher_renovation',
-            'nbBatiments_demolition',
-            'nbBatiments_renovation',
-            'dateDebutChantier'
-        ];
+        const operationReferenceFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.operationReference) || [];
         return operationReferenceFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     hasIncompleteDiagnostiqueurFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const diagnostiqueurFields = [
-            'diagnostiqueurNom',
-            'diagnostiqueurContact',
-            'diagnostiqueurMail',
-            'diagnostiqueurTelephone',
-            'diagnostiqueurAdresse'
-        ];
+        const diagnostiqueurFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.diagnostiqueur) || [];
         return diagnostiqueurFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     hasIncompleteContactsFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const contactsFields = [
-            'maitriseOuvrageNom', 'maitriseOuvrageContact', 'maitriseOuvrageMail',
-            'maitriseOuvrageTelephone', 'maitriseOuvrageAdresse',
-            'maitriseOeuvreNom', 'maitriseOeuvreContact', 'maitriseOeuvreMail',
-            'maitriseOeuvreTelephone', 'maitriseOeuvreAdresse',
-            'entrepriseDeconstructionNom', 'entrepriseDeconstructionContact', 'entrepriseDeconstructionMail',
-            'entrepriseDeconstructionTelephone', 'entrepriseDeconstructionAdresse'
-        ];
+        const contactsFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.contacts) || [];
         return contactsFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     hasIncompleteContexteTechniqueFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const contexteTechniqueFields = [
-            'typeBatiment',
-            'periodeConstruction',
-            'datePermisConstruction',
-            'historiqueRenovationImportante',
-            'historiqueDecontamination',
-            'historiqueAutreIntervention',
-            'phaseIntervention',
-            'localisation',
-            'conditionnementType',
-            'protectionType'
-        ];
+        const contexteTechniqueFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.contexteTechnique) || [];
         return contexteTechniqueFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     hasIncompleteDiagnostiqueurPemdFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const pemdFields = [
-            'diagPEMDNom',
-            'diagPEMDContact',
-            'diagPEMDMail',
-            'diagPEMDTelephone',
-            'diagPEMDAdresse',
-            'diagPEMDSiret',
-            'diagPEMDAssuranceCompagnie',
-            'diagPEMDAssurancePolice',
-            'diagPEMDAssuranceDebut',
-            'diagPEMDAssuranceFin',
-            'diagPEMDCompetencesJustifiables'
-        ];
+        const pemdFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.diagnostiqueurPemd) || [];
         return pemdFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     hasIncompleteDiagnosticPemdVisiteFields(meta = this.data && this.data.meta) {
         const sourceMeta = this.getDefaultMeta(meta || {});
         const hasValue = (value) => value != null && String(value).trim() !== '';
-        const visiteFields = [
-            'dateVisite',
-            'partiesVisitees',
-            'partiesNonVisitees',
-            'raisonsNonVisite',
-            'vicesApparents',
-            'precautionsDemolition'
-        ];
+        const visiteFields = (window.VALOBOIS_META_REQUIRED_FIELDS && window.VALOBOIS_META_REQUIRED_FIELDS.diagnosticPemdVisite) || [];
         return visiteFields.some((field) => !hasValue(sourceMeta[field]));
     }
 
     formatPco2Display(valueKgRaw) {
-        const valueKg = Math.max(0, parseFloat(valueKgRaw) || 0);
-        if (valueKg >= 1000) {
-            return {
-                value: (valueKg / 1000).toLocaleString(getValoboisIntlLocale(), {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2
-                }),
-                unit: 't CO₂ (NF EN 16449)'
-            };
-        }
-        return {
-            value: Math.round(valueKg).toLocaleString(getValoboisIntlLocale(), { maximumFractionDigits: 0 }),
-            unit: 'kg CO₂ (NF EN 16449)'
-        };
+        return valoboisFormatPco2Display(valueKgRaw);
     }
 
     _formatCV(val) {
-        if (val == null) return '—';
-        return (val * 100).toLocaleString(getValoboisIntlLocale(), {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-        }) + '\u00a0%';
+        return valoboisFormatCV(val);
     }
 
     _formatEIq(val) {
-        if (val == null) return '—';
-        return (val * 100).toLocaleString(getValoboisIntlLocale(), {
-            minimumFractionDigits: 1,
-            maximumFractionDigits: 1,
-        }) + '\u00a0%';
+        return valoboisFormatEIq(val);
     }
 
     _formatEcartType(val) {
-        if (val == null) return '—';
-        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
-            maximumFractionDigits: 0,
-        }) + '\u00a0mm';
+        return valoboisFormatEcartType(val);
     }
 
     _formatEIqAbs(val) {
-        if (val == null) return '—';
-        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
-            maximumFractionDigits: 0,
-        }) + '\u00a0mm';
+        return valoboisFormatEIqAbs(val);
     }
 
     formatTauxSimilarite(val) {
-        if (val === null || val === undefined) return 'Inconnue';
-        return Math.round(val).toLocaleString(getValoboisIntlLocale(), {
-            maximumFractionDigits: 0,
-        }) + '\u00a0%';
+        return valoboisFormatTauxSimilarite(val);
     }
 
     getSimilarityStrategy(lot = null) {
-        const raw = lot?.allotissement?.similarityStrategy;
-        const key = ((raw || '') + '').toLowerCase();
-        if (key === 'single' || key === 'multiple') return key;
-        return 'single';
+        return valoboisGetSimilarityStrategy(lot);
     }
 
     isValidMesuresMultiplesSection(section) {
-        if (!section || typeof section !== 'object') return false;
-        const type = ((section.typeSection || '') + '').toLowerCase();
-        const d = parseFloat(section.diametre);
-        const l = parseFloat(section.largeur);
-        const e = parseFloat(section.epaisseur);
-        if (type === 'circ' || type === 'circle') return Number.isFinite(d) && d > 0;
-        if (type === 'rect' || type === 'rectangle') return Number.isFinite(l) && l > 0 && Number.isFinite(e) && e > 0;
-        if (Number.isFinite(d) && d > 0) return true;
-        return Number.isFinite(l) && l > 0 && Number.isFinite(e) && e > 0;
+        return valoboisIsValidMesuresMultiplesSection(section);
     }
 
     hasValidMultipleMeasurements(lot) {
@@ -9319,20 +9405,11 @@ class ValoboisApp {
     }
 
     computeAmortissementBiologique(ageArbre, dateMiseEnService) {
-        const age = parseFloat(ageArbre);
-        if (!isFinite(age) || age <= 0) return '—';
-        const extractYear = (str) => {
-            if (!str) return null;
-            const m = String(str).match(/\b(\d{4})\b/);
-            return m ? parseInt(m[1], 10) : null;
-        };
-        const evalYear = extractYear(this.data.meta && this.data.meta.date);
-        const serviceYear = extractYear(dateMiseEnService);
-        if (evalYear == null || serviceYear == null) return '—';
-        const diff = evalYear - serviceYear;
-        if (diff <= 0) return '—';
-        const result = diff / age;
-        return result.toLocaleString(getValoboisIntlLocale(), { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+        return valoboisComputeAmortissementBiologique(
+            ageArbre,
+            dateMiseEnService,
+            this.data && this.data.meta ? this.data.meta.date : null
+        );
     }
 
     /**
@@ -9341,19 +9418,7 @@ class ValoboisApp {
      * @returns {string} État: 'strong' (>= 1), 'medium' (> 0.5 && < 1), 'low' (<= 0.5), ou 'missing' (indisponible)
      */
     getAmortissementAlertState(amortissementValue) {
-        const num = parseFloat(String(amortissementValue || '').replace(/,/, '.'));
-        
-        if (!isFinite(num) || amortissementValue === '—' || amortissementValue === null || amortissementValue === '') {
-            return 'missing';
-        }
-        
-        if (num >= 1) {
-            return 'strong';
-        } else if (num > 0.5) {
-            return 'medium';
-        } else {
-            return 'low';
-        }
+        return valoboisGetAmortissementAlertState(amortissementValue);
     }
 
     openAncienAmortissementAlertModal(alertState, lot = null) {
@@ -9375,49 +9440,31 @@ class ValoboisApp {
 
     getVieillissementAlertState(lot) {
         const details = this.collectVieillissementAlertContributors(lot);
-        if (!details.hasMinimumData || !details.businessLevel) return 'none';
-
-        // Mapping visuel inverse: Vieillissement fort (défavorable) => low (rouge).
-        if (details.businessLevel === 'Forte') return 'low';
-        if (details.businessLevel === 'Moyenne') return 'medium';
-        return 'strong';
+        return valoboisGetVieillissementAlertState(details);
     }
 
     getIntegriteBioAlertState(lot) {
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const niveau = normalize(lot?.bio?.integriteBio?.niveau ?? '');
-        return niveau === 'faible' ? 'active' : 'none';
+        return valoboisGetIntegriteBioAlertState(lot);
     }
 
     getIntegriteMechAlertState(lot) {
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const niveau = normalize(lot?.mech?.integriteMech?.niveau ?? '');
-        return niveau === 'faible' ? 'active' : 'none';
+        return valoboisGetIntegriteMechAlertState(lot);
     }
 
     getPurgeAlertState(lot) {
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const niveau = normalize(lot?.bio?.integriteBio?.niveau ?? '');
-        return niveau === 'faible' ? 'active' : 'none';
+        return valoboisGetPurgeAlertState(lot);
     }
 
     getLockState(lot) {
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const expansion = normalize(lot?.bio?.expansion?.niveau ?? '');
-        const contamination = normalize(lot?.denat?.contaminationDenat?.niveau ?? '');
-        if (this.isValoboisDefaultGateEnabled('expansion') && expansion === 'forte') return { locked: true, reason: 'expansion-forte' };
-        if (this.isValoboisDefaultGateEnabled('contamination') && contamination === 'forte') return { locked: true, reason: 'contamination-forte' };
-        return { locked: false, reason: null };
+        return valoboisGetGlobalLockState(lot, {
+            expansionGateEnabled: this.isValoboisDefaultGateEnabled('expansion'),
+            contaminationGateEnabled: this.isValoboisDefaultGateEnabled('contamination')
+        });
     }
 
     isLockIgnored(lot) {
         const { reason } = this.getLockState(lot);
-        if (!reason) return false;
-        return (lot?.locked?.ignoredBy ?? null) === reason;
+        return valoboisIsIgnoredByReason(lot, reason, 'ignoredBy');
     }
 
     refreshGlobalLockState(lot) {
@@ -9447,8 +9494,7 @@ class ValoboisApp {
     }
 
     getNotationModeNormalizedField(section, field) {
-        if (section === 'bio' && field === 'expositionBio') return 'exposition';
-        return field;
+        return valoboisGetNotationModeNormalizedField(section, field);
     }
 
     updateNotationModeUI() {
@@ -9488,17 +9534,14 @@ class ValoboisApp {
     }
 
     getAlterationLockState(lot) {
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        const alteration = normalize(lot?.traces?.alterationTraces?.niveau ?? '');
-        if (this.isValoboisDefaultGateEnabled('alteration') && alteration === 'forte') return { locked: true, reason: 'alteration-forte' };
-        return { locked: false, reason: null };
+        return valoboisGetAlterationLockState(lot, {
+            alterationGateEnabled: this.isValoboisDefaultGateEnabled('alteration')
+        });
     }
 
     isAlterationLockIgnored(lot) {
         const { reason } = this.getAlterationLockState(lot);
-        if (!reason) return false;
-        return (lot?.locked?.alterationIgnoredBy ?? null) === reason;
+        return valoboisIsIgnoredByReason(lot, reason, 'alterationIgnoredBy');
     }
 
     refreshAlterationAlertButton(lot) {
@@ -9511,10 +9554,7 @@ class ValoboisApp {
         const alertBtn = row.querySelector('[data-traces-alteration-alert-btn]');
         if (!alertBtn) return;
 
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        alertBtn.dataset.alertAlterationState =
-            normalize(targetLot?.traces?.alterationTraces?.niveau ?? '') === 'forte' ? 'active' : 'none';
+        alertBtn.dataset.alertAlterationState = valoboisGetAlterationAlertState(targetLot);
     }
 
     refreshAlterationLockState(lot) {
@@ -9911,18 +9951,7 @@ class ValoboisApp {
      * @returns {string} Etat: 'strong' (> 75), 'medium' (> 28 et <= 75), 'low' (<= 28), ou 'none' (indisponible)
      */
     getMassiviteAlertState(epaisseurValue) {
-        const num = parseFloat(String(epaisseurValue || '').replace(/,/, '.'));
-
-        if (!isFinite(num) || epaisseurValue === null || epaisseurValue === '') {
-            return 'none';
-        }
-
-        if (num > 75) {
-            return 'strong';
-        } else if (num > 28) {
-            return 'medium';
-        }
-        return 'low';
+        return valoboisGetMassiviteAlertState(epaisseurValue);
     }
 
     openGeoMassiviteAlertModal(alertState, lot = null) {
@@ -10105,10 +10134,7 @@ class ValoboisApp {
 
     getHumiditeUsageAlertState(lot) {
         const details = this.collectHumiditeUsageAlertContributors(lot);
-        if (!details.hasData) return 'none';
-        if (details.averageHumidity >= 22) return 'strong';
-        if (details.averageHumidity <= 8) return 'low';
-        return 'medium';
+        return valoboisGetHumiditeUsageAlertState(details.hasData ? details.averageHumidity : NaN);
     }
 
     collectMasseVolEssenceAlertContributors(lot) {
@@ -10170,21 +10196,11 @@ class ValoboisApp {
 
     getMasseVolEssenceAlertState(lot) {
         const details = this.collectMasseVolEssenceAlertContributors(lot);
-        if (!details.hasData) return 'none';
-        if (details.density > 750) return 'strong';
-        if (details.density >= 450) return 'medium';
-        return 'low';
+        return valoboisGetMasseVolEssenceAlertState(details.hasData ? details.density : NaN);
     }
 
     getEmploymentClassOrderValue(classRaw) {
-        const value = String(classRaw || '').trim();
-        if (value === '1') return 1;
-        if (value === '2') return 2;
-        if (value === '3.1') return 3.1;
-        if (value === '3.2') return 3.2;
-        if (value === '4') return 4;
-        if (value === '5') return 5;
-        return null;
+        return valoboisGetEmploymentClassOrderValue(classRaw);
     }
 
     collectBioExpositionAlertContributors(lot) {
@@ -10291,12 +10307,7 @@ class ValoboisApp {
     getBioExpositionAlertState(lot) {
         const details = this.collectBioExpositionAlertContributors(lot);
         if (!details.hasData || !details.winner) return 'none';
-
-        const activeClass = String(details.winner.activeClass || '').trim();
-        if (activeClass === '5' || activeClass === '4' || activeClass === '3.2') return 'strong';
-        if (activeClass === '3.1') return 'medium';
-        if (activeClass === '2' || activeClass === '1') return 'low';
-        return 'none';
+        return valoboisGetBioExpositionAlertState(details.winner.activeClass);
     }
 
     collectMechExpositionLongeviteAlertContributors(lot) {
@@ -10415,12 +10426,7 @@ class ValoboisApp {
     getMechExpositionLongeviteAlertState(lot) {
         const details = this.collectMechExpositionLongeviteAlertContributors(lot);
         if (!details.hasData || !details.winner) return 'none';
-
-        const recommendation = String(details.winner.recommendation || '').trim();
-        if (recommendation === 'Forte') return 'strong';
-        if (recommendation === 'Moyenne') return 'medium';
-        if (recommendation === 'Faible') return 'low';
-        return 'none';
+        return valoboisGetMechExpositionLongeviteAlertState(details.winner.recommendation);
     }
 
     collectRareteEcoEssenceAlertContributors(lot) {
@@ -10541,10 +10547,7 @@ class ValoboisApp {
         if (!details.hasData || !details.winner) return 'none';
 
         const level = this.normalizeRareteCustomLevel(details.winner.rarete, '');
-        if (level === 'Commune') return 'strong';
-        if (level === 'Peu commune') return 'medium';
-        if (level === 'Rare') return 'low';
-        return 'none';
+        return valoboisGetRareteEcoEssenceAlertState(level);
     }
 
     getLotNumericDetailSummary(lot, fieldName, fallbackValue) {
@@ -10622,44 +10625,7 @@ class ValoboisApp {
      * @returns {string} 'strong', 'medium', 'low' ou 'none'
      */
     getIndustrialiteAlertState(typeProduitValue) {
-        const normalize = (value) => String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        const typeProduit = normalize(typeProduitValue);
-        if (!typeProduit) return 'none';
-
-        if (
-            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
-            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
-            typeProduit === normalize('Bois Contre-Collé (CC)') ||
-            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
-            typeProduit === normalize('Bois Ossature (BO)') ||
-            typeProduit === normalize('Bois Fermette (BF)') ||
-            typeProduit === normalize('Bois Massif Reconstitué (BMR)')
-        ) {
-            return 'strong';
-        }
-
-        if (
-            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
-            typeProduit === normalize('Bois Brut Sec (BBS)') ||
-            typeProduit === normalize('Bois Avivé (BA)')
-        ) {
-            return 'medium';
-        }
-
-        if (
-            typeProduit === normalize('Bois Non Taillé (BNT)') ||
-            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
-        ) {
-            return 'low';
-        }
-
-        return 'none';
+        return valoboisGetIndustrialiteAlertState(typeProduitValue);
     }
 
     openGeoIndustrialiteAlertModal(alertState, lot = null) {
@@ -10683,34 +10649,12 @@ class ValoboisApp {
         const targetLot = lot || this.getCurrentLot();
         if (!targetLot) return 'none';
 
-        const regularite = String(targetLot.debit?.regulariteDebit?.niveau || '').trim();
-        const rusticite = String(targetLot.debit?.rusticiteDebit?.niveau || '').trim();
-        const deformation = String(targetLot.geo?.deformationGeo?.niveau || '').trim();
-        const rawScore = String(targetLot.allotissement?.medoideScore ?? '').replace(/,/, '.').trim();
-        const score = parseFloat(rawScore);
-
-        if (!regularite || !rusticite || !deformation || !Number.isFinite(score)) {
-            return 'none';
-        }
-
-        if ((regularite === 'Faible' || rusticite === 'Forte' || deformation === 'Forte') && score < 66) {
-            return 'low';
-        }
-
-        if (regularite === 'Forte' && rusticite === 'Faible' && deformation === 'Faible' && score >= 66) {
-            return 'strong';
-        }
-
-        if (
-            (regularite === 'Forte' || regularite === 'Moyenne') &&
-            (rusticite === 'Faible' || rusticite === 'Moyenne') &&
-            (deformation === 'Faible' || deformation === 'Moyenne') &&
-            score < 66
-        ) {
-            return 'medium';
-        }
-
-        return 'none';
+        return valoboisGetInclusiviteAlertState({
+            regulariteLevel: targetLot.debit?.regulariteDebit?.niveau || '',
+            rusticiteLevel: targetLot.debit?.rusticiteDebit?.niveau || '',
+            deformationLevel: targetLot.geo?.deformationGeo?.niveau || '',
+            medoideScore: targetLot.allotissement?.medoideScore
+        });
     }
 
     openGeoInclusiviteAlertModal(alertState, lot = null) {
@@ -10732,19 +10676,12 @@ class ValoboisApp {
 
     getFeuMechAlertState(lot) {
         const details = this.collectFeuMechAlertContributors(lot);
-        if (!details.hasMinimumData) return 'none';
-        if (details.blockers.length > 0) return 'low';
-        if (details.availableCount >= 4 && details.score >= 6) return 'strong';
-        if (details.score >= 2) return 'medium';
-        return 'low';
+        return valoboisGetFeuMechAlertState(details);
     }
 
     getMacroHistoireAlertState(lot) {
         const details = this.collectMacroHistoireAlertContributors(lot);
-        if (!details.hasMinimumData) return 'none';
-        if (details.score >= 6 && details.availableCount >= 3) return 'strong';
-        if (details.score >= 2) return 'medium';
-        return 'low';
+        return valoboisGetMacroHistoireAlertState(details);
     }
 
     openMechFeuAlertModal(alertState, lot = null) {
@@ -10838,18 +10775,7 @@ class ValoboisApp {
      * @returns {string} Etat: 'strong' (> 0.1), 'medium' (>= 0.05 et <= 0.1), 'low' (< 0.05), ou 'none' (indisponible)
      */
     getVolumetrieAlertState(volumetrieValue) {
-        const num = parseFloat(String(volumetrieValue || '').replace(/,/, '.'));
-
-        if (!isFinite(num) || volumetrieValue === null || volumetrieValue === '' || num <= 0) {
-            return 'none';
-        }
-
-        if (num > 0.1) {
-            return 'strong';
-        } else if (num >= 0.05) {
-            return 'medium';
-        }
-        return 'low';
+        return valoboisGetVolumetrieAlertState(volumetrieValue);
     }
 
     openDebitVolumetrieAlertModal(alertState, lot = null) {
@@ -10891,43 +10817,27 @@ class ValoboisApp {
     }
 
     formatRegulariteAlertMm(value) {
-        if (!Number.isFinite(Number(value))) return '—';
-        return Number(value).toLocaleString(getValoboisIntlLocale(), {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 1
-        }) + ' mm';
+        return valoboisFormatRegulariteAlertMm(value);
     }
 
     formatAlertMm(value) {
-        if (!Number.isFinite(Number(value))) return '— mm';
-        return Math.round(Number(value)) + ' mm';
+        return valoboisFormatAlertMm(value);
     }
 
     formatAlertVolume(value) {
-        if (!Number.isFinite(Number(value))) return '— m³';
-        const num = Number(value);
-        return num.toLocaleString(getValoboisIntlLocale(), {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 3
-        }) + ' m³';
+        return valoboisFormatAlertVolume(value);
     }
 
     formatAlertRatio(value) {
-        if (!Number.isFinite(Number(value))) return '—';
-        return Number(value).toFixed(2);
+        return valoboisFormatAlertRatio(value);
     }
 
     formatAlertAnnees(value) {
-        if (!Number.isFinite(Number(value))) return '—';
-        const num = Number(value);
-        return Math.round(num * 10) / 10 + ' ans';
+        return valoboisFormatAlertAnnees(value);
     }
 
     formatAlertDiametre(value) {
-        if (!value || String(value).trim() === '') return '— mm';
-        const num = parseFloat(String(value).replace(/,/, '.'));
-        if (!Number.isFinite(num)) return '— mm';
-        return Math.round(num) + ' mm';
+        return valoboisFormatAlertDiametre(value);
     }
 
     collectRegulariteAlertContributors(lot, toleranceMm = 10) {
@@ -12726,49 +12636,7 @@ class ValoboisApp {
     }
 
     getStabiliteAlertState(longueurValue, largeurValue, epaisseurValue, diametreValue) {
-        let longueur = this.parsePositiveAlertDimensionValue(longueurValue);
-        let largeur = this.parsePositiveAlertDimensionValue(largeurValue);
-        let epaisseur = this.parsePositiveAlertDimensionValue(epaisseurValue);
-        const diametre = this.parsePositiveAlertDimensionValue(diametreValue);
-
-        if (diametre) {
-            epaisseur = diametre;
-            largeur = diametre;
-        }
-
-        if (!longueur || !epaisseur || !largeur) {
-            return 'none';
-        }
-
-        if (epaisseur < largeur) {
-            const temp = epaisseur;
-            epaisseur = largeur;
-            largeur = temp;
-        }
-
-        const ratioLe = longueur / epaisseur;
-        const ratioBe = largeur / epaisseur;
-
-        if (!Number.isFinite(ratioLe) || !Number.isFinite(ratioBe) || ratioLe <= 0 || ratioBe <= 0) {
-            return 'none';
-        }
-
-        if (ratioLe <= 18 && ratioBe >= 0.4) {
-            return 'strong';
-        }
-
-        if (
-            (ratioLe <= 18 && ratioBe >= 0.25 && ratioBe < 0.4) ||
-            (ratioLe > 18 && ratioLe <= 28 && ratioBe >= 0.25)
-        ) {
-            return 'medium';
-        }
-
-        if (ratioLe > 28 || ratioBe < 0.25) {
-            return 'low';
-        }
-
-        return 'none';
+        return valoboisGetStabiliteAlertState(longueurValue, largeurValue, epaisseurValue, diametreValue);
     }
 
     openDebitStabiliteAlertModal(alertState, lot = null) {
@@ -12812,43 +12680,7 @@ class ValoboisApp {
      * @returns {string} 'strong', 'medium' ou 'none'
      */
     getNaturaliteAlertState(typeProduitValue, diametreValue) {
-        const normalize = (value) => String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        const typeProduit = normalize(typeProduitValue);
-        const hasDiametre = diametreValue != null && String(diametreValue).trim() !== '';
-
-        if (!typeProduit) return 'none';
-
-        if (
-          hasDiametre &&
-          (
-            typeProduit === normalize('Bois Brut Sec (BBS)') ||
-            typeProduit === normalize('Bois Non Taillé (BNT)') ||
-            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
-          )
-        ) {
-          return 'strong';
-        }
-
-        if (
-            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
-            typeProduit === normalize('Bois Contre-Collé (CC)') ||
-            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
-            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
-            typeProduit === normalize('Bois Ossature (BO)') ||
-            typeProduit === normalize('Bois Fermette (BF)') ||
-            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
-            typeProduit === normalize('Bois Massif Reconstitué (BMR)')
-        ) {
-            return 'medium';
-        }
-
-        return 'none';
+                return valoboisGetNaturaliteAlertState(typeProduitValue, diametreValue);
     }
 
     openDenatNaturaliteAlertModal(alertState, lot = null) {
@@ -12938,45 +12770,7 @@ class ValoboisApp {
     }
 
     getArtisanaliteAlertState(typeProduitValue) {
-        const normalize = (value) => String(value || '')
-            .toLowerCase()
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-        const typeProduit = normalize(typeProduitValue);
-        if (!typeProduit) return 'none';
-
-        if (
-            typeProduit === normalize('Bois Lamellé-Collé (BLC)') ||
-            typeProduit === normalize('Bois Lamellé-Croisé (CLT)') ||
-            typeProduit === normalize('Bois Massif Abouté (BMA)') ||
-            typeProduit === normalize('Bois Massif Reconstitué (BMR)') ||
-            typeProduit === normalize('Bois Contre-Collé') ||
-            typeProduit === normalize('Bois Contre-Collé (CC)') ||
-            typeProduit === normalize('Bois Fermette (BF)')
-        ) {
-            return 'strong';
-        }
-
-        if (
-            typeProduit === normalize('Bois Raboté Séché (BRS)') ||
-            typeProduit === normalize('Bois Ossature (BO)')
-        ) {
-            return 'medium';
-        }
-
-        if (
-            typeProduit === normalize('Bois Brut Sec (BBS)') ||
-            typeProduit === normalize('Bois Non Taillé (BNT)') ||
-            typeProduit === normalize('Bois Avivé (BA)') ||
-            typeProduit === normalize('Bois Équarri Non Scié (BENS)')
-        ) {
-            return 'low';
-        }
-
-        return 'none';
+        return valoboisGetArtisanaliteAlertState(typeProduitValue);
     }
 
     openDebitArtisanaliteAlertModal(alertState, lot = null) {
@@ -13175,10 +12969,7 @@ class ValoboisApp {
         const alertBtn = row.querySelector('[data-bio-expansion-alert-btn]');
         if (!alertBtn) return;
 
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        alertBtn.dataset.alertExpansionState =
-            normalize(targetLot?.bio?.expansion?.niveau ?? '') === 'forte' ? 'active' : 'none';
+        alertBtn.dataset.alertExpansionState = valoboisGetExpansionAlertState(targetLot);
     }
 
     refreshContaminationAlertButton(lot) {
@@ -13191,39 +12982,22 @@ class ValoboisApp {
         const alertBtn = row.querySelector('[data-denat-contamination-alert-btn]');
         if (!alertBtn) return;
 
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-        alertBtn.dataset.alertContaminationState =
-            normalize(targetLot?.denat?.contaminationDenat?.niveau ?? '') === 'forte' ? 'active' : 'none';
+        alertBtn.dataset.alertContaminationState = valoboisGetContaminationAlertState(targetLot);
     }
 
     getDurabiliteConfDenatAlertState(lot) {
         const targetLot = lot || this.getCurrentLot();
         if (!targetLot) return 'none';
 
-        const normalize = v => String(v || '').toLowerCase()
-            .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
-
-        const isStrongLevel = (value) => {
-            const normalized = normalize(value);
-            return normalized === 'fort' || normalized === 'forte';
-        };
-
-        const durabilite = targetLot?.denat?.durabiliteConfDenat?.niveau ?? '';
-        const depollution = targetLot?.denat?.depollutionDenat?.niveau ?? '';
-        if (!(isStrongLevel(durabilite) && !isStrongLevel(depollution))) return 'none';
-
-        const hardLockActive = (() => {
-            if (this.isLockIgnored(targetLot)) return false;
-            return normalize(targetLot?.bio?.expansion?.niveau ?? '') === 'forte'
-                || normalize(targetLot?.denat?.contaminationDenat?.niveau ?? '') === 'forte';
-        })();
-
-        const doubleLowIntegrite =
-            normalize(targetLot?.bio?.integriteBio?.niveau ?? '') === 'faible'
-            && normalize(targetLot?.mech?.integriteMech?.niveau ?? '') === 'faible';
-
-        return (hardLockActive || doubleLowIntegrite) ? 'none' : 'active';
+        return valoboisGetDurabiliteConfDenatAlertState({
+            durabiliteLevel: targetLot?.denat?.durabiliteConfDenat?.niveau ?? '',
+            depollutionLevel: targetLot?.denat?.depollutionDenat?.niveau ?? '',
+            expansionLevel: targetLot?.bio?.expansion?.niveau ?? '',
+            contaminationLevel: targetLot?.denat?.contaminationDenat?.niveau ?? '',
+            integriteBioLevel: targetLot?.bio?.integriteBio?.niveau ?? '',
+            integriteMechLevel: targetLot?.mech?.integriteMech?.niveau ?? '',
+            hardLockIgnored: this.isLockIgnored(targetLot)
+        });
     }
 
     getDurabiliteNaturelleAlertState(lot) {
@@ -13429,16 +13203,11 @@ class ValoboisApp {
     }
 
     formatDensityDisplay(valueRaw) {
-        const value = parseFloat(valueRaw);
-        if (!Number.isFinite(value) || value < 0) return '';
-        return value.toLocaleString(getValoboisIntlLocale(), {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 1
-        });
+        return valoboisFormatDensityDisplay(valueRaw);
     }
 
     formatMeasuredDensityDisplay(measuredMassRaw, volumeRaw) {
-        return this.formatDensityDisplay(this.getMeasuredDensityValue(measuredMassRaw, volumeRaw));
+        return valoboisFormatDensityDisplay(this.getMeasuredDensityValue(measuredMassRaw, volumeRaw));
     }
 
     getMeasuredLotDensityDisplay(lot) {
@@ -13541,11 +13310,11 @@ class ValoboisApp {
     }
 
     getStudyStatusValues() {
-        return ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
+        return window.VALOBOIS_STUDY_STATUS_VALUES || ['Pré-diagnostic', 'En cours', 'Finalisé', 'Révision', 'Cloturé'];
     }
 
     getStudyStatusHelpTextByIndex(index) {
-        const texts = [
+        const texts = window.VALOBOIS_STUDY_STATUS_HELP_TEXTS || [
             'Ce statut est recommandé pour initier le diagnostic en renseignant tous les champs de description de l’opération. En pré-diagnostic il est conseillé d’initier une première démarche d’évaluation en créant des lots de pièces par défaut, afin de disposer d’un aperçu rapide de la qualité du gisement. Dans ce statut la notation des critères peut être partielle.',
             'Ce statut est recommandé pour étendre le Pré-diagnostic et détailler le contenu des lots pièce par pièce. Dans ce statut la notation des critères doit être complète.',
             'Ce statut est recommandé pour affiner les informations et le contenu des lots. Il est possible de modifier des éléments préalablement renseignés, supprimer des pièces ou des lots.',
@@ -13563,110 +13332,19 @@ class ValoboisApp {
     }
 
     normalizeConfidenceAlertText(value) {
-        return String(value || '')
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .trim()
-            .toLowerCase();
+        return valoboisNormalizeConfidenceAlertText(value);
     }
 
     getConfidenceAlertConfig(key) {
-        const configMap = {
-            confianceBio: {
-                label: 'Dégradation biologique',
-                sectionKey: 'bio',
-                detailBackdropId: 'bioDetailModalBackdrop',
-                detailTitleId: 'bioDetailModalTitle',
-                detailContentId: 'bioDetailModalContent',
-                rowSelector: '.bio-row[data-bio-field="confianceBio"]'
-            },
-            confianceMech: {
-                label: 'Dégradation mécanique',
-                sectionKey: 'mech',
-                detailBackdropId: 'mechDetailModalBackdrop',
-                detailTitleId: 'mechDetailModalTitle',
-                detailContentId: 'mechDetailModalContent',
-                rowSelector: '.mech-row[data-mech-field="confianceMech"]'
-            },
-            confianceUsage: {
-                label: 'Classement d’usage',
-                sectionKey: 'usage',
-                detailBackdropId: 'usageDetailModalBackdrop',
-                detailTitleId: 'usageDetailModalTitle',
-                detailContentId: 'usageDetailModalContent',
-                rowSelector: '.usage-row[data-usage-field="confianceUsage"]'
-            },
-            confianceDenat: {
-                label: 'Dénaturation',
-                sectionKey: 'denat',
-                detailBackdropId: 'denatDetailModalBackdrop',
-                detailTitleId: 'denatDetailModalTitle',
-                detailContentId: 'denatDetailModalContent',
-                rowSelector: '.denat-row[data-denat-field="confianceDenat"]'
-            },
-            confianceEssence: {
-                label: 'Essence',
-                sectionKey: 'essence',
-                detailBackdropId: 'essenceDetailModalBackdrop',
-                detailTitleId: 'essenceDetailModalTitle',
-                detailContentId: 'essenceDetailModalContent',
-                rowSelector: '.essence-row[data-essence-field="confianceEssence"]'
-            },
-            confianceAncien: {
-                label: 'Ancienneté',
-                sectionKey: 'ancien',
-                detailBackdropId: 'ancienDetailModalBackdrop',
-                detailTitleId: 'ancienDetailModalTitle',
-                detailContentId: 'ancienDetailModalContent',
-                rowSelector: '.ancien-row[data-ancien-field="confianceAncien"]'
-            },
-            confianceTraces: {
-                label: 'Traces',
-                sectionKey: 'traces',
-                detailBackdropId: 'tracesDetailModalBackdrop',
-                detailTitleId: 'tracesDetailModalTitle',
-                detailContentId: 'tracesDetailModalContent',
-                rowSelector: '.traces-row[data-traces-field="confianceTraces"]'
-            },
-            confianceProv: {
-                label: 'Provenance',
-                sectionKey: 'provenance',
-                detailBackdropId: 'provenanceDetailModalBackdrop',
-                detailTitleId: 'provenanceDetailModalTitle',
-                detailContentId: 'provenanceDetailModalContent',
-                rowSelector: '.provenance-row[data-provenance-field="confianceProv"]'
-            }
-        };
-
-        return configMap[key] || null;
+        return (window.VALOBOIS_CONFIDENCE_ALERT_CONFIG && window.VALOBOIS_CONFIDENCE_ALERT_CONFIG[key]) || null;
     }
 
     getConfidenceAlertState(noteLevel, studyStatus) {
-        const normalizedStatus = this.normalizeConfidenceAlertText(studyStatus);
-        const normalizedLevel = this.normalizeConfidenceAlertText(noteLevel);
-        const isEarlyStudy = normalizedStatus === 'pre-diagnostic' || normalizedStatus === 'en cours';
-        const isLateStudy = normalizedStatus === 'finalise' || normalizedStatus === 'revision' || normalizedStatus === 'cloture';
-
-        if (isEarlyStudy) {
-            if (normalizedLevel === 'forte') return 'strong';
-            if (normalizedLevel === 'moyenne' || normalizedLevel === 'faible') return 'medium';
-            return 'low';
-        }
-
-        if (isLateStudy) {
-            return normalizedLevel === 'forte' ? 'strong' : 'low';
-        }
-
-        if (normalizedLevel === 'forte') return 'strong';
-        if (normalizedLevel === 'moyenne' || normalizedLevel === 'faible') return 'medium';
-        return 'low';
+        return valoboisGetConfidenceAlertState(noteLevel, studyStatus);
     }
 
     getConfidenceAlertStateLabel(alertState) {
-        if (alertState === 'strong') return 'verte';
-        if (alertState === 'medium') return 'orange';
-        if (alertState === 'low') return 'rouge';
-        return 'inactive';
+        return valoboisGetConfidenceAlertStateLabel(alertState);
     }
 
     collectConfidenceAlertDetails(key, lot = null) {
@@ -13793,7 +13471,7 @@ class ValoboisApp {
     }
 
     getAnalysisLotSelectorConfig(sectionKey) {
-        const configs = {
+        const configs = window.VALOBOIS_ANALYSIS_LOT_SELECTOR_CONFIG || {
             seuils: { triggerId: 'seuilsActiveLotLabel', menuId: 'seuilsLotSelectorMenu' },
             radar: { triggerId: 'radarActiveLotLabel', menuId: 'radarLotSelectorMenu' },
             scatterDims: { triggerId: 'scatterDimsActiveLotLabel', menuId: 'scatterDimsLotSelectorMenu' }
@@ -13802,7 +13480,8 @@ class ValoboisApp {
     }
 
     getAllAnalysisLotSelectorConfigs() {
-        return ['seuils', 'radar', 'scatterDims']
+        const keys = window.VALOBOIS_ANALYSIS_LOT_SELECTOR_KEYS || ['seuils', 'radar', 'scatterDims'];
+        return keys
             .map((key) => ({ key, config: this.getAnalysisLotSelectorConfig(key) }))
             .filter(({ config }) => !!config);
     }
@@ -16069,7 +15748,7 @@ class ValoboisApp {
                 };
             }
 
-            const labels = {
+            const labels = window.VALOBOIS_DURABILITE_DC_LABELS || {
                 '1': 'Très durable',
                 '2': 'Durable',
                 '3': 'Moyennement durable',
@@ -16080,7 +15759,7 @@ class ValoboisApp {
                 S: 'Non durable'
             };
 
-            const rangeLabels = {
+            const rangeLabels = window.VALOBOIS_DURABILITE_DC_RANGE_LABELS || {
                 '1-2': 'Très durable à Durable',
                 '2-3': 'Durable à Moyennement durable',
                 '3-4': 'Moyennement à Faiblement durable',
@@ -16161,7 +15840,7 @@ class ValoboisApp {
 
         const formatAubier = (value) => {
             const val = normalizeValue(value);
-            const map = {
+            const map = window.VALOBOIS_DURABILITE_AUBIER_LABELS || {
                 vs: '< 2 cm',
                 s: '2-5 cm',
                 m: '5-10 cm',
@@ -16178,7 +15857,7 @@ class ValoboisApp {
 
         const formatImpreg = (value) => {
             const val = normalizeValue(value);
-            const map = {
+            const map = window.VALOBOIS_DURABILITE_IMPREG_LABELS || {
                 '1': '1 — Imprégnable',
                 '2': '2 — Moy. imprégnable',
                 '3': '3 — Peu imprégnable',
@@ -17910,7 +17589,7 @@ class ValoboisApp {
         card.querySelectorAll('[data-variabilite-grid]').forEach(g => { g.dataset.variabiliteMode = _varMode; });
         const strategyBadgeEl = el('[data-display="similarityStrategyBadge"]');
         if (strategyBadgeEl) {
-            const labels = { single: 'Mesure unique', multiple: 'Mesures multiples' };
+            const labels = this.getSimilarityStrategyLabels();
             strategyBadgeEl.textContent = labels[this.getSimilarityStrategy(lot)] || labels.single;
         }
 
@@ -17933,7 +17612,7 @@ class ValoboisApp {
         });
         const medoideNomEl = el('[data-display="medoideNom"]');
         if (medoideNomEl) {
-            const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
+            const rawLabel = lot.allotissement.medoideLabel || window.VALOBOIS_MEDOID_EMPTY_LABEL || 'Non calculé (≥ 2 pièces requises)';
             medoideNomEl.textContent = rawLabel;
         }
         const medoideScoreEl = el('[data-display="medoideScore"]');
@@ -18239,38 +17918,11 @@ class ValoboisApp {
     }
 
     normalizeAllotissementNumericInput(rawValue) {
-        const raw = (rawValue == null ? '' : String(rawValue))
-            .replace(/[\s\u00A0\u202F]/g, '')
-            .replace(/,/g, '.');
-
-        if (!raw) return '';
-
-        let cleaned = raw.replace(/[^0-9.\-]/g, '');
-        cleaned = cleaned.replace(/(?!^)-/g, '');
-
-        const firstDot = cleaned.indexOf('.');
-        if (firstDot !== -1) {
-            cleaned = cleaned.slice(0, firstDot + 1) + cleaned.slice(firstDot + 1).replace(/\./g, '');
-        }
-
-        if (cleaned === '-' || cleaned === '.' || cleaned === '-.') return '';
-        return cleaned;
+        return valoboisNormalizeAllotissementNumericInput(rawValue);
     }
 
     formatAllotissementNumericDisplay(rawValue) {
-        const normalized = this.normalizeAllotissementNumericInput(rawValue);
-        if (!normalized) return '';
-
-        const negative = normalized.startsWith('-');
-        const unsigned = negative ? normalized.slice(1) : normalized;
-        const [intPartRaw, decPartRaw] = unsigned.split('.');
-        const intPart = (intPartRaw || '0').replace(/^0+(?=\d)/, '');
-        const groupedInt = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-
-        if (decPartRaw != null && decPartRaw !== '') {
-            return `${negative ? '-' : ''}${groupedInt},${decPartRaw}`;
-        }
-        return `${negative ? '-' : ''}${groupedInt}`;
+        return valoboisFormatAllotissementNumericDisplay(rawValue);
     }
 
     computePieceDimensionStats(piece, {
@@ -21678,16 +21330,21 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                         const text = String(reader.result || '');
                         const parsed = JSON.parse(text);
                         if (!this.applyEvaluationPayload(parsed)) {
-                            alert(
-                                'Fichier JSON invalide : la structure doit contenir un tableau « lots » (export VALOBOIS / nuage).'
-                            );
+                            alert(this.getEvaluationImportErrorAlertMessage());
                         }
                     } catch (err) {
                         console.error(err);
-                        alert('Impossible de lire ce fichier comme JSON VALOBOIS.');
+                        if (err instanceof SyntaxError) {
+                            alert('Le fichier sélectionné n\'est pas un JSON valide.');
+                        } else {
+                            alert(`Import impossible: ${err && err.message ? err.message : 'erreur technique inconnue.'}`);
+                        }
                     }
                 };
-                reader.onerror = () => alert('Lecture du fichier impossible.');
+                reader.onerror = () => {
+                    const reason = reader.error && reader.error.message ? ` (${reader.error.message})` : '';
+                    alert(`Lecture du fichier impossible${reason}.`);
+                };
                 reader.readAsText(file, 'UTF-8');
             });
         }
@@ -22381,22 +22038,28 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     refreshTauxLogicModalStrategyContent(lot = null) {
         const modalLot = lot || (this.data?.lots || []).find((candidate) => candidate?.id === this._tauxLogicModalLotId) || this.getCurrentLot();
         const strategy = this.getSimilarityStrategy(modalLot);
-        const labels = {
-            single: 'Mesure unique',
-            multiple: 'Mesures multiples',
+        const texts = window.VALOBOIS_TAUX_LOGIC_STRATEGY_TEXTS || {
+            labels: {
+                single: 'Mesure unique',
+                multiple: 'Mesures multiples'
+            },
+            introByStrategy: {
+                single: 'Mode mesure unique: les indicateurs reposent sur les dimensions scalaires saisies (L, l, e, d).',
+                multiple: 'Mode mesures multiples: la pièce type et le taux de similarité intègrent les sections mesurées quand elles sont disponibles.'
+            },
+            tauxByStrategy: {
+                single: 'Le score de conformité est calculé sur les dimensions directes de chaque pièce.',
+                multiple: 'Le score de conformité utilise prioritairement les dimensions issues des mesures multiples lorsqu’elles sont disponibles (dont le diamètre en mode cylindrique).'
+            },
+            medoidByStrategy: {
+                single: 'Le médoïde est déterminé uniquement à partir des dimensions scalaires.',
+                multiple: 'Le médoïde est déterminé à partir des dimensions enrichies, y compris le diamètre lorsqu’il est mesuré en sections.'
+            }
         };
-        const introByStrategy = {
-            single: 'Mode mesure unique: les indicateurs reposent sur les dimensions scalaires saisies (L, l, e, d).',
-            multiple: 'Mode mesures multiples: la pièce type et le taux de similarité intègrent les sections mesurées quand elles sont disponibles.',
-        };
-        const tauxByStrategy = {
-            single: 'Le score de conformité est calculé sur les dimensions directes de chaque pièce.',
-            multiple: 'Le score de conformité utilise prioritairement les dimensions issues des mesures multiples lorsqu’elles sont disponibles (dont le diamètre en mode cylindrique).',
-        };
-        const medoidByStrategy = {
-            single: 'Le médoïde est déterminé uniquement à partir des dimensions scalaires.',
-            multiple: 'Le médoïde est déterminé à partir des dimensions enrichies, y compris le diamètre lorsqu’il est mesuré en sections.',
-        };
+        const labels = texts.labels || {};
+        const introByStrategy = texts.introByStrategy || {};
+        const tauxByStrategy = texts.tauxByStrategy || {};
+        const medoidByStrategy = texts.medoidByStrategy || {};
 
         const strategyLabel = document.getElementById('tauxLogicStrategyLabel');
         if (strategyLabel) strategyLabel.textContent = labels[strategy] || labels.single;
@@ -22614,12 +22277,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     }
 
     escapeHtml(value) {
-        return String(value)
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+        return valoboisEscapeHtml(value);
     }
 
     linkifyText(value) {
@@ -23138,7 +22796,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
     }
 
     getNotationModeSectionTitle(sectionKey) {
-        const map = {
+        const map = window.VALOBOIS_NOTATION_MODE_SECTION_TITLES || {
             bio: 'Biologique',
             mech: 'Mécanique',
             usage: 'Usage',
@@ -23652,13 +23310,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const currentLang = String(document.documentElement.getAttribute('lang') || 'fr').toLowerCase();
         const isEnglish = currentLang.startsWith('en');
 
-        const titles = {
-            visibilite: isEnglish ? 'Visibility - Access' : 'Visibilité - Accessibilité',
-            instrumentation: 'Instrumentation',
-            modesNotation: isEnglish ? 'Scoring modes' : 'Modes de notation',
-            statutBois: isEnglish ? 'Wood status' : 'Statut du bois',
-            integrite: isEnglish ? 'Overall integrity' : 'Intégrité générale'
-        };
+        const titles = this.getInspectionDetailModalTitles(isEnglish);
 
         const contents = {
             visibilite: isEnglish ? `Assess the level of visibility and access to the wood elements under evaluation.
@@ -23839,13 +23491,7 @@ Une confiance faible vaut pour une notation de la catégorie à investiguer [+1]
         const titleEl = document.getElementById('bioDetailModalTitle');
         const contentEl = document.getElementById('bioDetailModalContent');
 
-        const titles = {
-            purge: 'Purge des dégradations biologiques',
-            expansion: 'Expansion',
-            integriteBio: 'Intégrité biologique',
-            exposition: 'Exposition biologique',
-            confianceBio: 'Confiance'
-        };
+        const titles = this.getDetailModalTitles('bio');
 
         const contents = this.getBioDetailContents();
 
@@ -23953,13 +23599,7 @@ openMechDetailModal(fieldKey) {
     const titleEl = document.getElementById('mechDetailModalTitle');
     const contentEl = document.getElementById('mechDetailModalContent');
 
-    const titles = {
-        purgeMech: 'Purge des dégradations mécaniques',
-        feuMech: 'Feu',
-        integriteMech: 'Intégrité mécanique',
-        expositionMech: 'Exposition mécanique',
-        confianceMech: 'Confiance'
-    };
+    const titles = this.getDetailModalTitles('mech');
 
     const contents = this.getMechDetailContents();
 
@@ -24127,13 +23767,7 @@ openUsageDetailModal(fieldKey) {
     const titleEl = document.getElementById('usageDetailModalTitle');
     const contentEl = document.getElementById('usageDetailModalContent');
 
-    const titles = {
-        confianceUsage: 'Confiance',
-        durabiliteUsage: 'Durabilité naturelle',
-        classementUsage: 'Classement estimé',
-        humiditeUsage: 'Humidité',
-        aspectUsage: 'Aspect'
-    };
+    const titles = this.getDetailModalTitles('usage');
 
     const contents = this.getUsageDetailContents();
 
@@ -24280,13 +23914,7 @@ openDenatDetailModal(fieldKey) {
     const titleEl = document.getElementById('denatDetailModalTitle');
     const contentEl = document.getElementById('denatDetailModalContent');
 
-    const titles = {
-        depollutionDenat: 'Dépollution',
-        contaminationDenat: 'Contamination',
-        durabiliteConfDenat: 'Durabilité conférée',
-        confianceDenat: 'Confiance',
-        naturaliteDenat: 'Naturalité'
-    };
+    const titles = this.getDetailModalTitles('denat');
 
     const contents = this.getDenatDetailContents();
 
@@ -24382,13 +24010,7 @@ openDebitDetailModal(fieldKey) {
     const titleEl = document.getElementById('debitDetailModalTitle');
     const contentEl = document.getElementById('debitDetailModalContent');
 
-    const titles = {
-        regulariteDebit: 'Régularité',
-        volumetrieDebit: 'Volumétrie',
-        stabiliteDebit: 'Stabilité',
-        artisanaliteDebit: 'Artisanalité',
-        rusticiteDebit: 'Rusticité'
-    };
+    const titles = this.getDetailModalTitles('debit');
 
     const contents = this.getDebitDetailContents();
 
@@ -24493,13 +24115,7 @@ openGeoDetailModal(fieldKey) {
     const titleEl = document.getElementById('geoDetailModalTitle');
     const contentEl = document.getElementById('geoDetailModalContent');
 
-    const titles = {
-        adaptabiliteGeo: 'Adaptabilité',
-        massiviteGeo: 'Massivité',
-        deformationGeo: 'Déformation',
-        industrialiteGeo: 'Industrialité',
-        inclusiviteGeo: 'Inclusivité'
-    };
+    const titles = this.getDetailModalTitles('geo');
 
     const contents = this.getGeoDetailContents();
 
@@ -24605,13 +24221,7 @@ openEssenceDetailModal(fieldKey) {
     const titleEl = document.getElementById('essenceDetailModalTitle');
     const contentEl = document.getElementById('essenceDetailModalContent');
 
-    const titles = {
-        confianceEssence: 'Confiance',
-        rareteEcoEssence: 'Rareté',
-        masseVolEssence: 'Masse volumique',
-        rareteHistEssence: 'Rareté commerciale',
-        singulariteEssence: 'Singularité essence'
-    };
+    const titles = this.getDetailModalTitles('essence');
 
     const contents = this.getEssenceDetailContents();
 
@@ -24727,13 +24337,7 @@ openAncienDetailModal(fieldKey) {
     const titleEl = document.getElementById('ancienDetailModalTitle');
     const contentEl = document.getElementById('ancienDetailModalContent');
 
-    const titles = {
-        confianceAncien: 'Confiance',
-        amortissementAncien: 'Amortissement',
-        vieillissementAncien: 'Vieillissement',
-        microhistoireAncien: 'Micro-histoire',
-        demontabiliteAncien: 'Démontabilité'
-    };
+    const titles = this.getDetailModalTitles('ancien');
 
     const contents = this.getAncienDetailContents();
 
@@ -24829,13 +24433,7 @@ openTracesDetailModal(fieldKey) {
     const titleEl = document.getElementById('tracesDetailModalTitle');
     const contentEl = document.getElementById('tracesDetailModalContent');
 
-    const titles = {
-        confianceTraces: 'Confiance',
-        etiquetageTraces: 'Étiquetage',
-        alterationTraces: 'Altération',
-        documentationTraces: 'Documentation',
-        singularitesTraces: 'Singularités tracéologiques'
-    };
+    const titles = this.getDetailModalTitles('traces');
 
     const contents = this.getTracesDetailContents();
 
@@ -24925,13 +24523,7 @@ openProvenanceDetailModal(fieldKey) {
     const titleEl = document.getElementById('provenanceDetailModalTitle');
     const contentEl = document.getElementById('provenanceDetailModalContent');
 
-    const titles = {
-        confianceProv: 'Confiance',
-        transportProv: 'Transport',
-        reputationProv: 'Réputation',
-        macroProv: 'Macro-histoire',
-        territorialiteProv: 'Territorialité'
-    };
+    const titles = this.getDetailModalTitles('provenance');
 
     const contents = this.getProvenanceDetailContents();
 
@@ -24956,112 +24548,52 @@ closeProvenanceDetailModal() {
         return {
             bio: {
                 sectionTitle: 'Biologique',
-                fieldTitles: {
-                    purge: 'Purge des dégradations biologiques',
-                    expansion: 'Expansion',
-                    integriteBio: 'Intégrité biologique',
-                    exposition: 'Exposition biologique',
-                    confianceBio: 'Confiance'
-                },
+                fieldTitles: this.getDetailModalTitles('bio'),
                 contents: this.getBioDetailContents()
             },
             mech: {
                 sectionTitle: 'Mécanique',
-                fieldTitles: {
-                    purgeMech: 'Purge des dégradations mécaniques',
-                    feuMech: 'Feu',
-                    integriteMech: 'Intégrité mécanique',
-                    expositionMech: 'Exposition mécanique',
-                    confianceMech: 'Confiance'
-                },
+                fieldTitles: this.getDetailModalTitles('mech'),
                 contents: this.getMechDetailContents()
             },
             usage: {
                 sectionTitle: 'Usage',
-                fieldTitles: {
-                    confianceUsage: 'Confiance',
-                    durabiliteUsage: 'Durabilité naturelle',
-                    classementUsage: 'Classement estimé',
-                    humiditeUsage: 'Humidité',
-                    aspectUsage: 'Aspect'
-                },
+                fieldTitles: this.getDetailModalTitles('usage'),
                 contents: this.getUsageDetailContents()
             },
             denat: {
                 sectionTitle: 'Dénaturation',
-                fieldTitles: {
-                    depollutionDenat: 'Dépollution',
-                    contaminationDenat: 'Contamination',
-                    durabiliteConfDenat: 'Durabilité conférée',
-                    confianceDenat: 'Confiance',
-                    naturaliteDenat: 'Naturalité'
-                },
+                fieldTitles: this.getDetailModalTitles('denat'),
                 contents: this.getDenatDetailContents()
             },
             debit: {
                 sectionTitle: 'Débit',
-                fieldTitles: {
-                    regulariteDebit: 'Régularité',
-                    volumetrieDebit: 'Volumétrie',
-                    stabiliteDebit: 'Stabilité',
-                    artisanaliteDebit: 'Artisanalité',
-                    rusticiteDebit: 'Rusticité'
-                },
+                fieldTitles: this.getDetailModalTitles('debit'),
                 contents: this.getDebitDetailContents()
             },
             geo: {
                 sectionTitle: 'Géométrie',
-                fieldTitles: {
-                    adaptabiliteGeo: 'Adaptabilité',
-                    massiviteGeo: 'Massivité',
-                    deformationGeo: 'Déformation',
-                    industrialiteGeo: 'Industrialité',
-                    inclusiviteGeo: 'Inclusivité'
-                },
+                fieldTitles: this.getDetailModalTitles('geo'),
                 contents: this.getGeoDetailContents()
             },
             essence: {
                 sectionTitle: 'Essence',
-                fieldTitles: {
-                    confianceEssence: 'Confiance',
-                    rareteEcoEssence: 'Rareté',
-                    masseVolEssence: 'Masse volumique',
-                    rareteHistEssence: 'Rareté commerciale',
-                    singulariteEssence: 'Singularité essence'
-                },
+                fieldTitles: this.getDetailModalTitles('essence'),
                 contents: this.getEssenceDetailContents()
             },
             ancien: {
                 sectionTitle: 'Ancienneté',
-                fieldTitles: {
-                    confianceAncien: 'Confiance',
-                    amortissementAncien: 'Amortissement',
-                    vieillissementAncien: 'Vieillissement',
-                    microhistoireAncien: 'Micro-histoire',
-                    demontabiliteAncien: 'Démontabilité'
-                },
+                fieldTitles: this.getDetailModalTitles('ancien'),
                 contents: this.getAncienDetailContents()
             },
             traces: {
                 sectionTitle: 'Traces',
-                fieldTitles: {
-                    confianceTraces: 'Confiance',
-                    etiquetageTraces: 'Étiquetage',
-                    alterationTraces: 'Altération',
-                    documentationTraces: 'Documentation',
-                    singularitesTraces: 'Singularités tracéologiques'
-                },
+                fieldTitles: this.getDetailModalTitles('traces'),
                 contents: this.getTracesDetailContents()
             },
             provenance: {
                 sectionTitle: 'Provenance',
-                fieldTitles: {
-                    confianceProv: 'Confiance',
-                    transportProv: 'Transport',
-                    reputationProv: 'Réputation',
-                    macroProv: 'Macro-histoire',
-                    territorialiteProv: 'Territorialité'
-                },
+                fieldTitles: this.getDetailModalTitles('provenance'),
                 contents: this.getProvenanceDetailContents()
             }
         };
@@ -27193,7 +26725,10 @@ closeEvalOpModal() {
                         <div class="lot-piece-type-summary-inline">
                             <div class="lot-taux-piecetype-header">
                                 <h3 class="lot-taux-piecetype-title">Pièce type du lot</h3>
-                                <button type="button" class="lot-taux-strategy-badge" data-action="toggleSimilarityStrategy" data-display="similarityStrategyBadge" aria-label="Basculer le mode de similarité">${({ single: 'Mesure unique', multiple: 'Mesures multiples' }[this.getSimilarityStrategy(lot)] || 'Mesure unique')}</button>
+                                <button type="button" class="lot-taux-strategy-badge" data-action="toggleSimilarityStrategy" data-display="similarityStrategyBadge" aria-label="Basculer le mode de similarité">${(() => {
+                                    const labels = this.getSimilarityStrategyLabels();
+                                    return labels[this.getSimilarityStrategy(lot)] || labels.single || 'Mesure unique';
+                                })()}</button>
                                 <button type="button" class="lot-taux-info-btn" data-lot-taux-info-btn aria-label="Informations sur le Taux de similarité et la Pièce type"><svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
                             </div>
                             <div class="lot-taux-piecetype-wrapper">
@@ -27810,12 +27345,12 @@ closeEvalOpModal() {
             });
             const medoideNomCardEl = card.querySelector('[data-display="medoideNom"]');
             if (medoideNomCardEl) {
-                const rawLabel = lot.allotissement.medoideLabel || 'Non calculé (≥ 2 pièces requises)';
+                const rawLabel = lot.allotissement.medoideLabel || window.VALOBOIS_MEDOID_EMPTY_LABEL || 'Non calculé (≥ 2 pièces requises)';
                 medoideNomCardEl.textContent = rawLabel;
             }
             const strategyBadgeCardEl = card.querySelector('[data-display="similarityStrategyBadge"]');
             if (strategyBadgeCardEl) {
-                const labels = { single: 'Mesure unique', multiple: 'Mesures multiples' };
+                const labels = this.getSimilarityStrategyLabels();
                 strategyBadgeCardEl.textContent = labels[this.getSimilarityStrategy(lot)] || labels.single;
             }
             const medoideScoreCardEl = card.querySelector('[data-display="medoideScore"]');
@@ -32323,7 +31858,7 @@ getValoboisRawCriterionValue(entry) {
 
 getValoboisCategoryFromAxeKey(axeKey) {
     const normalized = String(axeKey || '').trim().toLowerCase();
-    const map = {
+    const map = window.VALOBOIS_AXE_CATEGORY_MAP || {
         economique: 'economique',
         ecologique: 'ecologique',
         mecanique: 'mecanique',
@@ -33834,32 +33369,23 @@ getOrientationThresholdConfig() {
         return fallback;
     };
 
-    return [
-        {
-            code: 'recyclage',
-            orientationLabel: 'Recyclage',
-            minPercent: minPercent('recyclage'),
-            radarValue: minPercent('recyclage'),
-            radarLabel: translate('editor.radar.thresholdRecyclable', 'Recyclable'),
-            color: '#E69F00'
-        },
-        {
-            code: 'reutilisation',
-            orientationLabel: 'Réutilisation',
-            minPercent: minPercent('reutilisation'),
-            radarValue: minPercent('reutilisation'),
-            radarLabel: translate('editor.radar.thresholdReutilisable', 'Réutilisable'),
-            color: '#56B4E9'
-        },
-        {
-            code: 'reemploi',
-            orientationLabel: 'Réemploi',
-            minPercent: minPercent('reemploi'),
-            radarValue: minPercent('reemploi'),
-            radarLabel: translate('editor.radar.thresholdReemployable', 'Réemployable'),
-            color: '#009E73'
-        }
+    const descriptors = window.VALOBOIS_ORIENTATION_THRESHOLD_DESCRIPTORS || [
+        { code: 'recyclage', orientationLabel: 'Recyclage', radarLabelKey: 'editor.radar.thresholdRecyclable', radarLabelFallback: 'Recyclable', color: '#E69F00' },
+        { code: 'reutilisation', orientationLabel: 'Réutilisation', radarLabelKey: 'editor.radar.thresholdReutilisable', radarLabelFallback: 'Réutilisable', color: '#56B4E9' },
+        { code: 'reemploi', orientationLabel: 'Réemploi', radarLabelKey: 'editor.radar.thresholdReemployable', radarLabelFallback: 'Réemployable', color: '#009E73' }
     ];
+
+    return descriptors.map((descriptor) => {
+        const percent = minPercent(descriptor.code);
+        return {
+            code: descriptor.code,
+            orientationLabel: descriptor.orientationLabel,
+            minPercent: percent,
+            radarValue: percent,
+            radarLabel: translate(descriptor.radarLabelKey, descriptor.radarLabelFallback),
+            color: descriptor.color
+        };
+    });
 }
 
 getOrientationThresholdForPercent(percent) {
@@ -34632,7 +34158,7 @@ openValoboisCustomAlertConfigModal(criterionId) {
 }
 
 getValoboisOrientationLabel(code) {
-    const labels = {
+    const labels = window.VALOBOIS_ORIENTATION_LABELS || {
         reemploi: 'Réemploi',
         reutilisation: 'Réutilisation',
         recyclage: 'Recyclage',
@@ -36723,6 +36249,10 @@ renderMatrice() {
             <button type="button" class="btn" id="valoboisMatrixResetFilters">Réinitialiser filtres</button>
             <button type="button" class="btn" id="valoboisMatrixExportConfig" ${ui.editMode ? '' : 'disabled'}>Exporter la configuration</button>
             <button type="button" class="btn" id="valoboisMatrixImportConfig" ${ui.editMode ? '' : 'disabled'}>Importer une configuration</button>
+            <label class="valobois-matrix-control-check" for="valoboisMatrixImportReplaceCustom">
+                <input type="checkbox" id="valoboisMatrixImportReplaceCustom" ${ui.editMode ? '' : 'disabled'}>
+                Remplacer les critères libres importés
+            </label>
             <input type="file" id="valoboisMatrixImportInput" accept="application/json" hidden ${ui.editMode ? '' : 'disabled'}>
         </div>
     `;
@@ -37304,12 +36834,15 @@ renderMatrice() {
     }
 
     const importBtn = document.getElementById('valoboisMatrixImportConfig');
+    const importReplaceCustomInput = document.getElementById('valoboisMatrixImportReplaceCustom');
     const importInput = document.getElementById('valoboisMatrixImportInput');
     if (importBtn && importInput) {
         importBtn.addEventListener('click', () => importInput.click());
         importInput.addEventListener('change', () => {
             const file = importInput.files && importInput.files[0];
-            this.handleValoboisMatrixConfigImport(file);
+            this.handleValoboisMatrixConfigImport(file, {
+                replaceCustomFreeCriteria: !!(importReplaceCustomInput && importReplaceCustomInput.checked)
+            });
             importInput.value = '';
         });
     }
@@ -40481,33 +40014,73 @@ renderRadar() {
         btn.disabled = !show;
     }
 
+    getEvaluationImportErrorAlertMessage() {
+        const fallback = 'Fichier JSON invalide : la structure doit contenir un tableau « lots » (export VALOBOIS / nuage).';
+        const err = this._lastEvaluationImportError;
+        if (!err || !err.code) return fallback;
+        if (err.code === 'format') return fallback;
+        if (err.code === 'runtime') {
+            const details = err.message ? `\n\nDétail technique: ${err.message}` : '';
+            return `Import interrompu: une erreur est survenue pendant l'application des données.${details}`;
+        }
+        return fallback;
+    }
+
     /** Applique un objet racine identique au payload Firestore (méta, ui, lots). */
     applyEvaluationPayload(parsed) {
-        if (!parsed || !parsed.lots || !Array.isArray(parsed.lots)) return false;
-        this.data = parsed;
-        this.data.meta = this.getDefaultMeta(this.data.meta || {});
-        this.data.ui = this.getDefaultUi(this.data.ui || {});
-        this.data.notationMode = this.normalizeNotationMode(this.data.notationMode);
-        this.data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(this.data.notationModeCustomConfig);
-        this.data.lots.forEach((lot) => {
-            this.normalizeLotEssenceFields(lot);
-            this.normalizeLotAllotissementFields(lot);
-            if (!lot.customScores || typeof lot.customScores !== 'object' || Array.isArray(lot.customScores)) {
-                lot.customScores = {};
+        this._lastEvaluationImportError = null;
+        const normalized = this.normalizeEvaluationImportPayload(parsed);
+        if (!normalized || !Array.isArray(normalized.lots)) {
+            this._lastEvaluationImportError = { code: 'format', message: 'Payload sans tableau lots.' };
+            return false;
+        }
+
+        const previousData = this.data ? JSON.parse(JSON.stringify(this.data)) : null;
+        const previousCurrentLotIndex = this.currentLotIndex;
+        const previousMatrixConfig = this.valoboisMatrixConfig
+            ? JSON.parse(JSON.stringify(this.valoboisMatrixConfig))
+            : null;
+
+        try {
+            this.data = normalized;
+            this.data.meta = this.getDefaultMeta(this.data.meta || {});
+            this.data.ui = this.getDefaultUi(this.data.ui || {});
+            this.data.notationMode = this.normalizeNotationMode(this.data.notationMode);
+            this.data.notationModeCustomConfig = this.normalizeNotationModeCustomConfig(this.data.notationModeCustomConfig);
+            this.data.lots.forEach((lot) => {
+                this.normalizeLotEssenceFields(lot);
+                this.normalizeLotAllotissementFields(lot);
+                if (!lot.customScores || typeof lot.customScores !== 'object' || Array.isArray(lot.customScores)) {
+                    lot.customScores = {};
+                }
+            });
+            if (normalized.valoboisMatrixConfig && typeof normalized.valoboisMatrixConfig === 'object') {
+                this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(normalized.valoboisMatrixConfig);
+                this.saveValoboisMatrixConfig();
             }
-        });
-        if (parsed.valoboisMatrixConfig && typeof parsed.valoboisMatrixConfig === 'object') {
-            this.valoboisMatrixConfig = this.normalizeValoboisMatrixConfig(parsed.valoboisMatrixConfig);
-            this.saveValoboisMatrixConfig();
+            const n = this.data.lots.length;
+            if (typeof this.currentLotIndex === 'number' && this.currentLotIndex >= n) {
+                this.currentLotIndex = Math.max(0, n - 1);
+            }
+            this.resetDetailLotActiveCardStore();
+            this.render();
+            this.saveData();
+            return true;
+        } catch (error) {
+            console.error('Echec import payload', error);
+            if (previousData) {
+                this.data = previousData;
+                this.currentLotIndex = previousCurrentLotIndex;
+            }
+            if (previousMatrixConfig) {
+                this.valoboisMatrixConfig = previousMatrixConfig;
+            }
+            this._lastEvaluationImportError = {
+                code: 'runtime',
+                message: error && error.message ? error.message : 'erreur inconnue'
+            };
+            return false;
         }
-        const n = this.data.lots.length;
-        if (typeof this.currentLotIndex === 'number' && this.currentLotIndex >= n) {
-            this.currentLotIndex = Math.max(0, n - 1);
-        }
-        this.resetDetailLotActiveCardStore();
-        this.saveData();
-        this.render();
-        return true;
     }
 
     exportEvaluationJson() {
@@ -40691,7 +40264,7 @@ renderRadar() {
     }
 
     getEtiquetteQrConfig() {
-        return {
+        return window.VALOBOIS_ETIQUETTE_QR_CONFIG || {
             baseUrl: 'https://valoxylo.app',
             maxTextLength: 120,
             maxHtmlPayloadLength: 800,
@@ -40777,7 +40350,7 @@ renderRadar() {
     }
 
     getBarcodeComposerOptionalFieldsOrder() {
-        return [
+        const fields = window.VALOBOIS_BARCODE_COMPOSER_OPTIONAL_FIELDS_ORDER || [
             'essence',
             'longueur',
             'largeur',
@@ -40805,10 +40378,11 @@ renderRadar() {
             'macroHistoire',
             'contamination'
         ];
+        return [...fields];
     }
 
     getBarcodeComposerFieldScopeMap() {
-        return {
+        const scopes = window.VALOBOIS_BARCODE_COMPOSER_FIELD_SCOPE_MAP || {
             essence: 'piece',
             longueur: 'piece',
             largeur: 'piece',
@@ -40837,6 +40411,7 @@ renderRadar() {
             macroHistoire: 'lot',
             contamination: 'lot'
         };
+        return { ...scopes };
     }
 
     getBarcodeComposerFieldScope(field) {
@@ -41525,7 +41100,7 @@ renderRadar() {
     }
 
     getBarcodeComposerDefaultConfig() {
-        return {
+        return window.VALOBOIS_BARCODE_COMPOSER_DEFAULT_CONFIG || {
             lotNum: true,
             pieceNum: true,
             essenceMode: 'abbr',
@@ -43272,7 +42847,7 @@ renderRadar() {
 
     getPdfText(_key, frValue, enValue) {
         const key = (_key || '').toString().trim();
-        const map = {
+        const map = window.VALOBOIS_PDF_TEXT_MAP || {
             'pdf.common.none': { fr: 'Aucun', en: 'None' },
             'pdf.orientation.status.confirmed': { fr: 'Confirmee', en: 'Confirmed' },
             'pdf.orientation.status.forced': { fr: 'Forcee', en: 'Forced' },
@@ -46377,14 +45952,11 @@ renderRadar() {
 
 
     normalizeDecimalForCsv(value) {
-        if (value == null) return '';
-        if (typeof value === 'number') return Number.isFinite(value) ? value : '';
-        return String(value).replace(/(\d),(\d)/g, '$1.$2');
+        return valoboisNormalizeDecimalForCsv(value);
     }
 
     escapeCsvValue(value) {
-        const normalized = value == null ? '' : String(value);
-        return '"' + normalized.replace(/"/g, '""') + '"';
+        return valoboisEscapeCsvValue(value);
     }
 
     downloadCsvFile(filename, headers, rows) {
