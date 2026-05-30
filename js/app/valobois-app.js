@@ -4336,6 +4336,16 @@ class ValoboisApp {
             .filter(Boolean)));
     }
 
+    normalizeCustomInfoConnexeText(entry) {
+        if (entry == null) return '';
+        if (typeof entry !== 'object') return String(entry || '').trim();
+        const directText = String(entry.text ?? '').trim();
+        if (directText) return directText;
+        const label = String(entry.label ?? '').trim();
+        const value = String(entry.value ?? '').trim();
+        return value || label;
+    }
+
     normalizeCustomInfoOptionItems(itemsRaw, fallbackOptionsRaw = []) {
         const source = Array.isArray(itemsRaw) && itemsRaw.length > 0
             ? itemsRaw
@@ -4350,22 +4360,31 @@ class ValoboisApp {
                 value = String(entry || '').trim();
             }
             if (!value) return;
-            // Normalize connexes array — migrate legacy unit/note fields on first read
+            // Normalize connexes as single text lines and migrate legacy shapes on read.
             let connexes = [];
             if (typeof entry === 'object' && Array.isArray(entry.connexes) && entry.connexes.length > 0) {
                 connexes = entry.connexes
-                    .filter((c) => c && typeof c === 'object')
-                    .map((c) => ({
-                        id: String(c.id || this.createCustomInfoId('ci-cn')),
-                        label: String(c.label ?? '').trim(),
-                        value: String(c.value ?? '').trim()
-                    }));
+                    .map((c) => {
+                        const text = this.normalizeCustomInfoConnexeText(c);
+                        return {
+                            id: String(c && c.id || this.createCustomInfoId('ci-cn')),
+                            text,
+                            label: '',
+                            value: text
+                        };
+                    })
+                    .filter((c) => c && c.id);
             } else if (typeof entry === 'object') {
-                // Migrate legacy unit / note fields
                 const legacyUnit = String(entry.unit ?? '').trim();
                 const legacyNote = String(entry.note ?? entry.meta ?? entry.details ?? '').trim();
-                if (legacyUnit) connexes.push({ id: this.createCustomInfoId('ci-cn'), label: 'Unité', value: legacyUnit });
-                if (legacyNote) connexes.push({ id: this.createCustomInfoId('ci-cn'), label: 'Infos connexes', value: legacyNote });
+                if (legacyUnit) {
+                    const text = legacyUnit;
+                    connexes.push({ id: this.createCustomInfoId('ci-cn'), text, label: '', value: text });
+                }
+                if (legacyNote) {
+                    const text = legacyNote;
+                    connexes.push({ id: this.createCustomInfoId('ci-cn'), text, label: '', value: text });
+                }
             }
             normalized.push({ value, connexes });
         });
@@ -4842,11 +4861,7 @@ class ValoboisApp {
             selectedSetId: '',
             listDraftLabel: '',
             forceNewListMode: false,
-            pendingConfirmAction: null,
-            newValueDraft: {
-                value: '',
-                connexes: []
-            }
+            pendingConfirmAction: null
         };
 
         const findCurrentInfo = () => this.ensurePieceCustomInfos(piece)
@@ -4915,38 +4930,54 @@ class ValoboisApp {
             const matchedByLabel = findSetByLabel(state.listDraftLabel);
             const effectiveSet = matchedByLabel || selectedSet;
             const primaryActionLabel = effectiveSet ? 'Modifier' : '+ Ajouter';
+            const selectedSetOrderIndex = editableSet
+                ? allSets.findIndex((entry) => String(entry && entry.id || '') === String(editableSet.id || ''))
+                : -1;
             const optionsRowsHtml = editableSet && editableItems.length > 0
                 ? editableItems.map((opt, idx) => {
-                    const connexesHtml = (Array.isArray(opt.connexes) ? opt.connexes : []).map((cn, cidx) => `
-                        <div class="piece-custom-info-connexe-row" data-connexe-index="${cidx}">
-                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.label || '')}" placeholder="Libellé" data-custom-info-modal-connexe-label>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.value || '')}" placeholder="Valeur" data-custom-info-modal-connexe-value>
-                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-connexe-delete data-connexe-index="${cidx}" aria-label="Supprimer ce champ connexe"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                    const sourceConnexes = (Array.isArray(opt.connexes) && opt.connexes.length > 0)
+                        ? opt.connexes
+                        : [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }];
+                    const connexesTexts = sourceConnexes
+                        .map((cn) => this.normalizeCustomInfoConnexeText(cn))
+                        .filter(Boolean);
+                    const chainValue = connexesTexts.join(' - ');
+                    const connexesHtml = sourceConnexes.map((cn, cidx) => {
+                        const textValue = this.normalizeCustomInfoConnexeText(cn);
+                        return `
+                        <div class="piece-custom-info-connexe-line" data-connexe-index="${cidx}">
+                            <input type="text" class="lot-input" value="${this.escapeHtml(textValue)}" placeholder="Valeur connexe" data-custom-info-modal-connexe-text>
+                            <div class="piece-custom-info-connexe-line-actions">
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-connexe-move="down" aria-label="Descendre"${cidx === sourceConnexes.length - 1 ? ' disabled' : ''}>↓</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-connexe-move="up" aria-label="Monter"${cidx === 0 ? ' disabled' : ''}>↑</button>
+                                <button type="button" class="price-preset-row__remove piece-custom-info-order-btn" data-custom-info-modal-connexe-delete data-connexe-index="${cidx}" aria-label="Supprimer cette ligne"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                            </div>
                         </div>
-                    `).join('');
+                    `;
+                    }).join('');
                     return `
-                    <article class="price-preset-row piece-custom-info-option-row" data-custom-info-modal-option-row data-option-index="${idx}">
-                        <div class="price-preset-row__head">
-                            <span class="price-preset-row__badge price-preset-row__badge--custom">Valeur</span>
-                            <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre d'apparition">
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="up"${idx === 0 ? ' disabled' : ''} aria-label="Monter">↑</button>
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-option-move="down"${idx === editableItems.length - 1 ? ' disabled' : ''} aria-label="Descendre">↓</button>
-                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-option-delete aria-label="Supprimer cette valeur"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                    <article class="piece-custom-info-value-card" data-custom-info-modal-option-row data-option-index="${idx}">
+                        <div class="piece-custom-info-value-card__head">
+                            <span class="price-preset-row__badge price-preset-row__badge--custom">Valeur ${idx + 1} - ${this.escapeHtml(editableSet.label || 'Liste')}</span>
+                            <div class="piece-custom-info-value-card__actions">
+                                <button type="button" class="piece-duplicate-btn" data-custom-info-modal-option-duplicate>Dupliquer</button>
+                                <button type="button" class="piece-duplicate-btn" data-custom-info-modal-option-add-card>Ajouter</button>
                             </div>
                         </div>
-                        <div class="price-preset-row__grid piece-custom-info-option-grid piece-custom-info-option-grid--rich">
-                            <p class="piece-custom-info-field-section-label">Valeur principale</p>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(opt.value || '')}" placeholder="Valeur" data-custom-info-modal-option-value>
-                            <p class="piece-custom-info-field-section-label">Données connexes</p>
-                            <div class="piece-custom-info-connexes" data-custom-info-modal-connexes-list>
-                                ${connexesHtml}
-                                <button type="button" class="piece-custom-info-connexes-add-btn" data-custom-info-modal-connexe-add>+ Ajouter un champ connexe</button>
-                            </div>
+                        <p class="piece-custom-info-field-section-label">Chaîne de valeur</p>
+                        <input type="text" class="lot-input" value="${this.escapeHtml(chainValue)}" placeholder="A - B - C" data-custom-info-modal-option-chain readonly>
+                        <div class="piece-custom-info-connexe-lines" data-custom-info-modal-connexes-list>
+                            ${connexesHtml}
+                        </div>
+                        <div class="piece-custom-info-value-card__footer">
+                            <button type="button" class="piece-duplicate-btn piece-custom-info-add-line-btn" data-custom-info-modal-connexe-add-line>+</button>
+                            <button type="button" class="piece-duplicate-btn piece-custom-info-delete-card-btn" data-custom-info-modal-option-delete>Supprimer</button>
                         </div>
                     </article>
                     `;
                 }).join('')
-                : '<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>';
+                : `<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>
+                   <button type="button" class="piece-duplicate-btn" data-custom-info-modal-option-add-card-empty>Ajouter une valeur</button>`;
 
             const libraryPanelHtml = `
                 <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-modal-lists">
@@ -4971,36 +5002,24 @@ class ValoboisApp {
                             <h3>Contenu de la liste sélectionnée</h3>
                         </div>
                         <p class="piece-custom-info-modal-note">Modifiez le nom de la liste puis gérez ses valeurs.</p>
-                        <div class="piece-custom-info-set-editor-head">
-                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
-                            <div class="piece-custom-info-set-editor-head-actions">
-                                <span class="price-preset-row__badge price-preset-row__badge--custom">Liste</span>
-                                <button type="button" class="price-preset-row__remove" data-custom-info-modal-set-delete aria-label="Supprimer la liste"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
+                        <div class="piece-custom-info-set-editor-toolbar">
+                            <span class="price-preset-row__badge price-preset-row__badge--custom">Liste ${selectedSetOrderIndex >= 0 ? selectedSetOrderIndex + 1 : 1}</span>
+                            <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre des listes créées">
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="down"${selectedSetOrderIndex < 0 || selectedSetOrderIndex === allSets.length - 1 ? ' disabled' : ''} aria-label="Descendre la liste">↓</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="up"${selectedSetOrderIndex <= 0 ? ' disabled' : ''} aria-label="Monter la liste">↑</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-delete-list-btn" data-custom-info-modal-set-delete>Supprimer</button>
                             </div>
                         </div>
-                        <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
-                        <div class="piece-custom-info-option-head piece-custom-info-option-grid piece-custom-info-option-grid--rich" aria-hidden="true">
+                        <div class="piece-custom-info-set-editor-head">
+                            <p class="piece-custom-info-field-section-label">Nom de la liste</p>
+                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
+                        </div>
+                        <div class="piece-custom-info-set-editor-head">
+                            <p class="piece-custom-info-field-section-label">Sous-titre de la liste</p>
+                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
+                        </div>
                         <div class="price-preset-editor__list" data-custom-info-modal-options-list>
                             ${optionsRowsHtml}
-                        </div>
-                        <div class="price-preset-editor__create">
-                            <h4>Ajouter une valeur</h4>
-                            <div class="price-preset-editor__create-grid piece-custom-info-option-create-grid piece-custom-info-option-create-grid--rich">
-                                <p class="piece-custom-info-field-section-label">Valeur principale</p>
-                                <input type="text" class="lot-input" value="${this.escapeHtml(state.newValueDraft.value || '')}" placeholder="Nouvelle valeur" data-custom-info-modal-option-new-value>
-                                <p class="piece-custom-info-field-section-label">Données connexes</p>
-                                <div class="piece-custom-info-connexes" data-custom-info-modal-connexes-new-list>
-                                    ${(Array.isArray(state.newValueDraft.connexes) ? state.newValueDraft.connexes : []).map((cn, cidx) => `
-                                        <div class="piece-custom-info-connexe-row" data-connexe-new-index="${cidx}">
-                                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.label || '')}" placeholder="Libellé" data-custom-info-modal-connexe-new-label>
-                                            <input type="text" class="lot-input" value="${this.escapeHtml(cn.value || '')}" placeholder="Valeur" data-custom-info-modal-connexe-new-value>
-                                            <button type="button" class="price-preset-row__remove" data-custom-info-modal-connexe-new-delete data-connexe-new-index="${cidx}" aria-label="Supprimer ce champ connexe"><svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"></line><line x1="18" y1="6" x2="6" y2="18"></line></svg></button>
-                                        </div>
-                                    `).join('')}
-                                    <button type="button" class="piece-custom-info-connexes-add-btn" data-custom-info-modal-connexe-new-add>+ Ajouter un champ connexe</button>
-                                </div>
-                                <button type="button" class="btn btn-primary" data-custom-info-modal-option-add>Ajouter</button>
-                            </div>
                         </div>
                     </section>`
                 : `<section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor piece-custom-info-set-editor--empty">
@@ -5168,49 +5187,119 @@ class ValoboisApp {
                 setSubtitleInput.addEventListener('blur', commitSetSubtitle);
             }
 
+            const moveSetButtons = bodyEl.querySelectorAll('[data-custom-info-modal-set-move]');
+            if (editableSet && moveSetButtons.length > 0) {
+                moveSetButtons.forEach((btn) => {
+                    btn.addEventListener('click', () => {
+                        const direction = String(btn.getAttribute('data-custom-info-modal-set-move') || '').trim();
+                        const delta = direction === 'up' ? -1 : (direction === 'down' ? 1 : 0);
+                        if (!delta) return;
+                        const ui = this.data && this.data.ui;
+                        this.normalizeCustomInfoOptionSets(ui);
+                        if (!ui || !Array.isArray(ui.customInfoOptionSets)) return;
+                        const items = ui.customInfoOptionSets;
+                        const currentIndex = items.findIndex((entry) => String(entry && entry.id || '') === String(editableSet.id || ''));
+                        if (currentIndex < 0) return;
+                        const nextIndex = currentIndex + delta;
+                        if (nextIndex < 0 || nextIndex >= items.length) return;
+                        const buffer = items[currentIndex];
+                        items[currentIndex] = items[nextIndex];
+                        items[nextIndex] = buffer;
+                        ui.customInfoOptionSets = items;
+                        applySyncAndPersist({ rerender: false });
+                        render();
+                    });
+                });
+            }
+
+            const cloneItems = () => (Array.isArray(editableSet && editableSet.items)
+                ? editableSet.items.map((item) => ({ ...item, connexes: Array.isArray(item && item.connexes) ? item.connexes.map((c) => ({ ...c })) : [] }))
+                : this.normalizeCustomInfoOptionItems([], editableSet && editableSet.options));
+
+            const sanitizeItemsForPersistence = (items) => (Array.isArray(items) ? items : [])
+                .map((item, idx) => {
+                    const connexes = (Array.isArray(item && item.connexes) ? item.connexes : [])
+                        .map((c) => {
+                            const text = this.normalizeCustomInfoConnexeText(c);
+                            return {
+                                id: String(c && c.id || this.createCustomInfoId('ci-cn')),
+                                text,
+                                label: '',
+                                value: text
+                            };
+                        })
+                        .filter((c) => c && c.id);
+                    if (connexes.length === 0) {
+                        connexes.push({
+                            id: this.createCustomInfoId('ci-cn'),
+                            text: '',
+                            label: '',
+                            value: ''
+                        });
+                    }
+                    const chainText = connexes.map((c) => c.text).filter(Boolean).join(' - ');
+                    const fallback = String(item && item.value || '').trim();
+                    const value = chainText || fallback || `Valeur ${idx + 1}`;
+                    return { value, connexes };
+                });
+
+            const upsertItems = (nextItems) => {
+                if (!editableSet) return;
+                const normalizedItems = sanitizeItemsForPersistence(nextItems);
+                const upserted = this.upsertCustomInfoOptionSet({
+                    id: editableSet.id,
+                    label: editableSet.label,
+                    subtitle: editableSet.subtitle,
+                    items: normalizedItems
+                }, this.data && this.data.ui);
+                if (!upserted) return;
+                applySyncAndPersist({ rerender: false });
+                render();
+            };
+
+            const createBlankItem = () => ({
+                value: '',
+                connexes: [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }]
+            });
+
+            const insertNewCard = (afterIndex = null) => {
+                const nextItems = cloneItems();
+                const insertIndex = Number.isFinite(afterIndex) ? Math.max(0, Math.min(nextItems.length, afterIndex + 1)) : nextItems.length;
+                nextItems.splice(insertIndex, 0, createBlankItem());
+                upsertItems(nextItems);
+            };
+
+            const addEmptyCardBtn = bodyEl.querySelector('[data-custom-info-modal-option-add-card-empty]');
+            if (addEmptyCardBtn && editableSet) {
+                addEmptyCardBtn.addEventListener('click', () => insertNewCard(null));
+            }
+
             bodyEl.querySelectorAll('[data-custom-info-modal-option-row]').forEach((optionRow) => {
                 const optionIndex = Number.parseInt(optionRow.getAttribute('data-option-index') || '-1', 10);
                 if (!Number.isFinite(optionIndex) || optionIndex < 0 || !editableSet) return;
 
-                const optionValueInput = optionRow.querySelector('[data-custom-info-modal-option-value]');
-
-                // Helper : rebuild items array with deep copy of connexes
-                const cloneItems = () => (Array.isArray(editableSet.items)
-                    ? editableSet.items.map((item) => ({ ...item, connexes: Array.isArray(item.connexes) ? item.connexes.map((c) => ({ ...c })) : [] }))
-                    : this.normalizeCustomInfoOptionItems([], editableSet.options));
-
-                const upsertItems = (nextItems) => {
-                    const upserted = this.upsertCustomInfoOptionSet({
-                        id: editableSet.id,
-                        label: editableSet.label,
-                        items: nextItems
-                    }, this.data && this.data.ui);
-                    if (!upserted) return;
-                    applySyncAndPersist({ rerender: false });
-                    render();
-                };
-
-                // Commit value principale
-                const commitOption = () => {
-                    const nextValue = String(optionValueInput && optionValueInput.value || '').trim();
-                    const nextItems = cloneItems();
-                    const currentConnexes = Array.isArray(nextItems[optionIndex] && nextItems[optionIndex].connexes)
-                        ? nextItems[optionIndex].connexes
-                        : [];
-                    if (!nextValue) {
-                        nextItems.splice(optionIndex, 1);
-                    } else {
-                        nextItems[optionIndex] = { value: nextValue, connexes: currentConnexes };
-                    }
-                    upsertItems(nextItems);
-                };
-
-                if (optionValueInput) {
-                    optionValueInput.addEventListener('change', commitOption);
-                    optionValueInput.addEventListener('blur', commitOption);
+                const duplicateBtn = optionRow.querySelector('[data-custom-info-modal-option-duplicate]');
+                if (duplicateBtn) {
+                    duplicateBtn.addEventListener('click', () => {
+                        const nextItems = cloneItems();
+                        const source = nextItems[optionIndex];
+                        if (!source) return;
+                        const duplicated = {
+                            ...source,
+                            connexes: Array.isArray(source.connexes)
+                                ? source.connexes.map((c) => ({ ...c, id: this.createCustomInfoId('ci-cn') }))
+                                : []
+                        };
+                        nextItems.splice(optionIndex + 1, 0, duplicated);
+                        upsertItems(nextItems);
+                    });
                 }
 
-                // Delete item
+                const addCardBtn = optionRow.querySelector('[data-custom-info-modal-option-add-card]');
+                if (addCardBtn) {
+                    addCardBtn.addEventListener('click', () => insertNewCard(optionIndex));
+                }
+
                 const optionDeleteBtn = optionRow.querySelector('[data-custom-info-modal-option-delete]');
                 if (optionDeleteBtn) {
                     optionDeleteBtn.addEventListener('click', () => {
@@ -5221,49 +5310,25 @@ class ValoboisApp {
                             onConfirm: () => {
                                 const nextItems = cloneItems();
                                 nextItems.splice(optionIndex, 1);
-                                const upserted = this.upsertCustomInfoOptionSet({
-                                    id: editableSet.id,
-                                    label: editableSet.label,
-                                    items: nextItems
-                                }, this.data && this.data.ui);
-                                if (!upserted) return;
-                                applySyncAndPersist({ rerender: false });
+                                upsertItems(nextItems);
                                 closeConfirmModal();
-                                render();
                             }
                         });
                     });
                 }
 
-                // Move up/down
-                const moveUpBtn = optionRow.querySelector('[data-custom-info-modal-option-move="up"]');
-                const moveDownBtn = optionRow.querySelector('[data-custom-info-modal-option-move="down"]');
-                const moveOption = (delta) => {
-                    const sourceItems = cloneItems();
-                    const nextIndex = optionIndex + delta;
-                    if (nextIndex < 0 || nextIndex >= sourceItems.length) return;
-                    const buffer = sourceItems[optionIndex];
-                    sourceItems[optionIndex] = sourceItems[nextIndex];
-                    sourceItems[nextIndex] = buffer;
-                    upsertItems(sourceItems);
-                };
-                if (moveUpBtn) moveUpBtn.addEventListener('click', () => moveOption(-1));
-                if (moveDownBtn) moveDownBtn.addEventListener('click', () => moveOption(1));
-
-                // Connexes : add
-                const connexeAddBtn = optionRow.querySelector('[data-custom-info-modal-connexe-add]');
-                if (connexeAddBtn) {
-                    connexeAddBtn.addEventListener('click', () => {
+                const addConnexeLineBtn = optionRow.querySelector('[data-custom-info-modal-connexe-add-line]');
+                if (addConnexeLineBtn) {
+                    addConnexeLineBtn.addEventListener('click', () => {
                         const nextItems = cloneItems();
                         const item = nextItems[optionIndex];
                         if (!item) return;
                         item.connexes = Array.isArray(item.connexes) ? item.connexes : [];
-                        item.connexes.push({ id: this.createCustomInfoId('ci-cn'), label: '', value: '' });
+                        item.connexes.push({ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' });
                         upsertItems(nextItems);
                     });
                 }
 
-                // Connexes : delete
                 optionRow.querySelectorAll('[data-custom-info-modal-connexe-delete]').forEach((deleteBtn) => {
                     const connexeIndex = Number.parseInt(deleteBtn.getAttribute('data-connexe-index') || '-1', 10);
                     if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
@@ -5276,119 +5341,51 @@ class ValoboisApp {
                     });
                 });
 
-                // Connexes : edit label / value
-                const connexesList = optionRow.querySelector('[data-custom-info-modal-connexes-list]');
-                if (connexesList) {
-                    connexesList.querySelectorAll('[data-connexe-index]').forEach((connexeRow) => {
-                        const connexeIndex = Number.parseInt(connexeRow.getAttribute('data-connexe-index') || '-1', 10);
-                        if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
-                        const labelInput = connexeRow.querySelector('[data-custom-info-modal-connexe-label]');
-                        const valueInput = connexeRow.querySelector('[data-custom-info-modal-connexe-value]');
-                        const commitConnexe = () => {
-                            const nextItems = cloneItems();
-                            const item = nextItems[optionIndex];
-                            if (!item || !Array.isArray(item.connexes) || !item.connexes[connexeIndex]) return;
-                            item.connexes[connexeIndex] = {
-                                ...item.connexes[connexeIndex],
-                                label: String(labelInput && labelInput.value || '').trim(),
-                                value: String(valueInput && valueInput.value || '').trim()
-                            };
-                            upsertItems(nextItems);
-                        };
-                        [labelInput, valueInput].forEach((inp) => {
-                            if (!inp) return;
-                            inp.addEventListener('change', commitConnexe);
-                            inp.addEventListener('blur', commitConnexe);
-                        });
-                    });
-                }
-            });
-
-            // Zone "Ajouter une valeur"
-            const addOptionBtn = bodyEl.querySelector('[data-custom-info-modal-option-add]');
-            if (addOptionBtn && editableSet) {
-                const newOptionValueInput = bodyEl.querySelector('[data-custom-info-modal-option-new-value]');
-
-                const syncDraftValue = () => {
-                    state.newValueDraft.value = String(newOptionValueInput && newOptionValueInput.value || '');
-                };
-
-                if (newOptionValueInput) {
-                    newOptionValueInput.addEventListener('input', syncDraftValue);
-                    newOptionValueInput.addEventListener('change', syncDraftValue);
-                    newOptionValueInput.addEventListener('keydown', (event) => {
-                        if (event.key !== 'Enter') return;
-                        event.preventDefault();
-                        addOptionBtn.click();
-                    });
-                }
-
-                // Connexes draft : add
-                const connexeNewAddBtn = bodyEl.querySelector('[data-custom-info-modal-connexe-new-add]');
-                if (connexeNewAddBtn) {
-                    connexeNewAddBtn.addEventListener('click', () => {
-                        syncDraftValue();
-                        if (!Array.isArray(state.newValueDraft.connexes)) state.newValueDraft.connexes = [];
-                        state.newValueDraft.connexes.push({ id: this.createCustomInfoId('ci-cn'), label: '', value: '' });
-                        render();
-                    });
-                }
-
-                // Connexes draft : delete
-                bodyEl.querySelectorAll('[data-custom-info-modal-connexe-new-delete]').forEach((deleteBtn) => {
-                    const connexeIndex = Number.parseInt(deleteBtn.getAttribute('data-connexe-new-index') || '-1', 10);
+                optionRow.querySelectorAll('[data-custom-info-modal-connexe-move]').forEach((moveBtn) => {
+                    const connexeIndex = Number.parseInt(moveBtn.closest('[data-connexe-index]')?.getAttribute('data-connexe-index') || '-1', 10);
                     if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
-                    deleteBtn.addEventListener('click', () => {
-                        syncDraftValue();
-                        if (!Array.isArray(state.newValueDraft.connexes)) return;
-                        state.newValueDraft.connexes.splice(connexeIndex, 1);
-                        render();
+                    moveBtn.addEventListener('click', () => {
+                        const direction = String(moveBtn.getAttribute('data-custom-info-modal-connexe-move') || '').trim();
+                        const delta = direction === 'up' ? -1 : (direction === 'down' ? 1 : 0);
+                        if (!delta) return;
+                        const nextItems = cloneItems();
+                        const item = nextItems[optionIndex];
+                        if (!item || !Array.isArray(item.connexes)) return;
+                        const nextIndex = connexeIndex + delta;
+                        if (nextIndex < 0 || nextIndex >= item.connexes.length) return;
+                        const buffer = item.connexes[connexeIndex];
+                        item.connexes[connexeIndex] = item.connexes[nextIndex];
+                        item.connexes[nextIndex] = buffer;
+                        upsertItems(nextItems);
                     });
                 });
 
-                // Connexes draft : edit
-                bodyEl.querySelectorAll('[data-connexe-new-index]').forEach((connexeRow) => {
-                    const connexeIndex = Number.parseInt(connexeRow.getAttribute('data-connexe-new-index') || '-1', 10);
+                optionRow.querySelectorAll('[data-connexe-index]').forEach((connexeRow) => {
+                    const connexeIndex = Number.parseInt(connexeRow.getAttribute('data-connexe-index') || '-1', 10);
                     if (!Number.isFinite(connexeIndex) || connexeIndex < 0) return;
-                    const labelInput = connexeRow.querySelector('[data-custom-info-modal-connexe-new-label]');
-                    const valueInput = connexeRow.querySelector('[data-custom-info-modal-connexe-new-value]');
-                    const syncConnexeDraft = () => {
-                        if (!Array.isArray(state.newValueDraft.connexes) || !state.newValueDraft.connexes[connexeIndex]) return;
-                        state.newValueDraft.connexes[connexeIndex] = {
-                            ...state.newValueDraft.connexes[connexeIndex],
-                            label: String(labelInput && labelInput.value || '').trim(),
-                            value: String(valueInput && valueInput.value || '').trim()
+                    const textInput = connexeRow.querySelector('[data-custom-info-modal-connexe-text]');
+                    if (!textInput) return;
+                    const commitConnexeText = () => {
+                        const nextItems = cloneItems();
+                        const item = nextItems[optionIndex];
+                        if (!item) return;
+                        item.connexes = Array.isArray(item.connexes) ? item.connexes : [];
+                        while (item.connexes.length <= connexeIndex) {
+                            item.connexes.push({ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' });
+                        }
+                        const text = String(textInput.value || '').trim();
+                        item.connexes[connexeIndex] = {
+                            ...item.connexes[connexeIndex],
+                            text,
+                            label: '',
+                            value: text
                         };
+                        upsertItems(nextItems);
                     };
-                    [labelInput, valueInput].forEach((inp) => {
-                        if (!inp) return;
-                        inp.addEventListener('change', syncConnexeDraft);
-                        inp.addEventListener('blur', syncConnexeDraft);
-                    });
+                    textInput.addEventListener('change', commitConnexeText);
+                    textInput.addEventListener('blur', commitConnexeText);
                 });
-
-                addOptionBtn.addEventListener('click', () => {
-                    syncDraftValue();
-                    const nextOption = String(state.newValueDraft.value || '').trim();
-                    if (!nextOption) return;
-                    const nextConnexes = Array.isArray(state.newValueDraft.connexes)
-                        ? state.newValueDraft.connexes.map((c) => ({ ...c }))
-                        : [];
-                    const nextItems = Array.isArray(editableSet.items)
-                        ? editableSet.items.map((item) => ({ ...item, connexes: Array.isArray(item.connexes) ? item.connexes.map((c) => ({ ...c })) : [] }))
-                        : this.normalizeCustomInfoOptionItems([], editableSet.options);
-                    nextItems.push({ value: nextOption, connexes: nextConnexes });
-                    const upserted = this.upsertCustomInfoOptionSet({
-                        id: editableSet.id,
-                        label: editableSet.label,
-                        items: nextItems
-                    }, this.data && this.data.ui);
-                    if (!upserted) return;
-                    state.newValueDraft = { value: '', connexes: [] };
-                    applySyncAndPersist({ rerender: false });
-                    render();
-                });
-            }
+            });
 
 
         };
@@ -5464,10 +5461,12 @@ class ValoboisApp {
                 ? optionSet.items.find((item) => String(item && item.value || '').trim() === selectedValueStr) || null
                 : null;
             const activeConnexes = (selectedItem && Array.isArray(selectedItem.connexes))
-                ? selectedItem.connexes.filter((c) => c && (c.label || c.value))
+                ? selectedItem.connexes
+                    .map((c) => this.normalizeCustomInfoConnexeText(c))
+                    .filter(Boolean)
                 : [];
             const connexesReadonlyHtml = activeConnexes.length > 0
-                ? `<ul class="piece-custom-info-connexes-readonly">${activeConnexes.map((c) => `<li class="piece-custom-info-connexe-readonly-item"><span class="ci-connexe-label">${attrValue(c.label)}${c.label ? ' :' : ''}</span><span class="ci-connexe-value">${attrValue(c.value)}</span></li>`).join('')}</ul>`
+                ? `<ul class="piece-custom-info-connexes-readonly">${activeConnexes.map((text) => `<li class="piece-custom-info-connexe-readonly-item"><span class="ci-connexe-value">${attrValue(text)}</span></li>`).join('')}</ul>`
                 : '';
             const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId

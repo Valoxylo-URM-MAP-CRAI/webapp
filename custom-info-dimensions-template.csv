@@ -1,0 +1,32 @@
+group;type;name_or_selector;breakpoint;property;value;unit;note
+Token;token;--ci-btn-text-font-size;all;value;12;px;Police unique boutons texte
+Token;token;--ci-btn-text-height;all;value;24;px;Hauteur fixe boutons texte
+Token;token;--ci-btn-text-width;all;value;96;px;Largeur fixe boutons texte
+Token;token;--ci-btn-text-padding-y;all;value;0;px;Padding vertical unique boutons texte
+Token;token;--ci-btn-text-padding-x;all;value;8;px;Padding horizontal unique boutons texte
+Token;token;--ci-btn-icon-gap-inline;all;value;calc((var(--ci-btn-text-width) - (3 * var(--ci-btn-icon-box-size))) / 2);;Espacement derive pour aligner le groupe de 3 sur la largeur du bouton texte
+Token;token;--ci-btn-icon-box-size;all;value;var(--ci-btn-text-height);;Boite symbole egale a la hauteur des champs texte
+Token;token;--ci-btn-icon-font-size;all;value;16;px;Taille symbole unique
+Token;token;--ci-btn-icon-padding;all;value;0;px;Padding unique boutons symbole
+Token;token;--ci-input-font-size;all;value;13;px;Police unique champs texte panel
+Token;token;--ci-pill-font-size;all;value;15;px;Police unique pills Liste/Valeur
+Token;token;--ci-pill-font-weight;all;value;600;;Poids unique pills Liste/Valeur
+Token;token;--ci-pill-height;all;value;32;px;Hauteur fixe pills Liste/Valeur
+Token;token;--ci-pill-padding-y;all;value;0;px;Padding vertical unique pills
+Token;token;--ci-pill-padding-x;all;value;9;px;Padding horizontal unique pills
+TextButtons;selector;.piece-custom-info-delete-list-btn;all;uses-token;--ci-btn-text-*;;Supprimer liste
+TextButtons;selector;.piece-custom-info-value-card__actions .piece-duplicate-btn;all;uses-token;--ci-btn-text-*;;Dupliquer/Ajouter
+TextButtons;selector;.piece-custom-info-delete-card-btn;all;uses-token;--ci-btn-text-*;;Supprimer carte
+TextButtons;selector;[data-custom-info-modal-primary-action];all;uses-token;--ci-btn-text-*;;Modifier/+ Ajouter
+TextButtons;selector;[data-custom-info-modal-option-add-card-empty];all;uses-token;--ci-btn-text-*;;Ajouter une valeur (etat vide)
+IconButtons;selector;.piece-custom-info-order-btn;all;uses-token;--ci-btn-icon-*;;Fleches toolbar listes
+IconButtons;selector;.piece-custom-info-connexe-line .piece-custom-info-order-btn;all;uses-token;--ci-btn-icon-*;;Fleches lignes connexes
+IconButtons;selector;.piece-custom-info-add-line-btn;all;uses-token;--ci-btn-icon-*;;Bouton +
+IconButtons;selector;.piece-custom-info-set-editor .price-preset-row__remove;all;uses-token;--ci-btn-icon-*;;Bouton X
+IconButtons;selector;.piece-custom-info-set-editor .price-preset-row__remove svg;all;uses-token;--ci-btn-icon-font-size;;Taille icone X
+TextInputs;selector;.piece-custom-info-list-modal .lot-input;all;uses-token;--ci-input-font-size;;Toutes les saisies du panel
+Pills;selector;.piece-custom-info-set-editor-toolbar .price-preset-row__badge;all;uses-token;--ci-pill-*;;Pill Liste
+Pills;selector;.piece-custom-info-value-card .price-preset-row__badge;all;uses-token;--ci-pill-*;;Pill Valeur
+Layout;selector;.piece-custom-info-connexe-line;all;grid-template-columns;minmax(0, 1fr) 36px 36px 36px;;Ligne connexe fixe tous formats
+Layout;selector;.piece-custom-info-connexe-line;all;gap;8;px;Espacement fixe tous formats
+Responsive;selector;@media (max-width: 768px);mobile;rule;layout-only;;Ne pas reduire dimensions police/boites
