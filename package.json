@@ -3,6 +3,8 @@
   "private": true,
   "scripts": {
     "build:standalone": "node scripts/build-standalone.mjs",
+    "test:custom-info": "node --test tests/custom-info/*.test.mjs",
+    "test": "npm run test:custom-info",
     "check:climate-table": "node scripts/check-climate-table.mjs",
     "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "check:orientation-parity": "node scripts/check-orientation-class-parity.mjs",

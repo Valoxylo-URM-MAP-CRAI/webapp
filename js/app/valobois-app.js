@@ -4682,7 +4682,7 @@ class ValoboisApp {
             target.valueMode = this.normalizeCustomInfoMode(updates.valueMode, target.valueType);
             target.valueType = target.valueMode === 'free' ? 'text' : 'select';
             if (target.valueMode === 'list') {
-                const linkedSet = this.getCustomInfoOptionSetByLabel(target.label);
+                const linkedSet = this.getCustomInfoOptionSetForEntry(target);
                 const allowed = new Set((linkedSet && linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
                 if (allowed.size > 0) {
                     target.values = target.values.filter((item) => allowed.has(item));
@@ -4850,7 +4850,7 @@ class ValoboisApp {
                     </div>
                     <div class="modal-body" id="customInfoSetModalBody"></div>
                     <div class="modal-footer">
-                        <button type="button" class="btn" id="btnCloseCustomInfoSetModalFooter">Fermer</button>
+                        <button type="button" class="btn btn-primary" id="btnSaveCustomInfoSetModalFooter">Enregistrer</button>
                     </div>
                 </div>`;
             document.body.appendChild(backdrop);
@@ -4859,7 +4859,7 @@ class ValoboisApp {
         const modalEl = backdrop.querySelector('.modal');
         const bodyEl = backdrop.querySelector('#customInfoSetModalBody');
         const closeBtn = backdrop.querySelector('#btnCloseCustomInfoSetModal');
-        const closeFooterBtn = backdrop.querySelector('#btnCloseCustomInfoSetModalFooter');
+        const saveFooterBtn = backdrop.querySelector('#btnSaveCustomInfoSetModalFooter');
         if (!modalEl || !bodyEl) return;
 
         let confirmBackdrop = document.getElementById('customInfoSetDeleteConfirmBackdrop');
@@ -4893,9 +4893,9 @@ class ValoboisApp {
 
         const state = {
             closed: false,
+            view: initialPanel === 'edit' ? 'edit' : 'home',
             selectedSetId: '',
-            listDraftLabel: '',
-            forceNewListMode: true,
+            initialized: false,
             draftSetLabel: '',
             draftSetSubtitle: '',
             draftSetItems: [{
@@ -4912,6 +4912,15 @@ class ValoboisApp {
             if (typeof onDataChange === 'function') onDataChange({ rerender });
         };
 
+        const resetDraftSet = () => {
+            state.draftSetLabel = '';
+            state.draftSetSubtitle = '';
+            state.draftSetItems = [{
+                value: '',
+                connexes: [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }]
+            }];
+        };
+
         const closeModal = () => {
             if (state.closed) return;
             state.closed = true;
@@ -4921,6 +4930,17 @@ class ValoboisApp {
             bodyEl.innerHTML = '';
             document.removeEventListener('keydown', handleEscape);
             if (typeof onClose === 'function') onClose();
+        };
+
+        const saveAndCloseModal = () => {
+            const active = document.activeElement;
+            if (active instanceof HTMLElement && backdrop.contains(active)) {
+                const tagName = String(active.tagName || '').toUpperCase();
+                if (tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT') {
+                    active.blur();
+                }
+            }
+            closeModal();
         };
 
         const closeConfirmModal = () => {
@@ -4953,10 +4973,23 @@ class ValoboisApp {
                 return;
             }
 
+            if (!state.initialized) {
+                state.initialized = true;
+                const currentSetId = String(currentInfo.optionSetId || '').trim();
+                if (currentSetId) state.selectedSetId = currentSetId;
+            }
+
             this.normalizeCustomInfoOptionSets(this.data && this.data.ui);
             const allSets = Array.isArray(this.data && this.data.ui && this.data.ui.customInfoOptionSets)
                 ? this.data.ui.customInfoOptionSets
                 : [];
+            const hasExistingSets = allSets.length > 0;
+
+            if (state.view === 'edit' && !hasExistingSets) {
+                state.view = 'create';
+                state.selectedSetId = '';
+            }
+
             const selectedSetId = String(state.selectedSetId || '').trim();
             const selectedSet = this.getCustomInfoOptionSetById(selectedSetId, this.data && this.data.ui);
             const draftSet = {
@@ -4965,23 +4998,17 @@ class ValoboisApp {
                 subtitle: String(state.draftSetSubtitle || ''),
                 items: Array.isArray(state.draftSetItems) ? state.draftSetItems : []
             };
-            const editableSet = selectedSet || draftSet;
-            const isDraftMode = !selectedSet;
+            const isCreateView = state.view === 'create';
+            const isEditView = state.view === 'edit';
+            const editableSet = isCreateView ? draftSet : (isEditView ? selectedSet : null);
+            const isDraftMode = isCreateView;
             const editableItems = editableSet && Array.isArray(editableSet.items)
                 ? editableSet.items
                 : this.normalizeCustomInfoOptionItems([], editableSet && editableSet.options);
-            const findSetByLabel = (label) => {
-                const key = this.normalizeCustomInfoKey(label || '');
-                if (!key) return null;
-                return allSets.find((entry) => this.normalizeCustomInfoKey(entry && entry.label || '') === key) || null;
-            };
-            const matchedByLabel = findSetByLabel(state.listDraftLabel);
-            const effectiveSet = matchedByLabel || selectedSet;
-            const isCreateMode = !effectiveSet || state.forceNewListMode || String(state.listDraftLabel || '').trim().length > 0;
-            const primaryActionLabel = isCreateMode ? '+ Ajouter' : 'Modifier';
             const selectedSetOrderIndex = editableSet
                 ? allSets.findIndex((entry) => String(entry && entry.id || '') === String(editableSet.id || ''))
                 : -1;
+
             const optionsRowsHtml = editableSet && editableItems.length > 0
                 ? editableItems.map((opt, idx) => {
                     const sourceConnexes = (Array.isArray(opt.connexes) && opt.connexes.length > 0)
@@ -5026,98 +5053,126 @@ class ValoboisApp {
                 : `<p class="price-preset-editor__empty">Aucune valeur dans cette liste.</p>
                    <button type="button" class="piece-duplicate-btn" data-custom-info-modal-option-add-card-empty>Ajouter une valeur</button>`;
 
-            const libraryPanelHtml = `
-                <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-modal-lists">
+            const homePanelHtml = `
+                <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-modal-home">
                     <div class="piece-custom-info-modal-section-head">
-                        <h3>Listes créées</h3>
+                        <h3>Gestion des listes</h3>
                         <span class="piece-custom-info-modal-count">${allSets.length}</span>
                     </div>
-                    <p class="piece-custom-info-modal-note">Choisissez une liste existante ou saisissez un nouveau nom de liste.</p>
-                    <div class="piece-custom-info-modal-choose-grid">
-                        <input type="text" class="lot-input piece-custom-info-modal-set-combobox" list="customInfoModalSetChoices" value="${this.escapeHtml(state.listDraftLabel || '')}" placeholder="Nouvelle liste" data-custom-info-modal-set-combobox>
-                        <datalist id="customInfoModalSetChoices">
-                            ${allSets.map((setEntry) => `<option value="${this.escapeHtml(setEntry && setEntry.label || '')}"></option>`).join('')}
-                        </datalist>
-                        <button type="button" class="btn btn-primary" data-custom-info-modal-primary-action>${primaryActionLabel}</button>
+                    <p class="piece-custom-info-modal-note">Choisissez une seule action pour commencer.</p>
+                    <div class="piece-custom-info-modal-choice-grid${hasExistingSets ? '' : ' piece-custom-info-modal-choice-grid--single'}">
+                        <button type="button" class="btn btn-primary piece-custom-info-modal-choice-btn" data-custom-info-modal-go-create>${hasExistingSets ? 'Créer une nouvelle liste' : 'Créer votre première liste'}</button>
+                        ${hasExistingSets ? '<button type="button" class="btn piece-custom-info-modal-choice-btn" data-custom-info-modal-go-edit>Modifier une liste existante</button>' : ''}
                     </div>
                 </section>`;
 
-            const editPanelHtml = editableSet
+            const editorHeaderHtml = `
+                <div class="piece-custom-info-modal-editor-topbar">
+                    <button type="button" class="btn piece-custom-info-modal-back-btn" data-custom-info-modal-go-home>Retour</button>
+                    <div class="piece-custom-info-modal-editor-meta">
+                        <h3>${isDraftMode ? 'Créer une nouvelle liste' : 'Modifier une liste existante'}</h3>
+                        <p class="piece-custom-info-modal-note">${isDraftMode ? 'Renseignez le nom puis ajoutez les valeurs de votre nouvelle liste.' : 'Choisissez une liste existante puis modifiez son contenu.'}</p>
+                    </div>
+                </div>`;
+
+            const chooseSetHtml = !isDraftMode
                 ? `
-                    <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor">
-                        <div class="piece-custom-info-modal-section-head">
-                            <h3>Contenu de la liste sélectionnée</h3>
-                        </div>
-                        <p class="piece-custom-info-modal-note">Modifiez le nom de la liste puis gérez ses valeurs.</p>
-                        <div class="piece-custom-info-set-editor-toolbar">
-                            <span class="price-preset-row__badge price-preset-row__badge--custom">${isDraftMode ? 'Nouvelle liste' : `Liste ${selectedSetOrderIndex >= 0 ? selectedSetOrderIndex + 1 : 1}`}</span>
-                            <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre des listes créées">
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="down"${isDraftMode || selectedSetOrderIndex < 0 || selectedSetOrderIndex === allSets.length - 1 ? ' disabled' : ''} aria-label="Descendre la liste">↓</button>
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="up"${isDraftMode || selectedSetOrderIndex <= 0 ? ' disabled' : ''} aria-label="Monter la liste">↑</button>
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-delete-list-btn" data-custom-info-modal-set-delete${isDraftMode ? ' disabled' : ''}>Supprimer</button>
-                            </div>
-                        </div>
+                    <section class="piece-custom-info-set-select-panel">
+                        <h4 class="piece-custom-info-panel-title">Sélection de la liste</h4>
                         <div class="piece-custom-info-set-editor-head">
-                            <p class="piece-custom-info-field-section-label">Nom de la liste</p>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
-                        </div>
-                        <div class="piece-custom-info-set-editor-head">
-                            <p class="piece-custom-info-field-section-label">Sous-titre de la liste</p>
-                            <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
-                        </div>
-                        <div class="price-preset-editor__list" data-custom-info-modal-options-list>
-                            ${optionsRowsHtml}
+                            <p class="piece-custom-info-field-section-label">Liste à modifier</p>
+                            <select class="lot-input" data-custom-info-modal-set-select>
+                                <option value="" disabled${selectedSetId ? '' : ' selected'} hidden></option>
+                                ${allSets.map((setEntry) => {
+                                    const setId = String(setEntry && setEntry.id || '').trim();
+                                    const isSelected = setId && setId === selectedSetId;
+                                    return `<option value="${this.escapeHtml(setId)}"${isSelected ? ' selected' : ''}>${this.escapeHtml(String(setEntry && setEntry.label || 'Liste sans nom'))}</option>`;
+                                }).join('')}
+                            </select>
                         </div>
                     </section>`
-                : `<section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor piece-custom-info-set-editor--empty">
-                        <div class="piece-custom-info-modal-section-head">
-                            <h3>Contenu de la liste sélectionnée</h3>
-                        </div>
-                        <p class="piece-custom-info-modal-empty">Aucune liste sélectionnée. Choisissez une liste dans “Listes créées” pour afficher et gérer ses valeurs.</p>
+                : '';
+
+            const editorPanelHtml = editableSet
+                ? `
+                    <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor">
+                        ${editorHeaderHtml}
+                        ${chooseSetHtml}
+                        <section class="piece-custom-info-set-content-panel">
+                            <h4 class="piece-custom-info-panel-title">Édition de la liste</h4>
+                            <div class="piece-custom-info-set-editor-toolbar">
+                                <span class="price-preset-row__badge price-preset-row__badge--custom">${isDraftMode ? 'Nouvelle liste' : `Liste ${selectedSetOrderIndex >= 0 ? selectedSetOrderIndex + 1 : 1}`}</span>
+                                <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre des listes créées">
+                                    <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="down"${isDraftMode || selectedSetOrderIndex < 0 || selectedSetOrderIndex === allSets.length - 1 ? ' disabled' : ''} aria-label="Descendre la liste">↓</button>
+                                    <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="up"${isDraftMode || selectedSetOrderIndex <= 0 ? ' disabled' : ''} aria-label="Monter la liste">↑</button>
+                                    <button type="button" class="piece-duplicate-btn piece-custom-info-delete-list-btn" data-custom-info-modal-set-delete${isDraftMode ? ' disabled' : ''}>Supprimer</button>
+                                </div>
+                            </div>
+                            <div class="piece-custom-info-set-editor-head">
+                                <p class="piece-custom-info-field-section-label">Nom de la liste</p>
+                                <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.label || '')}" placeholder="Nom de la liste" data-custom-info-modal-set-label>
+                            </div>
+                            <div class="piece-custom-info-set-editor-head">
+                                <p class="piece-custom-info-field-section-label">Sous-titre de la liste</p>
+                                <input type="text" class="lot-input" value="${this.escapeHtml(editableSet.subtitle || '')}" placeholder="Sous-titre (facultatif)" data-custom-info-modal-set-subtitle>
+                            </div>
+                            <div class="price-preset-editor__list" data-custom-info-modal-options-list>
+                                ${optionsRowsHtml}
+                            </div>
+                        </section>
+                    </section>`
+                : `
+                    <section class="info-sheet-section info-sheet-section--price-presets piece-custom-info-set-editor piece-custom-info-set-editor--empty">
+                        ${editorHeaderHtml}
+                        <section class="piece-custom-info-set-select-panel">
+                            <h4 class="piece-custom-info-panel-title">Sélection de la liste</h4>
+                            <div class="piece-custom-info-set-editor-head">
+                                <p class="piece-custom-info-field-section-label">Liste à modifier</p>
+                                <select class="lot-input" data-custom-info-modal-set-select>
+                                    <option value="" disabled selected hidden></option>
+                                    ${allSets.map((setEntry) => {
+                                        const setId = String(setEntry && setEntry.id || '').trim();
+                                        return `<option value="${this.escapeHtml(setId)}">${this.escapeHtml(String(setEntry && setEntry.label || 'Liste sans nom'))}</option>`;
+                                    }).join('')}
+                                </select>
+                            </div>
+                        </section>
+                        <section class="piece-custom-info-set-empty-panel">
+                            <h4 class="piece-custom-info-panel-title">Édition de la liste</h4>
+                            <p class="piece-custom-info-modal-empty">Sélectionnez une liste pour afficher son contenu.</p>
+                        </section>
                     </section>`;
 
-            bodyEl.innerHTML = `
-                ${libraryPanelHtml}
-                ${editPanelHtml}`;
+            bodyEl.innerHTML = state.view === 'home' ? homePanelHtml : editorPanelHtml;
 
-            const listCombobox = bodyEl.querySelector('[data-custom-info-modal-set-combobox]');
-            if (listCombobox) {
-                const syncFromCombobox = ({ rerender = false } = {}) => {
-                    const draftLabel = String(listCombobox.value || '');
-                    const trimmedDraftLabel = draftLabel.trim();
-                    const matched = findSetByLabel(trimmedDraftLabel);
-                    const previousSetId = String(state.selectedSetId || '').trim();
-                    const nextSetId = matched ? String(matched.id || '').trim() : '';
-                    state.listDraftLabel = matched ? '' : draftLabel;
-                    state.selectedSetId = nextSetId;
-                    state.forceNewListMode = !matched && trimmedDraftLabel.length > 0;
-                    const actionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
-                    if (actionBtn) actionBtn.textContent = matched ? 'Modifier' : '+ Ajouter';
-                    if (rerender || nextSetId !== previousSetId) render();
-                };
-                listCombobox.addEventListener('input', () => syncFromCombobox({ rerender: false }));
-                listCombobox.addEventListener('change', () => syncFromCombobox({ rerender: true }));
-            }
-
-            const primaryActionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
-            if (primaryActionBtn) {
-                primaryActionBtn.addEventListener('click', () => {
-                    const selectedById = this.getCustomInfoOptionSetById(state.selectedSetId, this.data && this.data.ui);
-                    const matched = findSetByLabel(state.listDraftLabel) || selectedById;
-                    if (matched && !state.forceNewListMode) {
-                        const nextSetId = String(matched.id || '').trim();
-                        const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: nextSetId }, { markAsLocal: !isDefault });
-                        if (!updated) return;
-                        state.forceNewListMode = false;
-                        state.selectedSetId = nextSetId;
-                        state.listDraftLabel = '';
-                        applySyncAndPersist({ rerender: false });
-                        render();
-                        return;
-                    }
-                    state.forceNewListMode = true;
+            bodyEl.querySelectorAll('[data-custom-info-modal-go-create]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    state.view = 'create';
                     state.selectedSetId = '';
-                    state.listDraftLabel = '';
+                    resetDraftSet();
+                    render();
+                });
+            });
+
+            bodyEl.querySelectorAll('[data-custom-info-modal-go-edit]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    state.view = 'edit';
+                    state.selectedSetId = '';
+                    render();
+                });
+            });
+
+            bodyEl.querySelectorAll('[data-custom-info-modal-go-home]').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    state.view = 'home';
+                    render();
+                });
+            });
+
+            const setSelect = bodyEl.querySelector('[data-custom-info-modal-set-select]');
+            if (setSelect) {
+                setSelect.addEventListener('change', () => {
+                    state.selectedSetId = String(setSelect.value || '').trim();
                     render();
                 });
             }
@@ -5143,7 +5198,7 @@ class ValoboisApp {
                                 infos.forEach((entry) => {
                                     if (String(entry && entry.optionSetId || '') !== targetSetId) return;
                                     entry.optionSetId = '';
-                                    if (entry.valueMode === 'list') {
+                                    if (entry.valueMode === 'list' || entry.valueMode === 'hybrid') {
                                         entry.valueMode = 'free';
                                         entry.valueType = 'text';
                                     }
@@ -5157,11 +5212,10 @@ class ValoboisApp {
                             });
 
                             clearSetRef(piece);
-                            state.forceNewListMode = true;
                             state.selectedSetId = '';
-                            state.listDraftLabel = '';
                             this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: '', valueMode: 'free' }, { markAsLocal: !isDefault });
                             applySyncAndPersist({ rerender: false });
+                            state.view = ui.customInfoOptionSets.length > 0 ? 'home' : 'create';
                             closeConfirmModal();
                             render();
                         }
@@ -5189,17 +5243,9 @@ class ValoboisApp {
                             items: draftItems
                         }, this.data && this.data.ui);
                         if (!created) return;
-                        const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: created.id }, { markAsLocal: !isDefault });
-                        if (!updated) return;
-                        state.forceNewListMode = false;
                         state.selectedSetId = String(created.id || '').trim();
-                        state.listDraftLabel = '';
-                        state.draftSetLabel = '';
-                        state.draftSetSubtitle = '';
-                        state.draftSetItems = [{
-                            value: '',
-                            connexes: [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }]
-                        }];
+                        resetDraftSet();
+                        state.view = 'edit';
                         applySyncAndPersist({ rerender: false });
                         render();
                         return;
@@ -5221,7 +5267,6 @@ class ValoboisApp {
                         setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
                         return;
                     }
-                    state.listDraftLabel = '';
                     applySyncAndPersist({ rerender: false });
                     render();
                 };
@@ -5484,7 +5529,7 @@ class ValoboisApp {
         }
 
         if (closeBtn) closeBtn.onclick = closeModal;
-        if (closeFooterBtn) closeFooterBtn.onclick = closeModal;
+        if (saveFooterBtn) saveFooterBtn.onclick = saveAndCloseModal;
         backdrop.onclick = (event) => {
             if (event.target === backdrop) closeModal();
         };
@@ -5497,6 +5542,7 @@ class ValoboisApp {
 
     renderPieceCustomInfoPanelHTML(piece, { lot = null, isDefault = false, defaultPieceId = '', pieceIndex = null } = {}) {
         const infos = this.ensurePieceCustomInfos(piece);
+        const hybridOtherChoiceLabel = 'Autre';
         const contextTokenRaw = isDefault ? `default-${defaultPieceId}` : `piece-${pieceIndex}`;
         const contextToken = String(contextTokenRaw || '').replace(/[^a-zA-Z0-9_-]+/g, '-');
         const lotStateKey = (lot && lot.id) ? `lot:${lot.id}` : `lot-index:${this.currentLotIndex}`;
@@ -5523,19 +5569,14 @@ class ValoboisApp {
             const valueMode = this.normalizeCustomInfoMode(entry.valueMode, entry.valueType);
             const optionSet = valueMode === 'free' ? null : this.getCustomInfoOptionSetForEntry(entry, this.data && this.data.ui);
             const listId = optionSet ? `custom-info-options-${contextToken}-${String(entry.id || '').replace(/[^a-zA-Z0-9_-]+/g, '-')}` : '';
-            const optionsHtml = optionSet
-                ? `<datalist id="${attrValue(listId)}">${(optionSet.options || []).map((opt) => `<option value="${attrValue(opt)}"></option>`).join('')}</datalist>`
+            const optionsHtml = (valueMode === 'list' || valueMode === 'hybrid') && optionSet
+                ? `<datalist id="${attrValue(listId)}">${(optionSet.options || []).map((opt) => `<option value="${attrValue(opt)}"></option>`).join('')}${valueMode === 'hybrid' ? `<option value="${attrValue(hybridOtherChoiceLabel)}"></option>` : ''}</datalist>`
                 : '';
             const orderedOptions = optionSet && Array.isArray(optionSet.items) && optionSet.items.length > 0
                 ? optionSet.items.map((item) => String(item && item.value || '').trim()).filter(Boolean)
                 : (optionSet && Array.isArray(optionSet.options) ? optionSet.options.map((opt) => String(opt || '').trim()).filter(Boolean) : []);
             const optionSetSubtitle = optionSet ? String(optionSet.subtitle || '').trim() : '';
             const valueDisplay = this.getCustomInfoValueDisplay(entry);
-            const selectedValueStr = String(valueDisplay || '').trim();
-            const selectedItem = (valueMode === 'list' && optionSet && Array.isArray(optionSet.items))
-                ? optionSet.items.find((item) => String(item && item.value || '').trim() === selectedValueStr) || null
-                : null;
-            const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
                 ? '<span class="piece-custom-info-badge">hérité</span>'
                 : '';
@@ -5559,6 +5600,10 @@ class ValoboisApp {
                         ${inheritedBadge}
                     </div>`;
 
+            const valueFieldHtml = valueMode === 'hybrid' && optionSet
+                ? `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`
+                : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`;
+
             return `
                 <div class="piece-custom-info-row" data-custom-info-row data-custom-info-id="${attrValue(entry.id)}">
                     <div class="piece-custom-info-main">
@@ -5573,9 +5618,7 @@ class ValoboisApp {
                         <div class="piece-custom-info-topline">
                             ${topLineFieldHtml}
                         </div>
-                        ${valueMode === 'list' && optionSet
-                            ? `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`
-                            : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`}
+                        ${valueFieldHtml}
                         ${optionsHtml}
                     </div>
                 </div>`;
@@ -5750,6 +5793,13 @@ class ValoboisApp {
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
                     const modeRaw = (valueInput.getAttribute('data-custom-info-value-mode') || '').trim();
                     const mode = this.normalizeCustomInfoMode(modeRaw, 'text');
+                    const candidateValue = String(valueInput.value || '').trim();
+                    if (mode === 'hybrid' && this.normalizeCustomInfoKey(candidateValue) === this.normalizeCustomInfoKey(hybridOtherChoiceLabel)) {
+                        valueInput.value = '';
+                        valueInput.dataset.previousValue = '';
+                        valueInput.focus();
+                        return;
+                    }
                     if (mode === 'list' && event.type === 'input') {
                         return;
                     }
@@ -5758,7 +5808,6 @@ class ValoboisApp {
                         if (!currentInfo) return;
                         const linkedSet = this.getCustomInfoOptionSetForEntry(currentInfo, this.data && this.data.ui);
                         const allowed = new Set((linkedSet && linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
-                        const candidateValue = String(valueInput.value || '').trim();
                         if (!candidateValue) {
                             valueInput.value = valueInput.dataset.listModePreviousValue || valueInput.dataset.previousValue || '';
                             return;

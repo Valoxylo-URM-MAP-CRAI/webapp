@@ -18935,6 +18935,97 @@ body.day-mode .inspection-ignore-box {
         margin: 8px 0;
     }
 
+    .piece-custom-info-modal-home {
+        display: grid;
+        gap: 12px;
+    }
+
+    .piece-custom-info-modal-choice-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .piece-custom-info-modal-choice-grid--single {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .piece-custom-info-modal-choice-btn {
+        min-height: 44px;
+        width: 100%;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .piece-custom-info-modal-editor-topbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .piece-custom-info-modal-editor-meta {
+        display: grid;
+        gap: 2px;
+        flex: 1 1 auto;
+        order: 1;
+    }
+
+    .piece-custom-info-modal-editor-meta h3 {
+        margin: 0;
+    }
+
+    .piece-custom-info-modal-back-btn {
+        min-width: 84px;
+        justify-self: end;
+        order: 2;
+        background-color: var(--bleu-crai);
+        border-color: var(--bleu-crai);
+        color: var(--color-white);
+    }
+
+    .piece-custom-info-modal-back-btn:hover:not(:disabled) {
+        background-color: #162e72;
+        border-color: #162e72;
+        color: var(--color-white);
+    }
+
+    .piece-custom-info-modal-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        margin-bottom: 10px;
+    }
+
+    .piece-custom-info-modal-tab-btn {
+        height: var(--ci-btn-text-height);
+        min-height: var(--ci-btn-text-height);
+        border: 1px solid #b7c4df;
+        background: #eef3fc;
+        color: #2f3f63;
+        border-radius: var(--radius-base);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+    }
+
+    .piece-custom-info-modal-tab-btn.is-active {
+        border-color: #2f5db8;
+        background: #2f5db8;
+        color: #ffffff;
+    }
+
+    .piece-custom-info-modal-tab-panel {
+        display: none;
+    }
+
+    .piece-custom-info-modal-tab-panel.is-active {
+        display: block;
+    }
+
     .piece-custom-info-recent-chip {
         min-height: 26px;
         padding: 0 10px;
@@ -18951,10 +19042,48 @@ body.day-mode .inspection-ignore-box {
         margin-bottom: 8px;
     }
 
+    .piece-custom-info-modal-choose-grid--single {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .piece-custom-info-modal-choose-actions {
+        display: flex;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+
+    .piece-custom-info-modal-note--status {
+        margin-top: 0;
+    }
+
     .piece-custom-info-set-editor {
         display: grid;
         gap: 12px;
         margin-top: 8px;
+    }
+
+    .piece-custom-info-set-select-panel,
+    .piece-custom-info-set-content-panel,
+    .piece-custom-info-set-empty-panel {
+        border: 1px solid #d7dfeb;
+        border-radius: 10px;
+        background: #f7f9fd;
+        padding: 10px;
+    }
+
+    .piece-custom-info-set-content-panel {
+        background: #ffffff;
+        display: grid;
+        gap: 10px;
+    }
+
+    .piece-custom-info-panel-title {
+        margin: 0 0 10px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #2f3f63;
     }
 
     .piece-custom-info-modal-section-head {
@@ -19011,6 +19140,7 @@ body.day-mode .inspection-ignore-box {
 
     .piece-custom-info-set-editor-head {
         display: block;
+        margin: 0;
     }
 
     .piece-custom-info-set-create-grid {
@@ -19037,10 +19167,25 @@ body.day-mode .inspection-ignore-box {
     .piece-custom-info-delete-list-btn,
     .piece-custom-info-value-card__actions .piece-duplicate-btn,
     .piece-custom-info-delete-card-btn,
-    [data-custom-info-modal-primary-action] {
+    [data-custom-info-modal-primary-action],
+    [data-custom-info-modal-apply-action] {
         height: var(--ci-btn-text-height);
         min-height: var(--ci-btn-text-height);
         width: var(--ci-btn-text-width);
+        min-width: var(--ci-btn-text-width);
+        padding: var(--ci-btn-text-padding-y) var(--ci-btn-text-padding-x);
+        font-size: var(--ci-btn-text-font-size);
+        line-height: 1;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    [data-custom-info-modal-create-action] {
+        height: var(--ci-btn-text-height);
+        min-height: var(--ci-btn-text-height);
+        width: auto;
         min-width: var(--ci-btn-text-width);
         padding: var(--ci-btn-text-padding-y) var(--ci-btn-text-padding-x);
         font-size: var(--ci-btn-text-font-size);
@@ -19200,12 +19345,20 @@ body.day-mode .inspection-ignore-box {
         height: var(--ci-btn-icon-font-size);
     }
 
-    .piece-custom-info-set-editor > .piece-custom-info-set-editor-head + .piece-custom-info-set-editor-head {
-        margin-top: 6px;
+    .piece-custom-info-set-content-panel .piece-custom-info-set-editor-head + .piece-custom-info-set-editor-head {
+        margin-top: 4px;
     }
 
     .piece-custom-info-set-editor-head .piece-custom-info-field-section-label {
-        margin: 0 0 6px;
+        margin: 0 0 5px;
+    }
+
+    .piece-custom-info-set-content-panel .piece-custom-info-set-editor-toolbar {
+        margin-bottom: 2px;
+    }
+
+    .piece-custom-info-set-content-panel .price-preset-editor__list {
+        margin-top: 2px;
     }
 
     [data-custom-info-modal-option-chain] {
@@ -19257,6 +19410,35 @@ body.day-mode .inspection-ignore-box {
         .piece-custom-info-modal-create-grid,
         .piece-custom-info-set-editor-head {
             grid-template-columns: minmax(0, 1fr);
+        }
+
+        .piece-custom-info-modal-choice-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .piece-custom-info-modal-editor-topbar {
+            grid-template-columns: minmax(0, 1fr);
+            align-items: start;
+        }
+
+        .piece-custom-info-modal-back-btn {
+            width: auto;
+            min-width: 0;
+            justify-self: end;
+        }
+
+        .piece-custom-info-modal-tabs {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .piece-custom-info-modal-choose-actions {
+            justify-content: stretch;
+        }
+
+        [data-custom-info-modal-apply-action],
+        [data-custom-info-modal-create-action] {
+            width: 100%;
+            min-width: 0;
         }
 
         .piece-custom-info-value-card__head {
