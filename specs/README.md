@@ -10,6 +10,11 @@ domain audience — diagnosticians and product owners — in plain language; imp
 to the "Source files" footer of each spec. The project principles are in
 [`.specify/memory/constitution.md`](../.specify/memory/constitution.md).
 
+> **The evaluation method itself** (how ratings become a value profile and an orientation
+> recommendation) is described in the cross-cutting guide
+> [`../docs/methodologie-evaluation.md`](../docs/methodologie-evaluation.md), with a shared
+> [glossary](../docs/glossaire.md).
+
 ## How a diagnostician uses the tool
 
 1. **Sign in** (optional) — work in the cloud account, or as a guest with everything kept in the
