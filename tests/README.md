@@ -23,6 +23,7 @@ conflit avec un serveur de dev déjà lancé sur 8080).
 | `general-tab.spec.js` | Sémantique du `tablist`, référence gisement dérivée, bascule « Type d'opération », slider « Statut de l'étude » + région live, indépendance des groupes Oui/Non/Inconnu, contacts, sections repliables, déverrouillage canton. |
 | `general-tab-behaviors.spec.js` | Persistance locale (champs + onglet actif survivent au rechargement), cascade géographique France (département → canton → conditions climatiques / termites / mérules + réinitialisation), alertes de complétude par section, flux de confirmation « Réinitialiser ». |
 | `general-tab-i18n.spec.js` | Bascule de langue (FR ↔ EN) via le sélecteur du bandeau : noms accessibles des onglets, champs, groupes et boutons d'alerte qui suivent la langue, persistance du choix au rechargement, conservation de l'onglet actif. |
+| `general-tab-pemd.spec.js` | Sous-sections CERFA repliées par défaut (« Diagnostiqueur PEMD », « Visite PEMD ») : révélation des bascules Oui/Non à l'ouverture, sélection mutuellement exclusive et indépendance entre groupes, saisie des champs libres, persistance des choix au rechargement. |
 | `general-tab-import.spec.js` | **Import d'une évaluation** (`fixtures/evaluation-general.json`) puis vérification de l'affichage de tous les champs de la tab Général. |
 | `fixtures/evaluation-general.json` | Charge utile d'export réelle (schemaVersion + meta + ui + 1 lot) rejouée par le vrai pipeline d'import. |
 
