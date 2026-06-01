@@ -7,10 +7,16 @@
     "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "check:orientation-parity": "node scripts/check-orientation-class-parity.mjs",
     "serve": "npx --yes serve .",
-    "import:france-geojson": "node scripts/import-france-geojson.mjs"
+    "import:france-geojson": "node scripts/import-france-geojson.mjs",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "bwip-js": "^4.10.1",
     "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.60.0"
   }
 }
