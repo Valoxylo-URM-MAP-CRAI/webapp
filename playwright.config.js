@@ -9,7 +9,7 @@ const { defineConfig, devices } = require('@playwright/test');
  * port so the suite never collides with a dev server a contributor may already
  * be running on 8080.
  */
-const PORT = 8077;
+const PORT = Number(process.env.PLAYWRIGHT_PORT) || 8077;
 const BASE_URL = `http://localhost:${PORT}`;
 
 module.exports = defineConfig({
