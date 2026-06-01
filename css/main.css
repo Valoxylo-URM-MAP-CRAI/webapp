@@ -18860,16 +18860,31 @@ body.day-mode .inspection-ignore-box {
 
     .piece-custom-info-mode-toggle {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 6px;
         flex: 1 1 auto;
         min-width: 0;
     }
 
     .piece-custom-info-mode-toggle .lot-price-unit-btn {
-        min-height: 28px;
+        height: 20px;
+        min-height: 20px;
         padding: 0 8px;
         width: 100%;
+        font-size: calc(var(--font-size-xs) - 2px);
+    }
+
+    .piece-custom-info-mode-delete-btn {
+        white-space: nowrap;
+        background-color: var(--bleu-crai);
+        border-color: var(--bleu-crai);
+        color: var(--color-white);
+    }
+
+    .piece-custom-info-mode-delete-btn:hover:not(:disabled) {
+        background-color: #162e72;
+        border-color: #162e72;
+        color: var(--color-white);
     }
 
     .piece-custom-info-set-action-btn {
@@ -19022,8 +19037,7 @@ body.day-mode .inspection-ignore-box {
     .piece-custom-info-delete-list-btn,
     .piece-custom-info-value-card__actions .piece-duplicate-btn,
     .piece-custom-info-delete-card-btn,
-    [data-custom-info-modal-primary-action],
-    [data-custom-info-modal-option-add-card-empty] {
+    [data-custom-info-modal-primary-action] {
         height: var(--ci-btn-text-height);
         min-height: var(--ci-btn-text-height);
         width: var(--ci-btn-text-width);
@@ -19035,6 +19049,35 @@ body.day-mode .inspection-ignore-box {
         align-items: center;
         justify-content: center;
         box-sizing: border-box;
+    }
+
+    [data-custom-info-modal-option-add-card-empty] {
+        height: var(--ci-btn-text-height);
+        min-height: var(--ci-btn-text-height);
+        min-width: 140px;
+        width: auto;
+        padding: var(--ci-btn-text-padding-y) var(--ci-btn-text-padding-x);
+        font-size: var(--ci-btn-text-font-size);
+        line-height: 1;
+        white-space: nowrap;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+    }
+
+    @media (max-width: 360px) {
+        [data-custom-info-modal-option-add-card-empty] {
+            width: 100%;
+            min-width: 0;
+            max-width: 100%;
+            padding-left: 6px;
+            padding-right: 6px;
+            font-size: 11px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
     }
 
     .piece-custom-info-value-card {
@@ -19269,6 +19312,13 @@ body.day-mode .inspection-ignore-box {
         min-width: 0;
     }
 
+    .piece-custom-info-label-wrap--set-select {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: start;
+        gap: 4px;
+    }
+
     .piece-custom-info-label-wrap .lot-input {
         flex: 1 1 auto;
         width: 100%;
@@ -19276,10 +19326,26 @@ body.day-mode .inspection-ignore-box {
     }
 
     .piece-custom-info-set-subtitle {
-        margin: 2px 0 0;
+        margin: 0;
         font-size: 12px;
         color: #5b6672;
         line-height: 1.3;
+    }
+
+    .piece-custom-info-group .lot-input,
+    .piece-custom-info-group select.lot-input {
+        height: 24px;
+        min-height: 24px;
+        padding: 0 9px;
+        font-size: 13px;
+        line-height: 1.2;
+    }
+
+    .piece-custom-info-group .piece-duplicate-btn,
+    .piece-custom-info-group .piece-delete-btn {
+        height: 20px;
+        min-height: 20px;
+        padding: 0 8px;
     }
 
     .piece-custom-info-action-btn {

@@ -214,6 +214,9 @@
         composer.querySelectorAll('.barcode-composer__check[data-field]').forEach((check) => {
             const field = String(check.getAttribute('data-field') || '').trim();
             if (!field) return;
+            // Les champs CI dynamiques (customInfo:*) sont gérés par upsertDynamicCustomInfoFields —
+            // ne pas écraser leur état d'availability ici.
+            if (field.startsWith('customInfo:')) return;
             const row = composer.querySelector('.barcode-composer__field[data-field="' + field + '"]');
             const label = row ? row.querySelector('.barcode-composer__label') : null;
             const status = statusMap[field] || 'none';
@@ -230,7 +233,9 @@
             app.updateBarcodeComposerFieldAvailabilityIndicator(row, label, check, field, status);
         });
 
-        updateSummary(app, composer, statusMap, fields);
+        // Exclure les champs CI dynamiques du compte d'indisponibilité (ils ont leur propre indicateur).
+        const staticFields = fields.filter(function(f) { return !String(f).startsWith('customInfo:'); });
+        updateSummary(app, composer, statusMap, staticFields);
     }
 
     function patchApp(app) {

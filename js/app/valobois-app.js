@@ -4346,6 +4346,41 @@ class ValoboisApp {
         return value || label;
     }
 
+    normalizeCustomInfoConnexeTextsList(entriesRaw) {
+        const source = Array.isArray(entriesRaw) ? entriesRaw : [];
+        const normalized = [];
+        const seen = new Set();
+
+        source.forEach((entry) => {
+            const text = this.normalizeCustomInfoConnexeText(entry);
+            const key = this.normalizeCustomInfoKey(text);
+            if (!key || seen.has(key)) return;
+            seen.add(key);
+            normalized.push({ text, key });
+        });
+
+        if (normalized.length < 2) {
+            return normalized.map((entry) => entry.text);
+        }
+
+        // Drop a composite line when its split parts already exist as individual lines.
+        const filtered = normalized.filter((entry) => {
+            const parts = String(entry.text || '')
+                .split(/\s+-\s+/g)
+                .map((part) => part.trim())
+                .filter(Boolean);
+            if (parts.length < 2) return true;
+            const partKeys = parts
+                .map((part) => this.normalizeCustomInfoKey(part))
+                .filter(Boolean);
+            if (partKeys.length < 2) return true;
+            const hasAllSplitParts = partKeys.every((partKey) => normalized.some((other) => other.key === partKey && other.key !== entry.key));
+            return !hasAllSplitParts;
+        });
+
+        return filtered.map((entry) => entry.text);
+    }
+
     normalizeCustomInfoOptionItems(itemsRaw, fallbackOptionsRaw = []) {
         const source = Array.isArray(itemsRaw) && itemsRaw.length > 0
             ? itemsRaw
@@ -4860,7 +4895,13 @@ class ValoboisApp {
             closed: false,
             selectedSetId: '',
             listDraftLabel: '',
-            forceNewListMode: false,
+            forceNewListMode: true,
+            draftSetLabel: '',
+            draftSetSubtitle: '',
+            draftSetItems: [{
+                value: '',
+                connexes: [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }]
+            }],
             pendingConfirmAction: null
         };
 
@@ -4918,7 +4959,14 @@ class ValoboisApp {
                 : [];
             const selectedSetId = String(state.selectedSetId || '').trim();
             const selectedSet = this.getCustomInfoOptionSetById(selectedSetId, this.data && this.data.ui);
-            const editableSet = selectedSet;
+            const draftSet = {
+                id: '',
+                label: String(state.draftSetLabel || ''),
+                subtitle: String(state.draftSetSubtitle || ''),
+                items: Array.isArray(state.draftSetItems) ? state.draftSetItems : []
+            };
+            const editableSet = selectedSet || draftSet;
+            const isDraftMode = !selectedSet;
             const editableItems = editableSet && Array.isArray(editableSet.items)
                 ? editableSet.items
                 : this.normalizeCustomInfoOptionItems([], editableSet && editableSet.options);
@@ -4929,7 +4977,8 @@ class ValoboisApp {
             };
             const matchedByLabel = findSetByLabel(state.listDraftLabel);
             const effectiveSet = matchedByLabel || selectedSet;
-            const primaryActionLabel = effectiveSet ? 'Modifier' : '+ Ajouter';
+            const isCreateMode = !effectiveSet || state.forceNewListMode || String(state.listDraftLabel || '').trim().length > 0;
+            const primaryActionLabel = isCreateMode ? '+ Ajouter' : 'Modifier';
             const selectedSetOrderIndex = editableSet
                 ? allSets.findIndex((entry) => String(entry && entry.id || '') === String(editableSet.id || ''))
                 : -1;
@@ -4938,9 +4987,7 @@ class ValoboisApp {
                     const sourceConnexes = (Array.isArray(opt.connexes) && opt.connexes.length > 0)
                         ? opt.connexes
                         : [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }];
-                    const connexesTexts = sourceConnexes
-                        .map((cn) => this.normalizeCustomInfoConnexeText(cn))
-                        .filter(Boolean);
+                    const connexesTexts = this.normalizeCustomInfoConnexeTextsList(sourceConnexes);
                     const chainValue = connexesTexts.join(' - ');
                     const connexesHtml = sourceConnexes.map((cn, cidx) => {
                         const textValue = this.normalizeCustomInfoConnexeText(cn);
@@ -4965,7 +5012,7 @@ class ValoboisApp {
                             </div>
                         </div>
                         <p class="piece-custom-info-field-section-label">Chaîne de valeur</p>
-                        <input type="text" class="lot-input" value="${this.escapeHtml(chainValue)}" placeholder="A - B - C" data-custom-info-modal-option-chain readonly>
+                        <input type="text" class="lot-input" value="${this.escapeHtml(chainValue)}" placeholder="Valeur connexe 1 - Valeur connexe 2 - Valeur connexe 3" data-custom-info-modal-option-chain readonly>
                         <div class="piece-custom-info-connexe-lines" data-custom-info-modal-connexes-list>
                             ${connexesHtml}
                         </div>
@@ -5003,11 +5050,11 @@ class ValoboisApp {
                         </div>
                         <p class="piece-custom-info-modal-note">Modifiez le nom de la liste puis gérez ses valeurs.</p>
                         <div class="piece-custom-info-set-editor-toolbar">
-                            <span class="price-preset-row__badge price-preset-row__badge--custom">Liste ${selectedSetOrderIndex >= 0 ? selectedSetOrderIndex + 1 : 1}</span>
+                            <span class="price-preset-row__badge price-preset-row__badge--custom">${isDraftMode ? 'Nouvelle liste' : `Liste ${selectedSetOrderIndex >= 0 ? selectedSetOrderIndex + 1 : 1}`}</span>
                             <div class="piece-custom-info-option-order-actions" role="group" aria-label="Ordre des listes créées">
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="down"${selectedSetOrderIndex < 0 || selectedSetOrderIndex === allSets.length - 1 ? ' disabled' : ''} aria-label="Descendre la liste">↓</button>
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="up"${selectedSetOrderIndex <= 0 ? ' disabled' : ''} aria-label="Monter la liste">↑</button>
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-delete-list-btn" data-custom-info-modal-set-delete>Supprimer</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="down"${isDraftMode || selectedSetOrderIndex < 0 || selectedSetOrderIndex === allSets.length - 1 ? ' disabled' : ''} aria-label="Descendre la liste">↓</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-order-btn" data-custom-info-modal-set-move="up"${isDraftMode || selectedSetOrderIndex <= 0 ? ' disabled' : ''} aria-label="Monter la liste">↑</button>
+                                <button type="button" class="piece-duplicate-btn piece-custom-info-delete-list-btn" data-custom-info-modal-set-delete${isDraftMode ? ' disabled' : ''}>Supprimer</button>
                             </div>
                         </div>
                         <div class="piece-custom-info-set-editor-head">
@@ -5036,12 +5083,14 @@ class ValoboisApp {
             const listCombobox = bodyEl.querySelector('[data-custom-info-modal-set-combobox]');
             if (listCombobox) {
                 const syncFromCombobox = ({ rerender = false } = {}) => {
-                    state.listDraftLabel = String(listCombobox.value || '');
-                    const matched = findSetByLabel(state.listDraftLabel);
+                    const draftLabel = String(listCombobox.value || '');
+                    const trimmedDraftLabel = draftLabel.trim();
+                    const matched = findSetByLabel(trimmedDraftLabel);
                     const previousSetId = String(state.selectedSetId || '').trim();
                     const nextSetId = matched ? String(matched.id || '').trim() : '';
+                    state.listDraftLabel = matched ? '' : draftLabel;
                     state.selectedSetId = nextSetId;
-                    state.forceNewListMode = !matched;
+                    state.forceNewListMode = !matched && trimmedDraftLabel.length > 0;
                     const actionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
                     if (actionBtn) actionBtn.textContent = matched ? 'Modifier' : '+ Ajouter';
                     if (rerender || nextSetId !== previousSetId) render();
@@ -5053,32 +5102,22 @@ class ValoboisApp {
             const primaryActionBtn = bodyEl.querySelector('[data-custom-info-modal-primary-action]');
             if (primaryActionBtn) {
                 primaryActionBtn.addEventListener('click', () => {
-                    const matched = findSetByLabel(state.listDraftLabel);
-                    if (matched) {
+                    const selectedById = this.getCustomInfoOptionSetById(state.selectedSetId, this.data && this.data.ui);
+                    const matched = findSetByLabel(state.listDraftLabel) || selectedById;
+                    if (matched && !state.forceNewListMode) {
                         const nextSetId = String(matched.id || '').trim();
                         const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: nextSetId }, { markAsLocal: !isDefault });
                         if (!updated) return;
                         state.forceNewListMode = false;
                         state.selectedSetId = nextSetId;
-                        state.listDraftLabel = String(matched.label || '');
+                        state.listDraftLabel = '';
                         applySyncAndPersist({ rerender: false });
                         render();
                         return;
                     }
-
-                    const nextLabel = String(state.listDraftLabel || '').trim();
-                    if (!nextLabel) {
-                        window.alert('Le nom de liste est requis.');
-                        return;
-                    }
-                    const created = this.upsertCustomInfoOptionSet({ label: nextLabel, items: [] }, this.data && this.data.ui);
-                    if (!created) return;
-                    const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: created.id }, { markAsLocal: !isDefault });
-                    if (!updated) return;
-                    state.forceNewListMode = false;
-                    state.selectedSetId = String(created.id || '').trim();
-                    state.listDraftLabel = String(created.label || '');
-                    applySyncAndPersist({ rerender: false });
+                    state.forceNewListMode = true;
+                    state.selectedSetId = '';
+                    state.listDraftLabel = '';
                     render();
                 });
             }
@@ -5137,6 +5176,35 @@ class ValoboisApp {
                 });
                 const commitSetLabel = () => {
                     const nextLabel = String(setLabelInput.value || '').trim();
+                    if (isDraftMode) {
+                        state.draftSetLabel = nextLabel;
+                        if (!nextLabel) {
+                            render();
+                            return;
+                        }
+                        const draftItems = sanitizeItemsForPersistence(Array.isArray(state.draftSetItems) ? state.draftSetItems : []);
+                        const created = this.upsertCustomInfoOptionSet({
+                            label: nextLabel,
+                            subtitle: String(state.draftSetSubtitle || ''),
+                            items: draftItems
+                        }, this.data && this.data.ui);
+                        if (!created) return;
+                        const updated = this.updateCustomInfoOnPiece(piece, customInfoId, { optionSetId: created.id }, { markAsLocal: !isDefault });
+                        if (!updated) return;
+                        state.forceNewListMode = false;
+                        state.selectedSetId = String(created.id || '').trim();
+                        state.listDraftLabel = '';
+                        state.draftSetLabel = '';
+                        state.draftSetSubtitle = '';
+                        state.draftSetItems = [{
+                            value: '',
+                            connexes: [{ id: this.createCustomInfoId('ci-cn'), text: '', label: '', value: '' }]
+                        }];
+                        applySyncAndPersist({ rerender: false });
+                        render();
+                        return;
+                    }
+
                     if (!nextLabel) {
                         setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
                         return;
@@ -5153,7 +5221,7 @@ class ValoboisApp {
                         setLabelInput.value = setLabelInput.dataset.previousValue || editableSet.label || '';
                         return;
                     }
-                    state.listDraftLabel = String(upserted.label || '');
+                    state.listDraftLabel = '';
                     applySyncAndPersist({ rerender: false });
                     render();
                 };
@@ -5168,6 +5236,10 @@ class ValoboisApp {
                 });
                 const commitSetSubtitle = () => {
                     const nextSubtitle = String(setSubtitleInput.value || '').trim();
+                    if (isDraftMode) {
+                        state.draftSetSubtitle = nextSubtitle;
+                        return;
+                    }
                     const upserted = this.upsertCustomInfoOptionSet({
                         id: editableSet.id,
                         label: editableSet.label,
@@ -5218,17 +5290,16 @@ class ValoboisApp {
 
             const sanitizeItemsForPersistence = (items) => (Array.isArray(items) ? items : [])
                 .map((item, idx) => {
-                    const connexes = (Array.isArray(item && item.connexes) ? item.connexes : [])
-                        .map((c) => {
-                            const text = this.normalizeCustomInfoConnexeText(c);
-                            return {
-                                id: String(c && c.id || this.createCustomInfoId('ci-cn')),
-                                text,
-                                label: '',
-                                value: text
-                            };
-                        })
-                        .filter((c) => c && c.id);
+                    const rawConnexes = Array.isArray(item && item.connexes) ? item.connexes : [];
+                    const connexes = rawConnexes.map((connexe) => {
+                        const text = this.normalizeCustomInfoConnexeText(connexe);
+                        return {
+                            id: String(connexe && connexe.id || this.createCustomInfoId('ci-cn')),
+                            text,
+                            label: '',
+                            value: text
+                        };
+                    });
                     if (connexes.length === 0) {
                         connexes.push({
                             id: this.createCustomInfoId('ci-cn'),
@@ -5237,15 +5308,19 @@ class ValoboisApp {
                             value: ''
                         });
                     }
-                    const chainText = connexes.map((c) => c.text).filter(Boolean).join(' - ');
+                    const chainText = this.normalizeCustomInfoConnexeTextsList(connexes).join(' - ');
                     const fallback = String(item && item.value || '').trim();
                     const value = chainText || fallback || `Valeur ${idx + 1}`;
                     return { value, connexes };
                 });
 
             const upsertItems = (nextItems) => {
-                if (!editableSet) return;
                 const normalizedItems = sanitizeItemsForPersistence(nextItems);
+                if (isDraftMode) {
+                    state.draftSetItems = normalizedItems;
+                    render();
+                    return;
+                }
                 const upserted = this.upsertCustomInfoOptionSet({
                     id: editableSet.id,
                     label: editableSet.label,
@@ -5460,14 +5535,6 @@ class ValoboisApp {
             const selectedItem = (valueMode === 'list' && optionSet && Array.isArray(optionSet.items))
                 ? optionSet.items.find((item) => String(item && item.value || '').trim() === selectedValueStr) || null
                 : null;
-            const activeConnexes = (selectedItem && Array.isArray(selectedItem.connexes))
-                ? selectedItem.connexes
-                    .map((c) => this.normalizeCustomInfoConnexeText(c))
-                    .filter(Boolean)
-                : [];
-            const connexesReadonlyHtml = activeConnexes.length > 0
-                ? `<ul class="piece-custom-info-connexes-readonly">${activeConnexes.map((text) => `<li class="piece-custom-info-connexe-readonly-item"><span class="ci-connexe-value">${attrValue(text)}</span></li>`).join('')}</ul>`
-                : '';
             const modeLabel = valueMode === 'list' ? 'Liste' : (valueMode === 'hybrid' ? 'Hybride' : 'Libre');
             const inheritedBadge = !isDefault && entry.inheritMode !== 'local' && entry.sourceDefaultInfoId
                 ? '<span class="piece-custom-info-badge">hérité</span>'
@@ -5478,8 +5545,9 @@ class ValoboisApp {
                         ${inheritedBadge}
                     </div>`
                 : `<div class="piece-custom-info-label-wrap piece-custom-info-label-wrap--set-select">
+                        ${optionSetSubtitle ? `<p class="piece-custom-info-set-subtitle" title="${attrValue(optionSetSubtitle)}">${attrValue(optionSetSubtitle)}</p>` : ''}
                         <div class="piece-custom-info-set-inline" role="group" aria-label="Selection de liste personnalisee">
-                            <select class="lot-input" data-custom-info-set-select>
+                            <select class="lot-input" data-custom-info-set-select title="${attrValue(optionSet && optionSet.label || '')}">
                                 <option value="">Aucune liste associée</option>
                                 ${availableSets.map((setEntry) => {
                                     const setId = String(setEntry && setEntry.id || '').trim();
@@ -5488,7 +5556,6 @@ class ValoboisApp {
                                 }).join('')}
                             </select>
                         </div>
-                        ${optionSetSubtitle ? `<p class="piece-custom-info-set-subtitle">${attrValue(optionSetSubtitle)}</p>` : ''}
                         ${inheritedBadge}
                     </div>`;
 
@@ -5500,30 +5567,15 @@ class ValoboisApp {
                                 <button type="button" class="lot-price-unit-btn" data-custom-info-mode="free" aria-pressed="${valueMode === 'free' ? 'true' : 'false'}">Libre</button>
                                 <button type="button" class="lot-price-unit-btn" data-custom-info-mode="list" aria-pressed="${valueMode === 'list' ? 'true' : 'false'}">Liste</button>
                                 <button type="button" class="lot-price-unit-btn" data-custom-info-mode="hybrid" aria-pressed="${valueMode === 'hybrid' ? 'true' : 'false'}">Hybride</button>
-                            </div>
-                            <div class="piece-custom-info-inline-actions">
-                                <button type="button" class="piece-duplicate-btn piece-custom-info-action-btn piece-custom-info-duplicate-btn" data-custom-info-duplicate aria-label="Dupliquer l'information" title="Dupliquer">
-                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                        <rect x="9" y="9" width="10" height="10" rx="1.5"></rect>
-                                        <rect x="5" y="5" width="10" height="10" rx="1.5"></rect>
-                                    </svg>
-                                </button>
-                                <button type="button" class="piece-delete-btn piece-custom-info-action-btn piece-custom-info-delete-btn" data-custom-info-delete aria-label="Supprimer l'information" title="Supprimer">
-                                    <svg aria-hidden="true" focusable="false" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                                        <line x1="6" y1="12" x2="18" y2="12"></line>
-                                    </svg>
-                                </button>
+                                <button type="button" class="lot-price-unit-btn piece-custom-info-mode-delete-btn" data-custom-info-delete aria-label="Supprimer l'information" title="Supprimer">Supprimer</button>
                             </div>
                         </div>
                         <div class="piece-custom-info-topline">
                             ${topLineFieldHtml}
                         </div>
                         ${valueMode === 'list' && optionSet
-                                ? `<select class="lot-input" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}">
-                                    <option value="">Valeur</option>
-                                    ${orderedOptions.map((opt) => `<option value="${attrValue(opt)}"${opt === String(valueDisplay || '').trim() ? ' selected' : ''}>${attrValue(opt)}</option>`).join('')}
-                                   </select>${connexesReadonlyHtml}`
-                            : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`}
+                            ? `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`
+                            : `<input type="text" class="lot-input" value="${attrValue(valueDisplay)}" title="${attrValue(valueDisplay)}" placeholder="Valeur" data-custom-info-value data-custom-info-value-mode="${attrValue(valueMode)}"${listId ? ` list="${attrValue(listId)}"` : ''}>`}
                         ${optionsHtml}
                     </div>
                 </div>`;
@@ -5624,12 +5676,15 @@ class ValoboisApp {
                 e.stopPropagation();
                 if (!this.isDetailLotCardActive(lot, cardKey)) return;
                 const currentInfos = this.ensurePieceCustomInfos(piece);
-                const targetInfo = currentInfos.find((entry) => this.normalizeCustomInfoMode(entry && entry.valueMode, entry && entry.valueType) !== 'free')
+                let targetInfo = currentInfos.find((entry) => this.normalizeCustomInfoMode(entry && entry.valueMode, entry && entry.valueType) !== 'free')
                     || currentInfos[0]
                     || null;
                 if (!targetInfo || !targetInfo.id) {
-                    window.alert('Ajoutez d\'abord une information personnalisée pour gérer les listes.');
-                    return;
+                    const createdInfo = this.addCustomInfoToPiece(piece, { inheritMode: 'local' });
+                    if (!createdInfo || !createdInfo.id) return;
+                    targetInfo = createdInfo;
+                    syncIfDefault();
+                    persistSilent();
                 }
                 this.openCustomInfoOptionSetModal({
                     piece,
@@ -5684,6 +5739,12 @@ class ValoboisApp {
             if (valueInput) {
                 valueInput.addEventListener('focus', () => {
                     valueInput.dataset.previousValue = valueInput.value;
+                    const modeRaw = (valueInput.getAttribute('data-custom-info-value-mode') || '').trim();
+                    const mode = this.normalizeCustomInfoMode(modeRaw, 'text');
+                    if (mode === 'list') {
+                        valueInput.dataset.listModePreviousValue = valueInput.value;
+                        valueInput.value = '';
+                    }
                 });
                 const updateValue = (event) => {
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
@@ -5698,6 +5759,10 @@ class ValoboisApp {
                         const linkedSet = this.getCustomInfoOptionSetForEntry(currentInfo, this.data && this.data.ui);
                         const allowed = new Set((linkedSet && linkedSet.options || []).map((item) => String(item || '').trim()).filter(Boolean));
                         const candidateValue = String(valueInput.value || '').trim();
+                        if (!candidateValue) {
+                            valueInput.value = valueInput.dataset.listModePreviousValue || valueInput.dataset.previousValue || '';
+                            return;
+                        }
                         if (candidateValue && allowed.size > 0 && !allowed.has(candidateValue)) {
                             valueInput.value = valueInput.dataset.previousValue || '';
                             window.alert('Mode Liste : choisissez une valeur proposee.');
@@ -40786,6 +40851,126 @@ renderRadar() {
         return tokens.join(',').slice(0, 64);
     }
 
+    getBarcodeComposerCustomInfosEntries(pieceLike) {
+        const entries = this.ensurePieceCustomInfos(pieceLike);
+        if (!entries.length) return [];
+
+        const normalized = [];
+        const usedKeys = new Set();
+
+        entries.forEach((entry, idx) => {
+            if (!entry || typeof entry !== 'object') return;
+            const label = String(entry.label || '').trim();
+            if (!label) return;
+
+            const values = Array.isArray(entry.values)
+                ? entry.values.map((value) => String(value || '').trim()).filter(Boolean)
+                : [];
+            const labelToken = this.abbreviateCompactToken(label, 3);
+            const firstValueToken = values.length ? this.abbreviateCompactToken(values[0], 6) : '';
+            const compact = labelToken && firstValueToken ? `${labelToken}=${firstValueToken}` : '';
+            const complete = values.length ? `${label}: ${values.join(', ')}` : '';
+
+            const keyBase = String(
+                entry.labelKey
+                || this.normalizeCustomInfoKey(label)
+                || `ci-${idx + 1}`
+            ).trim() || `ci-${idx + 1}`;
+            let key = `customInfo:${keyBase}`;
+            let suffix = 2;
+            while (usedKeys.has(key)) {
+                key = `customInfo:${keyBase}-${suffix}`;
+                suffix += 1;
+            }
+            usedKeys.add(key);
+
+            normalized.push({
+                key,
+                label,
+                compact,
+                complete,
+                hasValue: !!(compact || complete)
+            });
+        });
+
+        return normalized;
+    }
+
+    getBarcodeComposerCustomInfosEntriesForSelection(essenceMode = 'abbr') {
+        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+        const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+        const merged = [];
+        const byKey = new Map();
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+            if (!lot) return;
+            const items = this.buildEtiquettePieceItems(lot, lotIndex);
+            if (!Array.isArray(items) || !items.length) return;
+
+            items.forEach((item) => {
+                const valueMap = this.getBarcodeComposerValueMapCached(lot, item, mode);
+                const entries = valueMap && valueMap.customInfosEntries && Array.isArray(valueMap.customInfosEntries.value)
+                    ? valueMap.customInfosEntries.value
+                    : [];
+                entries.forEach((entry) => {
+                    if (!entry || typeof entry !== 'object') return;
+                    const key = String(entry.key || '').trim();
+                    if (!key) return;
+
+                    if (!byKey.has(key)) {
+                        const normalized = {
+                            key,
+                            label: String(entry.label || '').trim() || key,
+                            compact: String(entry.compact || '').trim(),
+                            complete: String(entry.complete || '').trim(),
+                            hasValue: !!entry.hasValue
+                        };
+                        byKey.set(key, normalized);
+                        merged.push(normalized);
+                        return;
+                    }
+
+                    const existing = byKey.get(key);
+                    if (!existing.compact && entry.compact) existing.compact = String(entry.compact || '').trim();
+                    if (!existing.complete && entry.complete) existing.complete = String(entry.complete || '').trim();
+                    existing.hasValue = !!(existing.hasValue || entry.hasValue);
+                });
+            });
+        });
+
+        return merged;
+    }
+
+    normalizeBarcodeComposerCustomInfosSelection(selection) {
+        if (!selection || typeof selection !== 'object') return {};
+        const normalized = {};
+        Object.keys(selection).forEach((key) => {
+            const cleanKey = String(key || '').trim();
+            if (!cleanKey.startsWith('customInfo:')) return;
+            if (selection[key]) normalized[cleanKey] = true;
+        });
+        return normalized;
+    }
+
+    formatBarcodeComposerCustomInfosBySelection(pieceLike, selection, format = 'compact') {
+        const entries = this.getBarcodeComposerCustomInfosEntries(pieceLike);
+        if (!entries.length) return '';
+
+        const selected = this.normalizeBarcodeComposerCustomInfosSelection(selection);
+        const keys = Object.keys(selected);
+        if (!keys.length) return '';
+
+        const tokens = entries
+            .filter((entry) => selected[entry.key])
+            .map((entry) => entry.complete || entry.compact)
+            .filter(Boolean);
+
+        if (!tokens.length) return '';
+        return tokens.join(' ; ');
+    }
+
     formatBarcodeComposerCustomInfosComplete(pieceLike) {
         const entries = this.ensurePieceCustomInfos(pieceLike);
         if (!entries.length) return '';
@@ -41055,6 +41240,7 @@ renderRadar() {
         const durabiliteNaturelle = this.formatBarcodeComposerDurabiliteNaturelleToken(
             durabResolved && durabResolved.durabiliteChampignons ? durabResolved.durabiliteChampignons : ''
         );
+        const customInfosEntries = this.getBarcodeComposerCustomInfosEntries(pieceSource);
         const customInfos = this.formatBarcodeComposerCustomInfosCompact(pieceSource);
 
         const macroHistoire = this.getBarcodeComposerLevelCode(
@@ -41093,6 +41279,7 @@ renderRadar() {
             classementEstime: { value: classementEstime, preview: classementEstime || '—' },
             durabiliteNaturelle: { value: durabiliteNaturelle, preview: durabiliteNaturelle || '—' },
             customInfos: { value: customInfos, preview: customInfos || '—' },
+            customInfosEntries: { value: customInfosEntries, preview: String(customInfosEntries.length || 0) },
             macroHistoire: { value: macroHistoire, preview: macroHistoire || '—' },
             contamination: { value: contamination, preview: contamination || '—' }
         };
@@ -41129,6 +41316,7 @@ renderRadar() {
             classementEstime: false,
             durabiliteNaturelle: false,
             customInfos: false,
+            customInfosSelection: {},
             macroHistoire: false,
             contamination: false
         };
@@ -41155,6 +41343,7 @@ renderRadar() {
             ...this.getBarcodeComposerDefaultConfig(),
             ...this._barcodeComposerFieldState,
             payloadFormat,
+            customInfosSelection: this.normalizeBarcodeComposerCustomInfosSelection(this._barcodeComposerFieldState.customInfosSelection),
             customLabel: String(this._barcodeComposerCustomState.label || '').trim(),
             customCode: String(this._barcodeComposerCustomState.code || '').trim(),
             footerText: String(this._barcodeComposerCustomState.footerText || '').trim(),
@@ -41193,6 +41382,7 @@ renderRadar() {
         if (isComplete) {
             const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
             const completeSegments = [`Lot ${lotNum}`, `Pièce ${pieceNum}`];
+            const selectedCustomInfosComplete = this.formatBarcodeComposerCustomInfosBySelection(pieceSource, cfg.customInfosSelection, 'complete');
             const add = (label, value) => {
                 const cleaned = String(value || '').trim();
                 if (cleaned) completeSegments.push(`${label} : ${cleaned}`);
@@ -41284,7 +41474,11 @@ renderRadar() {
                         add('Durabilité naturelle', token);
                         break;
                     case 'customInfos':
-                        add('Informations personnalisées', this.formatBarcodeComposerCustomInfosComplete(pieceSource) || token);
+                        if (selectedCustomInfosComplete) {
+                            add('Informations personnalisées', selectedCustomInfosComplete);
+                        } else {
+                            add('Informations personnalisées', this.formatBarcodeComposerCustomInfosComplete(pieceSource) || token);
+                        }
                         break;
                     case 'macroHistoire':
                         add('Macro-Histoire', this.getBarcodeComposerPieceCriterionLevel(piece, 'provenance', 'macroProv', lot) || token);
@@ -41304,11 +41498,21 @@ renderRadar() {
         }
 
         const segments = [`L${lotNum}P${pieceNum}`];
+        const selectedCustomInfosCompact = this.formatBarcodeComposerCustomInfosBySelection(
+            piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece,
+            cfg.customInfosSelection,
+            'compact'
+        );
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
             if (!cfg[field]) return;
+            if (field === 'customInfos' && selectedCustomInfosCompact) return;
             const token = map && map[field] && map[field].value ? String(map[field].value).trim() : '';
             if (token) segments.push(token);
         });
+
+        if (selectedCustomInfosCompact) {
+            segments.push(selectedCustomInfosCompact);
+        }
 
         const customCode = String(cfg.customCode || '').trim().replace(/\s+/g, '').slice(0, 32);
         if (customCode) {
@@ -41673,6 +41877,9 @@ renderRadar() {
         const essenceModeEl = document.getElementById('bcEssenceMode');
 
         const currentState = this.getBarcodeComposerConfig();
+        const getRuntimeCustomInfosSelection = () => this.normalizeBarcodeComposerCustomInfosSelection(
+            this._barcodeComposerFieldState && this._barcodeComposerFieldState.customInfosSelection
+        );
         const essenceMode = String(currentState.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
         if (essenceModeEl) essenceModeEl.value = essenceMode;
         if (payloadFormatEl) payloadFormatEl.value = this.normalizeBarcodePayloadFormat(currentState.payloadFormat);
@@ -41680,6 +41887,7 @@ renderRadar() {
         let activeEssenceMode = essenceMode;
         let valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, activeEssenceMode);
         let availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(activeEssenceMode);
+        let dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection(activeEssenceMode);
         const previewIds = {
             ref: 'bcPreviewRef',
             essence: 'bcPreviewEssence',
@@ -41708,6 +41916,101 @@ renderRadar() {
             customInfos: 'bcPreviewCustomInfos',
             macroHistoire: 'bcPreviewMacroHistoire',
             contamination: 'bcPreviewContamination'
+        };
+
+        const upsertDynamicCustomInfoFields = (map, entriesSource = []) => {
+            const baseRow = composer.querySelector('.barcode-composer__field[data-field="customInfos"]');
+            if (!baseRow || !baseRow.parentNode) return;
+
+            composer.querySelectorAll('.barcode-composer__field[data-dynamic-field="customInfo"]').forEach((node) => node.remove());
+            composer.querySelectorAll('.barcode-composer__section-title[data-dynamic-field="customInfo"]').forEach((node) => node.remove());
+
+            const previewEntries = map && map.customInfosEntries && Array.isArray(map.customInfosEntries.value)
+                ? map.customInfosEntries.value
+                : [];
+            const previewByKey = new Map();
+            previewEntries.forEach((entry) => {
+                const key = String(entry && entry.key || '').trim();
+                if (!key) return;
+                previewByKey.set(key, entry);
+            });
+
+            const dynamicEntries = Array.isArray(entriesSource) && entriesSource.length ? entriesSource : previewEntries;
+
+            baseRow.style.display = dynamicEntries.length ? 'none' : '';
+            if (!dynamicEntries.length) return;
+
+            const sectionLotTitle = composer.querySelector('.barcode-composer__section-title[data-i18n="editor.common.barcodeSectionLot"]');
+
+            // Séparateur "Données personnalisées"
+            const ciSeparator = document.createElement('div');
+            ciSeparator.className = 'barcode-composer__section-title';
+            ciSeparator.dataset.dynamicField = 'customInfo';
+            ciSeparator.textContent = 'Données personnalisées';
+            if (sectionLotTitle) {
+                sectionLotTitle.parentNode.insertBefore(ciSeparator, sectionLotTitle);
+            } else {
+                baseRow.parentNode.insertBefore(ciSeparator, baseRow.nextSibling);
+            }
+
+            dynamicEntries.forEach((entry, idx) => {
+                const row = document.createElement('label');
+                row.className = 'barcode-composer__field';
+                row.dataset.field = entry.key;
+                row.dataset.dynamicField = 'customInfo';
+                row.dataset.scope = 'piece';
+
+                const runtimeSelection = getRuntimeCustomInfosSelection();
+                const checked = !!runtimeSelection[entry.key];
+                const previewEntry = previewByKey.get(entry.key);
+                const previewText = (previewEntry && (previewEntry.complete || previewEntry.compact))
+                    || entry.complete
+                    || entry.compact
+                    || '—';
+                const availabilityTip = `Aucune valeur renseignée pour « ${entry.label} ».`;
+
+                row.innerHTML = [
+                    `<input type="checkbox" class="barcode-composer__check" data-field="${this.escapeHtml(entry.key)}" data-dynamic-field="customInfo" ${checked ? 'checked' : ''}>`,
+                    `<span class="barcode-composer__ai">(CI${idx + 1})</span>`,
+                    `<span class="barcode-composer__preview">${this.escapeHtml(previewText)}</span>`,
+                    `<span class="barcode-composer__label">${this.escapeHtml(entry.label)}</span>`
+                ].join('');
+
+                const check = row.querySelector('.barcode-composer__check');
+                const label = row.querySelector('.barcode-composer__label');
+                // Priorite a la piece exemple: si la valeur est visible dans l'aperçu, la case reste cochable.
+                const isAvailable = previewEntry && typeof previewEntry === 'object'
+                    ? !!previewEntry.hasValue
+                    : !!entry.hasValue;
+                row.style.opacity = isAvailable ? '1' : '0.4';
+                if (check) {
+                    check.dataset.available = isAvailable ? 'true' : 'false';
+                    check.disabled = !isAvailable;
+                    if (!isAvailable) {
+                        check.checked = false;
+                        check.setAttribute('title', availabilityTip);
+                        check.setAttribute('aria-label', availabilityTip);
+                    } else {
+                        check.removeAttribute('title');
+                        check.removeAttribute('aria-label');
+                    }
+                }
+                if (label) {
+                    if (!isAvailable) {
+                        label.setAttribute('title', availabilityTip);
+                        label.setAttribute('aria-label', availabilityTip);
+                    } else {
+                        label.removeAttribute('title');
+                        label.removeAttribute('aria-label');
+                    }
+                }
+
+                if (sectionLotTitle) {
+                    sectionLotTitle.parentNode.insertBefore(row, sectionLotTitle);
+                } else {
+                    baseRow.parentNode.insertBefore(row, baseRow.nextSibling);
+                }
+            });
         };
 
         const largeurLabelEl = composer.querySelector('.barcode-composer__field[data-field="largeur"] .barcode-composer__label');
@@ -41740,6 +42043,7 @@ renderRadar() {
             const preview = valueMap && valueMap[field] ? valueMap[field].preview : '—';
             el.textContent = preview || '—';
         });
+        upsertDynamicCustomInfoFields(valueMap, dynamicCustomInfoEntries);
         updateDimensionMeanLabels(valueMap);
 
         if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
@@ -41773,9 +42077,21 @@ renderRadar() {
             }
         }
 
+        const optionalFields = new Set(this.getBarcodeComposerOptionalFieldsOrder());
+        const dynamicCustomInfosState = getRuntimeCustomInfosSelection();
         composer.querySelectorAll('.barcode-composer__check[data-field]').forEach((check) => {
             const field = String(check.getAttribute('data-field') || '').trim();
             if (!field) return;
+            if (!optionalFields.has(field)) {
+                if (field.startsWith('customInfo:')) {
+                    const label = Array.from(composer.querySelectorAll('.barcode-composer__field[data-field]'))
+                        .find((node) => String(node.getAttribute('data-field') || '').trim() === field);
+                    const isAvailable = check.dataset.available !== 'false';
+                    check.checked = !!dynamicCustomInfosState[field] && isAvailable;
+                    if (label) label.style.opacity = isAvailable ? '1' : '0.4';
+                }
+                return;
+            }
             const label = composer.querySelector(`.barcode-composer__field[data-field="${field}"]`);
             const labelText = label ? label.querySelector('.barcode-composer__label') : null;
             const isAvailable = !!availabilityMap[field];
@@ -41793,12 +42109,14 @@ renderRadar() {
         const refreshComputedMaps = (mode) => {
             valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, mode);
             availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(mode);
+            dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection(mode);
             Object.keys(previewIds).forEach((field) => {
                 const el = document.getElementById(previewIds[field]);
                 if (!el) return;
                 const preview = valueMap && valueMap[field] ? valueMap[field].preview : '—';
                 el.textContent = preview || '—';
             });
+            upsertDynamicCustomInfoFields(valueMap, dynamicCustomInfoEntries);
             updateDimensionMeanLabels(valueMap);
         };
 
@@ -41825,6 +42143,15 @@ renderRadar() {
                 const check = composer.querySelector(`.barcode-composer__check[data-field="${field}"]`);
                 config[field] = !!(check && check.checked && availabilityMap[field]);
             });
+
+            const customInfosSelection = {};
+            composer.querySelectorAll('.barcode-composer__check[data-dynamic-field="customInfo"]').forEach((check) => {
+                const field = String(check.getAttribute('data-field') || '').trim();
+                if (!field || !field.startsWith('customInfo:')) return;
+                const isAvailable = check.dataset.available !== 'false';
+                if (check.checked && isAvailable) customInfosSelection[field] = true;
+            });
+            config.customInfosSelection = customInfosSelection;
 
             this._barcodeComposerFieldState = { ...config };
             this._barcodeComposerCustomState = {
@@ -41854,9 +42181,13 @@ renderRadar() {
             this.updateEtiqueterCodeLengthIndicator();
         };
 
-        composer.querySelectorAll('.barcode-composer__check').forEach((checkbox) => {
-            checkbox.onchange = () => updateOutput('field-check');
-        });
+        composer.onchange = (event) => {
+            const target = event && event.target;
+            if (!(target instanceof Element)) return;
+            if (target.classList.contains('barcode-composer__check')) {
+                updateOutput('field-check');
+            }
+        };
         if (essenceModeEl) {
             essenceModeEl.onchange = () => {
                 this.invalidateBarcodeComposerCaches();
@@ -41879,6 +42210,7 @@ renderRadar() {
                         this._barcodeComposerPreviewSelection = null;
                     }
                 }
+                this.invalidateBarcodeComposerCaches();
                 this.refreshBarcodeComposerPreview();
             };
         }
@@ -42509,6 +42841,344 @@ renderRadar() {
 
         if (failedLots.length) {
             const details = failedLots.map((msg) => `- ${msg}`).join('\n');
+            alert(`Export terminé avec avertissements.\n\n${details}`);
+        }
+    }
+
+    async downloadEtiquettePdf(svgPages, filename, options = {}) {
+        const pages = (Array.isArray(svgPages) ? svgPages : [svgPages])
+            .filter((page) => typeof page === 'string' && page.trim());
+
+        if (!pages.length) {
+            throw new Error('Aucune page d\'étiquette générée.');
+        }
+
+        if (typeof pdfMake === 'undefined') {
+            throw new Error('pdfMake est requis pour un export PDF purement vectoriel.');
+        }
+
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const preset = this.getEtiquetteLayoutPreset(layoutMode);
+        const mmToPt = (mm) => (Number(mm) || 0) * 72 / 25.4;
+        const pageWidthPt = mmToPt(preset.pageWidthMm);
+        const pageHeightPt = mmToPt(preset.pageHeightMm);
+
+        const docDef = {
+            pageSize: preset.pageSize,
+            pageOrientation: preset.pageOrientation,
+            pageMargins: [0, 0, 0, 0],
+            info: {
+                title: filename,
+                author: 'VALOBOIS',
+                subject: 'Export étiquettes',
+                creator: 'VALOBOIS',
+                producer: 'pdfmake'
+            },
+            content: pages.map((page, index) => ({
+                svg: String(page).replace(/^<\?xml[^>]*>\s*/i, ''),
+                width: pageWidthPt,
+                height: pageHeightPt,
+                pageBreak: index < pages.length - 1 ? 'after' : undefined
+            }))
+        };
+
+        await new Promise((resolve, reject) => {
+            try {
+                pdfMake.createPdf(docDef).download(filename, () => resolve());
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
+    async buildEtiquetteSvgPages(lotIndex, options = {}) {
+        const lot   = this.data.lots[lotIndex] || {};
+        const externalItems = Array.isArray(options && options.items) ? options.items : null;
+        const items = externalItems || this.buildEtiquettePieceItems(lot, lotIndex);
+        const layoutMode = this.normalizeEtiquetteLayoutMode(options && options.layoutMode);
+        const layoutPreset = this.getEtiquetteLayoutPreset(layoutMode);
+        const codeFormula = this.normalizeCodeFormula(options && options.codeFormula);
+        const codeFields = Array.isArray(options && options.codeFields)
+            ? options.codeFields
+            : ['id', 'essence', 'dimensions', 'orientation'];
+        const barcodeConfig = options && options.barcodeConfig ? options.barcodeConfig : this.getBarcodeComposerConfig();
+
+        if (!items.length) return [];
+
+        let firestorePiecesMap = options && options.firestorePiecesMap instanceof Map
+            ? options.firestorePiecesMap
+            : null;
+        if (!firestorePiecesMap && codeFormula === 'qr-online' && this.persistenceMode === 'cloud' && !externalItems) {
+            try {
+                firestorePiecesMap = await this.publishPiecesToFirestore(lot, lotIndex, items);
+            } catch (e) {
+                console.warn('Valobois QR: publication Firestore échouée, fallback local', e);
+            }
+        }
+
+        const qrByItemUid = new Map();
+        const cfg = this.getEtiquetteQrConfig();
+        const baseUrl = String(window.VALOBOIS_PUBLIC_URL || cfg.baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
+        const singlePx = 132;
+
+        for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            const itemLotIndex = Number.isInteger(item && item.sourceLotIndex) ? item.sourceLotIndex : lotIndex;
+            const itemPieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : i;
+            const itemLot = (this.data && this.data.lots && this.data.lots[itemLotIndex]) ? this.data.lots[itemLotIndex] : lot;
+            const firestorePieceId = firestorePiecesMap && firestorePiecesMap.get(item.uid);
+            const payload = this.buildCodeContent(codeFormula, item, {
+                fields: codeFields,
+                firestorePieceId,
+                lot: itemLot,
+                lotIndex: itemLotIndex,
+                pieceIndex: itemPieceIndex,
+                barcodeConfig,
+                baseUrl,
+                diagDate: this.data && this.data.meta ? this.data.meta.date : null
+            });
+
+            const hardLimit = this.getCodeFormulaMaxLength(codeFormula);
+            if ((codeFormula === 'barcode1d' || codeFormula === 'datamatrix') && String(payload || '').length > hardLimit) {
+                console.warn(`[Valobois] Contenu trop long pour ${codeFormula} (${String(payload || '').length} chars).`);
+            }
+
+            const svg = await this.generateCodeSvg(payload, codeFormula);
+            qrByItemUid.set(item.uid, {
+                mode: codeFormula,
+                svg: typeof svg === 'string' ? svg : ''
+            });
+        }
+
+        /* ── Page (mm) ── */
+        const PW = layoutPreset.pageWidthMm;
+        const PH = layoutPreset.pageHeightMm;
+        const PAGE_MARGIN = layoutPreset.pageMarginMm;
+        const COLS = layoutPreset.cols;
+        const ROWS = layoutPreset.rows;
+        const LABEL_W = layoutPreset.labelWidthMm;
+        const LABEL_H = layoutPreset.labelHeightMm;
+        const GAP = layoutPreset.gapMm;
+        const areaW = COLS * LABEL_W + (COLS - 1) * GAP;
+        const areaH = ROWS * LABEL_H + (ROWS - 1) * GAP;
+        const printableW = PW - (PAGE_MARGIN * 2);
+        const printableH = PH - (PAGE_MARGIN * 2);
+        const ox = PAGE_MARGIN + Math.max(0, (printableW - areaW) / 2);
+        const oy = PAGE_MARGIN + Math.max(0, (printableH - areaH) / 2);
+
+        /* ── Helpers ── */
+        const e = (s) => String(s || '')
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        const wrapText = (value, maxChars) => {
+            const text = String(value || '').trim();
+            if (!text) return [''];
+
+            const words = text.split(/\s+/).filter(Boolean);
+            const lines = [];
+            let current = '';
+
+            const pushCurrent = () => {
+                if (current) {
+                    lines.push(current);
+                    current = '';
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > maxChars) {
+                    pushCurrent();
+                    for (let i = 0; i < word.length; i += maxChars) {
+                        lines.push(word.slice(i, i + maxChars));
+                    }
+                    return;
+                }
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= maxChars) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+
+            pushCurrent();
+            return lines.length ? lines : [''];
+        };
+        const maxCharsForWidth = (widthMm, fontSize) => {
+            return Math.max(6, Math.floor(widthMm / (fontSize * 0.55)));
+        };
+        const drawRotatedCenterText = (out, opts) => {
+            const {
+                text,
+                cx,
+                cy,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                angle = -90,
+                fontWeight = '700'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
+        };
+        const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
+            const safeText = String(text || '').trim() || '—';
+            let size = baseSize;
+            while (size > minSize && safeText.length > maxCharsForWidth(widthMm, size)) {
+                size -= 0.05;
+            }
+            return Math.max(minSize, Number(size.toFixed(2)));
+        };
+        const drawWrappedLines = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill,
+                fontWeight = '400'
+            } = opts;
+            const lines = wrapText(text, maxCharsForWidth(widthMm, fontSize));
+            lines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + idx * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(line)}</text>`);
+            });
+            return y + lines.length * lineHeight;
+        };
+        const drawSingleLine = (out, opts) => {
+            const {
+                text,
+                x,
+                y,
+                widthMm,
+                baseFontSize,
+                minFontSize,
+                fill,
+                fontWeight = '400',
+                textAnchor = 'start'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
+            return y;
+        };
+        const buildQrVectorGroup = (svgString, x, y, sizeMm, fitMode = 'contain') => {
+            const raw = typeof svgString === 'string' ? svgString.trim() : '';
+            if (!raw) return '';
+
+            const inner = raw
+                .replace(/^<\?xml[^>]*>\s*/i, '')
+                .replace(/^<svg[^>]*>/i, '')
+                .replace(/<\/svg>\s*$/i, '')
+                .trim();
+            if (!inner) return '';
+
+            const viewBoxMatch = raw.match(/viewBox\s*=\s*"([^"]+)"/i);
+            let vbWidth = 1;
+            let vbHeight = 1;
+            if (viewBoxMatch && viewBoxMatch[1]) {
+                const parts = viewBoxMatch[1].trim().split(/\s+/).map((v) => parseFloat(v));
+                if (parts.length === 4 && Number.isFinite(parts[2]) && Number.isFinite(parts[3]) && parts[2] > 0 && parts[3] > 0) {
+                    vbWidth = parts[2];
+                    vbHeight = parts[3];
+                }
+            }
+
+            const preserveAspectRatio = fitMode === 'stretch' ? 'none' : 'xMidYMid meet';
+            // Sous-SVG viewporté: contain par défaut, stretch optionnel (Code128) pour remplir 30x30.
+            return `<svg x="${x}" y="${y}" width="${sizeMm}" height="${sizeMm}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="hidden" shape-rendering="crispEdges">${inner}</svg>`;
+        };
+        const drawLabeledWrappedValue = (out, opts) => {
+            const {
+                label,
+                value,
+                x,
+                y,
+                widthMm,
+                fontSize,
+                lineHeight,
+                fill
+            } = opts;
+
+            const labelText = String(label || '').trim();
+            const valueText = String(value || '').trim() || '—';
+            const maxChars = maxCharsForWidth(widthMm, fontSize);
+            const firstLineCap = Math.max(6, maxChars - labelText.length - 1);
+
+            const words = valueText.split(/\s+/).filter(Boolean);
+            const valueLines = [];
+            let current = '';
+            let currentCap = firstLineCap;
+
+            const pushCurrent = () => {
+                if (current) {
+                    valueLines.push(current);
+                    current = '';
+                    currentCap = maxChars;
+                }
+            };
+
+            words.forEach((word) => {
+                if (word.length > currentCap) {
+                    if (current) pushCurrent();
+                    if (word.length > maxChars) {
+                        for (let i = 0; i < word.length; i += maxChars) {
+                            valueLines.push(word.slice(i, i + maxChars));
+                        }
+                        currentCap = maxChars;
+                    } else {
+                        current = word;
+                    }
+                    return;
+                }
+
+                const candidate = current ? `${current} ${word}` : word;
+                if (candidate.length <= currentCap) {
+                    current = candidate;
+                } else {
+                    pushCurrent();
+                    current = word;
+                }
+            });
+            pushCurrent();
+
+            const firstValue = valueLines.shift() || '—';
+            out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" fill="${fill}"><tspan font-weight="700">${e(labelText)}</tspan><tspan font-weight="400"> ${e(firstValue)}</tspan></text>`);
+
+            valueLines.forEach((line, idx) => {
+                out.push(`<text x="${x}" y="${y + (idx + 1) * lineHeight}" font-family="${FF}" font-size="${fontSize}" font-weight="400" fill="${fill}">${e(line)}</text>`);
+            });
+
+            return y + (1 + valueLines.length) * lineHeight;
+        };
+        const formatOneDecimal = (value) => Number(value || 0).toLocaleString(getValoboisIntlLocale(), {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1
+        });
+
+        /* ── Données de page ── */
+        const lotRef = options && options.pageNoteLabel
+            ? String(options.pageNoteLabel)
+            : this.getPdfLotLabel(lot, lotIndex);
+
+        /* ── Orientation ── */
+        const OC = { reemploi: '#009E73', reutilisation: '#56B4E9', recyclage: '#E69F00', combustion: '#D55E00', none: '#CCCCCC' };
+
+        /* ── Typographie ── */
+        const FF = 'Roboto,Arial,sans-serif';
+        const baseF = { lot: 2.5, side: 2.45, orientation: 2.8, piece: 2.5, line: 2.1, origin: 1.55 };
+        const C  = { dark: '#111111', mid: '#333333', muted: '#555555', light: '#777777' };
+
+        /* ── Constructeur d'une étiquette 40×60 mm ── */
+        const buildLabel = (lx, ly, uid, item, qrData) => {
+            const R = 0;
+            const out = [];
+            const layoutScale = Math.min(LABEL_W / 40, LABEL_H / 60);
+            const su = (value) => value * layoutScale;
             const lotNameRaw = String(item.lotRef || '').trim();
             const lotName = lotNameRaw ? (lotNameRaw.toLowerCase().startsWith('lot') ? lotNameRaw : `Lot ${lotNameRaw}`) : 'Lot nnn';
             const pieceLabel = item.pieceLabel || '—';
@@ -42797,6 +43467,8 @@ renderRadar() {
 
         return svgPages;
     }
+
+
 
     async buildEtiquetteSvgPage(lotIndex, options = {}) {
         const pages = await this.buildEtiquetteSvgPages(lotIndex, options);
