@@ -72,13 +72,13 @@ Captured from the running app (the app opens with two example lots already fille
 
 | Tab | Screenshot |
 |-----|-----------|
-| Général | _assets/valobois-main-initial.png |
-| Général (English) | _assets/valobois-general-EN.png |
-| Lots | _assets/valobois-tab-lots.png |
-| Notation | _assets/valobois-tab-notation.png |
-| Analyse | _assets/valobois-tab-analyse.png |
-| Synthèse | _assets/valobois-tab-synthese.png |
-| Matrice | _assets/valobois-tab-matrice.png |
+| Général | [valobois-main-initial.png](_assets/valobois-main-initial.png) |
+| Général (English) | [valobois-general-EN.png](_assets/valobois-general-EN.png) |
+| Lots | [valobois-tab-lots.png](_assets/valobois-tab-lots.png) |
+| Notation | [valobois-tab-notation.png](_assets/valobois-tab-notation.png) |
+| Analyse | [valobois-tab-analyse.png](_assets/valobois-tab-analyse.png) |
+| Synthèse | [valobois-tab-synthese.png](_assets/valobois-tab-synthese.png) |
+| Matrice | [valobois-tab-matrice.png](_assets/valobois-tab-matrice.png) |
 
 ## Cross-cutting open questions worth triage
 
