@@ -21,6 +21,7 @@ conflit avec un serveur de dev déjà lancé sur 8080).
 | Fichier | Contenu |
 |---------|---------|
 | `general-tab.spec.js` | Sémantique du `tablist`, référence gisement dérivée, bascule « Type d'opération », slider « Statut de l'étude » + région live, indépendance des groupes Oui/Non/Inconnu, contacts, sections repliables, déverrouillage canton. |
+| `general-tab-behaviors.spec.js` | Persistance locale (champs + onglet actif survivent au rechargement), cascade géographique France (département → canton → conditions climatiques / termites / mérules + réinitialisation), alertes de complétude par section, flux de confirmation « Réinitialiser ». |
 | `general-tab-import.spec.js` | **Import d'une évaluation** (`fixtures/evaluation-general.json`) puis vérification de l'affichage de tous les champs de la tab Général. |
 | `fixtures/evaluation-general.json` | Charge utile d'export réelle (schemaVersion + meta + ui + 1 lot) rejouée par le vrai pipeline d'import. |
 
@@ -36,7 +37,11 @@ partageaient le même libellé :
   `role="group"` nommés ;
 - les sous-sections de contacts (Maîtrise d'ouvrage / d'œuvre / Entreprise de
   déconstruction) sont des `role="group"` reliés à leur titre `<h3>` via
-  `aria-labelledby`.
+  `aria-labelledby` ;
+- les boutons d'alerte de complétude (le triangle par section) ont reçu un nom
+  accessible (`data-i18n-aria-label`, ex. « Champs manquants : Diagnostiqueur »)
+  et exposent leur état résolu via `aria-disabled` — l'indicateur grisé
+  (`pointer-events: none`) est ainsi distinguable d'une alerte active.
 
 Sans ces noms, des libellés répétés comme « Structure / Nom » ou « Oui » étaient
 ambigus dans l'arbre d'accessibilité (et donc pour un lecteur d'écran).

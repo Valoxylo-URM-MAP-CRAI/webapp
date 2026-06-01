@@ -25611,35 +25611,22 @@ closeEvalOpModal() {
         const refInput = document.getElementById('inputReferenceGisement');
         if (refInput) refInput.value = this.getReferenceGisement(meta);
 
-        const operationReferenceAlertBtn = document.querySelector('[data-operation-reference-alert-btn]');
-        if (operationReferenceAlertBtn) {
-            operationReferenceAlertBtn.dataset.alertOperationReference = this.hasIncompleteOperationReferenceFields(meta) ? 'true' : 'false';
-        }
+        // Section completeness alerts. The dataset flag drives the visual badge;
+        // aria-disabled mirrors the resolved state so assistive tech (and tests)
+        // can tell a satisfied indicator from one that still flags missing fields.
+        const setSectionAlert = (selector, datasetKey, incomplete) => {
+            const btn = document.querySelector(selector);
+            if (!btn) return;
+            btn.dataset[datasetKey] = incomplete ? 'true' : 'false';
+            btn.setAttribute('aria-disabled', incomplete ? 'false' : 'true');
+        };
 
-        const diagnostiqueurAlertBtn = document.querySelector('[data-diagnostiqueur-alert-btn]');
-        if (diagnostiqueurAlertBtn) {
-            diagnostiqueurAlertBtn.dataset.alertDiagnostiqueur = this.hasIncompleteDiagnostiqueurFields(meta) ? 'true' : 'false';
-        }
-
-        const contactsAlertBtn = document.querySelector('[data-contacts-alert-btn]');
-        if (contactsAlertBtn) {
-            contactsAlertBtn.dataset.alertContacts = this.hasIncompleteContactsFields(meta) ? 'true' : 'false';
-        }
-
-        const contexteTechniqueAlertBtn = document.querySelector('[data-contexte-technique-alert-btn]');
-        if (contexteTechniqueAlertBtn) {
-            contexteTechniqueAlertBtn.dataset.alertContexteTechnique = this.hasIncompleteContexteTechniqueFields(meta) ? 'true' : 'false';
-        }
-
-        const diagnostiqueurPemdAlertBtn = document.querySelector('[data-diagnostiqueur-pemd-alert-btn]');
-        if (diagnostiqueurPemdAlertBtn) {
-            diagnostiqueurPemdAlertBtn.dataset.alertDiagnostiqueurPemd = this.hasIncompleteDiagnostiqueurPemdFields(meta) ? 'true' : 'false';
-        }
-
-        const diagnosticPemdVisiteAlertBtn = document.querySelector('[data-diagnostic-pemd-visite-alert-btn]');
-        if (diagnosticPemdVisiteAlertBtn) {
-            diagnosticPemdVisiteAlertBtn.dataset.alertDiagnosticPemdVisite = this.hasIncompleteDiagnosticPemdVisiteFields(meta) ? 'true' : 'false';
-        }
+        setSectionAlert('[data-operation-reference-alert-btn]', 'alertOperationReference', this.hasIncompleteOperationReferenceFields(meta));
+        setSectionAlert('[data-diagnostiqueur-alert-btn]', 'alertDiagnostiqueur', this.hasIncompleteDiagnostiqueurFields(meta));
+        setSectionAlert('[data-contacts-alert-btn]', 'alertContacts', this.hasIncompleteContactsFields(meta));
+        setSectionAlert('[data-contexte-technique-alert-btn]', 'alertContexteTechnique', this.hasIncompleteContexteTechniqueFields(meta));
+        setSectionAlert('[data-diagnostiqueur-pemd-alert-btn]', 'alertDiagnostiqueurPemd', this.hasIncompleteDiagnostiqueurPemdFields(meta));
+        setSectionAlert('[data-diagnostic-pemd-visite-alert-btn]', 'alertDiagnosticPemdVisite', this.hasIncompleteDiagnosticPemdVisiteFields(meta));
 
         // Sync boutons toggle meta
         [
