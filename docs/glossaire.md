@@ -59,7 +59,7 @@ the documentation. French term, English gloss, and a one-line meaning. See the
 | Conditionnement | Packaging | How the wood is bundled (loose/vrac, pallet, big bag, skip, racks…). |
 | Protection | Protection | Protective measures for storage/transport. |
 | Débit | Sawing / conversion | How the wood is cut and dimensioned. |
-| Statut de l'étude | Study status | Pré-diagnostic → En cours → Finalisé → Révision → Clôturé. |
+| Statut de l'étude | Study status | Pré-diagnostic → En cours → Finalisé → Révision → Cloturé. |
 
 ## Wood quality grades
 

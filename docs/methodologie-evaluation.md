@@ -106,7 +106,7 @@ family's assessment.
 the **study status**:
 
 - **Pré-diagnostic / En cours** — partial confidence is tolerated (Forte is green, Moyenne is orange).
-- **Finalisé / Révision / Clôturé** — only **Forte** stays green; anything less is flagged red.
+- **Finalisé / Révision / Cloturé** — only **Forte** stays green; anything less is flagged red.
 
 In other words, a finalised study is expected to rest on fully-confident assessments.
 

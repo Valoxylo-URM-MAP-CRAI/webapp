@@ -23,7 +23,7 @@ Le diagnostiqueur ouvre une nouvelle évaluation et renseigne le nom de l'opéra
 
 1. **Given** une évaluation vide, **When** l'utilisateur saisit « Halle Bois » comme opération et fixe la date au 01/05/2026, **Then** la « Référence gisement » (champ en lecture seule) affiche une référence dérivée du nom et de la date (le nom mis en majuscules et sans accents, la date sans séparateurs).
 2. **Given** un nom d'opération vide, **When** la référence est calculée, **Then** elle retombe sur une valeur par défaut signalant l'absence de nom et de date.
-3. **Given** le curseur de statut d'étude (un curseur à 5 positions), **When** l'utilisateur le déplace, **Then** le statut enregistré prend l'une des valeurs ordonnées « Pré-diagnostic », « En cours », « Finalisé », « Révision », « Clôturé », la position correspondante du curseur est mise en évidence, et un texte d'aide propre à cette position s'affiche.
+3. **Given** le curseur de statut d'étude (un curseur à 5 positions), **When** l'utilisateur le déplace, **Then** le statut enregistré prend l'une des valeurs ordonnées « Pré-diagnostic », « En cours », « Finalisé », « Révision », « Cloturé », la position correspondante du curseur est mise en évidence, et un texte d'aide propre à cette position s'affiche.
 4. **Given** le champ libre « Version de l'évaluation » (exemple proposé : « V1, V2, Pré-diagnostic »), **When** l'utilisateur saisit un libellé, **Then** il est conservé tel quel, sans contrôle de format (texte libre).
 
 ### User Story 2 - Renseigner le diagnostiqueur et le bloc PEMD (Priority: P1)
@@ -68,7 +68,7 @@ Le diagnostiqueur renseigne les coordonnées de la maîtrise d'ouvrage, de la ma
 - **FR-001**: Le système DOIT présenter l'onglet Général sous forme de sections repliables couvrant l'identité de l'opération, les contacts et le contexte technique.
 - **FR-002**: Le système DOIT enregistrer chaque champ saisi dès qu'il change.
 - **FR-003**: Le système DOIT calculer la « Référence gisement » en lecture seule à partir du nom de l'opération (mis en majuscules, sans accents, caractères non alphanumériques remplacés par un séparateur) et de la date (sans séparateurs), avec des valeurs par défaut lorsque le nom ou la date manquent.
-- **FR-004**: Le système DOIT présenter le statut d'étude sous forme d'un curseur à 5 positions correspondant, dans l'ordre, à « Pré-diagnostic », « En cours », « Finalisé », « Révision », « Clôturé ».
+- **FR-004**: Le système DOIT présenter le statut d'étude sous forme d'un curseur à 5 positions correspondant, dans l'ordre, à « Pré-diagnostic », « En cours », « Finalisé », « Révision », « Cloturé ».
 - **FR-005**: Le système DOIT afficher un texte d'aide propre à chaque position du statut d'étude.
 - **FR-006**: Le système DOIT fixer le statut par défaut à « Pré-diagnostic » pour une évaluation nouvelle ou vide.
 - **FR-007**: Le système DOIT conserver la version de l'évaluation comme texte libre, sans contrôle de format.
@@ -82,7 +82,7 @@ Le diagnostiqueur renseigne les coordonnées de la maîtrise d'ouvrage, de la ma
 ### Key Entities *(include if data)*
 
 - **Informations de l'opération (méta)**: regroupent le nom de l'opération, la date, la version de l'évaluation, le statut d'étude, le numéro de révision (automatique), la localisation libre et la localisation géographique (voir `006`). Contacts : diagnostiqueur, maîtrise d'ouvrage, maîtrise d'œuvre, entreprise de déconstruction. Diagnostiqueur PEMD : identité, coordonnées, SIRET, assurance et dates de validité, compétences justifiables. Visite PEMD : date de visite, parties visitées / non visitées et motifs, vices apparents, précautions de démolition. Contexte technique : type de bâtiment, période de construction, date / permis de construire, phase d'intervention, conditionnement, protection, opérations passées, diagnostics, documents, type d'opération CERFA, surfaces et nombres de bâtiments (démolition / rénovation), dates de début et de fin de chantier.
-- **Valeurs de statut d'étude**: liste ordonnée « Pré-diagnostic / En cours / Finalisé / Révision / Clôturé ».
+- **Valeurs de statut d'étude**: liste ordonnée « Pré-diagnostic / En cours / Finalisé / Révision / Cloturé ».
 - **Suggestions de type de bâtiment**: une trentaine de libellés français regroupés (habitation, tertiaire, industriel, agricole, logistique, patrimoine, « Autre »).
 - **Suggestions de phase d'intervention**: Pré-diagnostic, Diagnostic in situ, Curage, Dépose sélective, Démontage, Tri sur site, Stockage temporaire.
 - **Suggestions de situation de lot**: Toiture, Murs, Plancher, Revêtement intérieur / extérieur, Structure libre intérieur / extérieur, Conditionné (utilisées dans les lignes de lot / pièce, pas dans ce bloc).
