@@ -128,7 +128,7 @@ For the named species, the app suggests a default rarity (*rareté*) and provena
 - `js/data/valobois-matrice-vecteurs-rejets.js`
 - `js/data/france-departements.js`, `js/data/france-cantons.js`
 - `js/data/termes-bois.js`
-- `js/data/datalist-conditionnement.js`, `datalist-phase-intervention.js`, `datalist-protection.js`, `datalist-situations-lot.js`, `datalist-type-batiment.js`
+- `js/data/datalist-conditionnement.js`, `js/data/datalist-phase-intervention.js`, `js/data/datalist-protection.js`, `js/data/datalist-situations-lot.js`, `js/data/datalist-type-batiment.js`
 - `js/lib/datalist-populate.js`, `js/lib/valobois-formatters.js`
 - `js/app/valobois-app.js`
 - `scripts/generate-rarete-provenance-data.mjs`, `scripts/generate-climate-aliases.mjs`, `scripts/import-france-geojson.mjs`
