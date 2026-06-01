@@ -35,18 +35,3 @@ test('Mode Hybride: selecting "Autre" keeps the input empty for manual typing', 
     'Expected hybrid mode to treat "Autre" as a trigger and clear the input for manual entry.'
   );
 });
-
-test('Etiqueter labels: linked option set title is prioritized over fallback Information n label', () => {
-  const helperPattern = /getBarcodeComposerCustomInfoDisplayLabel\(entry\) \{[\s\S]*?const optionSetId = String\(entry\.optionSetId \|\| ''\)\.trim\(\);[\s\S]*?const linkedSet = this\.getCustomInfoOptionSetById\(optionSetId, this\.data && this\.data\.ui\);[\s\S]*?return linkedLabel \|\| fallbackLabel;[\s\S]*?\}/;
-  const usagePattern = /const displayLabel = this\.getBarcodeComposerCustomInfoDisplayLabel\(entry\) \|\| label;/;
-  assert.match(
-    appSource,
-    helperPattern,
-    'Expected a helper that resolves display label from linked option set title with fallback to entry label.'
-  );
-  assert.match(
-    appSource,
-    usagePattern,
-    'Expected getBarcodeComposerCustomInfosEntries to use the resolved display label.'
-  );
-});

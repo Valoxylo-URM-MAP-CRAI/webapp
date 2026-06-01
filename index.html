@@ -5394,14 +5394,22 @@
                                             <option value="complet">Complet</option>
                                         </select>
                                     </label>
-                                    <label class="barcode-composer__custom-field">
-                                        <span data-i18n="editor.common.barcodeCustomLabel">Explication du code</span>
-                                        <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Ex: lot premium" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
-                                    </label>
-                                    <label class="barcode-composer__custom-field">
-                                        <span data-i18n="editor.common.barcodeCustomCode">Code à ajouter</span>
-                                        <input type="text" id="bcCustomCode" maxlength="32" placeholder="Ex: X9" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
-                                    </label>
+                                </div>
+                                <div class="barcode-composer__lot-codes" id="bcLotCodesBlock">
+                                    <div class="barcode-composer__lot-codes-title">Compléments d'informations dans l'étiquettage</div>
+                                    <div class="barcode-composer__lot-codes-inputs">
+                                        <label class="barcode-composer__custom-field">
+                                            <span data-i18n="editor.common.barcodeCustomLabel">Description du complément d'information</span>
+                                            <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Ex: lot premium" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
+                                        </label>
+                                        <label class="barcode-composer__custom-field">
+                                            <span data-i18n="editor.common.barcodeCustomCode">Information complémentaire</span>
+                                            <input type="text" id="bcCustomCode" maxlength="32" placeholder="Ex: X9" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
+                                        </label>
+                                        <button type="button" class="piece-duplicate-btn barcode-composer__lot-codes-add" id="bcAddLotCodeBtn" aria-label="Ajouter un complément d'information" title="Ajouter un complément d'information">+</button>
+                                    </div>
+                                    <div class="barcode-composer__lot-codes-validation" id="bcLotCodesValidation" role="status" aria-live="polite"></div>
+                                    <div class="barcode-composer__lot-codes-list" id="bcLotCodesList"></div>
                                 </div>
                                 <label class="barcode-composer__custom-field barcode-composer__custom-field--wide">
                                     <span data-i18n="editor.common.barcodeFooterText">Texte de bas de page</span>

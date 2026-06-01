@@ -12142,6 +12142,174 @@ body.day-mode .lot-group--collapsible summary:hover {
             margin-top: 0.1rem;
         }
 
+        #etiqueterBackdrop .barcode-composer__lot-codes {
+            --lot-codes-control-size: 2.1rem;
+            margin-top: 0.35rem;
+            margin-bottom: 0.55rem;
+            padding: 0.5rem;
+            border: 1px solid #c8cfda;
+            border-radius: 6px;
+            background: linear-gradient(180deg, #f8fafc 0%, #f2f5f9 100%);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.75);
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-title {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #1f2a37;
+            margin-bottom: 0.22rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-hint {
+            font-size: 0.68rem;
+            color: var(--color-text-muted, #666);
+            margin-bottom: 0.25rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-usage {
+            font-size: 0.68rem;
+            color: #3b495c;
+            margin-bottom: 0.35rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-inputs {
+            display: grid;
+            grid-template-columns: 1fr 1fr var(--lot-codes-control-size);
+            gap: 0.45rem;
+            margin-bottom: 0.35rem;
+            align-items: end;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-inputs .barcode-composer__custom-field input {
+            height: var(--lot-codes-control-size);
+            min-height: var(--lot-codes-control-size);
+            box-sizing: border-box;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-validation {
+            font-size: 0.68rem;
+            margin-bottom: 0.35rem;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #445267;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-validation.is-ok {
+            color: #1d6b45;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-validation.is-alert {
+            color: #8f2c2c;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-list {
+            display: grid;
+            gap: 0.3rem;
+            max-height: 7.2rem;
+            overflow-y: auto;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-empty {
+            font-size: 0.72rem;
+            color: var(--color-text-muted, #666);
+            font-style: italic;
+            padding: 0.2rem 0.1rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-item {
+            display: grid;
+            grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) var(--lot-codes-control-size) var(--lot-codes-control-size);
+            align-items: end;
+            gap: 0.4rem;
+            padding: 0;
+            border: 0;
+            border-radius: 0;
+            background: transparent;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-explanation {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            min-height: var(--lot-codes-control-size);
+            padding: 0 0.05rem 0 0.15rem;
+            font-size: 0.76rem;
+            font-weight: 500;
+            color: #1f2937;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-field {
+            min-width: 0;
+            display: flex;
+            align-items: center;
+            height: var(--lot-codes-control-size);
+            min-height: var(--lot-codes-control-size);
+            padding: 0.2rem 0.45rem;
+            background: #f4f5f7;
+            border: 1px solid #d0d0d0;
+            border-radius: var(--radius-sm, 4px);
+            box-sizing: border-box;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-field-value {
+            min-width: 0;
+            font-size: 0.76rem;
+            color: var(--color-text, #111);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-edit,
+        #etiqueterBackdrop .barcode-composer__lot-codes-remove {
+            border: none;
+            border-radius: var(--radius-base, 6px);
+            background: var(--bleu-crai);
+            color: var(--blanc-pur);
+            width: var(--lot-codes-control-size);
+            min-width: var(--lot-codes-control-size);
+            height: var(--lot-codes-control-size);
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.05rem;
+            line-height: 1;
+            padding: 0;
+            box-shadow: none;
+            align-self: end;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-edit:hover,
+        #etiqueterBackdrop .barcode-composer__lot-codes-remove:hover {
+            background-color: #162e72;
+            color: var(--blanc-pur);
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-add {
+            width: var(--lot-codes-control-size);
+            min-width: var(--lot-codes-control-size);
+            height: var(--lot-codes-control-size);
+            padding: 0;
+            font-size: 1.05rem;
+            line-height: 1;
+            justify-self: stretch;
+            align-self: end;
+            border: none;
+            background-color: var(--bleu-crai);
+            color: var(--blanc-pur);
+            box-shadow: none;
+        }
+
+        #etiqueterBackdrop .barcode-composer__lot-codes-add:hover:not(:disabled) {
+            background-color: #162e72;
+            color: var(--blanc-pur);
+        }
+
         #etiqueterBackdrop .barcode-composer__custom-field input,
         #etiqueterBackdrop .barcode-composer__custom-field select {
             width: 100%;
@@ -12267,6 +12435,37 @@ body.day-mode .lot-group--collapsible summary:hover {
 
             #etiqueterBackdrop .barcode-composer__custom {
                 grid-template-columns: 1fr;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes-inputs {
+                grid-template-columns: 1fr;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes-add {
+                width: 100%;
+                min-width: 0;
+                height: auto;
+                min-height: 2rem;
+                font-size: 0.9rem;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes-item {
+                grid-template-columns: 1fr;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes-explanation {
+                min-height: auto;
+                padding: 0.05rem 0.05rem 0.05rem 0;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes-edit,
+            #etiqueterBackdrop .barcode-composer__lot-codes-remove {
+                width: 100%;
+                min-width: 0;
+            }
+
+            #etiqueterBackdrop .barcode-composer__lot-codes {
+                margin-top: 0.2rem;
             }
         }
  

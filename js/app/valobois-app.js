@@ -322,6 +322,36 @@ const DEFAULT_PSET_CONFIG = {
                     }).length;
                     return count > 0 ? count : null;
                 }
+            },
+            codesLotAjoutes: {
+                enabled: true,
+                label: 'Codes lot ajoutés',
+                getValue: (piece, lot) => {
+                    const entries = Array.isArray(lot?.allotissement?.lotCustomCodes)
+                        ? lot.allotissement.lotCustomCodes
+                        : [];
+                    const segments = entries
+                        .map((entry) => {
+                            if (!entry) return null;
+                            const label = String(entry.label || '').trim();
+                            const code = String(entry.code || '').trim();
+                            if (!code) return null;
+                            return label ? `${label}: ${code}` : code;
+                        })
+                        .filter(Boolean);
+                    return segments.length ? segments.join(' | ') : null;
+                }
+            },
+            nombreCodesLotAjoutes: {
+                enabled: true,
+                label: 'Nombre codes lot ajoutés',
+                getValue: (piece, lot) => {
+                    const entries = Array.isArray(lot?.allotissement?.lotCustomCodes)
+                        ? lot.allotissement.lotCustomCodes
+                        : [];
+                    const count = entries.filter((entry) => String(entry && entry.code || '').trim() !== '').length;
+                    return count > 0 ? count : null;
+                }
             }
         }
     },
@@ -3894,6 +3924,7 @@ class ValoboisApp {
                 multiple: null,
             };
         }
+        this.ensureLotCustomCodes(lot);
     }
 
     createEmptyLot(index) {
@@ -3948,6 +3979,7 @@ class ValoboisApp {
                     single: null,
                     multiple: null,
                 },
+                lotCustomCodes: [],
                 madLongueur: null,
                 madLargeur: null,
                 madEpaisseur: null,
@@ -4215,6 +4247,61 @@ class ValoboisApp {
 
     createCustomInfoId(prefix = 'ci') {
         return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+    }
+
+    normalizeLotCustomCodes(entries) {
+        const source = Array.isArray(entries)
+            ? entries
+            : (entries == null ? [] : [entries]);
+        const normalized = [];
+
+        source.forEach((entry, idx) => {
+            let label = '';
+            let code = '';
+            let id = '';
+
+            if (typeof entry === 'string' || typeof entry === 'number') {
+                code = String(entry || '').trim();
+            } else if (entry && typeof entry === 'object') {
+                id = String(entry.id || '').trim();
+                label = String(entry.label || entry.name || entry.title || '').trim();
+                code = String(entry.code || entry.value || entry.text || '').trim();
+                if (!code && !label) {
+                    code = String(entry.raw || '').trim();
+                }
+            }
+
+            if (!code) return;
+            const finalLabel = label || `Code lot ${idx + 1}`;
+            normalized.push({
+                id: id || this.createCustomInfoId('lot-code'),
+                label: finalLabel,
+                code
+            });
+        });
+
+        return normalized;
+    }
+
+    ensureLotCustomCodes(lot) {
+        if (!lot || !lot.allotissement || typeof lot.allotissement !== 'object') return [];
+        const normalized = this.normalizeLotCustomCodes(lot.allotissement.lotCustomCodes);
+        lot.allotissement.lotCustomCodes = normalized;
+        return normalized;
+    }
+
+    formatLotCustomCodesForExport(lot) {
+        const entries = this.ensureLotCustomCodes(lot);
+        if (!entries.length) return '';
+        return entries
+            .map((entry) => {
+                const label = String(entry.label || '').trim();
+                const code = String(entry.code || '').trim();
+                if (!code) return '';
+                return label ? `${label}: ${code}` : code;
+            })
+            .filter(Boolean)
+            .join(' | ');
     }
 
     normalizeCustomInfoKey(value) {
@@ -40886,7 +40973,8 @@ renderRadar() {
             .filter((entry) => entry && entry.label)
             .slice(0, 4)
             .map((entry) => {
-                const labelToken = this.abbreviateCompactToken(entry.label, 3);
+                const displayLabel = this.getBarcodeComposerCustomInfoDisplayLabel(entry);
+                const labelToken = this.abbreviateCompactToken(displayLabel, 3);
                 const values = Array.isArray(entry.values)
                     ? entry.values.map((value) => String(value || '').trim()).filter(Boolean)
                     : [];
@@ -40900,47 +40988,99 @@ renderRadar() {
         return tokens.join(',').slice(0, 64);
     }
 
-    getBarcodeComposerCustomInfosEntries(pieceLike) {
-        const entries = this.ensurePieceCustomInfos(pieceLike);
-        if (!entries.length) return [];
+    getBarcodeComposerCustomInfoDisplayLabel(entry) {
+        if (!entry || typeof entry !== 'object') return '';
+        const fallbackLabel = String(entry.label || '').trim();
+        const optionSetId = String(entry.optionSetId || '').trim();
+        if (!optionSetId) return fallbackLabel;
+        const linkedSet = this.getCustomInfoOptionSetById(optionSetId, this.data && this.data.ui);
+        const linkedLabel = String(linkedSet && linkedSet.label || '').trim();
+        return linkedLabel || fallbackLabel;
+    }
 
+    getBarcodeComposerCustomInfosEntries(pieceLike) {
         const normalized = [];
         const usedKeys = new Set();
 
-        entries.forEach((entry, idx) => {
+        const pushEntry = (entry, idx, scope = 'piece') => {
             if (!entry || typeof entry !== 'object') return;
             const label = String(entry.label || '').trim();
             if (!label) return;
+            const displayLabel = this.getBarcodeComposerCustomInfoDisplayLabel(entry) || label;
 
             const values = Array.isArray(entry.values)
                 ? entry.values.map((value) => String(value || '').trim()).filter(Boolean)
                 : [];
-            const labelToken = this.abbreviateCompactToken(label, 3);
+            const labelToken = this.abbreviateCompactToken(displayLabel, 3);
             const firstValueToken = values.length ? this.abbreviateCompactToken(values[0], 6) : '';
-            const compact = labelToken && firstValueToken ? `${labelToken}=${firstValueToken}` : '';
-            const complete = values.length ? `${label}: ${values.join(', ')}` : '';
+            const derivedCompact = labelToken && firstValueToken ? `${labelToken}=${firstValueToken}` : '';
+            const derivedComplete = values.length ? `${displayLabel}: ${values.join(', ')}` : '';
+            const explicitCompact = String(entry.compact || '').trim();
+            const explicitComplete = String(entry.complete || '').trim();
+            const explicitPreview = String(entry.preview || '').trim();
+            const compact = explicitCompact || derivedCompact;
+            const complete = explicitComplete || derivedComplete;
+            const preview = explicitPreview || compact || complete;
 
+            const providedKey = String(entry.key || '').trim();
             const keyBase = String(
                 entry.labelKey
                 || this.normalizeCustomInfoKey(label)
                 || `ci-${idx + 1}`
             ).trim() || `ci-${idx + 1}`;
-            let key = `customInfo:${keyBase}`;
+            let key = providedKey || `customInfo:${keyBase}`;
             let suffix = 2;
             while (usedKeys.has(key)) {
-                key = `customInfo:${keyBase}-${suffix}`;
+                key = providedKey
+                    ? `${providedKey}-${suffix}`
+                    : `customInfo:${keyBase}-${suffix}`;
                 suffix += 1;
             }
             usedKeys.add(key);
 
             normalized.push({
                 key,
-                label,
+                label: displayLabel,
                 compact,
                 complete,
-                hasValue: !!(compact || complete)
+                preview,
+                hasValue: !!(entry.hasValue || compact || complete),
+                scope
+            });
+        };
+
+        const entries = this.ensurePieceCustomInfos(pieceLike);
+        entries.forEach((entry, idx) => pushEntry(entry, idx, 'piece'));
+
+        const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+        const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
+        const lotCodeEntries = [];
+        const seenLotCodeKeys = new Set();
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+            if (!lot) return;
+            this.ensureLotCustomCodes(lot).forEach((entry) => {
+                const id = String(entry && entry.id || '').trim();
+                const label = String(entry && entry.label || '').trim();
+                const code = String(entry && entry.code || '').trim();
+                if (!id || !code) return;
+                const key = `customInfo:lotCode:${id}`;
+                if (seenLotCodeKeys.has(key)) return;
+                seenLotCodeKeys.add(key);
+                lotCodeEntries.push({
+                    key,
+                    label: label || 'Code lot',
+                    compact: '',
+                    complete: label ? `${label}: ${code}` : code,
+                    preview: code,
+                    hasValue: true,
+                    scope: 'lot'
+                });
             });
         });
+
+        lotCodeEntries.forEach((entry, idx) => pushEntry(entry, idx + normalized.length, 'lot'));
 
         return normalized;
     }
@@ -40974,7 +41114,9 @@ renderRadar() {
                             label: String(entry.label || '').trim() || key,
                             compact: String(entry.compact || '').trim(),
                             complete: String(entry.complete || '').trim(),
-                            hasValue: !!entry.hasValue
+                            preview: String(entry.preview || entry.compact || entry.complete || '').trim(),
+                            hasValue: !!entry.hasValue,
+                            scope: entry && entry.scope === 'lot' ? 'lot' : 'piece'
                         };
                         byKey.set(key, normalized);
                         merged.push(normalized);
@@ -40984,7 +41126,11 @@ renderRadar() {
                     const existing = byKey.get(key);
                     if (!existing.compact && entry.compact) existing.compact = String(entry.compact || '').trim();
                     if (!existing.complete && entry.complete) existing.complete = String(entry.complete || '').trim();
+                    if (!existing.preview && (entry.preview || entry.compact || entry.complete)) {
+                        existing.preview = String(entry.preview || entry.compact || entry.complete || '').trim();
+                    }
                     existing.hasValue = !!(existing.hasValue || entry.hasValue);
+                    if (entry && entry.scope === 'lot') existing.scope = 'lot';
                 });
             });
         });
@@ -41011,13 +41157,24 @@ renderRadar() {
         const keys = Object.keys(selected);
         if (!keys.length) return '';
 
+        const normalizedFormat = String(format || '').trim().toLowerCase() === 'complete' ? 'complete' : 'compact';
         const tokens = entries
             .filter((entry) => selected[entry.key])
-            .map((entry) => entry.complete || entry.compact)
+            .map((entry) => {
+                if (!entry || typeof entry !== 'object') return '';
+                if (entry.scope === 'lot') {
+                    // Les codes lot n'ont pas de variante compacte: on force le rendu complet.
+                    return String(entry.complete || '').trim();
+                }
+                if (normalizedFormat === 'complete') {
+                    return String(entry.complete || entry.compact || '').trim();
+                }
+                return String(entry.compact || entry.complete || '').trim();
+            })
             .filter(Boolean);
 
         if (!tokens.length) return '';
-        return tokens.join(' ; ');
+        return tokens.join(' | ');
     }
 
     formatBarcodeComposerCustomInfosComplete(pieceLike) {
@@ -41027,11 +41184,12 @@ renderRadar() {
         const segments = entries
             .filter((entry) => entry && entry.label)
             .map((entry) => {
+                const displayLabel = this.getBarcodeComposerCustomInfoDisplayLabel(entry) || String(entry.label || '').trim();
                 const values = Array.isArray(entry.values)
                     ? entry.values.map((value) => String(value || '').trim()).filter(Boolean)
                     : [];
                 if (!values.length) return '';
-                return `${entry.label}: ${values.join(', ')}`;
+                return `${displayLabel}: ${values.join(', ')}`;
             })
             .filter(Boolean);
 
@@ -41432,6 +41590,7 @@ renderRadar() {
             const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
             const completeSegments = [`Lot ${lotNum}`, `Pièce ${pieceNum}`];
             const selectedCustomInfosComplete = this.formatBarcodeComposerCustomInfosBySelection(pieceSource, cfg.customInfosSelection, 'complete');
+            let selectedCustomInfosCompleteAdded = false;
             const add = (label, value) => {
                 const cleaned = String(value || '').trim();
                 if (cleaned) completeSegments.push(`${label} : ${cleaned}`);
@@ -41525,6 +41684,7 @@ renderRadar() {
                     case 'customInfos':
                         if (selectedCustomInfosComplete) {
                             add('Informations personnalisées', selectedCustomInfosComplete);
+                            selectedCustomInfosCompleteAdded = true;
                         } else {
                             add('Informations personnalisées', this.formatBarcodeComposerCustomInfosComplete(pieceSource) || token);
                         }
@@ -41541,8 +41701,10 @@ renderRadar() {
                 }
             });
 
-            const customCodeRaw = String(cfg.customCode || '').trim().slice(0, 32);
-            if (customCodeRaw) add('Code ajouté', customCodeRaw);
+            if (selectedCustomInfosComplete && !selectedCustomInfosCompleteAdded) {
+                add('Informations personnalisées', selectedCustomInfosComplete);
+            }
+
             return completeSegments.join(' | ');
         }
 
@@ -41561,11 +41723,6 @@ renderRadar() {
 
         if (selectedCustomInfosCompact) {
             segments.push(selectedCustomInfosCompact);
-        }
-
-        const customCode = String(cfg.customCode || '').trim().replace(/\s+/g, '').slice(0, 32);
-        if (customCode) {
-            segments.push(customCode);
         }
 
         return segments.join('|');
@@ -41924,6 +42081,9 @@ renderRadar() {
         const payloadFormatEl = document.getElementById('bcPayloadFormat');
         const previewPieceEl = document.getElementById('bcPreviewPiece');
         const essenceModeEl = document.getElementById('bcEssenceMode');
+        const addLotCodeBtn = document.getElementById('bcAddLotCodeBtn');
+        const lotCodesListEl = document.getElementById('bcLotCodesList');
+        const lotCodesValidationEl = document.getElementById('bcLotCodesValidation');
 
         const currentState = this.getBarcodeComposerConfig();
         const getRuntimeCustomInfosSelection = () => this.normalizeBarcodeComposerCustomInfosSelection(
@@ -41984,38 +42144,52 @@ renderRadar() {
                 previewByKey.set(key, entry);
             });
 
-            const dynamicEntries = Array.isArray(entriesSource) && entriesSource.length ? entriesSource : previewEntries;
+            let dynamicEntries = Array.isArray(entriesSource) && entriesSource.length ? entriesSource.slice() : previewEntries.slice();
+            const pieceEntries = dynamicEntries.filter((entry) => entry && entry.scope !== 'lot');
+            const lotEntries = dynamicEntries.filter((entry) => entry && entry.scope === 'lot');
 
             baseRow.style.display = dynamicEntries.length ? 'none' : '';
             if (!dynamicEntries.length) return;
 
             const sectionLotTitle = composer.querySelector('.barcode-composer__section-title[data-i18n="editor.common.barcodeSectionLot"]');
 
-            // Séparateur "Données personnalisées"
-            const ciSeparator = document.createElement('div');
-            ciSeparator.className = 'barcode-composer__section-title';
-            ciSeparator.dataset.dynamicField = 'customInfo';
-            ciSeparator.textContent = 'Données personnalisées';
-            if (sectionLotTitle) {
-                sectionLotTitle.parentNode.insertBefore(ciSeparator, sectionLotTitle);
-            } else {
-                baseRow.parentNode.insertBefore(ciSeparator, baseRow.nextSibling);
-            }
+            const buildTitle = (text) => {
+                const title = document.createElement('div');
+                title.className = 'barcode-composer__section-title';
+                title.dataset.dynamicField = 'customInfo';
+                title.textContent = text;
+                return title;
+            };
 
-            dynamicEntries.forEach((entry, idx) => {
+            const buildRow = (entry, idx) => {
                 const row = document.createElement('label');
                 row.className = 'barcode-composer__field';
                 row.dataset.field = entry.key;
                 row.dataset.dynamicField = 'customInfo';
-                row.dataset.scope = 'piece';
+                row.dataset.scope = entry && entry.scope === 'lot' ? 'lot' : 'piece';
 
                 const runtimeSelection = getRuntimeCustomInfosSelection();
                 const checked = !!runtimeSelection[entry.key];
                 const previewEntry = previewByKey.get(entry.key);
-                const previewText = (previewEntry && (previewEntry.complete || previewEntry.compact))
-                    || entry.complete
-                    || entry.compact
-                    || '—';
+                const extractLotCodeFromComplete = (value) => {
+                    const text = String(value || '').trim();
+                    if (!text) return '';
+                    const match = text.match(/^[^:]+:\s*(.+)$/u);
+                    return match && match[1] ? String(match[1]).trim() : text;
+                };
+                const previewText = entry && entry.scope === 'lot'
+                    ? (String(entry.preview || '').trim()
+                        || String(previewEntry && previewEntry.preview || '').trim()
+                        || String(entry.compact || '').trim()
+                        || String(previewEntry && previewEntry.compact || '').trim()
+                        || extractLotCodeFromComplete(entry.complete)
+                        || extractLotCodeFromComplete(previewEntry && previewEntry.complete)
+                        || '—')
+                    : ((previewEntry && (previewEntry.preview || previewEntry.compact || previewEntry.complete))
+                        || entry.preview
+                        || entry.complete
+                        || entry.compact
+                        || '—');
                 const availabilityTip = `Aucune valeur renseignée pour « ${entry.label} ».`;
 
                 row.innerHTML = [
@@ -42028,9 +42202,11 @@ renderRadar() {
                 const check = row.querySelector('.barcode-composer__check');
                 const label = row.querySelector('.barcode-composer__label');
                 // Priorite a la piece exemple: si la valeur est visible dans l'aperçu, la case reste cochable.
-                const isAvailable = previewEntry && typeof previewEntry === 'object'
-                    ? !!previewEntry.hasValue
-                    : !!entry.hasValue;
+                const isAvailable = entry && entry.scope === 'lot'
+                    ? true
+                    : (previewEntry && typeof previewEntry === 'object'
+                        ? !!previewEntry.hasValue
+                        : !!entry.hasValue);
                 row.style.opacity = isAvailable ? '1' : '0.4';
                 if (check) {
                     check.dataset.available = isAvailable ? 'true' : 'false';
@@ -42054,12 +42230,33 @@ renderRadar() {
                     }
                 }
 
-                if (sectionLotTitle) {
-                    sectionLotTitle.parentNode.insertBefore(row, sectionLotTitle);
-                } else {
-                    baseRow.parentNode.insertBefore(row, baseRow.nextSibling);
-                }
-            });
+                return row;
+            };
+
+            const fragment = document.createDocumentFragment();
+            let ciIndex = 0;
+
+            if (pieceEntries.length) {
+                fragment.appendChild(buildTitle('Données personnalisées'));
+                pieceEntries.forEach((entry) => {
+                    fragment.appendChild(buildRow(entry, ciIndex));
+                    ciIndex += 1;
+                });
+            }
+
+            if (lotEntries.length) {
+                fragment.appendChild(buildTitle("Compléments d'informations dans l'étiquettage"));
+                lotEntries.forEach((entry) => {
+                    fragment.appendChild(buildRow(entry, ciIndex));
+                    ciIndex += 1;
+                });
+            }
+
+            if (sectionLotTitle) {
+                sectionLotTitle.parentNode.insertBefore(fragment, sectionLotTitle);
+            } else {
+                baseRow.parentNode.insertBefore(fragment, baseRow.nextSibling);
+            }
         };
 
         const largeurLabelEl = composer.querySelector('.barcode-composer__field[data-field="largeur"] .barcode-composer__label');
@@ -42098,6 +42295,149 @@ renderRadar() {
         if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
         if (customCodeEl) customCodeEl.value = currentState.customCode || '';
         if (footerTextEl) footerTextEl.value = currentState.footerText || '';
+        let editingLotCodeId = '';
+
+        const clearLotCodeEditState = () => {
+            editingLotCodeId = '';
+            if (addLotCodeBtn) {
+                addLotCodeBtn.setAttribute('aria-label', "Ajouter un complément d'information");
+                addLotCodeBtn.setAttribute('title', "Ajouter un complément d'information");
+            }
+        };
+
+        const setLotCodeEditState = (entry) => {
+            const target = entry && typeof entry === 'object' ? entry : null;
+            if (!target) {
+                clearLotCodeEditState();
+                return;
+            }
+            editingLotCodeId = String(target.id || '').trim();
+            if (customLabelEl) customLabelEl.value = String(target.label || '').trim();
+            if (customCodeEl) customCodeEl.value = String(target.code || '').trim();
+            if (addLotCodeBtn) {
+                addLotCodeBtn.setAttribute('aria-label', "Modifier le complément d'information");
+                addLotCodeBtn.setAttribute('title', "Modifier le complément d'information");
+            }
+            updateAddLotCodeButtonState();
+        };
+
+        const renderLotCodesList = () => {
+            if (!lotCodesListEl) return;
+            const entries = this.ensureLotCustomCodes(context.lot);
+            if (!entries.length) {
+                lotCodesListEl.innerHTML = '<div class="barcode-composer__lot-codes-empty">Aucun code lot ajouté.</div>';
+                return;
+            }
+            lotCodesListEl.innerHTML = entries.map((entry) => {
+                const label = String(entry && entry.label || '').trim();
+                const code = String(entry && entry.code || '').trim();
+                return `
+                    <div class="barcode-composer__lot-codes-item">
+                        <div class="barcode-composer__lot-codes-explanation">${this.escapeHtml(label || '—')}</div>
+                        <div class="barcode-composer__lot-codes-field">
+                            <span class="barcode-composer__lot-codes-field-value">${this.escapeHtml(code || '—')}</span>
+                        </div>
+                        <button type="button" class="barcode-composer__lot-codes-edit" data-lot-code-id="${this.escapeHtml(String(entry.id || ''))}" aria-label="Modifier">✎</button>
+                        <button type="button" class="barcode-composer__lot-codes-remove" data-lot-code-id="${this.escapeHtml(String(entry.id || ''))}" aria-label="Supprimer">×</button>
+                    </div>
+                `;
+            }).join('');
+        };
+
+        const updateLotCodesValidationStatus = (encodedContent, customInfosSelection) => {
+            if (!lotCodesValidationEl) return;
+            const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
+            const lotIndices = selectedLotIndices.length ? selectedLotIndices : [context.lotIndex || this.currentLotIndex || 0];
+            const entries = [];
+            const seenKeys = new Set();
+
+            lotIndices.forEach((lotIndex) => {
+                const lot = this.data && this.data.lots ? this.data.lots[lotIndex] : null;
+                if (!lot) return;
+                this.ensureLotCustomCodes(lot).forEach((entry) => {
+                    const id = String(entry && entry.id || '').trim();
+                    const code = String(entry && entry.code || '').trim();
+                    if (!id || !code) return;
+                    const key = `customInfo:lotCode:${id}`;
+                    if (seenKeys.has(key)) return;
+                    seenKeys.add(key);
+                    entries.push({ ...entry, _selectionKey: key });
+                });
+            });
+            lotCodesValidationEl.classList.remove('is-ok', 'is-alert');
+
+            if (!entries.length) {
+                lotCodesValidationEl.textContent = "Aucun complément d'information pour ce lot.";
+                return;
+            }
+
+            const selection = customInfosSelection && typeof customInfosSelection === 'object'
+                ? customInfosSelection
+                : {};
+            const selectedEntries = entries.filter((entry) => {
+                return !!selection[entry._selectionKey];
+            });
+
+            if (!selectedEntries.length) {
+                lotCodesValidationEl.textContent = `${entries.length} code(s) enregistré(s). Cochez un complément d'information pour l'inclure dans la chaîne.`;
+                return;
+            }
+
+            const encoded = String(encodedContent || '');
+            const missing = selectedEntries.filter((entry) => {
+                const code = String(entry && entry.code || '').trim();
+                return code && !encoded.includes(code);
+            });
+
+            if (!missing.length) {
+                lotCodesValidationEl.classList.add('is-ok');
+                lotCodesValidationEl.textContent = `Validation OK: ${selectedEntries.length} code(s) sélectionné(s) présent(s) dans la chaîne.`;
+                return;
+            }
+
+            lotCodesValidationEl.classList.add('is-alert');
+            lotCodesValidationEl.textContent = `Validation KO: ${missing.length} code(s) sélectionné(s) absent(s) dans la chaîne.`;
+        };
+
+        const addLotCodeFromInputs = () => {
+            const code = String(customCodeEl && customCodeEl.value || '').trim().slice(0, 32);
+            if (!code) return;
+            const labelRaw = String(customLabelEl && customLabelEl.value || '').trim().slice(0, 40);
+            const entries = this.ensureLotCustomCodes(context.lot);
+            const editId = String(editingLotCodeId || '').trim();
+            const editIndex = editId ? entries.findIndex((entry) => String(entry && entry.id || '') === editId) : -1;
+            const label = labelRaw || (editIndex >= 0 ? String(entries[editIndex].label || '').trim() : `Code lot ${entries.length + 1}`);
+            const nextEntry = {
+                id: editIndex >= 0 ? entries[editIndex].id : this.createCustomInfoId('lot-code'),
+                label,
+                code
+            };
+            if (editIndex >= 0) {
+                entries.splice(editIndex, 1, nextEntry);
+            } else {
+                entries.push(nextEntry);
+            }
+            context.lot.allotissement.lotCustomCodes = entries;
+            if (customLabelEl) customLabelEl.value = '';
+            if (customCodeEl) customCodeEl.value = '';
+            clearLotCodeEditState();
+            this.invalidateBarcodeComposerCaches();
+            this.saveData();
+            renderLotCodesList();
+            updateAddLotCodeButtonState();
+            if (typeof this._updateBarcodeComposerOutput === 'function') {
+                this._updateBarcodeComposerOutput('full');
+            }
+        };
+
+        const updateAddLotCodeButtonState = () => {
+            if (!addLotCodeBtn) return;
+            const hasCode = !!String(customCodeEl && customCodeEl.value || '').trim();
+            addLotCodeBtn.disabled = !hasCode;
+        };
+
+        renderLotCodesList();
+        updateAddLotCodeButtonState();
 
         if (previewPieceEl) {
             const candidates = this.getBarcodeComposerPreviewCandidates();
@@ -42227,6 +42567,7 @@ renderRadar() {
 
             if (stringEl) stringEl.textContent = content;
             this._currentBarcodeContent = content;
+            updateLotCodesValidationStatus(content, config.customInfosSelection);
             this.updateEtiqueterCodeLengthIndicator();
         };
 
@@ -42244,6 +42585,36 @@ renderRadar() {
             };
         }
         if (payloadFormatEl) payloadFormatEl.onchange = () => updateOutput('payload-format');
+        if (lotCodesListEl) {
+            lotCodesListEl.onclick = (event) => {
+                const target = event && event.target;
+                if (!(target instanceof HTMLElement)) return;
+                const editBtn = target.closest('.barcode-composer__lot-codes-edit');
+                if (editBtn) {
+                    const codeId = String(editBtn.getAttribute('data-lot-code-id') || '').trim();
+                    if (!codeId || !context.lot || !context.lot.allotissement) return;
+                    const entry = this.ensureLotCustomCodes(context.lot).find((item) => String(item && item.id || '') === codeId);
+                    if (!entry) return;
+                    setLotCodeEditState(entry);
+                    return;
+                }
+                const removeBtn = target.closest('.barcode-composer__lot-codes-remove');
+                if (!removeBtn) return;
+                const codeId = String(removeBtn.getAttribute('data-lot-code-id') || '').trim();
+                if (!codeId || !context.lot || !context.lot.allotissement) return;
+                const entries = this.ensureLotCustomCodes(context.lot)
+                    .filter((entry) => String(entry && entry.id || '') !== codeId);
+                context.lot.allotissement.lotCustomCodes = entries;
+                if (editingLotCodeId && String(editingLotCodeId) === codeId) {
+                    clearLotCodeEditState();
+                }
+                this.invalidateBarcodeComposerCaches();
+                this.saveData();
+                renderLotCodesList();
+                updateOutput('full');
+            };
+        }
+        if (addLotCodeBtn) addLotCodeBtn.onclick = () => addLotCodeFromInputs();
         if (previewPieceEl) {
             previewPieceEl.onchange = () => {
                 const value = String(previewPieceEl.value || 'auto');
@@ -42263,12 +42634,31 @@ renderRadar() {
                 this.refreshBarcodeComposerPreview();
             };
         }
-        if (customLabelEl) customLabelEl.oninput = () => updateOutput('custom-input');
-        if (customCodeEl) customCodeEl.oninput = () => updateOutput('custom-input');
+        if (customLabelEl) {
+            customLabelEl.oninput = () => {
+                updateAddLotCodeButtonState();
+                updateOutput('custom-input');
+            };
+        }
+        if (customCodeEl) {
+            customCodeEl.oninput = () => {
+                updateAddLotCodeButtonState();
+                updateOutput('custom-input');
+            };
+        }
+        if (customCodeEl) {
+            customCodeEl.onkeydown = (event) => {
+                if (event.key !== 'Enter') return;
+                event.preventDefault();
+                if (addLotCodeBtn && addLotCodeBtn.disabled) return;
+                addLotCodeFromInputs();
+            };
+        }
         if (footerTextEl) footerTextEl.oninput = () => updateOutput('custom-input');
 
         this._updateBarcodeComposerOutput = updateOutput;
         this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
+        clearLotCodeEditState();
         updateOutput();
     }
 
@@ -46284,6 +46674,7 @@ renderRadar() {
             { label: tpdf('pdf.lot.minPieceDelta', 'Pièce min / Delta', 'Min piece / Delta'), value: scoreMinPieceLabel + ' (Δ ' + scoreMinDelta + ')' },
             { label: tpdf('pdf.lot.mmValid', 'Mesures multiples valides', 'Valid multiple measurements'), value: mmValidLabel },
             { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel },
+            { label: tpdf('pdf.lot.customCodes', 'Codes lot (ajouts)', 'Lot codes (additions)'), value: this.formatLotCustomCodesForExport(currentLot) || '—' },
             { label: tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'), value: orientationSummary.label || '—' },
             { label: tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status'), value: orientationSummary.statusLabel || '—' },
             { label: tpdf('pdf.lot.combustionCaution', 'Alerte combustion', 'Combustion warning'), value: orientationSummary.combustionCaution || '—' }
@@ -46828,6 +47219,7 @@ renderRadar() {
             'Destination lot',
             'Type pièce lot',
             'Type produit lot',
+            'Codes lot (ajouts)',
             'Essence lot',
             'Quantité lot',
             'Longueur lot (mm)',
@@ -47067,6 +47459,7 @@ renderRadar() {
                     withDash(allotissement.destination),
                     withDash(allotissement.typePiece),
                     withDash(allotissement.typeProduit),
+                    withDash(this.formatLotCustomCodesForExport(lot)),
                     withDash(allotissement.essenceNomCommun || allotissement.essence),
                     withDash(allotissement.quantite),
                     withDash(allotissement.longueur),
@@ -47308,6 +47701,7 @@ renderRadar() {
             { label: 'Destination', getValue: (lot) => ((lot && lot.allotissement) || {}).destination || '-' },
             { label: 'Type de pièces', getValue: (lot) => ((lot && lot.allotissement) || {}).typePiece || '-' },
             { label: 'Type de produit', getValue: (lot) => ((lot && lot.allotissement) || {}).typeProduit || '-' },
+            { label: 'Codes lot (ajouts)', getValue: (lot) => this.formatLotCustomCodesForExport(lot) || '-' },
             { label: 'Essence', getValue: (lot) => {
                 const allotissement = (lot && lot.allotissement) || {};
                 return allotissement.essenceNomCommun || allotissement.essence || '-';
