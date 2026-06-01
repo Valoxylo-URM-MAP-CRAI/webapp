@@ -4,6 +4,13 @@ Tests de la **tab « Général »** de l'éditeur VALOBOIS, pilotés via l'**arb
 d'accessibilité** (rôles, noms accessibles, états `aria-pressed` / `aria-selected`,
 régions live) plutôt que par des sélecteurs CSS ou des `id`.
 
+## Prérequis
+
+- **Node ≥ 18** (requis par `@playwright/test`).
+- **Python 3** (utilisé par le `webServer` de `playwright.config.js` pour servir
+  les fichiers statiques via `python3 -m http.server`).
+- Installer les navigateurs Playwright une première fois : `npx playwright install chromium`.
+
 ## Lancer
 
 ```bash
@@ -14,7 +21,8 @@ npm run test:e2e:report   # ouvrir le dernier rapport HTML
 
 Le `webServer` de `playwright.config.js` sert les fichiers statiques avec
 `python3 -m http.server` sur le port **8077** (port dédié pour ne pas entrer en
-conflit avec un serveur de dev déjà lancé sur 8080).
+conflit avec un serveur de dev déjà lancé sur 8080). Le port est configurable
+via la variable d'environnement `PLAYWRIGHT_PORT`.
 
 ## Fichiers
 
