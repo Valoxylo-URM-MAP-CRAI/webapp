@@ -1,0 +1,764 @@
+{
+  "schemaVersion": "1.0",
+  "meta": {
+    "operation": "Réhabilitation Halle Boca",
+    "date": "2026-03-15",
+    "versionEtude": "V2",
+    "statutEtude": "Finalisé",
+    "diagnostiqueurNom": "Atelier Bois & Réemploi",
+    "diagnostiqueurContact": "Camille Durand",
+    "diagnostiqueurMail": "camille@atelier-bois.fr",
+    "diagnostiqueurTelephone": "06 12 34 56 78",
+    "diagnostiqueurAdresse": "5 quai des Chartrons, 33000 Bordeaux",
+    "maitriseOuvrageNom": "Bordeaux Métropole",
+    "maitriseOuvrageContact": "Service Patrimoine",
+    "maitriseOuvrageMail": "",
+    "maitriseOuvrageTelephone": "",
+    "maitriseOuvrageAdresse": "",
+    "maitriseOeuvreNom": "Cabinet Archi+",
+    "maitriseOeuvreContact": "",
+    "maitriseOeuvreMail": "",
+    "maitriseOeuvreTelephone": "",
+    "maitriseOeuvreAdresse": "",
+    "entrepriseDeconstructionNom": "Démolitions Atlantique",
+    "entrepriseDeconstructionContact": "",
+    "entrepriseDeconstructionMail": "",
+    "entrepriseDeconstructionTelephone": "",
+    "entrepriseDeconstructionAdresse": "",
+    "typeBatiment": "Halle industrielle",
+    "periodeConstruction": "1920",
+    "datePermisConstruction": "",
+    "phaseIntervention": "",
+    "localisation": "Quai de Paludate, 33800 Bordeaux",
+    "geoFrance": {
+      "granularity": "canton",
+      "departementCode": "",
+      "departementNom": "",
+      "cantonCode": "",
+      "cantonNom": "",
+      "selectionMode": "",
+      "source": "france-geojson-2018"
+    },
+    "conditionnementType": "",
+    "protectionType": "",
+    "typeOperation": "demolition",
+    "surfacePlancher_demolition": "1200",
+    "surfacePlancher_renovation": "",
+    "nbBatiments_demolition": "2",
+    "nbBatiments_renovation": "",
+    "dateDebutChantier": "2026-09-01",
+    "dateFinChantier": "2027-03-31",
+    "historiqueRenovationImportante": "Oui",
+    "historiqueDecontamination": "Non",
+    "historiqueAutreIntervention": "Inconnu",
+    "diagnosticStructure": "Oui",
+    "diagnosticAmiante": "Oui",
+    "diagnosticPlomb": "Non",
+    "diagnosticTermites": "Inconnu",
+    "documentDOE": "Non",
+    "documentPlans": "Oui",
+    "diagPEMDNom": "",
+    "diagPEMDContact": "",
+    "diagPEMDMail": "",
+    "diagPEMDTelephone": "",
+    "diagPEMDAdresse": "",
+    "diagPEMDSiret": "",
+    "diagPEMDAssuranceCompagnie": "",
+    "diagPEMDAssurancePolice": "",
+    "diagPEMDAssuranceDebut": "",
+    "diagPEMDAssuranceFin": "",
+    "diagPEMDCompetencesJustifiables": "",
+    "dateVisite": "",
+    "partiesVisitees": "",
+    "partiesNonVisitees": "",
+    "raisonsNonVisite": "",
+    "vicesApparents": "",
+    "precautionsDemolition": "",
+    "commentaires": "Charpente en pin maritime, bon état général, réemploi structurel envisagé.",
+    "siretSiren": "",
+    "insuranceCompany": "",
+    "insurancePolicy": "",
+    "validFrom": "",
+    "validTo": "",
+    "skillsOnRequest": "",
+    "buildingPermitDate": "",
+    "pastOperationsLabel": "",
+    "pastOperationsHint": "",
+    "pastMajorRenovation": "",
+    "pastDecontamination": "",
+    "pastOtherIntervention": "",
+    "diagTermites": "",
+    "documentDoe": "",
+    "documentPlansToggle": "",
+    "lastVisitDate": "",
+    "visitedParts": "",
+    "unvisitedParts": "",
+    "unvisitedReasons": "",
+    "apparentDefects": "",
+    "precautionsLabel": "",
+    "placeholderPermitDate": "",
+    "placeholderSquareMeter": "",
+    "placeholderZero": "",
+    "placeholderVisitedParts": "",
+    "placeholderUnvisitedParts": "",
+    "revision": 0
+  },
+  "ui": {
+    "seuilsVariabilite": {
+      "longueur": {
+        "t1": 8,
+        "t2": 20,
+        "t3": 40
+      },
+      "largeur": {
+        "t1": 5,
+        "t2": 15,
+        "t3": 30
+      },
+      "epaisseur": {
+        "t1": 5,
+        "t2": 15,
+        "t3": 30
+      },
+      "diametre": {
+        "t1": 8,
+        "t2": 20,
+        "t3": 35
+      }
+    },
+    "seuilsVariabiliteEiqAbs": {
+      "longueur": {
+        "t1": 50,
+        "t2": 150,
+        "t3": 300
+      },
+      "largeur": {
+        "t1": 10,
+        "t2": 30,
+        "t3": 60
+      },
+      "epaisseur": {
+        "t1": 5,
+        "t2": 15,
+        "t3": 30
+      },
+      "diametre": {
+        "t1": 30,
+        "t2": 80,
+        "t3": 150
+      }
+    },
+    "similarityStrategy": "single",
+    "similarityStrategyManuallySet": false,
+    "priceCategoryPresets": {
+      "meta": {
+        "source": "CEEB",
+        "document": "CEEB_Site-web-_2025_T4_sciages-et-bois-energie",
+        "period": "2025-T4",
+        "extracted": "2026-04-21",
+        "units_reminder": "m3=mètre cube | t=tonne | ml=mètre linéaire | m2=mètre carré"
+      },
+      "baseOverrides": {},
+      "custom": [
+        {
+          "id": "base-ceeb-equarri-qp1-15x15",
+          "label": "Pièce équarrie QP1 – Charpente std – Section 15×15 cm",
+          "value": 800,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix QP1 – Légère flache sur deux arêtes max, cœur enfermé admis, tolérance d'aubier sain si < ½ largeur des faces. Section 15×15 cm – Longueur 4 à 5 m."
+        },
+        {
+          "id": "base-ceeb-equarri-qp1-25x25",
+          "label": "Pièce équarrie QP1 – Charpente std – Section 25×25 cm",
+          "value": 823,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix QP1 – Légère flache sur deux arêtes max, cœur enfermé admis. Section 25×25 cm – Longueur 4 à 5 m."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch2-madrier",
+          "label": "Sapin Épicéa – Madrier/Bastaing – Choix 2 (bois vert)",
+          "value": 268,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 75×225 ou 63×160 – Longueurs de 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch2-chevron",
+          "label": "Sapin Épicéa – Chevron – Choix 2 (bois vert)",
+          "value": 275,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 63×75 ou 50×75 – Longueurs de 3 à 4,50 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch2-liteau",
+          "label": "Sapin Épicéa – Liteau – Choix 2 (bois vert)",
+          "value": 326,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Section 27×27 – Longueurs de 2 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch3-planche",
+          "label": "Sapin Épicéa – Planche de bord – Choix 3",
+          "value": 204,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Planches de bord toutes largeurs, non coupées d'équerre, épaisseur 18/27 mm – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch4-madrier",
+          "label": "Sapin Épicéa – Madrier/Bastaing – Choix 4",
+          "value": 178,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 4 – Madriers, Bastaings – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-ch4-planche",
+          "label": "Sapin Épicéa – Planche 27 mm – Choix 4",
+          "value": 174,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 4 – Planches toutes largeurs, épaisseur 27 mm – Bois vert."
+        },
+        {
+          "id": "base-ceeb-sapin-ep-pv-grande-longueur",
+          "label": "Sapin Épicéa – Plus-value grandes longueurs (5–8 m)",
+          "value": 12,
+          "unit": "ml",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Plus-value applicable aux sciages Sapin Épicéa de 5 à 8 m de longueur."
+        },
+        {
+          "id": "base-ceeb-pin-mar-ch2-madrier",
+          "label": "Pin Maritime – Madrier/Bastaing – Choix 2 (bois vert)",
+          "value": 313,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Madriers, Bastaings – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-mar-ch3-planche",
+          "label": "Pin Maritime – Planche 27 mm – Choix 3 (bois vert)",
+          "value": 238,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Planches épaisseur 27 mm, toutes largeurs – Longueurs 2 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-mar-ch3-chevron",
+          "label": "Pin Maritime – Chevron – Choix 3 (bois vert)",
+          "value": 229,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Chevrons – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-mar-ch4-planche",
+          "label": "Pin Maritime – Planche 27 mm – Choix 4",
+          "value": 249,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 4 – Planche 27 mm – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-syl-ch2-madrier",
+          "label": "Pin Sylvestre – Madrier/Bastaing – Choix 2 (bois vert)",
+          "value": 259,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 63×163 ou 175, 65×175 ou 180, 75×165, 80×230 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-syl-ch2-chevron",
+          "label": "Pin Sylvestre – Chevron – Choix 2 (bois vert)",
+          "value": 258,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 76×76, 80×80 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-pin-syl-ch2-ossature",
+          "label": "Pin Sylvestre – Ossature/Lamelle – Choix 2",
+          "value": 275,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Ossature et lamelle – Hors séchage et rabotage – Longueurs 2 à 4 m."
+        },
+        {
+          "id": "base-ceeb-pin-syl-ch3-planche",
+          "label": "Pin Sylvestre – Planche 27 mm toutes larg. – Choix 3",
+          "value": 210,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Planches épaisseur 27 mm, toutes largeurs – Longueurs jusqu'à 3 m."
+        },
+        {
+          "id": "base-ceeb-pin-syl-ch3-madrier",
+          "label": "Pin Sylvestre – Madrier/Bastaing – Choix 3",
+          "value": 190,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Madriers, Bastaings – Sections 65×165 ou 80×230 – Longueurs jusqu'à 3 m."
+        },
+        {
+          "id": "base-ceeb-hetre-fb1",
+          "label": "Hêtre – Sciage – Choix FB1",
+          "value": 374,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix FB1 – Épaisseur 27/54 mm – Diamètre grume ≥ 40 cm – Longueur ≥ 3 m."
+        },
+        {
+          "id": "base-ceeb-hetre-fb2",
+          "label": "Hêtre – Sciage – Choix FB2",
+          "value": 210,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix FB2 – Épaisseur 27/54 mm – Diamètre grume ≥ 40 cm – Longueur ≥ 3 m."
+        },
+        {
+          "id": "base-ceeb-peuplier-ch1",
+          "label": "Peuplier – Sciage – Choix 1 (sec à l'air)",
+          "value": 340,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 1 – Qualité Choix et bon bois – Sec à l'air."
+        },
+        {
+          "id": "base-ceeb-peuplier-ch2",
+          "label": "Peuplier – Sciage – Choix 2 (sec à l'air)",
+          "value": 332,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Qualité Sommier – Sec à l'air."
+        },
+        {
+          "id": "base-ceeb-peuplier-ch3",
+          "label": "Peuplier – Sciage – Choix 3 (bois vert)",
+          "value": 255,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 3 – Qualité Emballage/Palette – Bois vert."
+        },
+        {
+          "id": "base-ceeb-douglas-ch1-avive",
+          "label": "Douglas – Avivé – Choix 1 (bois vert)",
+          "value": 408,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 1 – Avivés 42 ou 52×150 à 230 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-douglas-ch2-madrier-150-175",
+          "label": "Douglas – Madrier/Bastaing 63×150-175 – Choix 2",
+          "value": 353,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 63×150 ou 63×175 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-douglas-ch2-madrier-200-225",
+          "label": "Douglas – Madrier/Bastaing 63-75×200-225 – Choix 2",
+          "value": 356,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 63 ou 75×200 à 225 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-douglas-ch2-madrier-250-300",
+          "label": "Douglas – Madrier/Bastaing 63-75×250-300 – Choix 2",
+          "value": 371,
+          "unit": "m3",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Choix 2 – Sections 63 ou 75×250 à 300 – Longueurs 3 à 5 m – Bois vert."
+        },
+        {
+          "id": "base-ceeb-douglas-pv-grande-longueur",
+          "label": "Douglas – Plus-value grandes longueurs (5–8 m)",
+          "value": 17,
+          "unit": "ml",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Plus-value applicable aux sciages Douglas de 5 à 8 m de longueur."
+        },
+        {
+          "id": "base-ceeb-bois-energie-bord-route",
+          "label": "Bois de bord de route non broyé",
+          "value": 47.6,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Tous bois vendus bord-route, non broyés – Hors bois bûches."
+        },
+        {
+          "id": "base-ceeb-chutes-2t-broyees-a",
+          "label": "Chutes 2ème transformation broyées – Catégorie A",
+          "value": 38,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Chutes diverses de 2ème transformation, bois vierge exempt de colles/vernis, vendues broyées – Compatible introduction directe en chaufferie."
+        },
+        {
+          "id": "base-ceeb-chutes-2t-broyees-b",
+          "label": "Chutes 2ème transformation broyées – Catégorie B",
+          "value": 60,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Chutes diverses de 2ème transformation, bois vierge exempt de colles/vernis, vendues broyées – Compatible introduction directe en chaufferie."
+        },
+        {
+          "id": "base-ceeb-recyclage-classe-a-vrac",
+          "label": "Recyclage Classe A – En vrac",
+          "value": 17.1,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Bois de recyclage vierges, en l'état ou grossièrement fractionnés pour le transport. À distinguer des broyats de recyclage."
+        },
+        {
+          "id": "base-ceeb-plaquettes-scierie",
+          "label": "Plaquettes de scierie – Humidité 30–40%",
+          "value": 62.4,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Produites en scierie à partir de chutes de sciage issues de bois écorcés – Granulométrie moyenne – Humidité 30–40%."
+        },
+        {
+          "id": "base-ceeb-broyats-emballage-ssd",
+          "label": "Broyats emballage SSD – Classe A recyclage",
+          "value": 72.6,
+          "unit": "t",
+          "source": "CEEB",
+          "period": "2025-T4",
+          "note": "Bois déferraillés et broyés, granulométrie moyenne et grossière, humidité < 25% – Ex. broyats de recyclage de classe A."
+        }
+      ]
+    },
+    "locSitCustomSituations": [],
+    "customInfoOptionSets": []
+  },
+  "lots": [
+    {
+      "id": 1780325381188,
+      "nom": "Charpente bois - aile nord",
+      "localisation": "",
+      "situation": "",
+      "allotissement": {
+        "quantite": "1",
+        "typePiece": "",
+        "typeProduit": "",
+        "classeBois": "",
+        "essenceNomCommun": "",
+        "essenceNomScientifique": "",
+        "rareteProvenanceCodeOverride": "",
+        "essence": "",
+        "longueur": "",
+        "largeur": "",
+        "epaisseur": "",
+        "diametre": "",
+        "similarityStrategy": "single",
+        "similarityStrategyManuallySet": false,
+        "mmGeometryProfile": "none",
+        "cvLongueur": null,
+        "cvLargeur": null,
+        "cvEpaisseur": null,
+        "cvDiametre": null,
+        "ecartTypeLongueur": null,
+        "ecartTypeLargeur": null,
+        "ecartTypeEpaisseur": null,
+        "ecartTypeDiametre": null,
+        "eiqLongueur": null,
+        "eiqLargeur": null,
+        "eiqEpaisseur": null,
+        "eiqDiametre": null,
+        "eiqAbsLongueur": null,
+        "eiqAbsLargeur": null,
+        "eiqAbsEpaisseur": null,
+        "eiqAbsDiametre": null,
+        "tauxSimilarite": null,
+        "medoideKey": null,
+        "medoideLabel": null,
+        "medoideScore": null,
+        "scoreMinPiece": null,
+        "scoreMinDelta": null,
+        "scoreMinPieceLabel": null,
+        "dispersionScores": null,
+        "medoideDims": null,
+        "similarityVariants": {
+          "single": null,
+          "multiple": null
+        },
+        "madLongueur": null,
+        "madLargeur": null,
+        "madEpaisseur": null,
+        "madDiametre": null,
+        "seuilSuggest": null,
+        "conformiteLot": null,
+        "tukeyLongueur": null,
+        "tukeyLargeur": null,
+        "tukeyEpaisseur": null,
+        "tukeyDiametre": null,
+        "prixUnite": "m3",
+        "prixMode": "",
+        "prixMarche": "",
+        "surfacePiece": 0,
+        "surfaceLot": 0,
+        "volumePiece": 0,
+        "volumeLot": 0,
+        "prixLot": 0,
+        "prixLotAjusteIntegrite": 0,
+        "lineaireLot": 0,
+        "masseVolumique": 510,
+        "masseLot": 0,
+        "humidite": 12,
+        "fractionCarbonee": 50,
+        "bois": 100,
+        "carboneBiogeniqueEstime": "",
+        "destination": ""
+      },
+      "inspection": {
+        "visibilite": null,
+        "instrumentation": null,
+        "modesNotation": null,
+        "statutBois": null,
+        "integrite": {
+          "niveau": null,
+          "ignore": false,
+          "coeff": null
+        }
+      },
+      "bio": {
+        "purge": null,
+        "expansion": null,
+        "integriteBio": null,
+        "exposition": null,
+        "confianceBio": null
+      },
+      "mech": {
+        "purgeMech": null,
+        "feuMech": null,
+        "integriteMech": null,
+        "expositionMech": null,
+        "confianceMech": null
+      },
+      "usage": {
+        "confianceUsage": null,
+        "durabiliteUsage": null,
+        "classementUsage": null,
+        "humiditeUsage": null,
+        "aspectUsage": null
+      },
+      "denat": {
+        "depollutionDenat": null,
+        "contaminationDenat": null,
+        "durabiliteConfDenat": null,
+        "confianceDenat": null,
+        "naturaliteDenat": null
+      },
+      "debit": {
+        "regulariteDebit": null,
+        "volumetrieDebit": null,
+        "stabiliteDebit": null,
+        "artisanaliteDebit": null,
+        "rusticiteDebit": null
+      },
+      "geo": {
+        "adaptabiliteGeo": null,
+        "massiviteGeo": null,
+        "deformationGeo": null,
+        "industrialiteGeo": null,
+        "inclusiviteGeo": null
+      },
+      "essence": {
+        "confianceEssence": null,
+        "rareteEcoEssence": null,
+        "masseVolEssence": null,
+        "rareteHistEssence": null,
+        "singulariteEssence": null
+      },
+      "ancien": {
+        "confianceAncien": null,
+        "amortissementAncien": null,
+        "vieillissementAncien": null,
+        "microhistoireAncien": null,
+        "demontabiliteAncien": null
+      },
+      "traces": {
+        "confianceTraces": null,
+        "etiquetageTraces": null,
+        "alterationTraces": null,
+        "documentationTraces": null,
+        "singularitesTraces": null
+      },
+      "provenance": {
+        "confianceProv": null,
+        "transportProv": null,
+        "reputationProv": null,
+        "macroProv": null,
+        "territorialiteProv": null
+      },
+      "locked": {
+        "reason": null,
+        "ignoredBy": null,
+        "alterationIgnoredBy": null,
+        "alterationForcedOrientation": null
+      },
+      "defaultPiece": {
+        "id": "default-piece-mpvbrjus-ckvpru2p",
+        "quantite": "1",
+        "localisation": "",
+        "situation": "",
+        "conception": "",
+        "typePiece": "",
+        "typeProduit": "",
+        "classeBois": "",
+        "essenceNomCommun": "",
+        "essenceNomScientifique": "",
+        "rareteProvenanceCodeOverride": "",
+        "essence": "",
+        "longueur": "",
+        "largeur": "",
+        "epaisseur": "",
+        "diametre": "",
+        "prixUnite": "",
+        "prixMode": "",
+        "prixOrientationPresetId": "",
+        "prixMarche": "",
+        "masseVolumique": "510",
+        "masseVolumiqueMesuree": "",
+        "massePieceMesuree": "",
+        "humidite": "",
+        "fractionCarbonee": "",
+        "bois": "",
+        "ageArbre": "",
+        "dateMiseEnService": "",
+        "customInfos": [],
+        "mmLargeurMoyenne": null,
+        "mmEpaisseurMoyenne": null,
+        "mmCvLargeurIntra": null,
+        "mmCvEpaisseurIntra": null,
+        "mmDeltaLargeurIntra": null,
+        "mmDeltaEpaisseurIntra": null
+      },
+      "defaultPieces": [
+        {
+          "id": "default-piece-mpvbrjus-ckvpru2p",
+          "quantite": "1",
+          "localisation": "",
+          "situation": "",
+          "conception": "",
+          "typePiece": "",
+          "typeProduit": "",
+          "classeBois": "",
+          "essenceNomCommun": "",
+          "essenceNomScientifique": "",
+          "rareteProvenanceCodeOverride": "",
+          "essence": "",
+          "longueur": "",
+          "largeur": "",
+          "epaisseur": "",
+          "diametre": "",
+          "prixUnite": "",
+          "prixMode": "",
+          "prixOrientationPresetId": "",
+          "prixMarche": "",
+          "masseVolumique": "510",
+          "masseVolumiqueMesuree": "",
+          "massePieceMesuree": "",
+          "humidite": "",
+          "fractionCarbonee": "",
+          "bois": "",
+          "ageArbre": "",
+          "dateMiseEnService": "",
+          "customInfos": [],
+          "mmLargeurMoyenne": null,
+          "mmEpaisseurMoyenne": null,
+          "mmCvLargeurIntra": null,
+          "mmCvEpaisseurIntra": null,
+          "mmDeltaLargeurIntra": null,
+          "mmDeltaEpaisseurIntra": null
+        }
+      ],
+      "pieces": [],
+      "customScores": {},
+      "criteres": [],
+      "poidsSimilarite": {
+        "longueur": 0,
+        "largeur": 0,
+        "epaisseur": 0,
+        "diametre": 0
+      },
+      "seuilsDestination": {
+        "longueur": {
+          "min": null,
+          "max": null
+        },
+        "largeur": {
+          "min": null,
+          "max": null
+        },
+        "epaisseur": {
+          "min": null,
+          "max": null
+        },
+        "diametre": {
+          "min": null,
+          "max": null
+        }
+      },
+      "seuilsDestinationOffset": {
+        "longueur": {
+          "min": null,
+          "max": null
+        },
+        "largeur": {
+          "min": null,
+          "max": null
+        },
+        "epaisseur": {
+          "min": null,
+          "max": null
+        },
+        "diametre": {
+          "min": null,
+          "max": null
+        }
+      },
+      "seuilsDestinationOffsetMigrated": true
+    }
+  ]
+}

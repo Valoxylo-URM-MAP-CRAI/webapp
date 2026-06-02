@@ -524,7 +524,7 @@
                                     <span class="accueil-meta-hint" data-i18n="editor.meta.typeOperationHint">Nature de l’opération au sens du diagnostic PEMD (CERFA 16287*01 §1)</span>
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.typeOperationLabel" aria-label="Type d’opération">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="typeOperation" data-meta-toggle-value="demolition"
                                             aria-pressed="false" data-i18n="editor.meta.typeOperationDemolition">Démolition</button>
@@ -574,7 +574,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--operation-reference" data-alert-operation-reference="true" data-operation-reference-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--operation-reference" data-alert-operation-reference="true" data-operation-reference-alert-btn data-i18n-aria-label="editor.meta.alertOperationReference" aria-label="Champs manquants : Référence de l'opération">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -587,7 +587,7 @@
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryDiagnostician">Diagnostiqueur</span>
                         </summary>
-                        <div class="accueil-collapsible-body">
+                        <div class="accueil-collapsible-body" role="group" data-i18n-aria-label="editor.meta.summaryDiagnostician" aria-label="Diagnostiqueur">
                             <div class="accueil-meta">
                                 <div class="accueil-meta-row">
                                     <label class="accueil-meta-label" for="inputDiagnostiqueurNom" data-i18n="editor.meta.structureName">Structure /
@@ -622,7 +622,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur" data-alert-diagnostiqueur="true" data-diagnostiqueur-alert-btn data-i18n-aria-label="editor.meta.alertDiagnostiqueur" aria-label="Champs manquants : Diagnostiqueur">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -635,7 +635,7 @@
                         <summary class="accueil-collapsible-summary accueil-collapsible-summary--with-alert">
                             <span data-i18n="editor.meta.summaryDiagnosticianPEMD">Diagnostiqueur PEMD</span>
                         </summary>
-                        <div class="accueil-collapsible-body">
+                        <div class="accueil-collapsible-body" role="group" data-i18n-aria-label="editor.meta.summaryDiagnosticianPEMD" aria-label="Diagnostiqueur PEMD">
                             <span class="accueil-meta-hint" data-i18n="editor.meta.diagPemdHint">Informations requises par le CERFA 16287*01 §3 pour le diagnostic Produits-Équipements-Matériaux-Déchets. Peut être le même intervenant que le diagnostiqueur bois ou un tiers.</span>
                             <div class="accueil-meta">
                                 <div class="accueil-meta-row">
@@ -695,7 +695,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.skillsOnRequest">Compétences justifiables à la demande</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.skillsOnRequest" aria-label="Compétences justifiables à la demande">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagPEMDCompetencesJustifiables"
                                             data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -708,7 +708,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur-pemd" data-alert-diagnostiqueur-pemd="true" data-diagnostiqueur-pemd-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostiqueur-pemd" data-alert-diagnostiqueur-pemd="true" data-diagnostiqueur-pemd-alert-btn data-i18n-aria-label="editor.meta.alertDiagnostiqueurPemd" aria-label="Champs manquants : Diagnostiqueur PEMD">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -747,7 +747,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.apparentDefects">Vices ou désordres apparents identifiés</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.apparentDefects" aria-label="Vices ou désordres apparents identifiés">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="vicesApparents"
                                             data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -758,7 +758,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.precautionsLabel">Précautions de démolition/rénovation indiquées</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.precautionsLabel" aria-label="Précautions de démolition/rénovation indiquées">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="precautionsDemolition"
                                             data-meta-toggle-value="Oui" aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -771,7 +771,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostic-pemd-visite" data-alert-diagnostic-pemd-visite="true" data-diagnostic-pemd-visite-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--diagnostic-pemd-visite" data-alert-diagnostic-pemd-visite="true" data-diagnostic-pemd-visite-alert-btn data-i18n-aria-label="editor.meta.alertDiagnosticPemdVisite" aria-label="Champs manquants : Visite PEMD">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -785,8 +785,8 @@
                             <span data-i18n="editor.meta.summaryContacts">Contacts de l'opération</span>
                         </summary>
                         <div class="accueil-collapsible-body">
-                            <section class="accueil-subsection">
-                                <h3 class="accueil-subsection-title" data-i18n="editor.meta.moTitle">Maîtrise d’ouvrage</h3>
+                            <section class="accueil-subsection" role="group" aria-labelledby="contactsMoaTitle">
+                                <h3 class="accueil-subsection-title" id="contactsMoaTitle" data-i18n="editor.meta.moTitle">Maîtrise d’ouvrage</h3>
                                 <div class="accueil-meta">
                                     <div class="accueil-meta-row">
                                         <label class="accueil-meta-label" for="inputMaitriseOuvrageNom" data-i18n="editor.meta.structureName">Structure /
@@ -820,8 +820,8 @@
                                 </div>
                             </section>
 
-                            <section class="accueil-subsection">
-                                <h3 class="accueil-subsection-title" data-i18n="editor.meta.moeTitle">Maîtrise d’œuvre</h3>
+                            <section class="accueil-subsection" role="group" aria-labelledby="contactsMoeTitle">
+                                <h3 class="accueil-subsection-title" id="contactsMoeTitle" data-i18n="editor.meta.moeTitle">Maîtrise d’œuvre</h3>
                                 <div class="accueil-meta">
                                     <div class="accueil-meta-row">
                                         <label class="accueil-meta-label" for="inputMaitriseOeuvreNom" data-i18n="editor.meta.structureName">Structure /
@@ -855,8 +855,8 @@
                                 </div>
                             </section>
 
-                            <section class="accueil-subsection">
-                                <h3 class="accueil-subsection-title" data-i18n="editor.meta.deconTitle">Entreprise de déconstruction</h3>
+                            <section class="accueil-subsection" role="group" aria-labelledby="contactsDeconTitle">
+                                <h3 class="accueil-subsection-title" id="contactsDeconTitle" data-i18n="editor.meta.deconTitle">Entreprise de déconstruction</h3>
                                 <div class="accueil-meta">
                                     <div class="accueil-meta-row">
                                         <label class="accueil-meta-label"
@@ -893,7 +893,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--contacts" data-alert-contacts="true" data-contacts-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--contacts" data-alert-contacts="true" data-contacts-alert-btn data-i18n-aria-label="editor.meta.alertContacts" aria-label="Champs manquants : Contacts de l'opération">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -933,7 +933,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.pastMajorRenovation">Rénovation importante</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.pastMajorRenovation" aria-label="Rénovation importante">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="historiqueRenovationImportante" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -947,7 +947,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.pastDecontamination">Décontamination (ex : désamiantage)</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.pastDecontamination" aria-label="Décontamination (ex : désamiantage)">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="historiqueDecontamination" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -961,7 +961,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.pastOtherIntervention">Autre intervention importante</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.pastOtherIntervention" aria-label="Autre intervention importante">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="historiqueAutreIntervention" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1148,7 +1148,7 @@
                         </div>
                     </details>
                     <div class="accueil-collapsible-alert-action">
-                        <button type="button" class="lot-alert-btn lot-alert-btn--contexte-technique" data-alert-contexte-technique="true" data-contexte-technique-alert-btn>
+                        <button type="button" class="lot-alert-btn lot-alert-btn--contexte-technique" data-alert-contexte-technique="true" data-contexte-technique-alert-btn data-i18n-aria-label="editor.meta.alertContexteTechnique" aria-label="Champs manquants : Contexte technique">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
                         </button>
                     </div>
@@ -1176,7 +1176,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.diagStructure">Diagnostic structure</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.diagStructure" aria-label="Diagnostic structure">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagnosticStructure" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1190,7 +1190,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.diagAmiante">Diagnostic amiante</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.diagAmiante" aria-label="Diagnostic amiante">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagnosticAmiante" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1204,7 +1204,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.diagPlomb">Diagnostic plomb</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.diagPlomb" aria-label="Diagnostic plomb">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagnosticPlomb" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1218,7 +1218,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.diagTermites">Diagnostic termites</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.diagTermites" aria-label="Diagnostic termites">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="diagnosticTermites" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1232,7 +1232,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.documentDoe">DOE disponible</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.documentDoe" aria-label="DOE disponible">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="documentDOE" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
@@ -1246,7 +1246,7 @@
                                 </div>
                                 <div class="accueil-meta-row accueil-meta-row--full">
                                     <span class="accueil-meta-label" data-i18n="editor.meta.documentPlansToggle">Plans disponibles</span>
-                                    <div class="meta-toggle-group">
+                                    <div class="meta-toggle-group" role="group" data-i18n-aria-label="editor.meta.documentPlansToggle" aria-label="Plans disponibles">
                                         <button type="button" class="lot-price-unit-btn meta-toggle-btn"
                                             data-meta-toggle-field="documentPlans" data-meta-toggle-value="Oui"
                                             aria-pressed="false" data-i18n="editor.meta.yes">Oui</button>
