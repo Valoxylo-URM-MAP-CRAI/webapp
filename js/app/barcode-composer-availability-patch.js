@@ -10,12 +10,11 @@
         return domFields.length ? Array.from(new Set(domFields)) : app.getBarcodeComposerOptionalFieldsOrder();
     }
 
-    function getStatusMap(app, essenceMode, fields) {
-        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+    function getStatusMap(app, fields) {
         const statusMap = {};
         const effectiveFields = Array.isArray(fields) && fields.length ? fields : app.getBarcodeComposerOptionalFieldsOrder();
         const availabilityMap = typeof app.getBarcodeComposerFieldsAvailabilityMap === 'function'
-            ? app.getBarcodeComposerFieldsAvailabilityMap(mode)
+            ? app.getBarcodeComposerFieldsAvailabilityMap()
             : {};
 
         effectiveFields.forEach((field) => {
@@ -207,9 +206,7 @@
 
         bindTooltipEvents(composer);
         const fields = getComposerFields(composer, app);
-        const modeEl = document.getElementById('bcEssenceMode');
-        const mode = modeEl && modeEl.value === 'en13556' ? 'en13556' : 'abbr';
-        const statusMap = getStatusMap(app, mode, fields);
+        const statusMap = getStatusMap(app, fields);
 
         composer.querySelectorAll('.barcode-composer__check[data-field]').forEach((check) => {
             const field = String(check.getAttribute('data-field') || '').trim();

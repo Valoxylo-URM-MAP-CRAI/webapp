@@ -21909,6 +21909,14 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 if (e.target === etiqueterBackdrop) closeEtiqueter();
             });
 
+            const etiqueterLayoutSelect = document.getElementById('etiqueterLayoutMode');
+            if (etiqueterLayoutSelect) {
+                etiqueterLayoutSelect.addEventListener('change', () => {
+                    this.refreshEtiqueterFooterText();
+                    this.updateEtiqueterCodeLengthIndicator();
+                });
+            }
+
             if (etiqueterLotsSelectAll) {
                 etiqueterLotsSelectAll.addEventListener('change', () => {
                     const lotCheckboxes = document.querySelectorAll('[data-export-etiquette-lot]');
@@ -21931,6 +21939,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                         this.invalidateBarcodeComposerCaches();
                         this.refreshBarcodeComposerPreview();
                         this.updateEtiqueterCodeLengthIndicator();
+                        this.refreshEtiqueterFooterText();
                     }
                 });
             }
@@ -21967,6 +21976,7 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     this.updateEtiqueterContentSelectorVisibility(formula);
                     this.updateBarcodeComposerReadonlyState(formula);
                     this.updateEtiqueterCodeLengthIndicator();
+                    this.refreshEtiqueterFooterText();
                 });
             }
 
@@ -25500,6 +25510,7 @@ closeEvalOpModal() {
             this.updateEtiqueterContentSelectorVisibility(this.getSelectedCodeFormula());
             this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
             this.updateEtiqueterCodeLengthIndicator();
+            this.refreshEtiqueterFooterText();
             const runBtn = document.getElementById('btnRunEtiqueter');
             if (runBtn && typeof runBtn.focus === 'function') {
                 runBtn.focus();
@@ -40552,6 +40563,7 @@ renderRadar() {
     getBarcodeComposerOptionalFieldsOrder() {
         const fields = window.VALOBOIS_BARCODE_COMPOSER_OPTIONAL_FIELDS_ORDER || [
             'essence',
+            'essenceEn13556',
             'longueur',
             'largeur',
             'epaisseur',
@@ -40584,6 +40596,7 @@ renderRadar() {
     getBarcodeComposerFieldScopeMap() {
         const scopes = window.VALOBOIS_BARCODE_COMPOSER_FIELD_SCOPE_MAP || {
             essence: 'piece',
+            essenceEn13556: 'piece',
             longueur: 'piece',
             largeur: 'piece',
             epaisseur: 'piece',
@@ -40624,25 +40637,24 @@ renderRadar() {
         this._barcodeComposerValueMapCache = {};
     }
 
-    getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode = 'abbr') {
-        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+    getBarcodeComposerValueMapCacheKey(lot, piece) {
         const lotIndex = Number.isInteger(piece && piece.sourceLotIndex)
             ? piece.sourceLotIndex
             : (Array.isArray(this.data && this.data.lots) ? this.data.lots.indexOf(lot) : -1);
         const pieceIndex = Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex : -1;
         const fallbackUid = String(piece && piece.uid ? piece.uid : '').trim();
-        return `${mode}|${lotIndex}|${pieceIndex}|${fallbackUid}`;
+        return `${lotIndex}|${pieceIndex}|${fallbackUid}`;
     }
 
-    getBarcodeComposerValueMapCached(lot, piece, essenceMode = 'abbr') {
+    getBarcodeComposerValueMapCached(lot, piece) {
         if (!this._barcodeComposerValueMapCache || typeof this._barcodeComposerValueMapCache !== 'object') {
             this._barcodeComposerValueMapCache = {};
         }
-        const cacheKey = this.getBarcodeComposerValueMapCacheKey(lot, piece, essenceMode);
+        const cacheKey = this.getBarcodeComposerValueMapCacheKey(lot, piece);
         if (this._barcodeComposerValueMapCache[cacheKey]) {
             return this._barcodeComposerValueMapCache[cacheKey];
         }
-        const map = this.buildBarcodeComposerValueMap(lot, piece, essenceMode);
+        const map = this.buildBarcodeComposerValueMap(lot, piece);
         this._barcodeComposerValueMapCache[cacheKey] = map;
         return map;
     }
@@ -41085,8 +41097,7 @@ renderRadar() {
         return normalized;
     }
 
-    getBarcodeComposerCustomInfosEntriesForSelection(essenceMode = 'abbr') {
-        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+    getBarcodeComposerCustomInfosEntriesForSelection() {
         const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
         const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
         const merged = [];
@@ -41099,7 +41110,7 @@ renderRadar() {
             if (!Array.isArray(items) || !items.length) return;
 
             items.forEach((item) => {
-                const valueMap = this.getBarcodeComposerValueMapCached(lot, item, mode);
+                const valueMap = this.getBarcodeComposerValueMapCached(lot, item);
                 const entries = valueMap && valueMap.customInfosEntries && Array.isArray(valueMap.customInfosEntries.value)
                     ? valueMap.customInfosEntries.value
                     : [];
@@ -41341,8 +41352,7 @@ renderRadar() {
         return scoreNet && scoreMax ? `${scoreNet}/${scoreMax}` : '';
     }
 
-    buildBarcodeComposerValueMap(lot, piece, essenceMode = 'abbr') {
-        const mode = String(essenceMode || 'abbr').trim().toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+    buildBarcodeComposerValueMap(lot, piece) {
         const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object' ? piece.sourcePiece : piece;
         const lotNum = Number.isInteger(piece && piece.sourceLotIndex) ? piece.sourceLotIndex + 1 : null;
 
@@ -41365,7 +41375,6 @@ renderRadar() {
         const essenceNom = this.getBarcodeComposerValueFromPieceOnly(piece, 'essenceNomCommun');
         const essenceAbbr = essenceNom ? this.abbreviateEssence(essenceNom, 4, 2) : '';
         const essenceEn13556 = this.resolveBarcodeEssenceEn13556(piece);
-        const essenceValue = mode === 'en13556' ? essenceEn13556 : essenceAbbr;
 
         const longueur = this.formatBarcodeComposerNumber(this.getBarcodeComposerValueFromPieceOnly(piece, 'longueur'));
         const mmAverages = this.getBarcodeComposerMesuresMultiplesRectAverages(pieceSource);
@@ -41461,7 +41470,8 @@ renderRadar() {
 
         return {
             ref: { value: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '', preview: lotNum != null ? `L${lotNum}P${(Number.isInteger(piece && piece.sourcePieceIndex) ? piece.sourcePieceIndex + 1 : 1)}` : '—' },
-            essence: { value: essenceValue, preview: essenceValue || '—' },
+            essence: { value: essenceAbbr, preview: essenceAbbr || '—' },
+            essenceEn13556: { value: essenceEn13556, preview: essenceEn13556 || '—' },
             longueur: { value: longueur, preview: longueur || '—' },
             largeur: { value: largeur, preview: largeur || '—', isAverage: hasAverageDims },
             epaisseur: { value: epaisseur, preview: epaisseur || '—', isAverage: hasAverageDims },
@@ -41496,9 +41506,9 @@ renderRadar() {
         return window.VALOBOIS_BARCODE_COMPOSER_DEFAULT_CONFIG || {
             lotNum: true,
             pieceNum: true,
-            essenceMode: 'abbr',
             payloadFormat: 'compact',
             essence: true,
+            essenceEn13556: false,
             longueur: true,
             largeur: true,
             epaisseur: false,
@@ -41538,22 +41548,34 @@ renderRadar() {
         return normalized === 'datamatrix' || normalized === 'qr-offline';
     }
 
+    normalizeBarcodeComposerEssenceFields(state) {
+        const next = state && typeof state === 'object' ? { ...state } : {};
+        if (next.essenceEn13556 == null && String(next.essenceMode || '').toLowerCase() === 'en13556') {
+            next.essenceEn13556 = !!next.essence;
+            next.essence = false;
+        }
+        if (next.essenceEn13556 == null) next.essenceEn13556 = false;
+        return next;
+    }
+
     getBarcodeComposerConfig() {
         if (!this._barcodeComposerFieldState || typeof this._barcodeComposerFieldState !== 'object') {
             this._barcodeComposerFieldState = this.getBarcodeComposerDefaultConfig();
         }
         if (!this._barcodeComposerCustomState || typeof this._barcodeComposerCustomState !== 'object') {
-            this._barcodeComposerCustomState = { label: '', code: '', footerText: '' };
+            this._barcodeComposerCustomState = { label: '', code: '', footerText: '', footerTextDirty: false };
         }
         const payloadFormat = this.normalizeBarcodePayloadFormat(this._barcodeComposerFieldState.payloadFormat);
+        const mergedFieldState = this.normalizeBarcodeComposerEssenceFields(this._barcodeComposerFieldState);
         return {
             ...this.getBarcodeComposerDefaultConfig(),
-            ...this._barcodeComposerFieldState,
+            ...mergedFieldState,
             payloadFormat,
             customInfosSelection: this.normalizeBarcodeComposerCustomInfosSelection(this._barcodeComposerFieldState.customInfosSelection),
             customLabel: String(this._barcodeComposerCustomState.label || '').trim(),
             customCode: String(this._barcodeComposerCustomState.code || '').trim(),
-            footerText: String(this._barcodeComposerCustomState.footerText || '').trim(),
+            footerText: this.getEtiquetteFooterTemplate(this._barcodeComposerCustomState),
+            footerTextDirty: !!this._barcodeComposerCustomState.footerTextDirty,
             lotNum: true,
             pieceNum: true
         };
@@ -41582,7 +41604,7 @@ renderRadar() {
 
         const lotNum = Number.isInteger(lotIndex) ? lotIndex + 1 : 1;
         const pieceNum = Number.isInteger(pieceIndex) ? pieceIndex + 1 : 1;
-        const map = this.buildBarcodeComposerValueMap(lot, piece, cfg.essenceMode);
+        const map = this.buildBarcodeComposerValueMap(lot, piece);
         const supportsComplete = this.isBarcodePayloadFormatAvailable(normalizedFormula);
         const isComplete = supportsComplete && cfg.payloadFormat === 'complet';
 
@@ -41612,6 +41634,9 @@ renderRadar() {
                         add('Essence', value);
                         break;
                     }
+                    case 'essenceEn13556':
+                        add('Code EN 13556', token);
+                        break;
                     case 'longueur':
                         add('Longueur', `${token} mm`);
                         break;
@@ -41900,13 +41925,12 @@ renderRadar() {
         composer.querySelectorAll('.barcode-composer__custom-field textarea').forEach((textarea) => {
             textarea.disabled = false;
         });
-        const essenceModeEl = composer.querySelector('#bcEssenceMode');
-        if (essenceModeEl) essenceModeEl.disabled = false;
     }
 
     getBarcodeComposerFieldUnavailableTooltip(field) {
         const tips = {
             essence: 'Essence manquante sur les pieces selectionnees.',
+            essenceEn13556: 'Code EN 13556 indisponible pour les pieces selectionnees.',
             longueur: 'Longueur manquante sur les pieces selectionnees.',
             largeur: 'Largeur manquante sur les pieces selectionnees.',
             epaisseur: 'Epaisseur manquante sur les pieces selectionnees.',
@@ -41987,9 +42011,7 @@ renderRadar() {
 
     getBarcodeComposerPreviewAvailabilityScore(lot, item) {
         if (!lot || !item) return -1;
-        const config = this.getBarcodeComposerConfig();
-        const essenceMode = String(config && config.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
-        const valueMap = this.getBarcodeComposerValueMapCached(lot, item, essenceMode);
+        const valueMap = this.getBarcodeComposerValueMapCached(lot, item);
         let score = 0;
 
         this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
@@ -42000,14 +42022,13 @@ renderRadar() {
         return score;
     }
 
-    getBarcodeComposerFieldsAvailabilityMap(essenceMode = 'abbr') {
-        const mode = String(essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
+    getBarcodeComposerFieldsAvailabilityMap() {
         const selectedLotIndices = this.getSelectedEtiqueterLotIndices();
         const lotIndices = selectedLotIndices.length ? selectedLotIndices : [this.currentLotIndex || 0];
         if (!this._barcodeComposerAvailabilityCache || typeof this._barcodeComposerAvailabilityCache !== 'object') {
             this._barcodeComposerAvailabilityCache = {};
         }
-        const cacheKey = `${mode}|${lotIndices.filter((value) => Number.isInteger(value) && value >= 0).join(',')}`;
+        const cacheKey = lotIndices.filter((value) => Number.isInteger(value) && value >= 0).join(',');
         if (this._barcodeComposerAvailabilityCache[cacheKey]) {
             return this._barcodeComposerAvailabilityCache[cacheKey];
         }
@@ -42024,7 +42045,7 @@ renderRadar() {
             if (!Array.isArray(items) || !items.length) return;
 
             items.forEach((item) => {
-                const valueMap = this.getBarcodeComposerValueMapCached(lot, item, mode);
+                const valueMap = this.getBarcodeComposerValueMapCached(lot, item);
                 this.getBarcodeComposerOptionalFieldsOrder().forEach((field) => {
                     if (availability[field]) return;
                     const value = valueMap && valueMap[field] && valueMap[field].value ? String(valueMap[field].value).trim() : '';
@@ -42135,7 +42156,6 @@ renderRadar() {
         const footerTextEl = document.getElementById('bcFooterText');
         const payloadFormatEl = document.getElementById('bcPayloadFormat');
         const previewPieceEl = document.getElementById('bcPreviewPiece');
-        const essenceModeEl = document.getElementById('bcEssenceMode');
         const addLotCodeBtn = document.getElementById('bcAddLotCodeBtn');
         const lotCodesListEl = document.getElementById('bcLotCodesList');
         const lotCodesValidationEl = document.getElementById('bcLotCodesValidation');
@@ -42144,17 +42164,15 @@ renderRadar() {
         const getRuntimeCustomInfosSelection = () => this.normalizeBarcodeComposerCustomInfosSelection(
             this._barcodeComposerFieldState && this._barcodeComposerFieldState.customInfosSelection
         );
-        const essenceMode = String(currentState.essenceMode || 'abbr').toLowerCase() === 'en13556' ? 'en13556' : 'abbr';
-        if (essenceModeEl) essenceModeEl.value = essenceMode;
         if (payloadFormatEl) payloadFormatEl.value = this.normalizeBarcodePayloadFormat(currentState.payloadFormat);
 
-        let activeEssenceMode = essenceMode;
-        let valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, activeEssenceMode);
-        let availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(activeEssenceMode);
-        let dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection(activeEssenceMode);
+        let valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece);
+        let availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap();
+        let dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection();
         const previewIds = {
             ref: 'bcPreviewRef',
             essence: 'bcPreviewEssence',
+            essenceEn13556: 'bcPreviewEssenceEn13556',
             longueur: 'bcPreviewLongueur',
             largeur: 'bcPreviewLargeur',
             epaisseur: 'bcPreviewEpaisseur',
@@ -42349,7 +42367,16 @@ renderRadar() {
 
         if (customLabelEl) customLabelEl.value = currentState.customLabel || '';
         if (customCodeEl) customCodeEl.value = currentState.customCode || '';
-        if (footerTextEl) footerTextEl.value = currentState.footerText || '';
+        if (footerTextEl) {
+            const footerCustom = this._barcodeComposerCustomState || {};
+            const savedFooter = String(footerCustom.footerText || currentState.footerText || '').trim();
+            if (footerCustom.footerTextDirty && savedFooter && !this.isAutoEtiquetteFooterText(savedFooter)) {
+                footerTextEl.value = savedFooter.slice(0, 120);
+            } else {
+                footerCustom.footerTextDirty = false;
+                this.refreshEtiqueterFooterText();
+            }
+        }
         let editingLotCodeId = '';
 
         const clearLotCodeEditState = () => {
@@ -42550,10 +42577,10 @@ renderRadar() {
             }
         });
 
-        const refreshComputedMaps = (mode) => {
-            valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece, mode);
-            availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap(mode);
-            dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection(mode);
+        const refreshComputedMaps = () => {
+            valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece);
+            availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap();
+            dynamicCustomInfoEntries = this.getBarcodeComposerCustomInfosEntriesForSelection();
             Object.keys(previewIds).forEach((field) => {
                 const el = document.getElementById(previewIds[field]);
                 if (!el) return;
@@ -42566,20 +42593,17 @@ renderRadar() {
 
         const updateOutput = (source = 'full') => {
             const selectedFormula = this.getSelectedCodeFormula();
-            const nextEssenceMode = essenceModeEl && essenceModeEl.value === 'en13556' ? 'en13556' : 'abbr';
             const requestedFormat = this.normalizeBarcodePayloadFormat(payloadFormatEl && payloadFormatEl.value);
             const nextPayloadFormat = this.isBarcodePayloadFormatAvailable(selectedFormula) ? requestedFormat : 'compact';
             if (payloadFormatEl) payloadFormatEl.value = nextPayloadFormat;
 
-            if (source === 'full' || nextEssenceMode !== activeEssenceMode) {
-                activeEssenceMode = nextEssenceMode;
-                refreshComputedMaps(activeEssenceMode);
+            if (source === 'full') {
+                refreshComputedMaps();
             }
 
             const config = {
                 lotNum: true,
                 pieceNum: true,
-                essenceMode: nextEssenceMode,
                 payloadFormat: nextPayloadFormat
             };
 
@@ -42598,10 +42622,14 @@ renderRadar() {
             config.customInfosSelection = customInfosSelection;
 
             this._barcodeComposerFieldState = { ...config };
+            const footerDirty = !!(this._barcodeComposerCustomState && this._barcodeComposerCustomState.footerTextDirty);
             this._barcodeComposerCustomState = {
                 label: String(customLabelEl && customLabelEl.value ? customLabelEl.value : '').trim().slice(0, 40),
                 code: String(customCodeEl && customCodeEl.value ? customCodeEl.value : '').trim().slice(0, 32),
-                footerText: String(footerTextEl && footerTextEl.value ? footerTextEl.value : '').trim().slice(0, 120)
+                footerText: footerDirty
+                    ? String(footerTextEl && footerTextEl.value ? footerTextEl.value : '').trim().slice(0, 120)
+                    : this.getDefaultEtiquetteFooterTemplate(),
+                footerTextDirty: footerDirty
             };
 
             const content = this.buildBarcodeContent(
@@ -42625,6 +42653,9 @@ renderRadar() {
             this._currentBarcodeContent = displayContent;
             updateLotCodesValidationStatus(content, config.customInfosSelection);
             this.updateEtiqueterCodeLengthIndicator();
+            if (!this._barcodeComposerCustomState.footerTextDirty) {
+                this.refreshEtiqueterFooterText();
+            }
         };
 
         composer.onchange = (event) => {
@@ -42634,12 +42665,6 @@ renderRadar() {
                 updateOutput('field-check');
             }
         };
-        if (essenceModeEl) {
-            essenceModeEl.onchange = () => {
-                this.invalidateBarcodeComposerCaches();
-                this.refreshBarcodeComposerPreview();
-            };
-        }
         if (payloadFormatEl) payloadFormatEl.onchange = () => updateOutput('payload-format');
         if (lotCodesListEl) {
             lotCodesListEl.onclick = (event) => {
@@ -42710,7 +42735,23 @@ renderRadar() {
                 addLotCodeFromInputs();
             };
         }
-        if (footerTextEl) footerTextEl.oninput = () => updateOutput('custom-input');
+        if (footerTextEl) {
+            footerTextEl.oninput = () => {
+                const value = String(footerTextEl.value || '').trim();
+                if (!this._barcodeComposerCustomState || typeof this._barcodeComposerCustomState !== 'object') {
+                    this._barcodeComposerCustomState = { label: '', code: '', footerText: '', footerTextDirty: false };
+                }
+                if (!value) {
+                    this._barcodeComposerCustomState.footerTextDirty = false;
+                    this.refreshEtiqueterFooterText();
+                    updateOutput('custom-input');
+                    return;
+                }
+                this._barcodeComposerCustomState.footerTextDirty = true;
+                this._barcodeComposerCustomState.footerText = value.slice(0, 120);
+                updateOutput('custom-input');
+            };
+        }
 
         this._updateBarcodeComposerOutput = updateOutput;
         this.updateBarcodeComposerReadonlyState(this.getSelectedCodeFormula());
@@ -42853,13 +42894,15 @@ renderRadar() {
             return api.toSVG({
                 bcid: 'code128',
                 text: String(text || ''),
-                scale: 2,
-                height: 12,
+                scale: 5,
+                // Barres plus épaisses pour remplir la zone intérieure 9×46 mm (étiquette 1D).
+                height: 30,
+                rotate: 'L',
                 includetext: false,
                 backgroundcolor: 'FFFFFF',
                 barcolor: '000000',
-                paddingwidth: 4,
-                paddingheight: 4
+                paddingwidth: 0,
+                paddingheight: 0
             });
         } catch (e) {
             console.error('Valobois code: erreur génération Code 128', e);
@@ -43224,13 +43267,14 @@ renderRadar() {
 
     normalizeEtiquetteLayoutMode(layoutMode) {
         const mode = String(layoutMode || '').trim().toLowerCase();
-        if (mode === 'a3_6x6' || mode === 'a3_9x4') return 'a3_9x4';
-        return 'a4_3x6';
+        if (mode === 'a3' || mode === 'a3_6x6' || mode === 'a3_9x4') return 'a3';
+        if (mode === 'a4' || mode === 'a4_3x6') return 'a4';
+        return 'a4';
     }
 
     getEtiquetteLayoutPreset(layoutMode) {
         const mode = this.normalizeEtiquetteLayoutMode(layoutMode);
-        if (mode === 'a3_9x4') {
+        if (mode === 'a3') {
             return {
                 mode,
                 pageSize: 'A3',
@@ -43246,7 +43290,7 @@ renderRadar() {
             };
         }
         return {
-            mode: 'a4_3x6',
+            mode: 'a4',
             pageSize: 'A4',
             pageOrientation: 'landscape',
             pageWidthMm: 297,
@@ -43258,6 +43302,151 @@ renderRadar() {
             labelHeightMm: 60,
             gapMm: 2
         };
+    }
+
+    getDefaultEtiquetteFooterTemplate() {
+        return 'VALOXYLO · {lotRef} · page {page}/{totalPages} · {date}';
+    }
+
+    getEtiquetteFooterTemplate(customState) {
+        const state = customState && typeof customState === 'object' ? customState : {};
+        const custom = String(state.footerText || '').trim();
+        if (state.footerTextDirty && custom) return custom;
+        return this.getDefaultEtiquetteFooterTemplate();
+    }
+
+    resolveEtiquetteFooterText(template, vars) {
+        const src = String(template || '').trim() || this.getDefaultEtiquetteFooterTemplate();
+        const page = vars && vars.page != null ? vars.page : 1;
+        const totalPages = vars && vars.totalPages != null ? vars.totalPages : 1;
+        const lotRef = vars && vars.lotRef != null ? vars.lotRef : '';
+        const date = vars && vars.date != null ? vars.date : '';
+        const totalLabels = vars && vars.totalLabels != null ? vars.totalLabels : '';
+        return src
+            .replace(/\{page\}/g, String(page))
+            .replace(/\{totalPages\}/g, String(totalPages))
+            .replace(/\{lotRef\}/g, String(lotRef))
+            .replace(/\{totalLabels\}/g, String(totalLabels))
+            .replace(/\{date\}/g, String(date));
+    }
+
+    isAutoEtiquetteFooterText(text) {
+        const value = String(text || '').trim();
+        if (!value) return true;
+        if (/\{page\}|\{totalPages\}|\{lotRef\}|\{date\}|\{totalLabels\}/.test(value)) return true;
+        if (/étiquettes?/i.test(value)) return true;
+        return /^VALOXYLO\s*·/i.test(value);
+    }
+
+    buildEtiquetteExportStats(lotIndices, layoutMode, codeFormula, codeFields, barcodeConfig) {
+        const validLotIndices = Array.isArray(lotIndices)
+            ? lotIndices.filter((i) => Number.isInteger(i) && this.data.lots[i])
+            : [];
+        const items = [];
+        validLotIndices.forEach((lotIndex) => {
+            const lot = this.data.lots[lotIndex];
+            const labels = this.buildEtiquettePieceItems(lot, lotIndex);
+            if (!Array.isArray(labels)) return;
+            labels.forEach((label) => {
+                if (label && typeof label === 'object') {
+                    label.sourceLotIndex = lotIndex;
+                    items.push(label);
+                }
+            });
+        });
+
+        const layoutPreset = this.getEtiquetteLayoutPreset(layoutMode);
+        const formula = this.normalizeCodeFormula(codeFormula);
+        const fields = Array.isArray(codeFields) ? codeFields : ['id', 'essence', 'dimensions', 'orientation'];
+        const cfg = barcodeConfig && typeof barcodeConfig === 'object' ? barcodeConfig : this.getBarcodeComposerConfig();
+        const baseUrl = String(window.VALOBOIS_PUBLIC_URL || this.getEtiquetteQrConfig().baseUrl || 'https://valoxylo.app').replace(/\/+$/, '');
+        const is2D = this.is2DCodeFormula(formula);
+        let useLargeLabelGrid = false;
+
+        if (is2D) {
+            for (let i = 0; i < items.length; i += 1) {
+                const item = items[i];
+                const itemLotIndex = Number.isInteger(item.sourceLotIndex) ? item.sourceLotIndex : validLotIndices[0] || 0;
+                const itemPieceIndex = Number.isInteger(item.sourcePieceIndex) ? item.sourcePieceIndex : i;
+                const itemLot = this.data.lots[itemLotIndex] || {};
+                const rawPayload = this.buildCodeContent(formula, item, {
+                    fields,
+                    lot: itemLot,
+                    lotIndex: itemLotIndex,
+                    pieceIndex: itemPieceIndex,
+                    barcodeConfig: cfg,
+                    baseUrl,
+                    diagDate: this.data && this.data.meta ? this.data.meta.date : null
+                });
+                const encodePayload = this.getCodePayloadForEncoding(formula, rawPayload);
+                if (this.getCodeZoneSize(encodePayload) === 'large') {
+                    useLargeLabelGrid = true;
+                    break;
+                }
+            }
+        }
+
+        const gapMm = layoutPreset.gapMm;
+        const labelWidthMm = useLargeLabelGrid ? 60 : layoutPreset.labelWidthMm;
+        const labelHeightMm = useLargeLabelGrid ? 60 : layoutPreset.labelHeightMm;
+        const printableW = layoutPreset.pageWidthMm - (layoutPreset.pageMarginMm * 2);
+        const printableH = layoutPreset.pageHeightMm - (layoutPreset.pageMarginMm * 2);
+        const cols = Math.max(1, Math.floor((printableW + gapMm) / (labelWidthMm + gapMm)));
+        const rows = Math.max(1, Math.floor((printableH + gapMm) / (labelHeightMm + gapMm)));
+        const labelsPerPage = cols * rows;
+        const totalLabels = items.length;
+        const totalPages = Math.max(1, Math.ceil(Math.max(totalLabels, 1) / labelsPerPage));
+        const lotRef = validLotIndices.length > 1
+            ? `${validLotIndices.length} lots sélectionnés`
+            : (validLotIndices.length
+                ? this.getPdfLotLabel(this.data.lots[validLotIndices[0]], validLotIndices[0])
+                : '');
+
+        return {
+            totalLabels,
+            totalPages,
+            labelsPerPage,
+            lotRef,
+            today: new Date().toLocaleDateString(getValoboisIntlLocale())
+        };
+    }
+
+    refreshEtiqueterFooterText() {
+        const footerTextEl = document.getElementById('bcFooterText');
+        if (!footerTextEl) return;
+
+        if (!this._barcodeComposerCustomState || typeof this._barcodeComposerCustomState !== 'object') {
+            this._barcodeComposerCustomState = { label: '', code: '', footerText: '', footerTextDirty: false };
+        }
+
+        const state = this._barcodeComposerCustomState;
+        const current = String(state.footerText || footerTextEl.value || '').trim();
+        if (state.footerTextDirty && current && !this.isAutoEtiquetteFooterText(current)) {
+            footerTextEl.value = current.slice(0, 120);
+            return;
+        }
+
+        const layoutSelect = document.getElementById('etiqueterLayoutMode');
+        const layoutMode = this.normalizeEtiquetteLayoutMode(layoutSelect && layoutSelect.value);
+        const lotIndices = this.getSelectedEtiqueterLotIndices();
+        const stats = this.buildEtiquetteExportStats(
+            lotIndices.length ? lotIndices : [this.currentLotIndex || 0],
+            layoutMode,
+            this.getSelectedCodeFormula(),
+            this.getSelectedCodeContentFields(),
+            this.getBarcodeComposerConfig()
+        );
+        const template = this.getDefaultEtiquetteFooterTemplate();
+        const preview = this.resolveEtiquetteFooterText(template, {
+            page: 1,
+            totalPages: stats.totalPages,
+            lotRef: stats.lotRef,
+            date: stats.today
+        });
+
+        footerTextEl.value = preview;
+        state.footerText = template;
+        state.footerTextDirty = false;
     }
 
     async exportEtiquettes(lotIndices = [], options = {}) {
@@ -43335,7 +43524,7 @@ renderRadar() {
                 pageNoteLabel
             });
 
-            const safeLayout = layoutMode === 'a3_9x4' ? 'a3_9x4' : 'a4_3x6';
+            const safeLayout = layoutMode === 'a3' ? 'a3' : 'a4';
             const multiSuffix = validLotIndices.length > 1
                 ? `${String(validLotIndices.length).padStart(2, '0')}_lots`
                 : `lot-${String(validLotIndices[0] + 1).padStart(2, '0')}`;
@@ -43532,6 +43721,44 @@ renderRadar() {
         const maxCharsForWidth = (widthMm, fontSize) => {
             return Math.max(6, Math.floor(widthMm / (fontSize * 0.55)));
         };
+        /** Ligne entière pivotée dans une cellule (<g transform>, pas de foreignObject). Compatible pdfMake / svg-to-pdfkit. */
+        const drawRotatedLineInCell = (out, clipKey, cell, opts) => {
+            const {
+                text,
+                fontSize,
+                fontWeight = '700',
+                fill = '#000000',
+                angle = -90,
+                minFontSize,
+                textAnchor = 'middle',
+                align = 'center'
+            } = opts;
+            const safeText = String(text || '').trim().replace(/<br\s*\/?>/gi, ', ').replace(/\s+/g, ' ').trim();
+            if (!safeText) return;
+            const clipId = `rtl_${clipKey}`;
+            const inset = Math.max(0.25, Math.min(cell.w, cell.h) * 0.04);
+            const isVertical = Math.abs(angle) === 90;
+            const maxAlongMm = Math.max(isVertical ? cell.h : cell.w, 2) - (inset * 2);
+            const fitted = fitSingleLineFont(safeText, maxAlongMm, fontSize, minFontSize || fontSize * 0.35);
+            let tx = cell.x + (cell.w / 2);
+            let ty = cell.y + (cell.h / 2);
+            if (isVertical) {
+                if (align === 'start') ty = cell.y + inset;
+                else if (align === 'end') ty = cell.y + cell.h - inset;
+            } else if (align === 'start') {
+                tx = cell.x + inset;
+            } else if (align === 'end') {
+                tx = cell.x + cell.w - inset;
+            }
+            out.push(`<clipPath id="${clipId}"><rect x="${cell.x}" y="${cell.y}" width="${cell.w}" height="${cell.h}"/></clipPath>`);
+            out.push(`<g clip-path="url(#${clipId})">`);
+            out.push(`<g transform="translate(${tx} ${ty}) rotate(${angle})">`);
+            out.push(`<text x="0" y="0" text-anchor="${textAnchor}" font-family="${FF}" font-size="${fitted}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
+            out.push('</g></g>');
+        };
+        const drawVerticalRlInBox = (out, clipKey, cell, opts) => {
+            drawRotatedLineInCell(out, clipKey, cell, { ...opts, angle: -90 });
+        };
         const drawRotatedCenterText = (out, opts) => {
             const {
                 text,
@@ -43542,11 +43769,15 @@ renderRadar() {
                 minFontSize,
                 fill,
                 angle = -90,
-                fontWeight = '700'
+                fontWeight = '700',
+                dyEm = 0.35
             } = opts;
             const safeText = String(text || '').trim() || '—';
             const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
-            out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
+            const dyAttr = Number.isFinite(Number(dyEm)) && Number(dyEm) !== 0
+                ? ` dy="${Number((fontSize * dyEm).toFixed(3))}"`
+                : '';
+            out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}"${dyAttr}>${e(safeText)}</text>`);
         };
         const drawCenteredInBox = (out, opts) => {
             const {
@@ -43569,7 +43800,8 @@ renderRadar() {
         const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
             const safeText = String(text || '').trim() || '—';
             let size = baseSize;
-            while (size > minSize && safeText.length > maxCharsForWidth(widthMm, size)) {
+            const charFactor = 0.58;
+            while (size > minSize && safeText.length * size * charFactor > widthMm) {
                 size -= 0.05;
             }
             return Math.max(minSize, Number(size.toFixed(2)));
@@ -43608,15 +43840,19 @@ renderRadar() {
             out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
             return y;
         };
+        const stripUnsupportedSvgMarkup = (svgFragment) => String(svgFragment || '')
+            .replace(/<foreignObject[\s\S]*?<\/foreignObject>/gi, '')
+            .replace(/<switch[\s\S]*?<\/switch>/gi, '')
+            .replace(/Text is not SVG - cannot display/gi, '');
         const buildQrVectorGroup = (svgString, x, y, widthMm, fitMode = 'contain', heightMm = null) => {
-            const raw = typeof svgString === 'string' ? svgString.trim() : '';
+            const raw = typeof svgString === 'string' ? stripUnsupportedSvgMarkup(svgString.trim()) : '';
             if (!raw) return '';
 
-            const inner = raw
+            const inner = stripUnsupportedSvgMarkup(raw
                 .replace(/^<\?xml[^>]*>\s*/i, '')
                 .replace(/^<svg[^>]*>/i, '')
                 .replace(/<\/svg>\s*$/i, '')
-                .trim();
+                .trim());
             if (!inner) return '';
 
             const viewBoxMatch = raw.match(/viewBox\s*=\s*"([^"]+)"/i);
@@ -43630,10 +43866,54 @@ renderRadar() {
                 }
             }
 
-            const preserveAspectRatio = fitMode === 'stretch' ? 'none' : 'xMidYMid meet';
+            const preserveAspectRatio = fitMode === 'stretch'
+                ? 'none'
+                : (fitMode === 'slice' ? 'xMidYMid slice' : 'xMidYMid meet');
             const w = Number(widthMm) || 0;
             const h = Number(heightMm == null ? widthMm : heightMm) || 0;
             return `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="visible" shape-rendering="crispEdges">${inner}</svg>`;
+        };
+        const parseSvgViewBoxMm = (svgString) => {
+            const raw = typeof svgString === 'string' ? svgString : '';
+            const viewBoxMatch = raw.match(/viewBox\s*=\s*"([^"]+)"/i);
+            if (!viewBoxMatch || !viewBoxMatch[1]) return { width: 1, height: 1 };
+            const parts = viewBoxMatch[1].trim().split(/\s+/).map((v) => parseFloat(v));
+            if (parts.length !== 4 || !Number.isFinite(parts[2]) || !Number.isFinite(parts[3]) || parts[2] <= 0 || parts[3] <= 0) {
+                return { width: 1, height: 1 };
+            }
+            return { width: parts[2], height: parts[3] };
+        };
+        const placeVectorInBox = (svgString, box, fitMode = 'meet', padMm = 0) => {
+            if (!box || !svgString) return '';
+            const pad = Math.max(0, Number(padMm) || 0);
+            const innerX = box.x + pad;
+            const innerY = box.y + pad;
+            const innerW = Math.max(0, box.w - (pad * 2));
+            const innerH = Math.max(0, box.h - (pad * 2));
+            if (innerW <= 0 || innerH <= 0) return '';
+
+            if (fitMode === 'stretch') {
+                return buildQrVectorGroup(svgString, innerX, innerY, innerW, 'stretch', innerH);
+            }
+
+            const vb = parseSvgViewBoxMm(svgString);
+            const vbAspect = vb.width / vb.height;
+            const boxAspect = innerW / innerH;
+            let drawW = innerW;
+            let drawH = innerH;
+            if (fitMode === 'slice') {
+                if (vbAspect > boxAspect) drawH = innerH;
+                else drawW = innerW;
+            } else if (vbAspect > boxAspect) {
+                drawW = innerW;
+                drawH = innerW / vbAspect;
+            } else {
+                drawH = innerH;
+                drawW = innerH * vbAspect;
+            }
+            const drawX = innerX + ((innerW - drawW) / 2);
+            const drawY = innerY + ((innerH - drawH) / 2);
+            return buildQrVectorGroup(svgString, drawX, drawY, drawW, fitMode === 'slice' ? 'slice' : 'meet', drawH);
         };
         const getQuietZoneMm = (zoneSize, formula) => this.getCodeZoneQuietZoneMm(zoneSize, formula);
         const drawLabeledWrappedValue = (out, opts) => {
@@ -43843,7 +44123,171 @@ renderRadar() {
             return out.join('');
         };
 
+        /** Code 128 — layout draw.io (etiquette_code_barres.html), typo identique au format 2D. */
+        const buildLabelBarcode1D = (lx, ly, uid, item, qrData) => {
+            const R = 0;
+            const out = [];
+            const layoutScale = Math.min(LABEL_W / 40, LABEL_H / 60);
+            const su = (value) => value * layoutScale;
+            const lotNameRaw = String(item.lotRef || '').trim();
+            const lotName = lotNameRaw ? (lotNameRaw.toLowerCase().startsWith('lot') ? lotNameRaw : `Lot ${lotNameRaw}`) : 'Lot nnn';
+            const pieceLabel = item.pieceLabel || '—';
+            const pieceHeading = this.formatEtiquettePieceHeading(item);
+            const typePiece = item.typePiece || '—';
+            const essenceNomCommun = item.essenceNomCommun || '—';
+            const origine = item.origine || '—';
+            const mainDimensionLabel = item.mainDimensionLabel || '—';
+            const orientationCode = String(item.orientationCode || 'none').toLowerCase();
+            const orientationColor = OC[orientationCode] || '#CCCCCC';
+            const orientationText = String(item.orientationLabel || '—').toUpperCase();
+            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m³` : '0,0 m³';
+            const COLOR_WHITE = '#FFFFFF';
+            const COLOR_DARK = '#000000';
+            const topBandH = su(5);
+            const bottomBandH = su(5);
+            const sideBandW = su(5);
+            const centerPanelW = LABEL_W - (sideBandW * 2);
+            const centerPanelH = LABEL_H - topBandH - bottomBandH;
+            const pieceNumRaw = pieceHeading.numberLabel
+                ? pieceHeading.numberLabel.replace(/^N°\s*/i, '').trim()
+                : '';
+            const fallbackNumMatch = String(item && item.uid ? item.uid : '').match(/-p0*(\d+)$/i);
+            const fallbackIndexNum = Number.isInteger(item && item.sourcePieceIndex)
+                ? String(item.sourcePieceIndex + 1)
+                : (fallbackNumMatch ? fallbackNumMatch[1] : '');
+            const pieceNumberText = pieceNumRaw || fallbackIndexNum || '—';
+            const hriText = String(qrData && (qrData.encodePayload || qrData.payload) || '').trim();
+            const pieceNameCellText = String(pieceHeading.nameLabel || pieceLabel || 'Pièce').trim() || 'Pièce';
+
+            out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" rx="${R}"/></clipPath>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${topBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + LABEL_W - sideBandW}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + LABEL_H - bottomBandH}" width="${LABEL_W}" height="${bottomBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + sideBandW}" y="${ly + topBandH}" width="${centerPanelW}" height="${centerPanelH}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<g clip-path="url(#cp${uid})">`);
+
+            drawCenteredInBox(out, {
+                text: lotName,
+                boxX: lx,
+                boxY: ly,
+                boxW: LABEL_W,
+                boxH: topBandH,
+                baseFontSize: su(baseF.lot),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK
+            });
+
+            const sideTextCy = ly + topBandH + (centerPanelH / 2);
+            const sideTextSpan = centerPanelH - su(4);
+            drawRotatedCenterText(out, {
+                text: mainDimensionLabel,
+                cx: lx + (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                angle: -90,
+                dyEm: 0
+            });
+            drawRotatedCenterText(out, {
+                text: volumeStr,
+                cx: lx + LABEL_W - (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(3.72),
+                minFontSize: su(2.2),
+                fill: COLOR_DARK,
+                angle: 90,
+                dyEm: 0
+            });
+
+            const panelX = lx + sideBandW;
+            const panelY = ly + topBandH;
+            const mmCell = (v0, u0, v1, u1) => ({
+                x: panelX + su(v0),
+                y: panelY + su(u0),
+                w: su(v1 - v0),
+                h: su(u1 - u0)
+            });
+            const splitOriginForLabel = (value) => {
+                const raw = String(value || '').trim();
+                if (!raw || raw === '—') return ['—'];
+                const idx = raw.indexOf(',');
+                if (idx === -1) return [raw];
+                const head = raw.slice(0, idx + 1).trim();
+                const tail = raw.slice(idx + 1).trim();
+                return tail ? [head, tail] : [head];
+            };
+            const pmm = (v) => panelX + su(v);
+            const umm = (u) => panelY + su(u);
+            // Colonne de texte pivotée −90° (lecture bas→haut). anchor 'start' => s'étend vers le haut depuis uAnchor.
+            // Primitif identique aux bandeaux latéraux (rendu PDF fiable) : transform rotate sur <text>.
+            const drawCol = (text, vCenter, uAnchor, fontMm, opts = {}) => {
+                const label = String(text || '').trim();
+                if (!label) return;
+                const {
+                    minFontMm = fontMm * 0.55,
+                    spanMm = 22,
+                    fill = COLOR_DARK,
+                    anchor = 'start',
+                    fontWeight = '700'
+                } = opts;
+                const fontSize = fitSingleLineFont(label, su(spanMm), su(fontMm), su(minFontMm));
+                out.push(`<text transform="translate(${pmm(vCenter)} ${umm(uAnchor)}) rotate(-90)" text-anchor="${anchor}" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(label)}</text>`);
+            };
+
+            // Réf. mockup exemple_complémentaire.pdf — coordonnées (v horizontal 0–30, u vertical 0–50)
+            const BAR = mmCell(0, 1, 13, 49);
+            if (qrData && qrData.svg) {
+                const barClipId = `bar_${uid}`;
+                out.push(`<clipPath id="${barClipId}"><rect x="${BAR.x}" y="${BAR.y}" width="${BAR.w}" height="${BAR.h}"/></clipPath>`);
+                out.push(`<g clip-path="url(#${barClipId})">`);
+                const qrGroup = buildQrVectorGroup(qrData.svg, BAR.x, BAR.y, BAR.w, 'slice', BAR.h);
+                if (qrGroup) out.push(qrGroup);
+                out.push('</g>');
+            }
+
+            // HRI vertical, juste à droite des barres
+            if (hriText) {
+                drawCol(hriText, 15, 47.5, 1.85, { spanMm: 45, minFontMm: 1.05 });
+            }
+
+            // Bloc descriptif : colonnes parallèles bottom-alignées (u = 31)
+            drawCol(typePiece, 19, 31, 2.5, { spanMm: 24, minFontMm: 1.4 });
+            drawCol(essenceNomCommun, 22.5, 31, 2.2, { spanMm: 24, minFontMm: 1.3 });
+            const originLines = splitOriginForLabel(origine);
+            drawCol(originLines[0], 25.5, 31, 1.85, { spanMm: 24, minFontMm: 1.15, fill: C.muted });
+            if (originLines[1]) {
+                drawCol(originLines[1], 28.5, 31, 1.85, { spanMm: 24, minFontMm: 1.15, fill: C.muted });
+            }
+
+            // Bloc identification (bas du panneau)
+            drawCol(pieceNumberText, 26, 39.5, 5.9, { spanMm: 9, minFontMm: 3.2, anchor: 'middle' });
+            drawCol(pieceNameCellText, 19.5, 49, 2.2, { spanMm: 7, minFontMm: 1.35 });
+            drawCol('N°', 27, 49.5, 3.2, { spanMm: 4, minFontMm: 2.4 });
+
+            drawCenteredInBox(out, {
+                text: orientationText,
+                boxX: lx,
+                boxY: ly + LABEL_H - bottomBandH,
+                boxW: LABEL_W,
+                boxH: bottomBandH,
+                baseFontSize: su(baseF.orientation),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK
+            });
+
+            out.push('</g>');
+            return out.join('');
+        };
+
         const buildLabel = (lx, ly, uid, item, qrData) => {
+            if (qrData && qrData.mode === 'barcode1d') {
+                return buildLabelBarcode1D(lx, ly, uid, item, qrData);
+            }
             const is2D = qrData && (qrData.mode === 'datamatrix' || qrData.mode === 'qr-offline');
             const zoneSize = qrData && qrData.zoneSize === 'large' ? 'large' : 'small';
             if (is2D && zoneSize === 'large') {
@@ -43871,15 +44315,16 @@ renderRadar() {
             const topBandH = su(5);
             const bottomBandH = su(5);
             const sideBandW = su(5);
-            const qrSize = su(this.getCodeZoneSizeMm('small'));
             const centerPanelW = LABEL_W - (sideBandW * 2);
             const centerPanelH = LABEL_H - topBandH - bottomBandH;
-            const qrX = lx + sideBandW + ((centerPanelW - qrSize) / 2);
-            const qrY = ly + topBandH;
+            const codeW = su(this.getCodeZoneSizeMm('small'));
+            const codeH = su(this.getCodeZoneSizeMm('small'));
+            const codeX = lx + sideBandW + ((centerPanelW - codeW) / 2);
+            const codeY = ly + topBandH;
             const sideTextCy = ly + topBandH + (centerPanelH / 2);
             const sideTextSpan = centerPanelH - su(4);
             const blockX = lx + sideBandW;
-            const blockY = qrY + qrSize;
+            const blockY = codeY + codeH;
             const blockW = centerPanelW;
             const row1H = su(7);
             const row2H = su(3.5);
@@ -43933,20 +44378,26 @@ renderRadar() {
                 angle: 90
             });
 
-            out.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
+            out.push(`<rect x="${codeX}" y="${codeY}" width="${codeW}" height="${codeH}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
             if (qrData && qrData.svg) {
-                const fitMode = qrData && qrData.mode === 'barcode1d' ? 'stretch' : 'contain';
-                const quietZoneMm = (qrData.mode === 'barcode1d') ? 0 : getQuietZoneMm('small', qrData.mode);
+                const quietZoneMm = getQuietZoneMm('small', qrData.mode);
                 const inset = su(quietZoneMm);
-                const innerSize = Math.max(0, qrSize - inset * 2);
-                const qrGroup = buildQrVectorGroup(qrData.svg, qrX + inset, qrY + inset, innerSize, fitMode, innerSize);
+                const innerSize = Math.max(0, codeW - inset * 2);
+                const qrGroup = buildQrVectorGroup(
+                    qrData.svg,
+                    codeX + inset,
+                    codeY + inset,
+                    innerSize,
+                    'contain',
+                    innerSize
+                );
                 if (qrGroup) {
                     out.push(qrGroup);
                 } else {
-                    out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+                    out.push(`<rect x="${codeX + su(0.5)}" y="${codeY + su(0.5)}" width="${codeW - su(1)}" height="${codeH - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
                 }
             } else {
-                out.push(`<rect x="${qrX + su(0.5)}" y="${qrY + su(0.5)}" width="${qrSize - su(1)}" height="${qrSize - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
+                out.push(`<rect x="${codeX + su(0.5)}" y="${codeY + su(0.5)}" width="${codeW - su(1)}" height="${codeH - su(1)}" fill="#F5F5F5" stroke="#DADADA" stroke-width="${su(0.1)}"/>`);
             }
 
             out.push(`<rect x="${blockX}" y="${blockY}" width="${blockW}" height="${row1H + row2H + row3H + row4H}" fill="${COLOR_WHITE}" stroke="none"/>`);
@@ -44099,8 +44550,7 @@ renderRadar() {
         const totalLabels = items.length;
         const totalPages = Math.max(1, Math.ceil(totalLabels / labelsPerPage));
         const today = new Date().toLocaleDateString(getValoboisIntlLocale());
-        const footerTextCustom = String(options && options.barcodeConfig && options.barcodeConfig.footerText || '').trim();
-        const footerTextFallback = `VALOXYLO · ${e(lotRef)} · ${totalLabels} étiquettes · page {page}/{totalPages} · ${today}`;
+        const footerTemplate = this.getEtiquetteFooterTemplate(barcodeConfig);
 
         const svgPages = [];
         for (let pageIndex = 0; pageIndex < totalPages; pageIndex += 1) {
@@ -44119,15 +44569,14 @@ renderRadar() {
             }
 
             const pageNoteY = PH - 10;
-            const pageNoteText = footerTextCustom
-                ? footerTextCustom
-                    .replace(/\{page\}/g, String(pageIndex + 1))
-                    .replace(/\{totalPages\}/g, String(totalPages))
-                    .replace(/\{lotRef\}/g, String(lotRef || ''))
-                    .replace(/\{totalLabels\}/g, String(totalLabels))
-                    .replace(/\{date\}/g, today)
-                : footerTextFallback;
-            const pageNoteFont = footerTextCustom ? Math.max(1.65, fitSingleLineFont(pageNoteText, PW - 10, 2.1, 1.45)) : 2.1;
+            const pageNoteText = this.resolveEtiquetteFooterText(footerTemplate, {
+                page: pageIndex + 1,
+                totalPages,
+                lotRef,
+                totalLabels,
+                date: today
+            });
+            const pageNoteFont = Math.max(1.65, fitSingleLineFont(pageNoteText, PW - 10, 2.1, 1.45));
             const pageNote = `<text x="${PW / 2}" y="${pageNoteY}" font-family="Roboto,Arial,sans-serif" font-size="${pageNoteFont}" fill="#BBBBBB" text-anchor="middle">${e(pageNoteText)}</text>`;
 
             svgPages.push([

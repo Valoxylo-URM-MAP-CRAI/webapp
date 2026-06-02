@@ -11829,8 +11829,9 @@ body.day-mode .lot-group--collapsible summary:hover {
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 0.2rem;
-            padding: 0.6rem 0.75rem;
+            gap: 0.1rem;
+            padding: 0.4rem 0.55rem;
+            min-height: 0;
             border: 1.5px solid var(--color-border, #d0d0d0);
             border-radius: var(--radius-md, 6px);
             background: var(--color-surface, #fafafa);
@@ -11848,11 +11849,6 @@ body.day-mode .lot-group--collapsible summary:hover {
         #etiqueterBackdrop .code-formula-btn[aria-pressed="true"] {
             border-color: var(--color-primary, #01696f);
             background: var(--color-primary-highlight, #cedcd8);
-        }
-
-        #etiqueterBackdrop .code-formula-icon {
-            font-size: 1rem;
-            opacity: 0.6;
         }
 
         #etiqueterBackdrop .code-formula-name {

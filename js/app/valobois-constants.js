@@ -224,9 +224,9 @@
     var VALOBOIS_BARCODE_COMPOSER_DEFAULT_CONFIG = Object.freeze({
         lotNum: true,
         pieceNum: true,
-        essenceMode: 'abbr',
         payloadFormat: 'compact',
         essence: true,
+        essenceEn13556: false,
         longueur: true,
         largeur: true,
         epaisseur: false,
@@ -263,6 +263,7 @@
 
     var VALOBOIS_BARCODE_COMPOSER_OPTIONAL_FIELDS_ORDER = Object.freeze([
         'essence',
+        'essenceEn13556',
         'longueur',
         'largeur',
         'epaisseur',
@@ -292,6 +293,7 @@
 
     var VALOBOIS_BARCODE_COMPOSER_FIELD_SCOPE_MAP = Object.freeze({
         essence: 'piece',
+        essenceEn13556: 'piece',
         longueur: 'piece',
         largeur: 'piece',
         epaisseur: 'piece',

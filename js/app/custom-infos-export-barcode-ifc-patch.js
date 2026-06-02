@@ -246,8 +246,8 @@
 
         if (typeof app.buildBarcodeComposerValueMap === 'function') {
             const originalBuildBarcodeComposerValueMap = app.buildBarcodeComposerValueMap.bind(app);
-            app.buildBarcodeComposerValueMap = function (lot, piece, essenceMode) {
-                const map = originalBuildBarcodeComposerValueMap(lot, piece, essenceMode) || {};
+            app.buildBarcodeComposerValueMap = function (lot, piece) {
+                const map = originalBuildBarcodeComposerValueMap(lot, piece) || {};
                 const pieceSource = piece && piece.sourcePiece && typeof piece.sourcePiece === 'object'
                     ? piece.sourcePiece
                     : piece;

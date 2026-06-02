@@ -5332,30 +5332,26 @@
                     <div style="margin-top: 12px; display: grid; gap: 6px;">
                         <label for="etiqueterLayoutMode" style="font-size: 13px; font-weight: 600;">Mise en page des étiquettes</label>
                         <select id="etiqueterLayoutMode" class="export-modal-select">
-                            <option value="a4_3x6" selected>Paysage 6 x 3 (A4)</option>
-                            <option value="a3_9x4">Paysage 9 x 4 (A3)</option>
+                            <option value="a4" selected>A4</option>
+                            <option value="a3">A3</option>
                         </select>
                     </div>
                     <div style="margin-top: 12px; display: grid; gap: 6px;">
                         <label style="font-size: 13px; font-weight: 600;" data-i18n="editor.common.codeFormulaLabel">Format du code</label>
                         <div class="code-formula-grid" role="radiogroup" aria-label="Format du code" id="code-formula-selector">
                             <button type="button" class="code-formula-btn" data-formula="barcode1d" aria-pressed="false">
-                                <span class="code-formula-icon">▮▮▮</span>
                                 <span class="code-formula-name" data-i18n="editor.common.formulaBarcode1D">Code-barres</span>
                                 <span class="code-formula-desc" data-i18n="editor.common.formulaBarcode1DDesc">Lecteurs industriels existants</span>
                             </button>
                             <button type="button" class="code-formula-btn" data-formula="datamatrix" aria-pressed="false">
-                                <span class="code-formula-icon">⬛</span>
                                 <span class="code-formula-name" data-i18n="editor.common.formulaDataMatrix">DataMatrix</span>
                                 <span class="code-formula-desc" data-i18n="editor.common.formulaDataMatrixDesc">Compact, très robuste</span>
                             </button>
                             <button type="button" class="code-formula-btn active" data-formula="qr-offline" aria-pressed="true">
-                                <span class="code-formula-icon">⊞</span>
                                 <span class="code-formula-name" data-i18n="editor.common.formulaQrOffline">QR Code offline</span>
                                 <span class="code-formula-desc" data-i18n="editor.common.formulaQrOfflineDesc">Données embarquées, sans internet</span>
                             </button>
                             <button type="button" class="code-formula-btn" data-formula="qr-online" aria-pressed="false">
-                                <span class="code-formula-icon">⊞</span>
                                 <span class="code-formula-name" data-i18n="editor.common.formulaQrOnline">QR Code online</span>
                                 <span class="code-formula-desc" data-i18n="editor.common.formulaQrOnlineDesc">URL fiche — nécessite connexion</span>
                             </button>
@@ -5388,7 +5384,7 @@
                                         </select>
                                     </label>
                                     <label class="barcode-composer__custom-field" id="bcPayloadFormatField">
-                                        <span>Format du contenu</span>
+                                        <span data-i18n="editor.common.barcodePayloadFormatLabel">Format de la Chaîne encodée</span>
                                         <select id="bcPayloadFormat">
                                             <option value="compact">Compact</option>
                                             <option value="complet">Complet</option>
@@ -5400,11 +5396,11 @@
                                     <div class="barcode-composer__lot-codes-inputs">
                                         <label class="barcode-composer__custom-field">
                                             <span data-i18n="editor.common.barcodeCustomLabel">Description du complément d'information</span>
-                                            <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Ex: lot premium" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
+                                            <input type="text" id="bcCustomLabel" maxlength="40" placeholder="Aubier" data-i18n-placeholder="editor.common.barcodeCustomLabelPlaceholder">
                                         </label>
                                         <label class="barcode-composer__custom-field">
                                             <span data-i18n="editor.common.barcodeCustomCode">Information complémentaire</span>
-                                            <input type="text" id="bcCustomCode" maxlength="32" placeholder="Ex: X9" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
+                                            <input type="text" id="bcCustomCode" maxlength="32" placeholder="Non différencié" data-i18n-placeholder="editor.common.barcodeCustomCodePlaceholder">
                                         </label>
                                         <button type="button" class="piece-duplicate-btn barcode-composer__lot-codes-add" id="bcAddLotCodeBtn" aria-label="Ajouter un complément d'information" title="Ajouter un complément d'information">+</button>
                                     </div>
@@ -5413,7 +5409,7 @@
                                 </div>
                                 <label class="barcode-composer__custom-field barcode-composer__custom-field--wide">
                                     <span data-i18n="editor.common.barcodeFooterText">Texte de bas de page</span>
-                                    <textarea id="bcFooterText" rows="2" maxlength="120" placeholder="VALOXYLO · Lot 1 · 230 étiquettes · page 1/13 · 22/05/2026" data-i18n-placeholder="editor.common.barcodeFooterTextPlaceholder"></textarea>
+                                    <textarea id="bcFooterText" rows="2" maxlength="120" placeholder="VALOXYLO · Lot 1 · page 1/13 · 22/05/2026" data-i18n-placeholder="editor.common.barcodeFooterTextPlaceholder"></textarea>
                                 </label>
                             </div>
                             <div class="barcode-composer__selection-scroll">
@@ -5431,10 +5427,13 @@
                                 <span class="barcode-composer__ai">(91)</span>
                                 <span class="barcode-composer__preview" id="bcPreviewEssence">—</span>
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldEssenceLabel">Essence abrégée</span>
-                                <select id="bcEssenceMode" class="barcode-composer__inline-select">
-                                    <option value="abbr" data-i18n="editor.common.barcodeEssenceModeAbbr">Abrégé 4+4</option>
-                                    <option value="en13556" data-i18n="editor.common.barcodeEssenceModeEn13556">Code EN 13556</option>
-                                </select>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="essenceEn13556">
+                                <input type="checkbox" class="barcode-composer__check" data-field="essenceEn13556">
+                                <span class="barcode-composer__ai">(13556)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewEssenceEn13556">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldEssenceEn13556Label">Code EN 13556</span>
                             </label>
 
                             <label class="barcode-composer__field" data-field="longueur">
