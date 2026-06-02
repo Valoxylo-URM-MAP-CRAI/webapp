@@ -41762,6 +41762,61 @@ renderRadar() {
         return Object.prototype.hasOwnProperty.call(warnings, normalized) ? warnings[normalized] : null;
     }
 
+    is2DCodeFormula(formula) {
+        const normalized = this.normalizeCodeFormula(formula);
+        return normalized === 'datamatrix' || normalized === 'qr-offline';
+    }
+
+    normalize2DCodePayload(str) {
+        return String(str || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toUpperCase();
+    }
+
+    getCodePayloadForEncoding(formula, rawPayload) {
+        if (!this.is2DCodeFormula(formula)) return String(rawPayload || '');
+        return this.normalize2DCodePayload(rawPayload);
+    }
+
+    getCodeZoneSize(dataString) {
+        const len = String(dataString || '').length;
+        if (len <= 250) return 'small';
+        return 'large';
+    }
+
+    getCodeZoneSizeMm(zoneSize) {
+        if (zoneSize === 'large') return 50;
+        return 30;
+    }
+
+    /** Marge blanche autour du code 2D (mm). */
+    getCodeZoneQuietZoneMm(zoneSize, formula) {
+        const mode = this.normalizeCodeFormula(formula);
+        if (zoneSize === 'large' && mode === 'datamatrix') return 2;
+        if (zoneSize === 'large') return 0;
+        return 1.5;
+    }
+
+    /** Libellé vertical bandeau droit — format large (spec PDF / mockup vert). */
+    formatEtiquetteLargePieceRightLabel(item, pieceHeading, pieceNumberText) {
+        const rawPieceLabel = String(item && item.pieceLabel ? item.pieceLabel : '').trim();
+        const nameLabel = String(pieceHeading && pieceHeading.nameLabel ? pieceHeading.nameLabel : '').trim();
+        const isDefault = /^pi[eè]ce\s+par\s+d[ée]faut\b/i.test(rawPieceLabel)
+            || /^pi[eè]ce\s+par\s+d[ée]faut\b/i.test(nameLabel);
+        const num = String(pieceNumberText || '').trim() || '—';
+
+        if (isDefault) {
+            const base = rawPieceLabel || nameLabel || 'Pièce par défaut';
+            const withoutNumSuffix = base.replace(/\s*(?:N°|n[°o]?)\s*\d+[\w.-]*\s*$/i, '').trim();
+            if (/^pi[eè]ce\s+par\s+d[ée]faut\s+\d+/i.test(withoutNumSuffix)) {
+                return `${withoutNumSuffix} N° ${num}`;
+            }
+            return `${withoutNumSuffix} ${num} N° ${num}`;
+        }
+        return `Pièce n° ${num}`;
+    }
+
     getSelectedCodeFormula() {
         const active = document.querySelector('#code-formula-selector .code-formula-btn.active[data-formula]')
             || document.querySelector('#code-formula-selector [data-formula][aria-pressed="true"]');
@@ -42562,11 +42617,12 @@ renderRadar() {
                     footerText: this._barcodeComposerCustomState.footerText
                 }
             );
+            const displayContent = this.getCodePayloadForEncoding(selectedFormula, content);
 
             const stringEl = document.getElementById('bcEncodedString');
 
-            if (stringEl) stringEl.textContent = content;
-            this._currentBarcodeContent = content;
+            if (stringEl) stringEl.textContent = displayContent;
+            this._currentBarcodeContent = displayContent;
             updateLotCodesValidationStatus(content, config.customInfosSelection);
             this.updateEtiqueterCodeLengthIndicator();
         };
@@ -42669,7 +42725,7 @@ renderRadar() {
     updateEtiqueterCodeLengthIndicator() {
         const formula = this.getSelectedCodeFormula();
         const preview = this.getEtiqueterPreviewContext();
-        const payload = this.buildCodeContent(formula, preview.item, {
+        const rawPayload = this.buildCodeContent(formula, preview.item, {
             fields: this.getSelectedCodeContentFields(),
             lot: preview.lot,
             lotIndex: preview.lotIndex,
@@ -42678,10 +42734,13 @@ renderRadar() {
             baseUrl: String(window.VALOBOIS_PUBLIC_URL || this.getEtiquetteQrConfig().baseUrl || 'https://valoxylo.app').replace(/\/+$/, ''),
             diagDate: this.data && this.data.meta ? this.data.meta.date : null
         });
+        const encodePayload = this.getCodePayloadForEncoding(formula, rawPayload);
+        const is2D = this.is2DCodeFormula(formula);
+        const zoneSize = is2D ? this.getCodeZoneSize(encodePayload) : null;
 
         const maxLen = this.getCodeFormulaMaxLength(formula);
         const warnLen = this.getCodeFormulaWarnLength(formula);
-        const len = String(payload || '').length;
+        const len = String(encodePayload || '').length;
         const ratio = Math.max(0, Math.min(100, (len / maxLen) * 100));
         const stringEl = document.getElementById('bcEncodedString');
         const countEl = document.getElementById('bcCharCount');
@@ -42689,26 +42748,37 @@ renderRadar() {
         const barEl = document.getElementById('bcLengthBar');
         const warnEl = document.getElementById('bcLengthWarning');
         const runBtn = document.getElementById('btnRunEtiqueter');
-        const isOverMax = len > maxLen;
-        const isWarn = !isOverMax && warnLen != null && len >= warnLen;
+        const isOverTechnicalMax = len > maxLen;
+        const isWarn = !isOverTechnicalMax && warnLen != null && len >= warnLen;
+        const isLayoutWarn = is2D && zoneSize === 'large';
 
-        if (stringEl) stringEl.textContent = String(payload || '');
+        if (stringEl) stringEl.textContent = String(encodePayload || '');
         if (countEl) countEl.textContent = String(len);
         if (limitEl) limitEl.textContent = `/ ${maxLen} caractères`;
         if (barEl) {
             barEl.style.width = `${ratio}%`;
-            barEl.classList.toggle('barcode-composer__output-bar--warn', isWarn);
-            barEl.classList.toggle('barcode-composer__output-bar--over', isOverMax);
+            barEl.classList.toggle('barcode-composer__output-bar--warn', isWarn || isLayoutWarn);
+            barEl.classList.toggle('barcode-composer__output-bar--over', isOverTechnicalMax);
         }
-        if (warnEl) warnEl.hidden = !(isWarn || isOverMax);
+        if (warnEl) {
+            warnEl.hidden = !(isWarn || isLayoutWarn || isOverTechnicalMax);
+            if (!warnEl.hidden) {
+                if (isLayoutWarn && !isOverTechnicalMax) {
+                    warnEl.textContent = `Zone code agrandie (50×50 mm) — contenu > 250 caractères.`;
+                } else if (isOverTechnicalMax) {
+                    warnEl.textContent = `Limite technique dépassée (${maxLen} caractères).`;
+                }
+            }
+        }
         if (runBtn) {
-            runBtn.disabled = isOverMax;
-            runBtn.title = isOverMax
+            runBtn.disabled = isOverTechnicalMax;
+            runBtn.title = isOverTechnicalMax
                 ? `Contenu trop long pour ${formula}: limite ${maxLen} caractères.`
                 : '';
         }
 
-        this._currentBarcodeContent = String(payload || '');
+        this._currentBarcodeContent = String(encodePayload || '');
+        this._currentCodeZoneSize = zoneSize;
     }
 
     buildCodeContent(formula, item, options = {}) {
@@ -42825,7 +42895,7 @@ renderRadar() {
         const normalized = this.normalizeCodeFormula(formula);
         if (normalized === 'barcode1d') return this.generateBarcode1DSvg(content);
         if (normalized === 'datamatrix') return this.generateDataMatrixSvg(content);
-        return this.generateQrSvgString(content, 132, 'H');
+        return this.generateQrSvgString(content, 132, 'L');
     }
 
     formatEtiquetteMainDimension(item) {
@@ -43367,7 +43437,7 @@ renderRadar() {
             const itemPieceIndex = Number.isInteger(item && item.sourcePieceIndex) ? item.sourcePieceIndex : i;
             const itemLot = (this.data && this.data.lots && this.data.lots[itemLotIndex]) ? this.data.lots[itemLotIndex] : lot;
             const firestorePieceId = firestorePiecesMap && firestorePiecesMap.get(item.uid);
-            const payload = this.buildCodeContent(codeFormula, item, {
+            const rawPayload = this.buildCodeContent(codeFormula, item, {
                 fields: codeFields,
                 firestorePieceId,
                 lot: itemLot,
@@ -43377,32 +43447,46 @@ renderRadar() {
                 baseUrl,
                 diagDate: this.data && this.data.meta ? this.data.meta.date : null
             });
+            const encodePayload = this.getCodePayloadForEncoding(codeFormula, rawPayload);
+            const zoneSize = this.is2DCodeFormula(codeFormula)
+                ? this.getCodeZoneSize(encodePayload)
+                : 'small';
 
             const hardLimit = this.getCodeFormulaMaxLength(codeFormula);
-            if ((codeFormula === 'barcode1d' || codeFormula === 'datamatrix') && String(payload || '').length > hardLimit) {
-                console.warn(`[Valobois] Contenu trop long pour ${codeFormula} (${String(payload || '').length} chars).`);
+            if ((codeFormula === 'barcode1d' || codeFormula === 'datamatrix') && String(encodePayload || '').length > hardLimit) {
+                console.warn(`[Valobois] Contenu trop long pour ${codeFormula} (${String(encodePayload || '').length} chars).`);
             }
 
-            const svg = await this.generateCodeSvg(payload, codeFormula);
+            const svg = await this.generateCodeSvg(encodePayload, codeFormula);
             qrByItemUid.set(item.uid, {
                 mode: codeFormula,
-                svg: typeof svg === 'string' ? svg : ''
+                svg: typeof svg === 'string' ? svg : '',
+                payload: String(rawPayload || ''),
+                encodePayload: String(encodePayload || ''),
+                zoneSize
             });
         }
+
+        const is2DExport = this.is2DCodeFormula(codeFormula);
+        const zoneSizes = is2DExport
+            ? Array.from(qrByItemUid.values()).map((entry) => entry.zoneSize)
+            : ['small'];
+        const useLargeLabelGrid = is2DExport && zoneSizes.includes('large');
 
         /* ── Page (mm) ── */
         const PW = layoutPreset.pageWidthMm;
         const PH = layoutPreset.pageHeightMm;
         const PAGE_MARGIN = layoutPreset.pageMarginMm;
-        const COLS = layoutPreset.cols;
-        const ROWS = layoutPreset.rows;
-        const LABEL_W = layoutPreset.labelWidthMm;
-        const LABEL_H = layoutPreset.labelHeightMm;
         const GAP = layoutPreset.gapMm;
-        const areaW = COLS * LABEL_W + (COLS - 1) * GAP;
-        const areaH = ROWS * LABEL_H + (ROWS - 1) * GAP;
+        // Format large : étiquette 60×60 → panneau blanc 50×50 (code sans marges latérales)
+        let LABEL_W = useLargeLabelGrid ? 60 : layoutPreset.labelWidthMm;
+        let LABEL_H = useLargeLabelGrid ? 60 : layoutPreset.labelHeightMm;
         const printableW = PW - (PAGE_MARGIN * 2);
         const printableH = PH - (PAGE_MARGIN * 2);
+        let COLS = Math.max(1, Math.floor((printableW + GAP) / (LABEL_W + GAP)));
+        let ROWS = Math.max(1, Math.floor((printableH + GAP) / (LABEL_H + GAP)));
+        const areaW = COLS * LABEL_W + (COLS - 1) * GAP;
+        const areaH = ROWS * LABEL_H + (ROWS - 1) * GAP;
         const ox = PAGE_MARGIN + Math.max(0, (printableW - areaW) / 2);
         const oy = PAGE_MARGIN + Math.max(0, (printableH - areaH) / 2);
 
@@ -43464,6 +43548,24 @@ renderRadar() {
             const fontSize = fitSingleLineFont(safeText, widthMm, baseFontSize, minFontSize);
             out.push(`<text transform="translate(${cx} ${cy}) rotate(${angle})" text-anchor="middle" dominant-baseline="middle" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}">${e(safeText)}</text>`);
         };
+        const drawCenteredInBox = (out, opts) => {
+            const {
+                text,
+                boxX,
+                boxY,
+                boxW,
+                boxH,
+                baseFontSize,
+                minFontSize,
+                fill,
+                fontWeight = '700'
+            } = opts;
+            const safeText = String(text || '').trim() || '—';
+            const cx = boxX + (boxW / 2);
+            const cy = boxY + (boxH / 2);
+            const fontSize = fitSingleLineFont(safeText, Math.max(0, boxW - 0.8), baseFontSize, minFontSize);
+            out.push(`<text x="${cx}" y="${cy}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="middle" dominant-baseline="middle">${e(safeText)}</text>`);
+        };
         const fitSingleLineFont = (text, widthMm, baseSize, minSize = 1.6) => {
             const safeText = String(text || '').trim() || '—';
             let size = baseSize;
@@ -43506,7 +43608,7 @@ renderRadar() {
             out.push(`<text x="${x}" y="${y}" font-family="${FF}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${textAnchor}">${e(safeText)}</text>`);
             return y;
         };
-        const buildQrVectorGroup = (svgString, x, y, sizeMm, fitMode = 'contain') => {
+        const buildQrVectorGroup = (svgString, x, y, widthMm, fitMode = 'contain', heightMm = null) => {
             const raw = typeof svgString === 'string' ? svgString.trim() : '';
             if (!raw) return '';
 
@@ -43529,9 +43631,11 @@ renderRadar() {
             }
 
             const preserveAspectRatio = fitMode === 'stretch' ? 'none' : 'xMidYMid meet';
-            // Sous-SVG viewporté: contain par défaut, stretch optionnel (Code128) pour remplir 30x30.
-            return `<svg x="${x}" y="${y}" width="${sizeMm}" height="${sizeMm}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="hidden" shape-rendering="crispEdges">${inner}</svg>`;
+            const w = Number(widthMm) || 0;
+            const h = Number(heightMm == null ? widthMm : heightMm) || 0;
+            return `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="0 0 ${vbWidth} ${vbHeight}" preserveAspectRatio="${preserveAspectRatio}" overflow="visible" shape-rendering="crispEdges">${inner}</svg>`;
         };
+        const getQuietZoneMm = (zoneSize, formula) => this.getCodeZoneQuietZoneMm(zoneSize, formula);
         const drawLabeledWrappedValue = (out, opts) => {
             const {
                 label,
@@ -43613,8 +43717,138 @@ renderRadar() {
         const baseF = { lot: 2.5, side: 2.45, orientation: 2.8, piece: 2.5, line: 2.1, origin: 1.55 };
         const C  = { dark: '#111111', mid: '#333333', muted: '#555555', light: '#777777' };
 
-        /* ── Constructeur d'une étiquette 40×60 mm ── */
+        /* ── Constructeur format large 2D : étiquette 60×60, code 50×50 ── */
+        const buildLabel2DLarge = (lx, ly, uid, item, qrData) => {
+            const R = 0;
+            const out = [];
+            const refW = 60;
+            const refH = 60;
+            const layoutScale = Math.min(LABEL_W / refW, LABEL_H / refH);
+            const su = (value) => value * layoutScale;
+            const lotNameRaw = String(item.lotRef || '').trim();
+            const lotName = lotNameRaw ? (lotNameRaw.toLowerCase().startsWith('lot') ? lotNameRaw : `Lot ${lotNameRaw}`) : 'Lot nnn';
+            const pieceHeading = this.formatEtiquettePieceHeading(item);
+            const mainDimensionLabel = item.mainDimensionLabel || '—';
+            const orientationCode = String(item.orientationCode || 'none').toLowerCase();
+            const orientationColor = OC[orientationCode] || '#CCCCCC';
+            const orientationText = String(item.orientationLabel || '—').toUpperCase();
+            const volumeStr = item.volumeLot > 0 ? `${formatOneDecimal(item.volumeLot)} m³` : '0,0 m³';
+            const COLOR_WHITE = '#FFFFFF';
+            const COLOR_DARK = '#000000';
+            const topBandH = su(5);
+            const bottomBandH = su(5);
+            const sideBandW = su(5);
+            const centerPanelW = LABEL_W - (sideBandW * 2);
+            const centerPanelH = LABEL_H - topBandH - bottomBandH;
+            const sideTextCy = ly + topBandH + (centerPanelH / 2);
+            const sideTextSpan = centerPanelH - su(3);
+            const zoneSize = 'large';
+            const codeBoxMm = this.getCodeZoneSizeMm(zoneSize);
+            const codeSize = su(codeBoxMm);
+            const codeX = lx + sideBandW;
+            const codeY = ly + topBandH;
+            const pieceNumRaw = pieceHeading.numberLabel
+                ? pieceHeading.numberLabel.replace(/^N°\s*/i, '').trim()
+                : '';
+            const fallbackNumMatch = String(item && item.uid ? item.uid : '').match(/-p0*(\d+)$/i);
+            const pieceNumberText = pieceNumRaw || (fallbackNumMatch ? fallbackNumMatch[1] : '—');
+            const rightPieceLabel = this.formatEtiquetteLargePieceRightLabel(item, pieceHeading, pieceNumberText);
+            const topBoxW = LABEL_W / 2;
+            const topBoxH = topBandH;
+
+            out.push(`<clipPath id="cp${uid}"><rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" rx="${R}"/></clipPath>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${LABEL_H}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly}" width="${LABEL_W}" height="${topBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + LABEL_W - sideBandW}" y="${ly + topBandH}" width="${sideBandW}" height="${centerPanelH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx}" y="${ly + LABEL_H - bottomBandH}" width="${LABEL_W}" height="${bottomBandH}" fill="${orientationColor}" stroke="none"/>`);
+            out.push(`<rect x="${lx + sideBandW}" y="${ly + topBandH}" width="${centerPanelW}" height="${centerPanelH}" fill="${COLOR_WHITE}" stroke="none"/>`);
+            out.push(`<g clip-path="url(#cp${uid})">`);
+
+            // Bandeau 60×5 = deux boîtes 30×5 (lot | volume), texte centré dans chaque boîte
+            drawCenteredInBox(out, {
+                text: lotName,
+                boxX: lx,
+                boxY: ly,
+                boxW: topBoxW,
+                boxH: topBoxH,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+            drawCenteredInBox(out, {
+                text: volumeStr,
+                boxX: lx + topBoxW,
+                boxY: ly,
+                boxW: topBoxW,
+                boxH: topBoxH,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                fontWeight: '700'
+            });
+
+            drawRotatedCenterText(out, {
+                text: mainDimensionLabel,
+                cx: lx + (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(2.8),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                angle: -90
+            });
+
+            drawRotatedCenterText(out, {
+                text: rightPieceLabel,
+                cx: lx + LABEL_W - (sideBandW / 2),
+                cy: sideTextCy,
+                widthMm: sideTextSpan,
+                baseFontSize: su(3.0),
+                minFontSize: su(1.9),
+                fill: COLOR_DARK,
+                angle: 90
+            });
+
+            if (qrData && qrData.svg) {
+                const codeMode = qrData.mode || '';
+                const quietZoneMm = getQuietZoneMm('large', codeMode);
+                const inset = su(quietZoneMm);
+                const innerSize = Math.max(0, codeSize - inset * 2);
+                const qrGroup = buildQrVectorGroup(
+                    qrData.svg,
+                    codeX + inset,
+                    codeY + inset,
+                    innerSize,
+                    'contain',
+                    innerSize
+                );
+                if (qrGroup) out.push(qrGroup);
+            }
+
+            drawSingleLine(out, {
+                text: orientationText,
+                x: lx + (LABEL_W / 2),
+                y: ly + LABEL_H - su(1.65),
+                widthMm: LABEL_W - su(4),
+                baseFontSize: su(2.55),
+                minFontSize: su(1.8),
+                fill: COLOR_DARK,
+                fontWeight: '700',
+                textAnchor: 'middle'
+            });
+
+            out.push('</g>');
+            return out.join('');
+        };
+
         const buildLabel = (lx, ly, uid, item, qrData) => {
+            const is2D = qrData && (qrData.mode === 'datamatrix' || qrData.mode === 'qr-offline');
+            const zoneSize = qrData && qrData.zoneSize === 'large' ? 'large' : 'small';
+            if (is2D && zoneSize === 'large') {
+                return buildLabel2DLarge(lx, ly, uid, item, qrData);
+            }
             const R = 0;
             const out = [];
             const layoutScale = Math.min(LABEL_W / 40, LABEL_H / 60);
@@ -43637,7 +43871,7 @@ renderRadar() {
             const topBandH = su(5);
             const bottomBandH = su(5);
             const sideBandW = su(5);
-            const qrSize = su(30);
+            const qrSize = su(this.getCodeZoneSizeMm('small'));
             const centerPanelW = LABEL_W - (sideBandW * 2);
             const centerPanelH = LABEL_H - topBandH - bottomBandH;
             const qrX = lx + sideBandW + ((centerPanelW - qrSize) / 2);
@@ -43702,11 +43936,10 @@ renderRadar() {
             out.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
             if (qrData && qrData.svg) {
                 const fitMode = qrData && qrData.mode === 'barcode1d' ? 'stretch' : 'contain';
-                // Quiet zone minimale dans la zone 30×30mm, pour garantir la lecture (DataMatrix/QR).
-                const quietZoneMm = (qrData.mode === 'barcode1d') ? 0 : 1.5;
+                const quietZoneMm = (qrData.mode === 'barcode1d') ? 0 : getQuietZoneMm('small', qrData.mode);
                 const inset = su(quietZoneMm);
                 const innerSize = Math.max(0, qrSize - inset * 2);
-                const qrGroup = buildQrVectorGroup(qrData.svg, qrX + inset, qrY + inset, innerSize, fitMode);
+                const qrGroup = buildQrVectorGroup(qrData.svg, qrX + inset, qrY + inset, innerSize, fitMode, innerSize);
                 if (qrGroup) {
                     out.push(qrGroup);
                 } else {
