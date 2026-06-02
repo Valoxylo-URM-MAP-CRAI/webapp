@@ -42785,8 +42785,7 @@ renderRadar() {
                 text: String(text || ''),
                 scale: 2,
                 height: 12,
-                includetext: true,
-                textxalign: 'center',
+                includetext: false,
                 backgroundcolor: 'FFFFFF',
                 barcolor: '000000',
                 paddingwidth: 4,
@@ -42805,12 +42804,14 @@ renderRadar() {
             return null;
         }
         try {
-            // 30 mm = 30 / 25.4 ≈ 1.181 pouces.
             return api.toSVG({
                 bcid: 'datamatrix',
                 text: String(text || ''),
-                width: 1.181,
-                height: 1.181,
+                // Ne pas forcer width/height (en pouces) : cela peut distordre les modules et casser la lecture.
+                // On garde des modules carrés réguliers, la mise en page gère la zone réservée.
+                scale: 4,
+                paddingwidth: 0,
+                paddingheight: 0,
                 backgroundcolor: 'FFFFFF',
                 barcolor: '000000'
             });
@@ -43701,7 +43702,11 @@ renderRadar() {
             out.push(`<rect x="${qrX}" y="${qrY}" width="${qrSize}" height="${qrSize}" fill="${COLOR_WHITE}" stroke="#E0E0E0" stroke-width="${su(0.1)}"/>`);
             if (qrData && qrData.svg) {
                 const fitMode = qrData && qrData.mode === 'barcode1d' ? 'stretch' : 'contain';
-                const qrGroup = buildQrVectorGroup(qrData.svg, qrX, qrY, qrSize, fitMode);
+                // Quiet zone minimale dans la zone 30×30mm, pour garantir la lecture (DataMatrix/QR).
+                const quietZoneMm = (qrData.mode === 'barcode1d') ? 0 : 1.5;
+                const inset = su(quietZoneMm);
+                const innerSize = Math.max(0, qrSize - inset * 2);
+                const qrGroup = buildQrVectorGroup(qrData.svg, qrX + inset, qrY + inset, innerSize, fitMode);
                 if (qrGroup) {
                     out.push(qrGroup);
                 } else {
