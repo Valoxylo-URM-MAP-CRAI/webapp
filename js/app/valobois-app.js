@@ -44107,16 +44107,16 @@ renderRadar() {
                 if (qrGroup) out.push(qrGroup);
             }
 
-            drawSingleLine(out, {
+            drawCenteredInBox(out, {
                 text: orientationText,
-                x: lx + (LABEL_W / 2),
-                y: ly + LABEL_H - su(1.65),
-                widthMm: LABEL_W - su(4),
+                boxX: lx,
+                boxY: ly + LABEL_H - bottomBandH,
+                boxW: LABEL_W,
+                boxH: bottomBandH,
                 baseFontSize: su(2.55),
                 minFontSize: su(1.8),
                 fill: COLOR_DARK,
-                fontWeight: '700',
-                textAnchor: 'middle'
+                fontWeight: '700'
             });
 
             out.push('</g>');
@@ -44289,8 +44289,11 @@ renderRadar() {
                 return buildLabelBarcode1D(lx, ly, uid, item, qrData);
             }
             const is2D = qrData && (qrData.mode === 'datamatrix' || qrData.mode === 'qr-offline');
-            const zoneSize = qrData && qrData.zoneSize === 'large' ? 'large' : 'small';
-            if (is2D && zoneSize === 'large') {
+            // Cohérence de planche : dès qu'une pièce du lot impose la grille large
+            // (useLargeLabelGrid), toutes les pièces 2D utilisent le grand layout.
+            // Les payloads courts produisent alors un code simplement moins dense,
+            // au lieu d'un petit code centré qui créerait des tailles hétérogènes.
+            if (is2D && useLargeLabelGrid) {
                 return buildLabel2DLarge(lx, ly, uid, item, qrData);
             }
             const R = 0;
@@ -44517,16 +44520,16 @@ renderRadar() {
                 });
             }
 
-            drawSingleLine(out, {
+            drawCenteredInBox(out, {
                 text: orientationText,
-                x: lx + (LABEL_W / 2),
-                y: ly + LABEL_H - su(1.65),
-                widthMm: LABEL_W - su(4),
+                boxX: lx,
+                boxY: ly + LABEL_H - bottomBandH,
+                boxW: LABEL_W,
+                boxH: bottomBandH,
                 baseFontSize: su(2.55),
                 minFontSize: su(1.8),
                 fill: COLOR_DARK,
-                fontWeight: '700',
-                textAnchor: 'middle'
+                fontWeight: '700'
             });
 
             out.push('</g>');
