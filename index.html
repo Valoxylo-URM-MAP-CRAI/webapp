@@ -5420,7 +5420,51 @@
                                     <span class="barcode-composer__badge" data-i18n="editor.common.barcodeFieldRequired">obligatoire</span>
                                 </div>
 
+                                <div class="barcode-composer__zone" data-zone="lot">
+                                <div class="barcode-composer__section-title" data-i18n="editor.common.barcodeSectionLot">Données du lot</div>
+                                <div class="barcode-composer__reorder-host" data-bc-reorder-zone="lot">
+
+                            <label class="barcode-composer__field" data-field="orientationAbbr">
+                                <input type="checkbox" class="barcode-composer__check" data-field="orientationAbbr">
+                                <span class="barcode-composer__ai">(OR)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewOrientationAbbr">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldOrientationAbbrLabel">Orientation abrégée</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="scoreNetMax">
+                                <input type="checkbox" class="barcode-composer__check" data-field="scoreNetMax">
+                                <span class="barcode-composer__ai">(SN)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewScoreNetMax">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldScoreNetMaxLabel">Score net / score max</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="classementEstime">
+                                <input type="checkbox" class="barcode-composer__check" data-field="classementEstime">
+                                <span class="barcode-composer__ai">(CL)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewClassementEstime">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldClassementEstimeLabel">Classement estimé</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="macroHistoire">
+                                <input type="checkbox" class="barcode-composer__check" data-field="macroHistoire">
+                                <span class="barcode-composer__ai">(MH)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewMacroHistoire">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMacroHistoireLabel">Macro-Histoire</span>
+                            </label>
+
+                            <label class="barcode-composer__field" data-field="contamination">
+                                <input type="checkbox" class="barcode-composer__check" data-field="contamination">
+                                <span class="barcode-composer__ai">(CT)</span>
+                                <span class="barcode-composer__preview" id="bcPreviewContamination">—</span>
+                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldContaminationLabel">Contamination</span>
+                            </label>
+                                </div>
+                                <div class="barcode-composer__reorder-host barcode-composer__reorder-host--dynamic" data-bc-reorder-zone="lot-complements"></div>
+                                </div>
+
+                                <div class="barcode-composer__zone" data-zone="piece">
                                 <div class="barcode-composer__section-title" data-i18n="editor.common.barcodeSectionPiece">Données de la pièce</div>
+                                <div class="barcode-composer__reorder-host" data-bc-reorder-zone="piece">
 
                             <label class="barcode-composer__field" data-field="essence">
                                 <input type="checkbox" class="barcode-composer__check" data-field="essence">
@@ -5575,43 +5619,9 @@
                                 <span class="barcode-composer__preview" id="bcPreviewCustomInfos">—</span>
                                 <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldCustomInfosLabel">Informations personnalisées</span>
                             </label>
-
-                            <div class="barcode-composer__section-title" data-i18n="editor.common.barcodeSectionLot">Données du lot</div>
-
-                            <label class="barcode-composer__field" data-field="orientationAbbr">
-                                <input type="checkbox" class="barcode-composer__check" data-field="orientationAbbr">
-                                <span class="barcode-composer__ai">(OR)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewOrientationAbbr">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldOrientationAbbrLabel">Orientation abrégée</span>
-                            </label>
-
-                            <label class="barcode-composer__field" data-field="scoreNetMax">
-                                <input type="checkbox" class="barcode-composer__check" data-field="scoreNetMax">
-                                <span class="barcode-composer__ai">(SN)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewScoreNetMax">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldScoreNetMaxLabel">Score net / score max</span>
-                            </label>
-
-                            <label class="barcode-composer__field" data-field="classementEstime">
-                                <input type="checkbox" class="barcode-composer__check" data-field="classementEstime">
-                                <span class="barcode-composer__ai">(CL)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewClassementEstime">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldClassementEstimeLabel">Classement estimé</span>
-                            </label>
-
-                            <label class="barcode-composer__field" data-field="macroHistoire">
-                                <input type="checkbox" class="barcode-composer__check" data-field="macroHistoire">
-                                <span class="barcode-composer__ai">(MH)</span>
-                                <span class="barcode-composer__preview" id="bcPreviewMacroHistoire">—</span>
-                                <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldMacroHistoireLabel">Macro-Histoire</span>
-                            </label>
-
-                                <label class="barcode-composer__field" data-field="contamination">
-                                    <input type="checkbox" class="barcode-composer__check" data-field="contamination">
-                                    <span class="barcode-composer__ai">(CT)</span>
-                                    <span class="barcode-composer__preview" id="bcPreviewContamination">—</span>
-                                    <span class="barcode-composer__label" data-i18n="editor.common.barcodeFieldContaminationLabel">Contamination</span>
-                                </label>
+                                </div>
+                                <div class="barcode-composer__reorder-host barcode-composer__reorder-host--dynamic" data-bc-reorder-zone="piece-custom"></div>
+                                </div>
                             </div>
                         </div>
                     </div>

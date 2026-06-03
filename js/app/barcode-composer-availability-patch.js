@@ -151,12 +151,27 @@
             if (typeof status === 'boolean') status = status ? 'full' : 'none';
             if (status !== 'full' && status !== 'partial') status = 'none';
 
-            let indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
+            if (fieldRow && typeof app.ensureBarcodeComposerFieldActions === 'function') {
+                app.ensureBarcodeComposerFieldActions(fieldRow);
+            }
+            const availabilitySlot = fieldRow && typeof app.getBarcodeComposerFieldAvailabilitySlot === 'function'
+                ? app.getBarcodeComposerFieldAvailabilitySlot(fieldRow)
+                : null;
+            let indicator = availabilitySlot
+                ? availabilitySlot.querySelector('.barcode-composer__availability-dot')
+                : null;
+            if (!indicator && fieldLabel) {
+                indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
+            }
             if (!indicator) {
                 indicator = document.createElement('span');
                 indicator.className = 'barcode-composer__availability-dot';
                 indicator.setAttribute('aria-hidden', 'true');
                 indicator.textContent = '!';
+            }
+            if (availabilitySlot && indicator.parentElement !== availabilitySlot) {
+                availabilitySlot.appendChild(indicator);
+            } else if (!availabilitySlot && fieldLabel && indicator.parentElement !== fieldLabel) {
                 fieldLabel.appendChild(indicator);
             }
 

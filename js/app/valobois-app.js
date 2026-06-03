@@ -40560,8 +40560,13 @@ renderRadar() {
             .slice(0, Math.max(1, Number(maxChars) || 4));
     }
 
-    getBarcodeComposerOptionalFieldsOrder() {
+    getBarcodeComposerBaseFieldsOrder() {
         const fields = window.VALOBOIS_BARCODE_COMPOSER_OPTIONAL_FIELDS_ORDER || [
+            'orientationAbbr',
+            'scoreNetMax',
+            'classementEstime',
+            'macroHistoire',
+            'contamination',
             'essence',
             'essenceEn13556',
             'longueur',
@@ -40575,7 +40580,6 @@ renderRadar() {
             'largeurExtremes',
             'epaisseurExtremes',
             'diametreExtremes',
-            'orientationAbbr',
             'prixUnitaire',
             'masseUnitaire',
             'pco2Unitaire',
@@ -40583,14 +40587,107 @@ renderRadar() {
             'amortissementBio',
             'dateMiseService',
             'volumeUnitaire',
-            'scoreNetMax',
-            'classementEstime',
             'durabiliteNaturelle',
-            'customInfos',
-            'macroHistoire',
-            'contamination'
+            'customInfos'
         ];
         return [...fields];
+    }
+
+    getBarcodeComposerFieldOrderStorageKey() {
+        return 'valobois_barcode_composer_field_order_v1';
+    }
+
+    getBarcodeComposerZoneForField(field) {
+        const key = String(field || '').trim();
+        if (!key) return 'piece';
+        if (key.startsWith('customInfo:')) {
+            const composer = document.getElementById('barcodeComposer');
+            if (composer) {
+                const row = composer.querySelector(`.barcode-composer__field[data-field="${key}"]`);
+                const host = row ? row.closest('[data-bc-reorder-zone]') : null;
+                if (host) {
+                    const reorderZone = String(host.getAttribute('data-bc-reorder-zone') || '').trim();
+                    if (reorderZone) return reorderZone;
+                }
+                if (row && String(row.dataset.scope || '').trim() === 'lot') return 'lot-complements';
+            }
+            return 'piece-custom';
+        }
+        return this.getBarcodeComposerFieldScope(key) === 'lot' ? 'lot' : 'piece';
+    }
+
+    getBarcodeComposerZoneDefaultFieldOrder(zone) {
+        if (zone === 'lot-complements' || zone === 'piece-custom') return [];
+        return this.getBarcodeComposerBaseFieldsOrder()
+            .filter((field) => this.getBarcodeComposerZoneForField(field) === zone);
+    }
+
+    loadBarcodeComposerZoneFieldOrder(zone) {
+        try {
+            const raw = localStorage.getItem(this.getBarcodeComposerFieldOrderStorageKey());
+            const parsed = raw ? JSON.parse(raw) : null;
+            if (parsed && Array.isArray(parsed[zone])) {
+                return parsed[zone].map((value) => String(value || '').trim()).filter(Boolean);
+            }
+        } catch (_) { /* ignore */ }
+        return null;
+    }
+
+    saveBarcodeComposerZoneFieldOrder(zone, order) {
+        let store = {};
+        try {
+            const raw = localStorage.getItem(this.getBarcodeComposerFieldOrderStorageKey());
+            store = raw ? JSON.parse(raw) : {};
+        } catch (_) {
+            store = {};
+        }
+        if (!store || typeof store !== 'object') store = {};
+        store[zone] = order.slice();
+        try {
+            localStorage.setItem(this.getBarcodeComposerFieldOrderStorageKey(), JSON.stringify(store));
+        } catch (_) { /* ignore */ }
+    }
+
+    mergeBarcodeComposerZoneFieldOrder(zone, savedOrder, domFields) {
+        const defaults = this.getBarcodeComposerZoneDefaultFieldOrder(zone);
+        const allowed = new Set([...defaults, ...(Array.isArray(domFields) ? domFields : [])]);
+        const merged = [];
+        const push = (field) => {
+            const key = String(field || '').trim();
+            if (!key || !allowed.has(key) || merged.includes(key)) return;
+            merged.push(key);
+        };
+        (Array.isArray(savedOrder) ? savedOrder : []).forEach(push);
+        defaults.forEach(push);
+        (Array.isArray(domFields) ? domFields : []).forEach(push);
+        return merged;
+    }
+
+    getBarcodeComposerReorderHost(composer, zone) {
+        if (!composer || !zone) return null;
+        return composer.querySelector(`[data-bc-reorder-zone="${zone}"]`);
+    }
+
+    getBarcodeComposerZoneFieldOrder(zone, composer = null) {
+        const domFields = [];
+        if (composer) {
+            const hostEl = this.getBarcodeComposerReorderHost(composer, zone);
+            if (hostEl) {
+                hostEl.querySelectorAll(':scope > .barcode-composer__field[data-field]').forEach((row) => {
+                    const field = String(row.getAttribute('data-field') || '').trim();
+                    if (field) domFields.push(field);
+                });
+            }
+        }
+        const saved = this.loadBarcodeComposerZoneFieldOrder(zone);
+        return this.mergeBarcodeComposerZoneFieldOrder(zone, saved, domFields);
+    }
+
+    getBarcodeComposerOptionalFieldsOrder() {
+        const composer = document.getElementById('barcodeComposer');
+        const lot = this.getBarcodeComposerZoneFieldOrder('lot', composer);
+        const piece = this.getBarcodeComposerZoneFieldOrder('piece', composer);
+        return [...lot, ...piece];
     }
 
     getBarcodeComposerFieldScopeMap() {
@@ -40630,6 +40727,113 @@ renderRadar() {
     getBarcodeComposerFieldScope(field) {
         const scopes = this.getBarcodeComposerFieldScopeMap();
         return scopes[field] || 'piece';
+    }
+
+    getBarcodeComposerFieldAvailabilitySlot(fieldRow) {
+        if (!fieldRow) return null;
+        const actions = fieldRow.querySelector('.barcode-composer__field-actions');
+        return actions ? actions.querySelector('.barcode-composer__availability-slot') : null;
+    }
+
+    ensureBarcodeComposerFieldActions(fieldRow) {
+        if (!fieldRow || fieldRow.classList.contains('barcode-composer__field--locked')) return null;
+        let actions = fieldRow.querySelector('.barcode-composer__field-actions');
+        if (actions) return actions;
+        actions = document.createElement('div');
+        actions.className = 'barcode-composer__field-actions';
+        actions.innerHTML = [
+            '<button type="button" class="piece-duplicate-btn piece-custom-info-order-btn barcode-composer__order-btn" data-bc-order-move="up" aria-label="Monter">↑</button>',
+            '<button type="button" class="piece-duplicate-btn piece-custom-info-order-btn barcode-composer__order-btn" data-bc-order-move="down" aria-label="Descendre">↓</button>',
+            '<span class="barcode-composer__availability-slot" aria-hidden="true"></span>'
+        ].join('');
+        fieldRow.appendChild(actions);
+        const label = fieldRow.querySelector('.barcode-composer__label');
+        const slot = actions.querySelector('.barcode-composer__availability-slot');
+        const dot = label ? label.querySelector('.barcode-composer__availability-dot') : null;
+        if (dot && slot) slot.appendChild(dot);
+        return actions;
+    }
+
+    applyBarcodeComposerDomFieldOrder(composer) {
+        if (!composer) return;
+        composer.querySelectorAll('.barcode-composer__field[data-field]').forEach((row) => {
+            this.ensureBarcodeComposerFieldActions(row);
+        });
+        ['lot', 'piece', 'lot-complements', 'piece-custom'].forEach((zone) => {
+            const hostEl = this.getBarcodeComposerReorderHost(composer, zone);
+            if (!hostEl) return;
+            const order = this.getBarcodeComposerZoneFieldOrder(zone, composer);
+            const sectionTitle = hostEl.querySelector(':scope > .barcode-composer__section-title');
+            let insertAfter = sectionTitle || null;
+            order.forEach((field) => {
+                const row = hostEl.querySelector(`:scope > .barcode-composer__field[data-field="${field}"]`);
+                if (!row) return;
+                if (!insertAfter) {
+                    hostEl.insertBefore(row, hostEl.firstChild);
+                    insertAfter = row;
+                    return;
+                }
+                if (row.previousElementSibling !== insertAfter) {
+                    insertAfter.insertAdjacentElement('afterend', row);
+                }
+                insertAfter = row;
+            });
+        });
+    }
+
+    updateBarcodeComposerFieldOrderButtons(composer) {
+        if (!composer) return;
+        composer.querySelectorAll('[data-bc-reorder-zone]').forEach((hostEl) => {
+            const zone = String(hostEl.getAttribute('data-bc-reorder-zone') || '').trim();
+            if (!zone) return;
+            const order = this.getBarcodeComposerZoneFieldOrder(zone, composer);
+            hostEl.querySelectorAll(':scope > .barcode-composer__field[data-field]').forEach((row) => {
+                const field = String(row.getAttribute('data-field') || '').trim();
+                const index = order.indexOf(field);
+                const upBtn = row.querySelector('[data-bc-order-move="up"]');
+                const downBtn = row.querySelector('[data-bc-order-move="down"]');
+                if (upBtn) upBtn.disabled = index <= 0;
+                if (downBtn) downBtn.disabled = index < 0 || index >= order.length - 1;
+            });
+        });
+    }
+
+    setupBarcodeComposerFieldOrderControls(composer) {
+        if (!composer || composer.dataset.bcOrderBound === '1') return;
+        composer.dataset.bcOrderBound = '1';
+        composer.addEventListener('click', (event) => {
+            const target = event && event.target;
+            const btn = target && typeof target.closest === 'function'
+                ? target.closest('[data-bc-order-move]')
+                : null;
+            if (!btn || !composer.contains(btn)) return;
+            event.preventDefault();
+            event.stopPropagation();
+            const row = btn.closest('.barcode-composer__field[data-field]');
+            if (!row) return;
+            const field = String(row.getAttribute('data-field') || '').trim();
+            if (!field) return;
+            const hostEl = row.closest('[data-bc-reorder-zone]');
+            const zone = hostEl ? String(hostEl.getAttribute('data-bc-reorder-zone') || '').trim() : '';
+            const allowedZones = ['lot', 'piece', 'lot-complements', 'piece-custom'];
+            if (!allowedZones.includes(zone)) return;
+            const direction = String(btn.getAttribute('data-bc-order-move') || '').trim();
+            const order = this.getBarcodeComposerZoneFieldOrder(zone, composer);
+            const index = order.indexOf(field);
+            if (index < 0) return;
+            const targetIndex = direction === 'up' ? index - 1 : index + 1;
+            if (targetIndex < 0 || targetIndex >= order.length) return;
+            const nextOrder = order.slice();
+            const swapField = nextOrder[targetIndex];
+            nextOrder[targetIndex] = nextOrder[index];
+            nextOrder[index] = swapField;
+            this.saveBarcodeComposerZoneFieldOrder(zone, nextOrder);
+            this.applyBarcodeComposerDomFieldOrder(composer);
+            this.updateBarcodeComposerFieldOrderButtons(composer);
+            if (typeof this._updateBarcodeComposerOutput === 'function') {
+                this._updateBarcodeComposerOutput();
+            }
+        });
     }
 
     invalidateBarcodeComposerCaches() {
@@ -41509,8 +41713,8 @@ renderRadar() {
             payloadFormat: 'compact',
             essence: true,
             essenceEn13556: false,
-            longueur: true,
-            largeur: true,
+            longueur: false,
+            largeur: false,
             epaisseur: false,
             mesuresMultiplesE1: false,
             mesuresMultiplesQ1: false,
@@ -41521,21 +41725,21 @@ renderRadar() {
             largeurExtremes: false,
             epaisseurExtremes: false,
             diametreExtremes: false,
-            orientationAbbr: false,
+            orientationAbbr: true,
             prixUnitaire: false,
             masseUnitaire: false,
             pco2Unitaire: false,
-            typePieceAbbr: false,
+            typePieceAbbr: true,
             amortissementBio: false,
             dateMiseService: false,
             volumeUnitaire: false,
             scoreNetMax: false,
-            classementEstime: false,
+            classementEstime: true,
             durabiliteNaturelle: false,
             customInfos: false,
             customInfosSelection: {},
             macroHistoire: false,
-            contamination: false
+            contamination: true
         };
     }
 
@@ -41963,12 +42167,23 @@ renderRadar() {
 
     updateBarcodeComposerFieldAvailabilityIndicator(fieldRow, fieldLabel, fieldCheck, field, isAvailable) {
         if (!fieldLabel && !fieldRow) return;
-        let indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
+        if (fieldRow) this.ensureBarcodeComposerFieldActions(fieldRow);
+        const availabilitySlot = this.getBarcodeComposerFieldAvailabilitySlot(fieldRow);
+        let indicator = availabilitySlot
+            ? availabilitySlot.querySelector('.barcode-composer__availability-dot')
+            : null;
+        if (!indicator && fieldLabel) {
+            indicator = fieldLabel.querySelector('.barcode-composer__availability-dot');
+        }
         if (!indicator) {
             indicator = document.createElement('span');
             indicator.className = 'barcode-composer__availability-dot';
             indicator.setAttribute('aria-hidden', 'true');
             indicator.textContent = '!';
+        }
+        if (availabilitySlot && indicator.parentElement !== availabilitySlot) {
+            availabilitySlot.appendChild(indicator);
+        } else if (!availabilitySlot && fieldLabel && indicator.parentElement !== fieldLabel) {
             fieldLabel.appendChild(indicator);
         }
 
@@ -42302,33 +42517,41 @@ renderRadar() {
                         label.removeAttribute('aria-label');
                     }
                 }
+                this.ensureBarcodeComposerFieldActions(row);
 
                 return row;
             };
 
-            const fragment = document.createDocumentFragment();
             let ciIndex = 0;
+            const pieceCustomHost = composer.querySelector('[data-bc-reorder-zone="piece-custom"]');
+            const lotComplementsHost = composer.querySelector('[data-bc-reorder-zone="lot-complements"]');
 
-            if (pieceEntries.length) {
-                fragment.appendChild(buildTitle('Données personnalisées'));
+            if (pieceEntries.length && pieceCustomHost) {
+                const pieceFragment = document.createDocumentFragment();
+                pieceFragment.appendChild(buildTitle('Données personnalisées'));
                 pieceEntries.forEach((entry) => {
-                    fragment.appendChild(buildRow(entry, ciIndex));
+                    pieceFragment.appendChild(buildRow(entry, ciIndex));
                     ciIndex += 1;
                 });
+                pieceCustomHost.appendChild(pieceFragment);
             }
 
-            if (lotEntries.length) {
-                fragment.appendChild(buildTitle("Compléments d'informations dans l'étiquettage"));
+            if (lotEntries.length && lotComplementsHost) {
+                const lotFragment = document.createDocumentFragment();
+                lotFragment.appendChild(buildTitle("Compléments d'informations dans l'étiquetage"));
                 lotEntries.forEach((entry) => {
-                    fragment.appendChild(buildRow(entry, ciIndex));
+                    lotFragment.appendChild(buildRow(entry, ciIndex));
                     ciIndex += 1;
                 });
-            }
-
-            if (sectionLotTitle) {
-                sectionLotTitle.parentNode.insertBefore(fragment, sectionLotTitle);
-            } else {
-                baseRow.parentNode.insertBefore(fragment, baseRow.nextSibling);
+                lotComplementsHost.appendChild(lotFragment);
+            } else if (lotEntries.length && sectionLotTitle && sectionLotTitle.parentNode) {
+                const lotFragment = document.createDocumentFragment();
+                lotFragment.appendChild(buildTitle("Compléments d'informations dans l'étiquetage"));
+                lotEntries.forEach((entry) => {
+                    lotFragment.appendChild(buildRow(entry, ciIndex));
+                    ciIndex += 1;
+                });
+                sectionLotTitle.parentNode.insertBefore(lotFragment, sectionLotTitle.nextSibling);
             }
         };
 
@@ -42577,6 +42800,10 @@ renderRadar() {
             }
         });
 
+        this.applyBarcodeComposerDomFieldOrder(composer);
+        this.setupBarcodeComposerFieldOrderControls(composer);
+        this.updateBarcodeComposerFieldOrderButtons(composer);
+
         const refreshComputedMaps = () => {
             valueMap = this.getBarcodeComposerValueMapCached(context.lot, context.piece);
             availabilityMap = this.getBarcodeComposerFieldsAvailabilityMap();
@@ -42589,6 +42816,8 @@ renderRadar() {
             });
             upsertDynamicCustomInfoFields(valueMap, dynamicCustomInfoEntries);
             updateDimensionMeanLabels(valueMap);
+            this.applyBarcodeComposerDomFieldOrder(composer);
+            this.updateBarcodeComposerFieldOrderButtons(composer);
         };
 
         const updateOutput = (source = 'full') => {

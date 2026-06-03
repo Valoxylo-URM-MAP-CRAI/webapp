@@ -227,8 +227,8 @@
         payloadFormat: 'compact',
         essence: true,
         essenceEn13556: false,
-        longueur: true,
-        largeur: true,
+        longueur: false,
+        largeur: false,
         epaisseur: false,
         mesuresMultiplesE1: false,
         mesuresMultiplesQ1: false,
@@ -239,20 +239,20 @@
         largeurExtremes: false,
         epaisseurExtremes: false,
         diametreExtremes: false,
-        orientationAbbr: false,
+        orientationAbbr: true,
         prixUnitaire: false,
         masseUnitaire: false,
         pco2Unitaire: false,
-        typePieceAbbr: false,
+        typePieceAbbr: true,
         amortissementBio: false,
         dateMiseService: false,
         volumeUnitaire: false,
         scoreNetMax: false,
-        classementEstime: false,
+        classementEstime: true,
         durabiliteNaturelle: false,
         customInfos: false,
         macroHistoire: false,
-        contamination: false
+        contamination: true
     });
 
     var VALOBOIS_DEFAULT_NOTATION_MODE_ORIENTATION_THRESHOLDS = Object.freeze({
@@ -262,6 +262,11 @@
     });
 
     var VALOBOIS_BARCODE_COMPOSER_OPTIONAL_FIELDS_ORDER = Object.freeze([
+        'orientationAbbr',
+        'scoreNetMax',
+        'classementEstime',
+        'macroHistoire',
+        'contamination',
         'essence',
         'essenceEn13556',
         'longueur',
@@ -275,7 +280,6 @@
         'largeurExtremes',
         'epaisseurExtremes',
         'diametreExtremes',
-        'orientationAbbr',
         'prixUnitaire',
         'masseUnitaire',
         'pco2Unitaire',
@@ -283,12 +287,8 @@
         'amortissementBio',
         'dateMiseService',
         'volumeUnitaire',
-        'scoreNetMax',
-        'classementEstime',
         'durabiliteNaturelle',
-        'customInfos',
-        'macroHistoire',
-        'contamination'
+        'customInfos'
     ]);
 
     var VALOBOIS_BARCODE_COMPOSER_FIELD_SCOPE_MAP = Object.freeze({

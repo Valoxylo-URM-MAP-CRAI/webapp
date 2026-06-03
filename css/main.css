@@ -11953,10 +11953,63 @@ body.day-mode .lot-group--collapsible summary:hover {
             border-top: 1px dashed var(--color-divider, #d7d7d2);
         }
 
-        #etiqueterBackdrop .barcode-composer__section-title:first-of-type {
+        #etiqueterBackdrop .barcode-composer__zone {
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px dashed var(--color-divider, #d7d7d2);
+        }
+
+        #etiqueterBackdrop .barcode-composer__zone > .barcode-composer__section-title:first-child {
             border-top: 0;
             margin-top: 0;
             padding-top: 0;
+        }
+
+        #etiqueterBackdrop .barcode-composer__reorder-host--dynamic > .barcode-composer__section-title {
+            margin-top: 0.2rem;
+            padding-top: 0.25rem;
+            border-top: 1px dashed var(--color-divider, #d7d7d2);
+        }
+
+        #etiqueterBackdrop .barcode-composer__field-actions {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.2rem;
+            justify-self: end;
+            min-width: 3.6rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field-actions .barcode-composer__order-btn {
+            width: 1.35rem;
+            min-width: 1.35rem;
+            height: 1.35rem;
+            min-height: 1.35rem;
+            padding: 0;
+            font-size: 0.72rem;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            aspect-ratio: 1 / 1;
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-slot {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 0.95rem;
+            min-width: 0.95rem;
+            height: 0.95rem;
+        }
+
+        #etiqueterBackdrop .barcode-composer__availability-slot .barcode-composer__availability-dot {
+            margin: 0;
+        }
+
+        #etiqueterBackdrop .barcode-composer__label .barcode-composer__availability-dot {
+            display: none;
         }
 
         #etiqueterBackdrop .barcode-composer__field {
@@ -11978,6 +12031,10 @@ body.day-mode .lot-group--collapsible summary:hover {
             grid-template-columns: 2.6rem minmax(0, 8.5rem) minmax(0, 1fr) auto;
             opacity: 0.78;
             cursor: default;
+        }
+
+        #etiqueterBackdrop .barcode-composer__field--locked .barcode-composer__badge {
+            justify-self: end;
         }
 
         #etiqueterBackdrop .barcode-composer__field--locked:hover {
