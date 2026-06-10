@@ -46449,8 +46449,15 @@ renderRadar() {
     buildPdfNotationGridVerticalSpacer(gapPt, horizontalInset = 0) {
         const gap = Math.max(0, Number(gapPt) || 0);
         if (gap <= 0) return null;
+        const inset = Math.max(0, Number(horizontalInset) || 0);
         return {
-            canvas: [{ type: 'rect', x: 0, y: 0, w: 1, h: gap, color: '#ffffff' }]
+            table: {
+                widths: ['*'],
+                heights: [gap],
+                body: [[{ text: '', border: [false, false, false, false] }]]
+            },
+            layout: { hLineWidth: () => 0, vLineWidth: () => 0 },
+            margin: [inset, 0, inset, 0]
         };
     }
 
@@ -50258,7 +50265,7 @@ renderRadar() {
         const compactNotationFontSize = Math.max(6.1, notationFontSize + 0.3);
         const compactSectionTitleFontSize = Math.max(8, sectionTitleFontSize);
         const notationTableRowHeight = 11;
-        const notationGridColumnGap = 10;
+        const notationGridColumnGap = Math.round(10 * MM_TO_PT);
         const notationGridColumns = 3;
         const notationGridPageInset = 12;
         const notationGridUsableWidth = Math.max(320, usableWidthPt - notationGridPageInset * 2);

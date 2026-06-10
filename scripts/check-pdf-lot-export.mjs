@@ -85,8 +85,8 @@ const asserts = [
         && fnBody.includes('notationGridColumnGap')],
     ['marge verticale notation réduite', () => fnBody.includes('const notationGridVerticalGap = 5 * MM_TO_PT')
         && fnBody.includes('buildPdfNotationGridVerticalSpacer(notationGridVerticalGap')
-        && src.includes('buildPdfNotationGridVerticalSpacer(gapPt')
-        && src.includes("canvas: [{ type: 'rect'")],
+        && src.includes('heights: [gap]')
+        && src.includes('border: [false, false, false, false]')],
     ['blocs analyse orientation complets', () => fnBody.includes('buildPdfOrientationAnalysisStack(currentLot, lotIndex, tpdf, usableWidthPt')
         && src.includes('generatePdfLotPositionBarSvg')
         && fnBody.includes('orientationAnalysisStack')],
@@ -128,7 +128,7 @@ const asserts = [
         && fnBody.includes('const notationGridPageInset = 12')
         && fnBody.includes('sectionTitleFontSize: compactSectionTitleFontSize')
         && fnBody.includes('columnWidth: notationColumnWidth')
-        && fnBody.includes('const notationGridColumnGap = 10')],
+        && fnBody.includes('const notationGridColumnGap = Math.round(10 * MM_TO_PT)')],
     ['colonne critères notation flexible pleine largeur', () => src.includes('getPdfNotationCriteriaBaselineLabel()')
         && src.includes('clampPdfNotationTableWidths')
         && src.includes('getPdfNotationSectionTableWidths(columnWidth, notationFontSize)')
