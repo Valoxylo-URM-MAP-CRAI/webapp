@@ -48747,8 +48747,8 @@ renderRadar() {
         const globalMin = Number.isFinite(categoryData.globalMinScore) ? categoryData.globalMinScore : minScore;
         const globalMax = Number.isFinite(categoryData.globalMaxScore) ? categoryData.globalMaxScore : maxScore;
         const scoreSpan = Math.max(1, globalMax - globalMin);
-        const labelAreaHeight = 8;
-        const barHeight = Math.max(7, Math.round((height - labelAreaHeight) * 0.65));
+        const labelAreaHeight = 6;
+        const barHeight = Math.max(7, Math.round((height - labelAreaHeight) * 0.7));
         const barY = labelAreaHeight + Math.max(0, (height - labelAreaHeight - barHeight) / 2);
         const radius = 1;
         const pctPerPoint = width / scoreSpan;
@@ -48806,7 +48806,7 @@ renderRadar() {
         const bgHtml = `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="rgba(0,0,0,0.06)" stroke="#999999" stroke-width="0.5" rx="${radius}"/>`;
         const zeroLineHtml = `<line x1="${zeroPixels.toFixed(1)}" y1="${barY}" x2="${zeroPixels.toFixed(1)}" y2="${barY + barHeight}" stroke="#cccccc" stroke-width="0.5" stroke-dasharray="2,2"/>`;
         const thumbHtml = `<rect x="${(thumbX - 1.5).toFixed(1)}" y="${barY.toFixed(1)}" width="3" height="${barHeight.toFixed(1)}" rx="1.5" fill="#111111"/>`;
-        const thumbLabelHtml = `<text x="${thumbX.toFixed(1)}" y="${(barY - 2).toFixed(1)}" font-size="7" font-weight="600" fill="#111111" text-anchor="middle">${thumbLabel}</text>`;
+        const thumbLabelHtml = `<text x="${thumbX.toFixed(1)}" y="${(barY - 1.5).toFixed(1)}" font-size="6.5" font-weight="600" fill="#111111" text-anchor="middle">${thumbLabel}</text>`;
 
         return `<g>${bandsHtml}${bgHtml}${rangeOutlineHtml}${zeroLineHtml}${thumbHtml}${thumbLabelHtml}</g>`;
     }
@@ -48862,8 +48862,8 @@ renderRadar() {
         const boundsWidth = 22;
         const gap = 4;
         const barWidth = Math.max(50, panelWidthPt - boundsWidth * 2 - gap * 2);
-        const gaugeSvgHeight = 22;
-        const gaugeBoundMarginTop = 7;
+        const gaugeSvgHeight = 16;
+        const gaugeBoundMarginTop = 5;
         const formatSigned = (value) => {
             const n = Math.round(Number(value) || 0);
             return n > 0 ? `+${n}` : String(n);
@@ -48922,10 +48922,10 @@ renderRadar() {
                     vLineColor: () => '#e5e7eb',
                     paddingLeft: () => 3,
                     paddingRight: () => 3,
-                    paddingTop: () => 2,
-                    paddingBottom: () => 2
+                    paddingTop: () => 1,
+                    paddingBottom: () => 1
                 },
-                margin: [0, 0, 0, idx < categoryDefs.length - 1 ? 2 : 0]
+                margin: [0, 0, 0, idx < categoryDefs.length - 1 ? 1.5 : 0]
             };
 
             return gaugeCard;
@@ -48937,7 +48937,7 @@ renderRadar() {
                     text: this.sanitizePdfText(tpdf('pdf.card.notationScores', 'Scores par valeur', 'Scores by value')),
                     fontSize: f.sectionTitle,
                     bold: true,
-                    margin: [0, 0, 0, 3]
+                    margin: [0, 0, 0, 2]
                 },
                 ...rows
             ]
@@ -49277,76 +49277,246 @@ renderRadar() {
         };
     }
 
-    generatePdfLotPositionBarSvg(context, width = 520, height = 92) {
+    generatePdfLotPositionBarSvg(context, width = 520) {
         if (!context) return '';
         const {
             SCORE_MIN, SCORE_MAX, SCORE_NEG, SCORE_POS, lotScore, hasNegative,
-            gateThreshold, laneDefs, activeOrientation, lotBubbleLabel, lotScoreLabel,
+            gateThreshold, laneDefs, activeOrientation, activeLaneIndex, lotBubbleLabel, lotScoreLabel,
             positiveLabel, negativeLabel, clampPct
         } = context;
 
-        const labelWidth = 72;
-        const trackLeft = labelWidth + 4;
-        const trackWidth = Math.max(100, width - trackLeft - 6);
+        const trackLeft = 2;
+        const trackWidth = Math.max(100, width - trackLeft - 2);
         const laneHeight = 13;
-        const laneGap = 3;
-        const lanesTop = 4;
-        const axisY = lanesTop + laneDefs.length * (laneHeight + laneGap) + 2;
+        const laneGap = 3.5;
+        const laneCount = laneDefs.length;
+        const laneRadius = laneHeight / 2;
+        const bubbleHeight = 20;
+        const bubbleOffset = 5;
+        const bubbleZone = bubbleHeight + bubbleOffset;
+        const lanesTop = bubbleZone;
+        const lanesHeight = laneCount * laneHeight + Math.max(0, laneCount - 1) * laneGap;
+        const axisGap = 5;
+        const axisLineY = lanesTop + lanesHeight + axisGap;
+        const axisLabelCenterY = axisLineY + 9;
+        const svgHeight = axisLabelCenterY + 8;
         const toX = (scoreValue) => trackLeft + (clampPct(scoreValue) / 100) * trackWidth;
 
-        let lanesHtml = '';
+        const activeLaneY = lanesTop + activeLaneIndex * (laneHeight + laneGap);
+        const activeLaneCenterY = activeLaneY + laneHeight / 2;
+        const lotX = toX(lotScore);
+        const bubbleMinWidth = 34;
+        const bubbleWidth = Math.max(
+            bubbleMinWidth,
+            Math.max(String(lotBubbleLabel || '').length, String(lotScoreLabel || '').length) * 4.8 + 10
+        );
+        const bubbleX = lotScore >= 0 ? lotX - bubbleWidth : lotX;
+        const bubbleY = bubbleOffset / 2;
+
+        const getScorePillBodyWidth = (label) => {
+            const length = String(label || '').trim().length;
+            if (length <= 2) return 6;
+            if (length === 3) return 11;
+            return 16;
+        };
+        const getScorePillTotalWidth = (label) => getScorePillBodyWidth(label) + 3;
+
+        const drawRoundedPillPath = (x, y, w, h, roundLeft, roundRight) => {
+            const r = h / 2;
+            const rl = roundLeft ? r : 0;
+            const rr = roundRight ? r : 0;
+            return [
+                `M ${(x + rl).toFixed(1)} ${y.toFixed(1)}`,
+                `H ${(x + w - rr).toFixed(1)}`,
+                rr ? `A ${rr} ${r} 0 0 1 ${(x + w).toFixed(1)} ${(y + r).toFixed(1)}` : `L ${(x + w).toFixed(1)} ${y.toFixed(1)}`,
+                rr ? `A ${rr} ${r} 0 0 1 ${(x + w - rr).toFixed(1)} ${(y + h).toFixed(1)}` : `L ${(x + w).toFixed(1)} ${(y + h).toFixed(1)}`,
+                `H ${(x + rl).toFixed(1)}`,
+                rl ? `A ${rl} ${r} 0 0 1 ${x.toFixed(1)} ${(y + r).toFixed(1)}` : `L ${x.toFixed(1)} ${(y + h).toFixed(1)}`,
+                rl ? `A ${rl} ${r} 0 0 1 ${(x + rl).toFixed(1)} ${y.toFixed(1)}` : `L ${x.toFixed(1)} ${y.toFixed(1)}`,
+                'Z'
+            ].join(' ');
+        };
+
+        const drawAxisPill = (cx, cy, label, edge) => {
+            const textLen = String(label || '').length;
+            const pillH = 7;
+            const minW = edge === 'minus10' || edge === 'zero' ? 16 : 0;
+            const pillW = Math.max(minW, textLen * 4 + (edge === 'start' || edge === 'end' ? 12 : 10));
+            let x = cx - pillW / 2;
+            let textX = cx;
+            let roundLeft = true;
+            let roundRight = true;
+            if (edge === 'start') {
+                x = cx;
+                textX = cx + pillW / 2;
+                roundLeft = false;
+            } else if (edge === 'end') {
+                x = cx - pillW;
+                textX = cx - pillW / 2;
+                roundRight = false;
+            } else if (edge === 'minus10') {
+                x = cx - pillW;
+                textX = cx - pillW / 2;
+                roundRight = false;
+            } else if (edge === 'zero') {
+                x = cx;
+                textX = cx + pillW / 2;
+                roundLeft = false;
+            }
+            const y = cy - pillH / 2;
+            const pathD = drawRoundedPillPath(x, y, pillW, pillH, roundLeft, roundRight);
+            const baselineY = cy + 6 * 0.35;
+            return `<path d="${pathD}" fill="#8f8f8f"/><text x="${textX.toFixed(1)}" y="${baselineY.toFixed(1)}" font-size="6" font-weight="700" fill="#f5f5f5" text-anchor="middle">${this.escapeSvgText(label)}</text>`;
+        };
+
+        const drawScorePill = (cx, cy, label, direction) => {
+            const pillH = 8;
+            const tipW = 3;
+            const bodyW = getScorePillBodyWidth(label);
+            const pillW = bodyW + tipW;
+            const x = direction === 'neg' ? cx : cx - pillW;
+            const points = direction === 'neg'
+                ? `${x.toFixed(1)},${cy.toFixed(1)} ${(x + tipW).toFixed(1)},${(cy - pillH / 2).toFixed(1)} ${(x + pillW).toFixed(1)},${(cy - pillH / 2).toFixed(1)} ${(x + pillW).toFixed(1)},${(cy + pillH / 2).toFixed(1)} ${(x + tipW).toFixed(1)},${(cy + pillH / 2).toFixed(1)}`
+                : `${x.toFixed(1)},${(cy - pillH / 2).toFixed(1)} ${(x + bodyW).toFixed(1)},${(cy - pillH / 2).toFixed(1)} ${(x + pillW).toFixed(1)},${cy.toFixed(1)} ${(x + bodyW).toFixed(1)},${(cy + pillH / 2).toFixed(1)} ${x.toFixed(1)},${(cy + pillH / 2).toFixed(1)}`;
+            const textX = direction === 'neg' ? x + tipW + bodyW / 2 : x + bodyW / 2;
+            const baselineY = cy + 5.5 * 0.35;
+            return `<polygon points="${points}" fill="#111111"/><text x="${textX.toFixed(1)}" y="${baselineY.toFixed(1)}" font-size="5.5" font-weight="700" fill="#ffffff" text-anchor="middle">${this.escapeSvgText(label)}</text>`;
+        };
+
+        const drawRangeBarBody = (barLeftX, barRightX, cy) => {
+            const h = 5;
+            const y = cy - h / 2;
+            const barW = barRightX - barLeftX;
+            if (barW <= 0.5) return '';
+            return `<rect x="${barLeftX.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h}" fill="#111111"/>`;
+        };
+
+        const drawRangeBar = (leftX, widthPx, cy, direction) => {
+            const h = 5;
+            const tip = 6;
+            const barW = Math.max(widthPx, tip + 1);
+            const y = cy - h / 2;
+            const points = direction === 'neg'
+                ? `${leftX.toFixed(1)},${(cy).toFixed(1)} ${(leftX + tip).toFixed(1)},${y.toFixed(1)} ${(leftX + barW).toFixed(1)},${y.toFixed(1)} ${(leftX + barW).toFixed(1)},${(y + h).toFixed(1)} ${(leftX + tip).toFixed(1)},${(y + h).toFixed(1)}`
+                : `${leftX.toFixed(1)},${y.toFixed(1)} ${(leftX + barW - tip).toFixed(1)},${y.toFixed(1)} ${(leftX + barW).toFixed(1)},${cy.toFixed(1)} ${(leftX + barW - tip).toFixed(1)},${(y + h).toFixed(1)} ${leftX.toFixed(1)},${(y + h).toFixed(1)}`;
+            return `<polygon points="${points}" fill="#111111"/>`;
+        };
+
+        const drawLaneLabel = (labelX, laneCenterY, label, anchor, isActive) => {
+            const fill = isActive ? '#111111' : '#595959';
+            const fontWeight = isActive ? 700 : 500;
+            const fontSize = 7;
+            const padX = 4;
+            const textW = String(label || '').length * 4.2;
+            const textLeft = anchor === 'end' ? labelX - textW : labelX;
+            const bgX = textLeft - padX;
+            const pillW = textW + padX * 2;
+            const pillH = 11;
+            const bgY = laneCenterY - pillH / 2;
+            const baselineY = laneCenterY + fontSize * 0.35;
+            return `<rect x="${bgX.toFixed(1)}" y="${bgY.toFixed(1)}" width="${pillW.toFixed(1)}" height="${pillH}" rx="${(pillH / 2).toFixed(1)}" fill="#ffffff" fill-opacity="0.92"/>`
+                + `<text x="${labelX.toFixed(1)}" y="${baselineY.toFixed(1)}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${fill}" text-anchor="${anchor}">${this.escapeSvgText(label)}</text>`;
+        };
+
+        let svgTracks = '';
+        let svgRangeBars = '';
+        let svgScorePills = '';
+        let svgDiamond = '';
+        let svgLabels = '';
+
+        const gridLineBottom = axisLineY;
+        const minus10LineTop = lanesTop + 2 * (laneHeight + laneGap) + laneHeight * 0.35;
+        const zeroX = toX(0);
+        let svgGrid = `<line x1="${zeroX.toFixed(1)}" y1="${lanesTop.toFixed(1)}" x2="${zeroX.toFixed(1)}" y2="${gridLineBottom.toFixed(1)}" stroke="#8f8f8f" stroke-width="1"/>`;
+        svgGrid += `<line x1="${toX(gateThreshold).toFixed(1)}" y1="${minus10LineTop.toFixed(1)}" x2="${toX(gateThreshold).toFixed(1)}" y2="${gridLineBottom.toFixed(1)}" stroke="#b5b5b5" stroke-width="1"/>`;
+
+        let lotDotHtml = '';
+
         laneDefs.forEach((lane, laneIdx) => {
             const laneY = lanesTop + laneIdx * (laneHeight + laneGap);
+            const laneCenterY = laneY + laneHeight / 2;
             const isActive = lane.key === activeOrientation;
-            lanesHtml += `<text x="0" y="${(laneY + laneHeight * 0.72).toFixed(1)}" font-size="7" font-weight="600" fill="${lane.color}">${this.escapeSvgText(lane.label)}</text>`;
-            lanesHtml += `<rect x="${trackLeft}" y="${laneY}" width="${trackWidth}" height="${laneHeight}" rx="3" fill="#ececec"/>`;
+            const trackStroke = isActive ? lane.color : '#cdcdcd';
+            const trackStrokeW = isActive ? 1.4 : 1;
+
+            svgTracks += `<rect x="${trackLeft}" y="${laneY}" width="${trackWidth}" height="${laneHeight}" rx="${laneRadius.toFixed(1)}" fill="#cdcdcd" stroke="${trackStroke}" stroke-width="${trackStrokeW}"/>`;
+            if (isActive) {
+                svgTracks += `<rect x="${(trackLeft + 1).toFixed(1)}" y="${(laneY + 1).toFixed(1)}" width="${(trackWidth - 2).toFixed(1)}" height="${(laneHeight - 2).toFixed(1)}" rx="${(laneRadius - 1).toFixed(1)}" fill="${lane.color}" fill-opacity="0.12"/>`;
+            }
+
             lane.segments.forEach((segment) => {
                 const x1 = toX(Math.min(segment.start, segment.end));
                 const x2 = toX(Math.max(segment.start, segment.end));
                 const segW = Math.max(0, x2 - x1);
                 if (segW <= 0) return;
-                const rx = segment.roundLeft && segment.roundRight ? 3 : (segment.roundLeft ? 3 : 0);
-                lanesHtml += `<rect x="${x1.toFixed(1)}" y="${laneY}" width="${segW.toFixed(1)}" height="${laneHeight}" rx="${rx}" fill="${segment.color}"/>`;
+                const rx = segment.roundLeft && segment.roundRight
+                    ? laneRadius
+                    : (segment.roundLeft || segment.roundRight ? laneRadius : 0);
+                svgTracks += `<rect x="${x1.toFixed(1)}" y="${laneY}" width="${segW.toFixed(1)}" height="${laneHeight}" rx="${rx.toFixed(1)}" fill="${segment.color}"/>`;
+                if (!isActive) {
+                    svgTracks += `<rect x="${x1.toFixed(1)}" y="${laneY}" width="${segW.toFixed(1)}" height="${laneHeight}" rx="${rx.toFixed(1)}" fill="none" stroke="#cdcdcd" stroke-width="1.2"/>`;
+                }
             });
+
+            const shouldFlipCombustionLabel = lane.key === 'combustion' && SCORE_NEG < -30;
+            const labelX = shouldFlipCombustionLabel
+                ? trackLeft + trackWidth - 8
+                : trackLeft + 8;
+            const labelAnchor = shouldFlipCombustionLabel ? 'end' : 'start';
+            svgLabels += drawLaneLabel(labelX, laneCenterY, lane.label, labelAnchor, isActive);
+
             if (isActive) {
-                const zeroX = toX(0);
-                lanesHtml += `<polygon points="${(zeroX - 3).toFixed(1)},${(laneY + laneHeight + 1).toFixed(1)} ${zeroX.toFixed(1)},${(laneY + laneHeight + 5).toFixed(1)} ${(zeroX + 3).toFixed(1)},${(laneY + laneHeight + 1).toFixed(1)}" fill="#111111"/>`;
+                const zeroBarX = toX(0);
                 if (hasNegative) {
-                    const negLeft = toX(Math.min(SCORE_NEG, 0));
-                    const negW = Math.abs(toX(0) - toX(SCORE_NEG));
-                    lanesHtml += `<rect x="${negLeft.toFixed(1)}" y="${(laneY + 2).toFixed(1)}" width="${negW.toFixed(1)}" height="2" fill="#111111"/>`;
-                    lanesHtml += `<text x="${toX(SCORE_NEG).toFixed(1)}" y="${(laneY - 1).toFixed(1)}" font-size="6" fill="#111111" text-anchor="middle">${this.escapeSvgText(negativeLabel)}</text>`;
+                    const negPillW = getScorePillTotalWidth(negativeLabel);
+                    const negBarLeft = toX(SCORE_NEG) + negPillW;
+                    svgRangeBars += drawRangeBarBody(negBarLeft, zeroBarX, laneCenterY);
+                    svgScorePills += drawScorePill(toX(SCORE_NEG), laneCenterY, negativeLabel, 'neg');
                 }
                 if (SCORE_POS > 0) {
-                    const posLeft = toX(Math.min(0, SCORE_POS));
-                    const posW = Math.abs(toX(SCORE_POS) - toX(0));
-                    lanesHtml += `<rect x="${posLeft.toFixed(1)}" y="${(laneY + 2).toFixed(1)}" width="${posW.toFixed(1)}" height="2" fill="#111111"/>`;
                     if (hasNegative) {
-                        lanesHtml += `<text x="${toX(SCORE_POS).toFixed(1)}" y="${(laneY - 1).toFixed(1)}" font-size="6" fill="#111111" text-anchor="middle">${this.escapeSvgText(positiveLabel)}</text>`;
+                        const posPillW = getScorePillTotalWidth(positiveLabel);
+                        const posBarRight = toX(SCORE_POS) - posPillW;
+                        svgRangeBars += drawRangeBarBody(zeroBarX, posBarRight, laneCenterY);
+                        svgScorePills += drawScorePill(toX(SCORE_POS), laneCenterY, positiveLabel, 'pos');
+                    } else {
+                        const posLeft = toX(Math.min(0, SCORE_POS));
+                        const posW = Math.abs(toX(SCORE_POS) - toX(0));
+                        svgRangeBars += drawRangeBar(posLeft, posW, laneCenterY, 'pos');
                     }
                 }
-                const lotX = toX(lotScore);
-                lanesHtml += `<line x1="${lotX.toFixed(1)}" y1="${lanesTop}" x2="${lotX.toFixed(1)}" y2="${(axisY - 2).toFixed(1)}" stroke="#111111" stroke-width="1.2"/>`;
-                lanesHtml += `<circle cx="${lotX.toFixed(1)}" cy="${(laneY + laneHeight / 2).toFixed(1)}" r="3" fill="#111111"/>`;
-                const bubbleText = `${lotBubbleLabel} ${lotScoreLabel}`;
-                lanesHtml += `<rect x="${(lotX - 28).toFixed(1)}" y="0" width="56" height="10" rx="2" fill="#111111"/>`;
-                lanesHtml += `<text x="${lotX.toFixed(1)}" y="7.5" font-size="6" font-weight="600" fill="#ffffff" text-anchor="middle">${this.escapeSvgText(bubbleText)}</text>`;
+
+                const diamondSize = 6;
+                svgDiamond += `<rect x="${(zeroX - diamondSize / 2).toFixed(1)}" y="${(laneCenterY - diamondSize / 2).toFixed(1)}" width="${diamondSize}" height="${diamondSize}" transform="rotate(45 ${zeroX.toFixed(1)} ${laneCenterY.toFixed(1)})" fill="#111111"/>`;
+
+                const thumbR = 3.5;
+                lotDotHtml = `<circle cx="${lotX.toFixed(1)}" cy="${laneCenterY.toFixed(1)}" r="${thumbR}" fill="#111111" stroke="${lane.color}" stroke-width="1.4"/>`;
             }
         });
 
-        const scaleMarkers = [
-            { value: SCORE_MIN, label: String(SCORE_MIN) },
-            { value: gateThreshold, label: String(gateThreshold) },
-            { value: 0, label: '0' },
-            { value: SCORE_MAX, label: `+${SCORE_MAX}` }
-        ];
-        const axisHtml = scaleMarkers.map((marker) => {
-            const x = toX(marker.value);
-            const anchor = marker.value === SCORE_MIN ? 'start' : (marker.value === SCORE_MAX ? 'end' : 'middle');
-            return `<text x="${x.toFixed(1)}" y="${(axisY + 8).toFixed(1)}" font-size="6" fill="#6b7280" text-anchor="${anchor}">${this.escapeSvgText(marker.label)}</text>`;
-        }).join('');
+        // Ordre de dessin = mirroir des z-index de l'UI (du plus bas au plus haut) :
+        // pistes/segments (z2) -> grilles (z4) -> libellés de piste (z5) -> barres de plage (z6)
+        // -> losange zéro (z7) -> trait du lot (z8) -> point du lot (z10) -> bulle -> pastilles de score (z11, au sommet)
+        let svgParts = svgTracks + svgGrid + svgLabels + svgRangeBars + svgDiamond;
+        svgParts += `<line x1="${lotX.toFixed(1)}" y1="${(bubbleY + bubbleHeight).toFixed(1)}" x2="${lotX.toFixed(1)}" y2="${activeLaneCenterY.toFixed(1)}" stroke="#111111" stroke-width="1.6"/>`;
+        svgParts += lotDotHtml;
+        svgParts += `<rect x="${bubbleX.toFixed(1)}" y="${bubbleY.toFixed(1)}" width="${bubbleWidth.toFixed(1)}" height="${bubbleHeight}" fill="#111111"/>`;
+        svgParts += `<text x="${(bubbleX + bubbleWidth / 2).toFixed(1)}" y="${(bubbleY + 8).toFixed(1)}" font-size="6.5" font-weight="700" fill="#ffffff" text-anchor="middle">${this.escapeSvgText(lotBubbleLabel)}</text>`;
+        svgParts += `<text x="${(bubbleX + bubbleWidth / 2).toFixed(1)}" y="${(bubbleY + 16).toFixed(1)}" font-size="6.5" font-weight="700" fill="#ffffff" text-anchor="middle">${this.escapeSvgText(lotScoreLabel)}</text>`;
+        svgParts += svgScorePills;
 
-        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${lanesHtml}${axisHtml}</svg>`;
+        svgParts += `<line x1="${trackLeft}" y1="${axisLineY.toFixed(1)}" x2="${(trackLeft + trackWidth).toFixed(1)}" y2="${axisLineY.toFixed(1)}" stroke="#8f8f8f" stroke-width="1"/>`;
+        const scaleMarkers = [
+            { value: SCORE_MIN, label: String(SCORE_MIN), edge: 'start' },
+            { value: gateThreshold, label: String(gateThreshold), edge: 'minus10' },
+            { value: 0, label: '0', edge: 'zero' },
+            { value: SCORE_MAX, label: `+${SCORE_MAX}`, edge: 'end' }
+        ];
+        scaleMarkers.forEach((marker) => {
+            svgParts += drawAxisPill(toX(marker.value), axisLabelCenterY, marker.label, marker.edge);
+        });
+
+        return `<svg width="${width}" height="${svgHeight.toFixed(1)}" viewBox="0 0 ${width} ${svgHeight.toFixed(1)}" xmlns="http://www.w3.org/2000/svg">${svgParts}</svg>`;
     }
 
     buildPdfNotesDistributionPanel(lot, state, tpdf, panelWidth, options = {}) {
@@ -49468,23 +49638,54 @@ renderRadar() {
         };
 
         const colWidth = Math.max(80, (panelWidth - 24) / 4);
+        const itemFontSize = 7;
+        const lockIconSize = Math.max(7, Math.min(9, itemFontSize + 1));
+        const itemRowHeight = Math.max(lockIconSize, Math.ceil(itemFontSize * 1.2));
+        const lockMarginTop = Math.max(0, (itemRowHeight - lockIconSize) / 2);
+        const textMarginTop = Math.max(0, (itemRowHeight - itemFontSize * 1.15) / 2);
+        const makeItemRow = (row) => {
+            const level = getLevelLabel(row.levelKey);
+            const lockColor = lockColorForLevel(row.levelKey);
+            return {
+                columns: [
+                    {
+                        width: lockIconSize + 2,
+                        stack: [{
+                            svg: this.generatePdfMatrixLockSvg(lockColor),
+                            width: lockIconSize,
+                            height: lockIconSize,
+                            alignment: 'center',
+                            margin: [0, lockMarginTop, 0, 0]
+                        }]
+                    },
+                    {
+                        width: '*',
+                        text: this.sanitizePdfText(`${row.critere || 'Critère'} ${level}`.trim()),
+                        fontSize: itemFontSize,
+                        margin: [0, textMarginTop, 0, 0]
+                    }
+                ],
+                columnGap: 2,
+                margin: [0, 0, 0, 1]
+            };
+        };
         const columns = orientationOrder.map((orientationKey) => {
             const rows = state.rejectsByOrientation[orientationKey] || [];
             const title = this.getValoboisOrientationLabel(orientationKey);
             const groupCountLabel = `${rows.length}/${lockCount}`;
             const headerColor = orientationColors[orientationKey] || '#666666';
-            const items = rows.map((row) => {
-                const level = getLevelLabel(row.levelKey);
-                const lockColor = lockColorForLevel(row.levelKey);
-                return {
+            const half = Math.ceil(rows.length / 2);
+            const leftItems = rows.slice(0, half).map(makeItemRow);
+            const rightItems = rows.slice(half).map(makeItemRow);
+            const itemsBlock = rows.length === 0
+                ? { text: '—', fontSize: itemFontSize, color: '#999999' }
+                : {
                     columns: [
-                        { width: 12, svg: this.generatePdfMatrixLockSvg(lockColor), margin: [0, 1, 0, 0] },
-                        { width: '*', text: this.sanitizePdfText(`${row.critere || 'Critère'} ${level}`.trim()), fontSize: Math.max(5, f.notation - 1) }
+                        { width: '*', stack: leftItems.length > 0 ? leftItems : [{ text: '' }] },
+                        { width: '*', stack: rightItems.length > 0 ? rightItems : [{ text: '' }] }
                     ],
-                    columnGap: 2,
-                    margin: [0, 0, 0, 2]
+                    columnGap: 3
                 };
-            });
             return {
                 width: colWidth,
                 stack: [
@@ -49497,9 +49698,9 @@ renderRadar() {
                             ]]
                         },
                         layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 3, paddingRight: () => 3, paddingTop: () => 2, paddingBottom: () => 2 },
-                        margin: [0, 0, 0, 2]
+                        margin: [0, 0, 0, 3]
                     },
-                    ...items
+                    itemsBlock
                 ]
             };
         });
@@ -49514,7 +49715,8 @@ renderRadar() {
                 },
                 { columns, columnGap: 6 }
             ],
-            margin: [0, 0, 0, 6]
+            margin: [0, 0, 0, 6],
+            unbreakable: true
         };
     }
 
@@ -49526,7 +49728,7 @@ renderRadar() {
 
         const positionContext = this.getPdfOrientationPositionBarContext(lot, lotIndex, mode);
         const positionSvg = positionContext
-            ? this.generatePdfLotPositionBarSvg(positionContext, usableWidthPt, 92)
+            ? this.generatePdfLotPositionBarSvg(positionContext, usableWidthPt)
             : '';
         const distributionPanel = this.buildPdfNotesDistributionPanel(lot, state, tpdf, usableWidthPt, { f });
         const locksPanel = this.buildPdfOrientationLocksPanel(state, tpdf, usableWidthPt, { f });
