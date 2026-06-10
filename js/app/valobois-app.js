@@ -45312,12 +45312,14 @@ renderRadar() {
                     const safeLabel = this.sanitizePdfText(pair.label || '', { fallback: '' });
                     const safeValue = this.sanitizePdfFieldText(pair.value, pair.fieldKind || 'text');
                     if (compact) {
+                        // Texte fluide (label + valeur) plutôt que colonnes auto/star :
+                        // un label long s'enroule dans la cellule au lieu de déborder
+                        // sur la colonne voisine (cause des superpositions en demi-page).
                         row.push({
-                            columns: [
-                                { width: 'auto', text: safeLabel + ' :', fontSize: f.label, color: '#6a6257', margin: [0, 0, 2, 0] },
-                                { width: '*', text: safeValue, fontSize: f.value, bold: true }
-                            ],
-                            columnGap: 2
+                            text: [
+                                { text: safeLabel + ' : ', fontSize: f.label, color: '#6a6257' },
+                                { text: safeValue, fontSize: f.value, bold: true }
+                            ]
                         });
                     } else {
                         row.push({
