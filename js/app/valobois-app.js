@@ -266,6 +266,218 @@ const DEFAULT_PSET_CONFIG = {
             }},
         },
     },
+    pieceTypeConformite: {
+        layer: 'valobois',
+        label: 'Pièce type & conformité',
+        psetName: 'Pset_Valobois_PieceTypeConformite',
+        enabled: true,
+        properties: {
+            pieceTypeName: {
+                enabled: true,
+                label: 'Pièce type (nom)',
+                getValue: (piece, lot) => lot?.allotissement?.medoideLabel || null
+            },
+            pieceTypeLength: {
+                enabled: true,
+                label: 'L type (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.medoideDims?.longueur);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            pieceTypeWidth: {
+                enabled: true,
+                label: 'l type (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.medoideDims?.largeur);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            pieceTypeThickness: {
+                enabled: true,
+                label: 'e type (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.medoideDims?.epaisseur);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            pieceTypeDiameter: {
+                enabled: true,
+                label: 'ø type (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.medoideDims?.diametre);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            medoidScore: {
+                enabled: true,
+                label: 'Score médoïde (%)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.medoideScore);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            similarityRate: {
+                enabled: true,
+                label: 'Similarité (%)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.tauxSimilarite);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            variationPercent: {
+                enabled: true,
+                label: 'Variation (± %)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.dispersionScores);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            extremePieceDelta: {
+                enabled: true,
+                label: 'Écart pièce extrême (Δ %)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.scoreMinDelta);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            extremePieceName: {
+                enabled: true,
+                label: 'Pièce extrême (nom)',
+                getValue: (piece, lot) => lot?.allotissement?.scoreMinPieceLabel || null
+            },
+            similarityStrategy: {
+                enabled: true,
+                label: 'Stratégie similarité',
+                getValue: (piece, lot) => {
+                    const key = ((lot?.allotissement?.similarityStrategy || '') + '').toLowerCase();
+                    if (key === 'multiple') return 'Multiple';
+                    if (key === 'single') return 'Unique';
+                    return null;
+                }
+            },
+            thresholdLengthMin: {
+                enabled: true,
+                label: 'Seuil L min (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.longueur?.min);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdLengthMax: {
+                enabled: true,
+                label: 'Seuil L max (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.longueur?.max);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdWidthMin: {
+                enabled: true,
+                label: 'Seuil l min (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.largeur?.min);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdWidthMax: {
+                enabled: true,
+                label: 'Seuil l max (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.largeur?.max);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdThicknessMin: {
+                enabled: true,
+                label: 'Seuil e min (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.epaisseur?.min);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdThicknessMax: {
+                enabled: true,
+                label: 'Seuil e max (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.epaisseur?.max);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdDiameterMin: {
+                enabled: true,
+                label: 'Seuil ø min (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.diametre?.min);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            thresholdDiameterMax: {
+                enabled: true,
+                label: 'Seuil ø max (mm)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.seuilsDestination?.diametre?.max);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+            conformityCount: {
+                enabled: true,
+                label: 'Conformité — conforme',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbConformes;
+                    return v != null ? v : null;
+                }
+            },
+            recutCount: {
+                enabled: true,
+                label: 'Conformité — recoupe',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbRecoupe;
+                    return v != null ? v : null;
+                }
+            },
+            planingCount: {
+                enabled: true,
+                label: 'Conformité — corroyage',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbCorroyage;
+                    return v != null ? v : null;
+                }
+            },
+            recutPlaningCount: {
+                enabled: true,
+                label: 'Conformité — R&C',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbRecoupeCorroyage;
+                    return v != null ? v : null;
+                }
+            },
+            shortWoodCount: {
+                enabled: true,
+                label: 'Conformité — bois court',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbBoisCourt;
+                    return v != null ? v : null;
+                }
+            },
+            rejectCount: {
+                enabled: true,
+                label: 'Conformité — rejet',
+                getValue: (piece, lot) => {
+                    const v = lot?.allotissement?.conformiteLot?.nbRejet;
+                    return v != null ? v : null;
+                }
+            },
+            conformityRate: {
+                enabled: true,
+                label: 'Conformité — taux (%)',
+                getValue: (piece, lot) => {
+                    const v = parseFloat(lot?.allotissement?.conformiteLot?.tauxConformite);
+                    return Number.isFinite(v) ? v : null;
+                }
+            },
+        },
+    },
     evaluation: {
         layer: 'valobois',
         label: 'Évaluation détaillée (scores)',
@@ -44869,6 +45081,37 @@ renderRadar() {
         };
     }
 
+    getPdfLetterColors() {
+        return { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
+    }
+
+    parsePdfNoteLetter(noteText) {
+        const raw = String(noteText || '').trim().toUpperCase();
+        if (/^[A-E]$/.test(raw)) return raw;
+        const match = raw.match(/^([A-E])(?:$|[\s(,+-])/);
+        return match ? match[1] : '';
+    }
+
+    getPdfLetterFillColor(letter) {
+        const colors = this.getPdfLetterColors();
+        const key = String(letter || '').trim().toUpperCase();
+        return colors[key] || '#bcbcbc';
+    }
+
+    getPdfNotationRowLetter(lot, sectionKey, fieldKey) {
+        if (sectionKey === 'customFree') {
+            const rv = this.getPdfCustomFreeNotationRowValue(lot, fieldKey);
+            return this.parsePdfNoteLetter(rv.note);
+        }
+        const mapping = this.getValoboisScoreMappingByCriterionKey(`${sectionKey}.${fieldKey}`);
+        if (mapping) {
+            const letter = this.getCurrentNoteLetterForCriterion(lot, mapping);
+            if (letter) return String(letter).trim().toUpperCase();
+        }
+        const rv = this.getPdfNotationRowValue(lot, sectionKey, fieldKey);
+        return this.parsePdfNoteLetter(rv.note);
+    }
+
     getPdfLocaleCode() {
         const locale = ((typeof getValoboisIntlLocale === 'function' ? getValoboisIntlLocale() : 'fr') || 'fr').toString().toLowerCase();
         return locale.startsWith('en') ? 'en' : 'fr';
@@ -44878,9 +45121,9 @@ renderRadar() {
         const key = (_key || '').toString().trim();
         const map = window.VALOBOIS_PDF_TEXT_MAP || {
             'pdf.common.none': { fr: 'Aucun', en: 'None' },
-            'pdf.orientation.status.confirmed': { fr: 'Confirmee', en: 'Confirmed' },
-            'pdf.orientation.status.forced': { fr: 'Forcee', en: 'Forced' },
-            'pdf.orientation.status.unconfirmedCombustion': { fr: 'Deduite (non confirmee)', en: 'Inferred (unconfirmed)' },
+            'pdf.orientation.status.confirmed': { fr: 'Confirmée', en: 'Confirmed' },
+            'pdf.orientation.status.forced': { fr: 'Forcée', en: 'Forced' },
+            'pdf.orientation.status.unconfirmedCombustion': { fr: 'Déduite (non confirmée)', en: 'Inferred (unconfirmed)' },
             'pdf.orientation.status.inProgress': { fr: 'En cours', en: 'In progress' },
             'pdf.lot.orientationStatus': { fr: 'Statut orientation', en: 'Orientation status' },
             'pdf.lot.orientationRejects': { fr: 'Rejets actifs', en: 'Active rejects' },
@@ -44890,9 +45133,63 @@ renderRadar() {
             'pdf.orientation.emptyVectors': { fr: 'Aucun vecteur actif pour cette orientation.', en: 'No active vector for this orientation.' },
             'pdf.lot.combustionCaution': { fr: 'Alerte combustion', en: 'Combustion warning' },
             'pdf.orientation.combustionCaution': {
-                fr: 'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                fr: 'Orientation déduite par élimination, non confirmée positivement par la matrice.',
                 en: 'Orientation inferred by elimination, not positively confirmed by the matrix.'
-            }
+            },
+            'pdf.card.technicalContext': { fr: 'Contexte technique', en: 'Technical context' },
+            'pdf.card.diagnosticsDocs': { fr: 'Diagnostics & documents', en: 'Diagnostics & documents' },
+            'pdf.card.geoContext': { fr: 'Contexte géographique', en: 'Geographic context' },
+            'pdf.card.contacts': { fr: 'Contacts de l\'opération', en: 'Operation contacts' },
+            'pdf.card.pemdVisit': { fr: 'Visite PEMD', en: 'PEMD site visit' },
+            'pdf.card.pieceType': { fr: 'Pièce type du lot', en: 'Lot piece type' },
+            'pdf.card.homogeneity': { fr: 'Homogénéité & hétérogénéité', en: 'Homogeneity & heterogeneity' },
+            'pdf.card.thresholdsConformity': { fr: 'Seuils & conformité', en: 'Thresholds & conformity' },
+            'pdf.pieceType.name': { fr: 'Nom pièce type', en: 'Piece type name' },
+            'pdf.pieceType.medoidScore': { fr: 'Score médoïde', en: 'Medoid score' },
+            'pdf.pieceType.similarity': { fr: 'Similarité', en: 'Similarity' },
+            'pdf.pieceType.variation': { fr: 'Variation', en: 'Variation' },
+            'pdf.pieceType.extremeDelta': { fr: 'Écart pièce extrême', en: 'Extreme piece delta' },
+            'pdf.pieceType.extremeName': { fr: 'Pièce extrême', en: 'Extreme piece' },
+            'pdf.pieceType.homoTitle': { fr: 'Homogénéité', en: 'Homogeneity' },
+            'pdf.pieceType.heteroTitle': { fr: 'Hétérogénéité', en: 'Heterogeneity' },
+            'pdf.pieceType.seuilsTitle': { fr: 'Seuils de destination', en: 'Destination thresholds' },
+            'pdf.pieceType.conformityTitle': { fr: 'Conformité du lot', en: 'Lot conformity' },
+            'pdf.pieceType.dimCol': { fr: 'Dim.', en: 'Dim.' },
+            'pdf.pieceType.typeDimCol': { fr: 'Pièce type (mm)', en: 'Piece type (mm)' },
+            'pdf.pieceType.minCol': { fr: 'Borne min', en: 'Min bound' },
+            'pdf.pieceType.maxCol': { fr: 'Borne max', en: 'Max bound' },
+            'pdf.pieceType.categoryCol': { fr: 'Catégorie', en: 'Category' },
+            'pdf.pieceType.countCol': { fr: 'Nombre', en: 'Count' },
+            'pdf.card.notation': { fr: 'Notation', en: 'Scoring' },
+            'pdf.card.notationOrientation': { fr: 'Notation & justification de l\'orientation', en: 'Scoring & orientation rationale' },
+            'pdf.card.notationScores': { fr: 'Scores par valeur', en: 'Scores by value' },
+            'pdf.card.radar': { fr: 'Radar des valeurs', en: 'Value radar' },
+            'pdf.table.matrixRole': { fr: 'Matrice', en: 'Matrix' },
+            'pdf.table.axis': { fr: 'Axe', en: 'Axis' },
+            'pdf.section.customFree': { fr: 'Critères libres', en: 'Custom criteria' },
+            'pdf.card.customInfo': { fr: 'Informations personnalisées', en: 'Custom information' },
+            'pdf.card.piecesDetail': { fr: 'Détail des pièces', en: 'Piece details' },
+            'pdf.title.durabiliteAnnex': { fr: 'Annexe — Durabilité naturelle EN 350', en: 'Annex — EN 350 natural durability' },
+            'pdf.title.piecesAnnex': { fr: 'Annexe — Pièces détaillées', en: 'Annex — Detailed pieces' },
+            'pdf.contact.maitriseOuvrage': { fr: 'Maîtrise d\'ouvrage', en: 'Project owner' },
+            'pdf.contact.maitriseOeuvre': { fr: 'Maîtrise d\'œuvre', en: 'Project manager' },
+            'pdf.contact.deconstruction': { fr: 'Entreprise de déconstruction', en: 'Deconstruction company' },
+            'pdf.contact.diagPemd': { fr: 'Diagnostiqueur PEMD', en: 'PEMD assessor' },
+            'pdf.contact.assurancePemd': { fr: 'Assurance PEMD', en: 'PEMD insurance' },
+            'pdf.durabilite.criterion': { fr: 'Critère', en: 'Criterion' },
+            'pdf.durabilite.class': { fr: 'Classe', en: 'Class' },
+            'pdf.durabilite.ref': { fr: 'Référence', en: 'Reference' },
+            'pdf.title.garde': { fr: 'Revue complète — Fiche opération', en: 'Full review — Operation sheet' },
+            'pdf.section.contacts': { fr: 'Contacts de l\'opération', en: 'Operation contacts' },
+            'pdf.section.contexte': { fr: 'Contexte technique et diagnostics', en: 'Technical context and diagnostics' },
+            'pdf.section.pemdVisit': { fr: 'Visite PEMD', en: 'PEMD site visit' },
+            'pdf.section.synthese': { fr: 'Synthèse de l\'évaluation', en: 'Assessment summary' },
+            'pdf.piece.ficheTitle': { fr: 'Fiche pièce', en: 'Piece sheet' },
+            'pdf.piece.ficheDefaultTitle': { fr: 'Fiche pièce par défaut', en: 'Default piece sheet' },
+            'pdf.piece.quantity': { fr: 'Quantité', en: 'Quantity' },
+            'pdf.piece.sourceDefault': { fr: 'Pièce par défaut', en: 'Default piece' },
+            'pdf.piece.sourceDetail': { fr: 'Pièce détaillée', en: 'Detailed piece' },
+            'pdf.piece.recapTable': { fr: 'Tableau récapitulatif', en: 'Summary table' }
         };
 
         const locale = this.getPdfLocaleCode();
@@ -44909,7 +45206,7 @@ renderRadar() {
         const suffix = kind === 'lot' && lotLabel
             ? (' - ' + this.sanitizePdfText(lotLabel, { fallback: '' }))
             : '';
-        const titleBase = this.getPdfText('pdf.meta.titleBase', 'VALOBOIS - Evaluation', 'VALOBOIS - Assessment');
+        const titleBase = this.getPdfText('pdf.meta.titleBase', 'VALOBOIS - Évaluation', 'VALOBOIS - Assessment');
         const title = [titleBase, operation].filter(Boolean).join(' - ') + suffix;
         const subjectBase = this.getPdfText('pdf.meta.subjectBase', 'Export PDF VALOBOIS', 'VALOBOIS PDF export');
         return {
@@ -44929,7 +45226,7 @@ renderRadar() {
     getPdfmakeStyles() {
         const f = this.getPdfFontScale();
         return {
-            title: { fontSize: f.title, bold: true, alignment: 'center', margin: [0, 0, 0, 6] },
+            title: { fontSize: f.title, bold: true, alignment: 'center', margin: [0, 0, 0, 5] },
             cardTitle: { fontSize: f.cardTitle, bold: true, margin: [0, 0, 0, 3] },
             kvLabel: { fontSize: f.label, color: '#6a6257', bold: false, margin: [0, 0, 0, 1] },
             kvValue: { fontSize: f.value, bold: true },
@@ -44982,7 +45279,30 @@ renderRadar() {
         return cardTable;
     }
 
-    pdfKeyValueGrid(pairs, columns = 2) {
+    /** Carte sans table englobante — permet la pagination pdfmake à l'intérieur des grilles longues. */
+    pdfFlatCard(titleText, bodyContent, options = {}) {
+        const stack = [];
+        if (titleText) {
+            stack.push({ text: this.sanitizePdfText(titleText), style: 'cardTitle' });
+        }
+        if (Array.isArray(bodyContent)) {
+            stack.push(...bodyContent);
+        } else if (bodyContent) {
+            stack.push(bodyContent);
+        }
+        const node = {
+            stack,
+            margin: options.margin || [0, 0, 0, 4]
+        };
+        if (options.unbreakable === true) {
+            node.unbreakable = true;
+        }
+        return node;
+    }
+
+    pdfKeyValueGrid(pairs, columns = 2, options = {}) {
+        const compact = options.compact === true;
+        const f = this.getPdfFontScale();
         const rows = [];
         for (let i = 0; i < pairs.length; i += columns) {
             const row = [];
@@ -44990,14 +45310,23 @@ renderRadar() {
                 const pair = pairs[i + j];
                 if (pair) {
                     const safeLabel = this.sanitizePdfText(pair.label || '', { fallback: '' });
-                    // Wrap long strings properly so they don't break the layout
-                    const safeValue = this.sanitizePdfText(pair.value || '—', { wrapLongWords: true });
-                    row.push({
-                        stack: [
-                            { text: safeLabel, style: 'kvLabel' },
-                            { text: safeValue, style: 'kvValue' }
-                        ]
-                    });
+                    const safeValue = this.sanitizePdfFieldText(pair.value, pair.fieldKind || 'text');
+                    if (compact) {
+                        row.push({
+                            columns: [
+                                { width: 'auto', text: safeLabel + ' :', fontSize: f.label, color: '#6a6257', margin: [0, 0, 2, 0] },
+                                { width: '*', text: safeValue, fontSize: f.value, bold: true }
+                            ],
+                            columnGap: 2
+                        });
+                    } else {
+                        row.push({
+                            stack: [
+                                { text: safeLabel, style: 'kvLabel' },
+                                { text: safeValue, style: 'kvValue' }
+                            ]
+                        });
+                    }
                 } else {
                     row.push({ text: '' });
                 }
@@ -45005,20 +45334,539 @@ renderRadar() {
             rows.push(row);
         }
         const widths = Array(columns).fill('*');
+        const pad = compact
+            ? { left: 2.5, right: 2.5, top: 1.5, bottom: 1.5 }
+            : { left: 3, right: 3, top: 2.5, bottom: 2.5 };
         return {
             table: { dontBreakRows: true, widths, body: rows },
             layout: {
-                hLineWidth: () => 0.5,
-                vLineWidth: () => 0.5,
+                hLineWidth: () => (compact ? 0.3 : 0.5),
+                vLineWidth: () => (compact ? 0.3 : 0.5),
                 hLineColor: () => '#e7e1d6',
                 vLineColor: () => '#e7e1d6',
                 fillColor: () => '#ffffff',
-                paddingLeft: () => 3,
-                paddingRight: () => 3,
-                paddingTop: () => 2,
-                paddingBottom: () => 2
+                paddingLeft: () => pad.left,
+                paddingRight: () => pad.right,
+                paddingTop: () => pad.top,
+                paddingBottom: () => pad.bottom
             }
         };
+    }
+
+    pdfMetaDash(value) {
+        if (value == null || value === '') return '—';
+        return String(value);
+    }
+
+    pdfLongTextBlock(label, value) {
+        const f = this.getPdfFontScale();
+        return {
+            stack: [
+                { text: this.sanitizePdfText(label || '', { fallback: '' }), style: 'kvLabel' },
+                {
+                    text: this.sanitizePdfFieldText(value, 'longText'),
+                    fontSize: f.body,
+                    bold: true,
+                    margin: [0, 0, 0, 3]
+                }
+            ]
+        };
+    }
+
+    getPdfCoverPageMargins() {
+        return [15, 18, 15, 22];
+    }
+
+    /** Marges communes à l'export PDF « Revue complète » (paysage). */
+    getPdfRevueCompletePageMargins() {
+        return [15, 18, 15, 20];
+    }
+
+    getPdfRevueCompleteLotPageMargins() {
+        const MM_TO_PT = 72 / 25.4;
+        return [10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT, 10 * MM_TO_PT];
+    }
+
+    getPdfA4PageWidthPt(pageOrientation = 'portrait') {
+        return pageOrientation === 'landscape' ? 841.89 : 595.28;
+    }
+
+    getPdfGardeTablePadding() {
+        return { left: 3, right: 3, top: 2, bottom: 2 };
+    }
+
+    /** Entrées annexe pièces PDF : 1 fiche par pièce par défaut (regroupée) + 1 fiche par pièce détaillée. */
+    collectPdfLotPieceAnnexEntries(lot) {
+        if (!lot) return [];
+        const entries = [];
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((defaultPiece) => {
+            const quantity = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+            if (!defaultPiece || quantity <= 0) return;
+            entries.push({
+                piece: defaultPiece,
+                sourceType: 'default',
+                sourceOccurrence: '',
+                sourceQuantity: quantity,
+                groupedDefault: true
+            });
+        });
+        if (Array.isArray(lot.pieces)) {
+            lot.pieces.forEach((piece, index) => {
+                if (!piece || typeof piece !== 'object') return;
+                entries.push({
+                    piece,
+                    sourceType: 'detail',
+                    sourceOccurrence: index + 1,
+                    sourceQuantity: 1,
+                    groupedDefault: false
+                });
+            });
+        }
+        return entries;
+    }
+
+    buildPdfMultiColumnBulletList(items, columns = 3, options = {}) {
+        const f = this.getPdfFontScale();
+        const fontSize = options.fontSize || f.tableCompact;
+        const emptyText = options.emptyText || '—';
+        if (!Array.isArray(items) || !items.length) {
+            return {
+                text: this.sanitizePdfText(emptyText),
+                fontSize,
+                color: '#6b7280',
+                italics: true,
+                margin: [0, 1, 0, 3]
+            };
+        }
+        const texts = items.map((item) => this.sanitizePdfText(item && item.text ? item.text : '—'));
+        const colCount = Math.max(1, Math.min(columns, texts.length));
+        const chunkSize = Math.ceil(texts.length / colCount);
+        const colNodes = [];
+        for (let c = 0; c < colCount; c++) {
+            const chunk = texts.slice(c * chunkSize, (c + 1) * chunkSize);
+            colNodes.push(chunk.length
+                ? { width: '*', ul: chunk, fontSize, color: '#1f2937', margin: [0, 0, 0, 0] }
+                : { width: '*', text: '' });
+        }
+        return { columns: colNodes, columnGap: 10, margin: [0, 1, 0, 3] };
+    }
+
+    collectExpandedLotPieces(lot) {
+        if (!lot) return [];
+        const expandedPieces = [];
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        defaultPieces.forEach((defaultPiece) => {
+            const quantity = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+            for (let q = 0; q < quantity; q++) {
+                expandedPieces.push({
+                    piece: defaultPiece,
+                    sourceType: 'default',
+                    sourceOccurrence: q + 1,
+                    sourceQuantity: defaultPiece && defaultPiece.quantite != null ? defaultPiece.quantite : ''
+                });
+            }
+        });
+        if (Array.isArray(lot.pieces)) {
+            lot.pieces.forEach((piece) => {
+                if (!piece || typeof piece !== 'object') return;
+                expandedPieces.push({
+                    piece,
+                    sourceType: 'detail',
+                    sourceOccurrence: '',
+                    sourceQuantity: ''
+                });
+            });
+        }
+        return expandedPieces;
+    }
+
+    buildPdfMetaFieldPairs(meta = null) {
+        const m = meta || this.data.meta || {};
+        const geoFrance = this.getDefaultGeoFrance(m.geoFrance || {});
+        const climate = this.getGeoFranceClimateExportData(geoFrance);
+        const wind = this.getGeoFranceWindExportData(geoFrance);
+        const locSitRef = this.getLocSitReferentialMeta();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const dash = (v) => this.pdfMetaDash(v);
+
+        const contactBlock = (prefix, nomKey, contactKey, mailKey, telKey, addrKey, structLabel) => ([
+            { label: structLabel, value: dash(m[nomKey]) },
+            { label: tpdf('pdf.meta.contact', 'Contact', 'Contact'), value: dash(m[contactKey]) },
+            { label: tpdf('pdf.meta.mail', 'Mail', 'Email'), value: dash(m[mailKey]), fieldKind: 'email' },
+            { label: tpdf('pdf.meta.phone', 'Tél', 'Phone'), value: dash(m[telKey]) },
+            { label: tpdf('pdf.meta.address', 'Adresse', 'Address'), value: dash(m[addrKey]) }
+        ]);
+
+        return {
+            operationBase: [
+                { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(m) || '—', fieldKind: 'reference' },
+                { label: tpdf('pdf.meta.date', 'Date du diagnostic', 'Assessment date'), value: dash(m.date), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: dash(m.operation) },
+                { label: tpdf('pdf.meta.versionEtude', 'Version de l\'étude', 'Study version'), value: dash(m.versionEtude) },
+                { label: tpdf('pdf.meta.statutEtude', 'Statut de l\'étude', 'Study status'), value: dash(m.statutEtude) },
+                { label: tpdf('pdf.meta.typeOperation', 'Type d\'opération', 'Operation type'), value: dash(m.typeOperation) },
+                { label: tpdf('pdf.meta.surfaceDemolition', 'Surface à démolir (m²)', 'Demolition floor area (m²)'), value: dash(m.surfacePlancher_demolition) },
+                { label: tpdf('pdf.meta.surfaceRenovation', 'Surface à rénover (m²)', 'Renovation floor area (m²)'), value: dash(m.surfacePlancher_renovation) },
+                { label: tpdf('pdf.meta.nbBatimentsDemolition', 'Nb bâtiments (démolition)', 'Buildings (demolition)'), value: dash(m.nbBatiments_demolition) },
+                { label: tpdf('pdf.meta.nbBatimentsRenovation', 'Nb bâtiments (rénovation)', 'Buildings (renovation)'), value: dash(m.nbBatiments_renovation) },
+                { label: tpdf('pdf.meta.dateDebutChantier', 'Date estimée début chantier', 'Estimated start date'), value: dash(m.dateDebutChantier), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.dateFinChantier', 'Date estimée fin chantier', 'Estimated end date'), value: dash(m.dateFinChantier), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.revision', 'Révision', 'Revision'), value: m.revision !== undefined && m.revision !== null && m.revision !== '' ? String(m.revision) : '—', fieldKind: 'reference' },
+                { label: tpdf('pdf.meta.locSitVersion', 'Référentiel Loc-Sit (version)', 'Loc-Sit referential (version)'), value: dash(locSitRef.versionRef), fieldKind: 'reference' },
+                { label: tpdf('pdf.meta.locSitUpdated', 'Référentiel Loc-Sit (mise à jour)', 'Loc-Sit referential (updated)'), value: dash(locSitRef.updatedAt), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.locSitValidated', 'Référentiel Loc-Sit (validation)', 'Loc-Sit referential (validated)'), value: dash(locSitRef.validatedBy) },
+                { label: tpdf('pdf.meta.diagnosticianStructure', 'Diagnostiqueur (Structure)', 'Assessor (organization)'), value: dash(m.diagnostiqueurNom) },
+                { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur (Contact)', 'Assessor (contact)'), value: dash(m.diagnostiqueurContact) },
+                { label: tpdf('pdf.meta.diagnosticianMail', 'Diagnostiqueur (Mail)', 'Assessor (email)'), value: dash(m.diagnostiqueurMail), fieldKind: 'email' },
+                { label: tpdf('pdf.meta.diagnosticianPhone', 'Diagnostiqueur (Tél)', 'Assessor (phone)'), value: dash(m.diagnostiqueurTelephone) },
+                { label: tpdf('pdf.meta.diagnosticianAddress', 'Diagnostiqueur (Adresse)', 'Assessor (address)'), value: dash(m.diagnostiqueurAdresse) },
+                { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: dash(m.localisation) }
+            ],
+            technicalContext: [
+                { label: tpdf('pdf.meta.typeBatiment', 'Type de bâtiment', 'Building type'), value: dash(m.typeBatiment) },
+                { label: tpdf('pdf.meta.periodeConstruction', 'Période de construction', 'Construction period'), value: dash(m.periodeConstruction) },
+                { label: tpdf('pdf.meta.datePermisConstruction', 'Date / année permis de construire', 'Building permit date/year'), value: dash(m.datePermisConstruction), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.phaseIntervention', 'Phase d\'intervention', 'Intervention phase'), value: dash(m.phaseIntervention) },
+                { label: tpdf('pdf.meta.historiqueRenovation', 'Historique rénovation importante', 'Major renovation history'), value: dash(m.historiqueRenovationImportante) },
+                { label: tpdf('pdf.meta.historiqueDecontamination', 'Historique décontamination', 'Decontamination history'), value: dash(m.historiqueDecontamination) },
+                { label: tpdf('pdf.meta.historiqueAutre', 'Historique autre intervention', 'Other intervention history'), value: dash(m.historiqueAutreIntervention) },
+                { label: tpdf('pdf.meta.conditionnement', 'Conditionnement', 'Packaging'), value: dash(m.conditionnementType) },
+                { label: tpdf('pdf.meta.protection', 'Protection', 'Protection'), value: dash(m.protectionType) }
+            ],
+            diagnosticsDocs: [
+                { label: tpdf('pdf.meta.diagnosticStructure', 'Diagnostic Structure', 'Structural assessment'), value: dash(m.diagnosticStructure) },
+                { label: tpdf('pdf.meta.diagnosticAmiante', 'Diagnostic Amiante', 'Asbestos assessment'), value: dash(m.diagnosticAmiante) },
+                { label: tpdf('pdf.meta.diagnosticPlomb', 'Diagnostic Plomb', 'Lead assessment'), value: dash(m.diagnosticPlomb) },
+                { label: tpdf('pdf.meta.diagnosticTermites', 'Diagnostic Termites', 'Termite assessment'), value: dash(m.diagnosticTermites) },
+                { label: tpdf('pdf.meta.documentDOE', 'DOE disponible', 'O&M manual available'), value: dash(m.documentDOE) },
+                { label: tpdf('pdf.meta.documentPlans', 'Plans disponibles', 'Plans available'), value: dash(m.documentPlans) }
+            ],
+            geoContext: [
+                { label: tpdf('pdf.summary.geoDepartment', 'Département géographique', 'Geographic department'), value: dash(geoFrance.departementNom) },
+                { label: tpdf('pdf.meta.geoDepartmentCode', 'Code département géographique', 'Department code'), value: dash(geoFrance.departementCode) },
+                { label: tpdf('pdf.summary.geoCanton', 'Canton géographique', 'Geographic canton'), value: dash(geoFrance.cantonNom) },
+                { label: tpdf('pdf.meta.geoCantonCode', 'Code canton géographique', 'Canton code'), value: dash(geoFrance.cantonCode) },
+                { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d\'humidification', 'Humidification climatic condition'), value: dash(climate.niveau) },
+                { label: tpdf('pdf.meta.geoClimateSource', 'Source climat d\'humidification', 'Climate data source'), value: dash(climate.source) },
+                { label: tpdf('pdf.summary.geoWind', 'Vent de pluie dominant', 'Driving rain wind'), value: dash(wind.directions) },
+                { label: tpdf('pdf.meta.geoWindStation', 'Station vent de pluie (réf.)', 'Driving rain station (ref.)'), value: dash(wind.station) }
+            ],
+            maitriseOuvrage: contactBlock('mo', 'maitriseOuvrageNom', 'maitriseOuvrageContact', 'maitriseOuvrageMail', 'maitriseOuvrageTelephone', 'maitriseOuvrageAdresse', tpdf('pdf.contact.maitriseOuvrageStruct', 'Maîtrise d\'ouvrage (Structure)', 'Project owner (organization)')),
+            maitriseOeuvre: contactBlock('moe', 'maitriseOeuvreNom', 'maitriseOeuvreContact', 'maitriseOeuvreMail', 'maitriseOeuvreTelephone', 'maitriseOeuvreAdresse', tpdf('pdf.contact.maitriseOeuvreStruct', 'Maîtrise d\'œuvre (Structure)', 'Project manager (organization)')),
+            deconstruction: contactBlock('dec', 'entrepriseDeconstructionNom', 'entrepriseDeconstructionContact', 'entrepriseDeconstructionMail', 'entrepriseDeconstructionTelephone', 'entrepriseDeconstructionAdresse', tpdf('pdf.contact.deconstructionStruct', 'Ent. curage/déconstruction (Struct.)', 'Deconstruction co. (organization)')),
+            diagPemd: [
+                { label: tpdf('pdf.contact.diagPemdStruct', 'Diagnostiqueur PEMD (Structure)', 'PEMD assessor (organization)'), value: dash(m.diagPEMDNom) },
+                { label: tpdf('pdf.meta.contact', 'Contact', 'Contact'), value: dash(m.diagPEMDContact) },
+                { label: tpdf('pdf.meta.mail', 'Mail', 'Email'), value: dash(m.diagPEMDMail), fieldKind: 'email' },
+                { label: tpdf('pdf.meta.phone', 'Tél', 'Phone'), value: dash(m.diagPEMDTelephone) },
+                { label: tpdf('pdf.meta.address', 'Adresse', 'Address'), value: dash(m.diagPEMDAdresse) },
+                { label: tpdf('pdf.meta.diagPemdSiret', 'Diagnostiqueur PEMD (SIRET/SIREN)', 'PEMD assessor (SIRET/SIREN)'), value: dash(m.diagPEMDSiret), fieldKind: 'reference' },
+                { label: tpdf('pdf.meta.assuranceCompagnie', 'Assurance PEMD (Compagnie)', 'PEMD insurance (company)'), value: dash(m.diagPEMDAssuranceCompagnie) },
+                { label: tpdf('pdf.meta.assurancePolice', 'Assurance PEMD (Police)', 'PEMD insurance (policy)'), value: dash(m.diagPEMDAssurancePolice), fieldKind: 'reference' },
+                { label: tpdf('pdf.meta.assuranceDebut', 'Assurance PEMD (Du)', 'PEMD insurance (from)'), value: dash(m.diagPEMDAssuranceDebut), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.assuranceFin', 'Assurance PEMD (Au)', 'PEMD insurance (to)'), value: dash(m.diagPEMDAssuranceFin), fieldKind: 'date' },
+                { label: tpdf('pdf.meta.competencesJustifiables', 'PEMD compétences justifiables', 'PEMD demonstrable skills'), value: dash(m.diagPEMDCompetencesJustifiables) }
+            ],
+            pemdVisitShort: [
+                { label: tpdf('pdf.meta.dateVisite', 'Date visite PEMD', 'PEMD visit date'), value: dash(m.dateVisite), fieldKind: 'date' }
+            ]
+        };
+    }
+
+    buildPdfContactSubCard(title, pairs, tpdf) {
+        return {
+            stack: [
+                { text: this.sanitizePdfText(title), bold: true, fontSize: this.getPdfFontScale().sectionTitle, margin: [0, 0, 0, 2] },
+                this.pdfKeyValueGrid(pairs, 1)
+            ]
+        };
+    }
+
+    buildPdfGardePemdVisitColumns(meta, tpdf) {
+        const f = this.getPdfFontScale();
+        const fields = [
+            { label: tpdf('pdf.meta.dateVisite', 'Date visite PEMD', 'PEMD visit date'), value: meta.dateVisite, fieldKind: 'date' },
+            { label: tpdf('pdf.meta.partiesVisitees', 'Parties visitées PEMD', 'Visited areas'), value: meta.partiesVisitees, fieldKind: 'longText' },
+            { label: tpdf('pdf.meta.partiesNonVisitees', 'Parties non visitées PEMD', 'Non-visited areas'), value: meta.partiesNonVisitees, fieldKind: 'longText' },
+            { label: tpdf('pdf.meta.raisonsNonVisite', 'Raisons non-visite PEMD', 'Non-visit reasons'), value: meta.raisonsNonVisite, fieldKind: 'longText' },
+            { label: tpdf('pdf.meta.vicesApparents', 'Vices apparents', 'Apparent defects'), value: meta.vicesApparents, fieldKind: 'text' },
+            { label: tpdf('pdf.meta.precautionsDemolition', 'Précautions démolition/rénovation', 'Demolition/renovation precautions'), value: meta.precautionsDemolition, fieldKind: 'longText' }
+        ];
+        return {
+            columns: fields.map((field) => ({
+                width: '*',
+                stack: [
+                    { text: this.sanitizePdfText(field.label, { fallback: '' }), style: 'kvLabel' },
+                    {
+                        text: this.sanitizePdfFieldText(field.value, field.fieldKind || 'text'),
+                        fontSize: f.value,
+                        bold: true
+                    }
+                ]
+            })),
+            columnGap: 6
+        };
+    }
+
+    buildPdfGardeLotsInspectionContent(validLotIndices, tpdf) {
+        const f = this.getPdfFontScale();
+        const inspectionSection = this.getPdfSectionDefinitions().find((s) => s.key === 'inspection');
+        if (!inspectionSection) return null;
+
+        const lotIndices = Array.isArray(validLotIndices) && validLotIndices.length
+            ? validLotIndices
+            : (this.data.lots || []).map((_, idx) => idx);
+        const lots = lotIndices
+            .map((lotIndex) => ({ lotIndex, lot: this.data.lots && this.data.lots[lotIndex] }))
+            .filter((entry) => entry.lot);
+        if (!lots.length) return null;
+
+        const tableOpts = {
+            fontSize: f.tableCompact,
+            columnAlignments: ['left', 'left', 'right'],
+            padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+        };
+        const formatInspectionCell = (rv) => {
+            const niveau = rv && rv.niveau ? String(rv.niveau) : '—';
+            const note = rv && rv.note && rv.note !== '—' ? String(rv.note) : '';
+            return note ? `${niveau} (${note})` : niveau;
+        };
+
+        let tableBody;
+        if (lots.length === 1) {
+            tableBody = this.buildPdfLotInspectionTableBody(lots[0].lot, tpdf);
+        } else {
+            const headers = [
+                tpdf('pdf.table.lot', 'Lot', 'Lot'),
+                ...inspectionSection.rows.map((rowDef) => rowDef.label)
+            ];
+            const rows = lots.map(({ lotIndex, lot }) => [
+                this.getPdfLotLabel(lot, lotIndex),
+                ...inspectionSection.rows.map((rowDef) => {
+                    const rv = this.getPdfNotationRowValue(lot, 'inspection', rowDef.key);
+                    return formatInspectionCell(rv);
+                })
+            ]);
+            tableBody = this.pdfDataTable(headers, rows, {
+                ...tableOpts,
+                columnAlignments: ['left', 'left', 'left', 'left']
+            });
+        }
+
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.inspection', 'Inspection', 'Inspection')),
+                    style: 'cardTitle',
+                    margin: [0, 6, 0, 3]
+                },
+                tableBody
+            ]
+        };
+    }
+
+    buildPdfGardeIdentiteContent(validLotIndices = null, mode = 'revue-complete') {
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+        const pairs = this.buildPdfMetaFieldPairs();
+        const operationPairs = [...pairs.operationBase];
+        if (Array.isArray(validLotIndices)) {
+            operationPairs.push({
+                label: tpdf('pdf.cover.lotsCount', 'Nombre de lots exportés', 'Exported lots count'),
+                value: String(validLotIndices.length)
+            });
+        }
+        const titleKey = mode === 'synthese' ? 'pdf.title.synthesis' : 'pdf.title.garde';
+        const titleFallback = mode === 'synthese'
+            ? 'Synthèse de l\u2019évaluation'
+            : 'Revue complète — Fiche opération';
+        const titleEn = mode === 'synthese' ? 'Assessment summary' : 'Full review — Operation sheet';
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf(titleKey, titleFallback, titleEn)),
+                style: 'title',
+                margin: [0, 0, 0, 6]
+            },
+            this.pdfFlatCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [
+                this.pdfKeyValueGrid(operationPairs, 4),
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.geoContext', 'Contexte géographique', 'Geographic context')),
+                    style: 'cardTitle',
+                    margin: [0, 6, 0, 3]
+                },
+                this.pdfKeyValueGrid(pairs.geoContext, 4),
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.section.contexte', 'Contexte technique et diagnostics', 'Technical context and diagnostics')),
+                    style: 'cardTitle',
+                    margin: [0, 6, 0, 3]
+                },
+                {
+                    columns: [
+                        {
+                            width: '*',
+                            stack: [
+                                {
+                                    text: this.sanitizePdfText(tpdf('pdf.card.technicalContext', 'Contexte technique', 'Technical context')),
+                                    fontSize: this.getPdfFontScale().sectionTitle,
+                                    bold: true,
+                                    margin: [0, 0, 0, 2]
+                                },
+                                this.pdfKeyValueGrid(pairs.technicalContext, 2)
+                            ]
+                        },
+                        {
+                            width: '*',
+                            stack: [
+                                {
+                                    text: this.sanitizePdfText(tpdf('pdf.card.diagnosticsDocs', 'Diagnostics & documents', 'Diagnostics & documents')),
+                                    fontSize: this.getPdfFontScale().sectionTitle,
+                                    bold: true,
+                                    margin: [0, 0, 0, 2]
+                                },
+                                this.pdfKeyValueGrid(pairs.diagnosticsDocs, 2),
+                                this.pdfLongTextBlock(
+                                    tpdf('pdf.meta.commentaires', 'Commentaires généraux', 'General comments'),
+                                    meta.commentaires
+                                )
+                            ]
+                        }
+                    ],
+                    columnGap: 10
+                },
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.section.pemdVisit', 'Visite PEMD', 'PEMD site visit')),
+                    style: 'cardTitle',
+                    margin: [0, 6, 0, 3]
+                },
+                this.buildPdfGardePemdVisitColumns(meta, tpdf),
+                this.buildPdfGardeLotsInspectionContent(validLotIndices, tpdf) || { text: '' }
+            ])
+        ];
+    }
+
+    buildPdfGardeContactsContent() {
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const pairs = this.buildPdfMetaFieldPairs();
+
+        return [
+            { pageBreak: 'before', text: '' },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.section.contacts', 'Contacts de l\'opération', 'Operation contacts')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            {
+                columns: [
+                    { width: '*', stack: [this.buildPdfContactSubCard(tpdf('pdf.contact.maitriseOuvrage', 'Maîtrise d\'ouvrage', 'Project owner'), pairs.maitriseOuvrage, tpdf)] },
+                    { width: '*', stack: [this.buildPdfContactSubCard(tpdf('pdf.contact.maitriseOeuvre', 'Maîtrise d\'œuvre', 'Project manager'), pairs.maitriseOeuvre, tpdf)] },
+                    { width: '*', stack: [this.buildPdfContactSubCard(tpdf('pdf.contact.deconstruction', 'Entreprise de déconstruction', 'Deconstruction company'), pairs.deconstruction, tpdf)] },
+                    { width: '*', stack: [this.buildPdfContactSubCard(tpdf('pdf.contact.diagPemd', 'Diagnostiqueur PEMD', 'PEMD assessor'), pairs.diagPemd, tpdf)] }
+                ],
+                columnGap: 8
+            }
+        ];
+    }
+
+    buildPdfGardeContexteContent() {
+        return [];
+    }
+
+    buildPdfGardePemdContent() {
+        return [];
+    }
+
+    buildPdfGardeSyntheseContent(validLotIndices = null, mode = 'revue-complete') {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const lots = this.data.lots || [];
+        const selectedLotEntries = Array.isArray(validLotIndices)
+            ? validLotIndices
+                .map((index) => ({ index, lot: lots[index] }))
+                .filter((entry) => Number.isInteger(entry.index) && entry.lot)
+            : null;
+        const selectedLots = selectedLotEntries
+            ? selectedLotEntries.map(({ index, lot }) => this.getPdfLotLabel(lot, index))
+            : null;
+        const evalContent = this.buildPdfOperationEvalContent(validLotIndices);
+        const summaryEntries = selectedLotEntries || lots.map((lot, index) => ({ lot, index }));
+        const syntheseTitle = mode === 'revue-complete'
+            ? tpdf('pdf.section.synthese', 'Synthèse de l\'évaluation', 'Assessment summary')
+            : null;
+
+        const content = [];
+        if (selectedLots) {
+            content.push(this.pdfFlatCard(tpdf('pdf.cover.selectedLots', 'Lots inclus', 'Included lots'), [
+                {
+                    text: this.sanitizePdfText(selectedLots.length ? selectedLots.join(' • ') : '—'),
+                    fontSize: f.body,
+                    color: '#1f2937'
+                }
+            ]));
+        }
+
+        const identityBody = [];
+        if (syntheseTitle) {
+            identityBody.push({
+                text: this.sanitizePdfText(syntheseTitle),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 4]
+            });
+        }
+        identityBody.push(...this.buildPdfLotsSummaryCardContent(summaryEntries, 'identity'));
+        content.push(this.pdfFlatCard(
+            syntheseTitle ? null : tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'),
+            identityBody
+        ));
+
+        const scoresEvalBody = [
+            {
+                columns: [
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.lots.scoreSection', 'Scores de valeur', 'Value scores')),
+                                style: 'cardTitle',
+                                margin: [0, 0, 0, 2]
+                            },
+                            ...this.buildPdfLotsSummaryCardContent(summaryEntries, 'scores')
+                        ]
+                    },
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.card.operationEval', 'Évaluation de l\'opération', 'Operation evaluation')),
+                                style: 'cardTitle',
+                                margin: [0, 0, 0, 2]
+                            },
+                            ...evalContent
+                        ]
+                    }
+                ],
+                columnGap: 10
+            }
+        ];
+
+        content.push({
+            pageBreak: 'before',
+            stack: [this.pdfFlatCard(null, scoresEvalBody)],
+            unbreakable: true
+        });
+
+        return content;
+    }
+
+    buildPdfGardeContent(validLotIndices = null, mode = 'revue-complete') {
+        return [
+            ...this.buildPdfGardeIdentiteContent(validLotIndices, mode),
+            ...this.buildPdfGardeContactsContent(),
+            ...this.buildPdfGardeContexteContent(),
+            ...this.buildPdfGardePemdContent(),
+            ...this.buildPdfGardeSyntheseContent(validLotIndices, mode)
+        ];
     }
 
     pdfDataTable(headers, dataRows, options = {}) {
@@ -45160,6 +46008,21 @@ renderRadar() {
         }
 
         return text || fallback;
+    }
+
+    sanitizePdfFieldText(value, fieldKind = 'text') {
+        const kind = fieldKind || 'text';
+        if (value == null || value === '') {
+            return this.sanitizePdfText(value, { fallback: '—' });
+        }
+        if (kind === 'longText') {
+            return this.sanitizePdfText(value, { fallback: '—', wrapLongWords: true });
+        }
+        const text = this.sanitizePdfText(value, { fallback: '—' });
+        if (kind === 'email') {
+            return text.replace(/@/g, '@\u200B');
+        }
+        return text;
     }
 
     normalizePdfCurrencyGrouping(text, mode = 'auto') {
@@ -45406,11 +46269,11 @@ renderRadar() {
         const activeRejectsItems = formatDriverItems(activeRejects);
         const activeVectorsItems = formatDriverItems(activeVectors);
 
-        let statusLabel = tpdf('pdf.orientation.status.confirmed', 'Confirmee', 'Confirmed');
+        let statusLabel = tpdf('pdf.orientation.status.confirmed', 'Confirmée', 'Confirmed');
         if (this.isAlterationLockIgnored(lot) && lot?.locked?.alterationForcedOrientation) {
-            statusLabel = tpdf('pdf.orientation.status.forced', 'Forcee', 'Forced');
+            statusLabel = tpdf('pdf.orientation.status.forced', 'Forcée', 'Forced');
         } else if (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false) {
-            statusLabel = tpdf('pdf.orientation.status.unconfirmedCombustion', 'Deduite (non confirmee)', 'Inferred (unconfirmed)');
+            statusLabel = tpdf('pdf.orientation.status.unconfirmedCombustion', 'Déduite (non confirmée)', 'Inferred (unconfirmed)');
         } else if (matrixResult && matrixResult.confirmed === false) {
             statusLabel = tpdf('pdf.orientation.status.inProgress', 'En cours', 'In progress');
         }
@@ -45418,7 +46281,7 @@ renderRadar() {
         const combustionCaution = (finalCode === 'combustion' && matrixResult && matrixResult.combustionConfirmed === false)
             ? tpdf(
                 'pdf.orientation.combustionCaution',
-                'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+                'Orientation déduite par élimination, non confirmée positivement par la matrice.',
                 'Orientation inferred by elimination, not positively confirmed by the matrix.'
             )
             : '';
@@ -45438,6 +46301,401 @@ renderRadar() {
             activeRejectsText: formatDriverText(activeRejectsItems),
             activeVectorsText: formatDriverText(activeVectorsItems)
         };
+    }
+
+    buildPdfOrientationMatrixRoleIndex(lot) {
+        const summary = this.getPdfOrientationSummary(lot);
+        const index = new Map();
+
+        const addEntry = (entry, role) => {
+            if (!entry || typeof entry !== 'object') return;
+            const section = String(entry.section || '').trim();
+            const field = String(entry.field || '').trim();
+            const key = section && field ? `${section}.${field}` : String(entry.criterionKey || '').trim();
+            if (!key) return;
+            const rang = Number(entry.rang) || 0;
+            if (role === 'reject') {
+                index.set(key, { rang, role: 'reject' });
+                return;
+            }
+            if (!index.has(key)) {
+                index.set(key, { rang, role: 'vector' });
+            }
+        };
+
+        (summary.activeVectors || []).forEach((entry) => addEntry(entry, 'vector'));
+        (summary.activeRejects || []).forEach((entry) => addEntry(entry, 'reject'));
+        return index;
+    }
+
+    formatPdfMatrixRoleBadge(matrixRoleIndex, sectionKey, fieldKey) {
+        if (!matrixRoleIndex || !sectionKey || !fieldKey) return '';
+        const entry = matrixRoleIndex.get(`${sectionKey}.${fieldKey}`);
+        if (!entry) return '';
+        const suffix = entry.role === 'reject' ? 'R' : 'V';
+        return `r${entry.rang} · ${suffix}`;
+    }
+
+    buildPdfMatrixRoleCell(matrixRoleIndex, sectionKey, fieldKey, fontSize) {
+        if (!matrixRoleIndex || !sectionKey || !fieldKey) {
+            return { text: '—', fontSize, alignment: 'center' };
+        }
+        const entry = matrixRoleIndex.get(`${sectionKey}.${fieldKey}`);
+        if (!entry) {
+            return { text: '—', fontSize, alignment: 'center' };
+        }
+        const svg = entry.role === 'reject'
+            ? this.generatePdfMatrixLockSvg()
+            : this.generatePdfMatrixCheckSvg();
+        return {
+            columns: [
+                { width: 'auto', text: `r${entry.rang}`, fontSize, alignment: 'right' },
+                { width: 12, svg, margin: [1, 0, 0, 0] }
+            ],
+            columnGap: 1
+        };
+    }
+
+    estimatePdfTextWidthPt(text, fontSize, options = {}) {
+        const fs = Number(fontSize) || 6.1;
+        const content = String(text || '');
+        const charFactor = options.bold ? 0.56 : 0.50;
+        const padding = options.padding != null ? options.padding : 3;
+        return Math.ceil(content.length * fs * charFactor) + padding;
+    }
+
+    getPdfNotationCriteriaBaselineLabel() {
+        return 'Rareté commerciale';
+    }
+
+    getPdfNotationRedistributedTailWidths(remaining, niveauShare = 0.5) {
+        const pool = Math.max(24, Number(remaining) || 0);
+        const niveauW = Math.round(pool * niveauShare);
+        const tailW = Math.max(10, Math.floor((pool - niveauW) / 3));
+        return { niveauW, tailW };
+    }
+
+    getPdfNotationMiniTableLayout(rowHeight, fontSize) {
+        const height = Number(rowHeight) || 11;
+        const size = Number(fontSize) || 6.1;
+        const cellPadY = Math.max(1.2, (height - size) / 2);
+        return {
+            hLineWidth: () => 0.5,
+            vLineWidth: () => 0.5,
+            hLineColor: () => '#ffffff',
+            vLineColor: () => '#ffffff',
+            paddingLeft: () => 1,
+            paddingRight: () => 1,
+            paddingTop: () => cellPadY,
+            paddingBottom: () => cellPadY
+        };
+    }
+
+    getPdfNotationTableRowHeights(rowHeight) {
+        const h = Number(rowHeight) || 11;
+        return () => h;
+    }
+
+    clampPdfNotationTableWidths(widths, maxWidth, borderReserve = 0) {
+        const max = Math.max(40, Number(maxWidth) || 170);
+        const reserve = Math.max(0, Number(borderReserve) || 0);
+        const nums = widths.map((value) => Math.max(1, Math.round(Number(value) || 1)));
+        let total = nums.reduce((sum, value) => sum + value, 0) + reserve;
+        if (total <= max) return nums;
+        const scale = (max - reserve) / Math.max(1, total - reserve);
+        const scaled = nums.map((value) => Math.max(1, Math.floor(value * scale)));
+        let scaledTotal = scaled.reduce((sum, value) => sum + value, 0) + reserve;
+        if (scaledTotal > max && scaled.length) {
+            scaled[scaled.length - 1] = Math.max(1, scaled[scaled.length - 1] - (scaledTotal - max));
+        }
+        return scaled;
+    }
+
+    getPdfNotationSectionTableWidths(columnWidth, fontSize) {
+        const w = Math.max(120, Number(columnWidth) || 170);
+        const fs = Number(fontSize) || 6.1;
+        const rxxW = this.estimatePdfTextWidthPt('rXX', fs, { bold: true, padding: 4 });
+        const critereW = this.estimatePdfTextWidthPt(this.getPdfNotationCriteriaBaselineLabel(), fs, { padding: 4 });
+        const borderReserve = 6 * 0.5 + 1;
+        const { niveauW, tailW } = this.getPdfNotationRedistributedTailWidths(w - rxxW - critereW - borderReserve, 0.5);
+        const used = rxxW + critereW + niveauW + tailW * 3 + borderReserve;
+        const slack = Math.max(0, w - used);
+        return this.clampPdfNotationTableWidths([rxxW, critereW, niveauW + slack, tailW, tailW, tailW], w, borderReserve);
+    }
+
+    getPdfNotationCustomTableWidths(columnWidth, fontSize) {
+        const w = Math.max(120, Number(columnWidth) || 170);
+        const fs = Number(fontSize) || 6.1;
+        const rxxW = this.estimatePdfTextWidthPt('rXX', fs, { bold: true, padding: 4 });
+        const critereW = this.estimatePdfTextWidthPt(this.getPdfNotationCriteriaBaselineLabel(), fs, { padding: 4 });
+        const axeW = this.estimatePdfTextWidthPt('Économique', fs, { padding: 4 });
+        const borderReserve = 7 * 0.5 + 1;
+        const { niveauW, tailW } = this.getPdfNotationRedistributedTailWidths(w - rxxW - critereW - axeW - borderReserve, 0.45);
+        const used = rxxW + critereW + axeW + niveauW + tailW * 3 + borderReserve;
+        const slack = Math.max(0, w - used);
+        return this.clampPdfNotationTableWidths([rxxW, critereW, axeW, niveauW + slack, tailW, tailW, tailW], w, borderReserve);
+    }
+
+    getPdfNotationInspectionTableWidths(columnWidth, fontSize) {
+        const w = Math.max(120, Number(columnWidth) || 170);
+        const fs = Number(fontSize) || 6.1;
+        const critereW = this.estimatePdfTextWidthPt('Visibilité - Accessibilité', fs, { padding: 4 });
+        const niveauW = this.estimatePdfTextWidthPt('Moyenne', fs, { padding: 4 }) + 6;
+        const borderReserve = 3 * 0.5 + 1;
+        const noteW = Math.max(14, w - critereW - niveauW - borderReserve);
+        return this.clampPdfNotationTableWidths([critereW, niveauW, noteW], w, borderReserve);
+    }
+
+    buildPdfNotationGridVerticalSpacer(gapPt, horizontalInset = 0) {
+        const gap = Math.max(0, Number(gapPt) || 0);
+        if (gap <= 0) return null;
+        return {
+            canvas: [{ type: 'rect', x: 0, y: 0, w: 1, h: gap, color: '#ffffff' }]
+        };
+    }
+
+    buildPdfNotationNoteCell(lot, sectionKey, fieldKey, noteText, fontSize, rowBg) {
+        const letter = this.getPdfNotationRowLetter(lot, sectionKey, fieldKey);
+        const noteBg = letter ? this.getPdfLetterFillColor(letter) : '#bcbcbc';
+        return {
+            text: this.sanitizePdfText(noteText),
+            fontSize,
+            fillColor: noteBg,
+            color: '#111111'
+        };
+    }
+
+    buildPdfLotInspectionTableBody(lot, tpdf, options = {}) {
+        const f = this.getPdfFontScale();
+        const inspectionSection = this.getPdfSectionDefinitions().find((s) => s.key === 'inspection');
+        if (!inspectionSection || !lot) return null;
+        const fontSize = options.fontSize || Math.max(5, f.tableCompact - 1);
+        const paddingY = options.paddingY != null ? options.paddingY : 1.2;
+        const tableOpts = {
+            fontSize,
+            columnAlignments: ['left', 'left', 'right'],
+            padding: { left: 2, right: 2, top: paddingY, bottom: paddingY }
+        };
+        const rows = inspectionSection.rows.map((rowDef) => {
+            const rv = this.getPdfNotationRowValue(lot, 'inspection', rowDef.key);
+            return [rowDef.label, rv.niveau, rv.note];
+        });
+        return this.pdfDataTable([
+            tpdf('pdf.table.criteria', 'Critère', 'Criterion'),
+            tpdf('pdf.table.level', 'Niveau', 'Level'),
+            tpdf('pdf.table.note', 'Note', 'Score')
+        ], rows, tableOpts);
+    }
+
+    buildPdfLotInspectionReminderTable(lot, tpdf, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const inspectionSection = this.getPdfSectionDefinitions().find((s) => s.key === 'inspection');
+        if (!inspectionSection || !lot) return null;
+        const c = this.getPdfmakeColors();
+        const notationFontSize = options.notationFontSize || Math.max(5, (f.notation || 6) - 1);
+        const sectionTitleFontSize = options.sectionTitleFontSize || f.sectionTitle;
+        const rowHeight = options.rowHeight || 10;
+        const columnWidth = options.columnWidth || null;
+        const headRow = [
+            { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center' },
+            { text: this.sanitizePdfText(tpdf('pdf.table.level', 'Niveau', 'Level')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.note', 'Note', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true }
+        ];
+        const dataRows = inspectionSection.rows.map((rowDef) => {
+            const rv = this.getPdfNotationRowValue(lot, 'inspection', rowDef.key);
+            return [
+                { text: this.sanitizePdfText(rowDef.label), fontSize: notationFontSize, alignment: 'center' },
+                { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(rv.note), fontSize: notationFontSize, alignment: 'center', noWrap: true }
+            ];
+        });
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.inspection', 'Inspection', 'Inspection')),
+                    bold: true,
+                    fontSize: sectionTitleFontSize,
+                    margin: [0, 0, 0, 2]
+                },
+                {
+                    table: { dontBreakRows: true, headerRows: 1, heights: this.getPdfNotationTableRowHeights(rowHeight), widths: this.getPdfNotationInspectionTableWidths(columnWidth, notationFontSize), body: [headRow, ...dataRows] },
+                    width: columnWidth || undefined,
+                    layout: this.getPdfNotationMiniTableLayout(rowHeight, notationFontSize)
+                }
+            ],
+            fillColor: c.cardBg,
+            margin: options.margin || [0, 0, 0, 0]
+        };
+    }
+
+    buildPdfLotCustomCriteriaTable(lot, tpdf, matrixRoleIndex, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const c = this.getPdfmakeColors();
+        const notationFontSize = options.notationFontSize || Math.max(5, (f.notation || 6) - 1);
+        const rowHeight = options.rowHeight || 10;
+        const columnWidth = options.columnWidth || null;
+        const activeMode = this.getValoboisActiveMatrixMode();
+        const rejectLockByRankIndex = options.rejectLockByRankIndex || this.buildPdfRejectLockByRankIndex(lot);
+        const criteria = this.getValoboisActiveCustomFreeCriteria(activeMode).filter((criterion) => {
+            const criterionId = String(criterion && criterion.id || '').trim();
+            return criterionId && Number.isFinite(this.getValoboisLotCustomScoreValue(lot, criterionId));
+        });
+        if (!criteria.length) return null;
+
+        let nextCustomRang = 51;
+        const headRow = [
+            { text: 'rXX', bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.axis', 'Axe', 'Axis')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.levelAbbr', 'Niv.', 'Lvl.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.score', 'Score', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.letterAbbr', 'L.', 'L.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.lockAbbr', 'V.', 'Lk.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true }
+        ];
+        const dataRows = criteria.map((criterion) => {
+            const criterionId = String(criterion.id || '').trim();
+            const rang = nextCustomRang++;
+            const rv = this.getPdfCustomFreeNotationRowValue(lot, criterionId);
+            const letter = this.getPdfNotationRowLetter(lot, 'customFree', criterionId);
+            const bg = letter ? this.getPdfLetterFillColor(letter) : '#bcbcbc';
+            const axisLabel = criterion.axe || criterion.axeKey || '—';
+            const scoreValue = this.getValoboisLotCustomScoreValue(lot, criterionId);
+            const scoreText = Number.isFinite(scoreValue) ? this.formatPdfSignedScore(scoreValue) : '—';
+            return [
+                { text: `r${rang}`, fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(criterion.critere || criterionId), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(axisLabel), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(scoreText), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(letter || '—'), fontSize: notationFontSize, fillColor: bg, alignment: 'center', bold: true, noWrap: true },
+                this.buildPdfNotationLockCell(rang, rejectLockByRankIndex, notationFontSize, bg, rowHeight)
+            ];
+        });
+
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.section.customFree', 'Critères libres', 'Custom criteria')),
+                    bold: true,
+                    fontSize: options.sectionTitleFontSize || f.sectionTitle,
+                    margin: [0, 0, 0, 2]
+                },
+                {
+                    table: { dontBreakRows: true, headerRows: 1, heights: this.getPdfNotationTableRowHeights(rowHeight), widths: this.getPdfNotationCustomTableWidths(columnWidth, notationFontSize), body: [headRow, ...dataRows] },
+                    width: columnWidth || undefined,
+                    layout: this.getPdfNotationMiniTableLayout(rowHeight, notationFontSize)
+                }
+            ],
+            margin: options.margin || [0, 0, 0, 0]
+        };
+    }
+
+    buildPdfNotationLockCell(rang, rejectLockByRankIndex, fontSize, bg, rowHeight) {
+        const numericRank = Number(rang) || 0;
+        const locked = rejectLockByRankIndex && rejectLockByRankIndex.get(numericRank);
+        if (!locked || !locked.length) {
+            return { text: '', fontSize, alignment: 'center', fillColor: bg };
+        }
+        const iconSize = Math.max(6, Math.min(8, Number(fontSize) + 1));
+        const iconMarginTop = Math.max(0, (Number(rowHeight) || 11) - iconSize) / 2;
+        return {
+            svg: this.generatePdfMatrixLockSvg('#111111'),
+            width: iconSize,
+            alignment: 'center',
+            fillColor: bg,
+            margin: [0, iconMarginTop, 0, 0]
+        };
+    }
+
+    buildPdfNotationSectionCell(lot, sectionDef, tpdf, matrixRoleIndex, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const notationFontSize = options.notationFontSize || Math.max(5, (f.notation || 6) - 1);
+        const sectionTitleFontSize = options.sectionTitleFontSize || f.sectionTitle;
+        const rowHeight = options.rowHeight || 10;
+        const columnWidth = options.columnWidth || null;
+        const c = this.getPdfmakeColors();
+        const rejectLockByRankIndex = options.rejectLockByRankIndex || this.buildPdfRejectLockByRankIndex(lot);
+        const headRow = [
+            { text: 'rXX', bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.levelAbbr', 'Niv.', 'Lvl.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.score', 'Score', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.letterAbbr', 'L.', 'L.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true },
+            { text: this.sanitizePdfText(tpdf('pdf.table.lockAbbr', 'V.', 'Lk.')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg, alignment: 'center', noWrap: true }
+        ];
+        const dataRows = sectionDef.rows.map((rowDef) => {
+            const rv = this.getPdfNotationRowValue(lot, sectionDef.key, rowDef.key);
+            const mapping = this.getValoboisScoreMappingByCriterionKey(`${sectionDef.key}.${rowDef.key}`);
+            const rang = mapping && mapping.rang != null ? Number(mapping.rang) : 0;
+            const letter = this.getPdfNotationRowLetter(lot, sectionDef.key, rowDef.key);
+            const bg = letter ? this.getPdfLetterFillColor(letter) : '#bcbcbc';
+            const scoreText = /^[A-E]$/.test(String(rv.note || '').trim().toUpperCase())
+                ? (() => {
+                    const section = lot && lot[sectionDef.key];
+                    const entry = section && section[rowDef.key];
+                    return entry && entry.valeur != null ? this.formatPdfSignedScore(entry.valeur) : '—';
+                })()
+                : rv.note;
+            return [
+                { text: rang ? `r${rang}` : '—', fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(rowDef.label), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(scoreText), fontSize: notationFontSize, fillColor: bg, alignment: 'center', noWrap: true },
+                { text: this.sanitizePdfText(letter || '—'), fontSize: notationFontSize, fillColor: bg, alignment: 'center', bold: true, noWrap: true },
+                this.buildPdfNotationLockCell(rang, rejectLockByRankIndex, notationFontSize, bg, rowHeight)
+            ];
+        });
+        return {
+            stack: [
+                { text: this.sanitizePdfText(sectionDef.title), bold: true, fontSize: sectionTitleFontSize, margin: [0, 0, 0, 2] },
+                {
+                    table: { dontBreakRows: true, headerRows: 1, heights: this.getPdfNotationTableRowHeights(rowHeight), widths: this.getPdfNotationSectionTableWidths(columnWidth, notationFontSize), body: [headRow, ...dataRows] },
+                    width: columnWidth || undefined,
+                    layout: this.getPdfNotationMiniTableLayout(rowHeight, notationFontSize)
+                }
+            ],
+            fillColor: c.cardBg
+        };
+    }
+
+    getPdfMatrixRoleRowFillColor(matrixRoleIndex, sectionKey, fieldKey, defaultBg) {
+        if (!matrixRoleIndex) return defaultBg;
+        const entry = matrixRoleIndex.get(`${sectionKey}.${fieldKey}`);
+        if (!entry) return defaultBg;
+        if (entry.role === 'reject') return '#fef2f2';
+        if (entry.role === 'vector') return '#ecfdf5';
+        return defaultBg;
+    }
+
+    getPdfCustomFreeNotationRowValue(lot, criterionId) {
+        const criterion = this.getValoboisCustomFreeCriteriaMap()[criterionId];
+        if (!criterion) return { niveau: '—', note: '—' };
+        const score = this.getValoboisLotCustomScoreValue(lot, criterionId);
+        if (!Number.isFinite(score)) return { niveau: '—', note: '—' };
+
+        const activeMode = this.getValoboisActiveMatrixMode();
+        const levelKey = this.getValoboisCustomFreeLevelKeyForScore(criterion, score, activeMode);
+        const levelLabel = levelKey === 'fort'
+            ? 'Fort'
+            : levelKey === 'moyen'
+                ? 'Moyen'
+                : levelKey === 'faible'
+                    ? 'Faible'
+                    : '—';
+        const letterFromScores = levelKey && criterion.scores && criterion.scores[levelKey] && criterion.scores[levelKey].letter
+            ? String(criterion.scores[levelKey].letter).trim().toUpperCase()
+            : '';
+        const note = /^[A-E]$/.test(letterFromScores)
+            ? letterFromScores
+            : this.formatPdfSignedScore(score);
+        return {
+            niveau: this.sanitizePdfText(levelLabel),
+            note: this.sanitizePdfText(note, { preserveLineBreaks: false })
+        };
+    }
+
+    getPdfNotationSectionsForExport(lot, tpdf) {
+        return this.getPdfSectionDefinitions().filter((section) => section.key !== 'inspection');
     }
 
     getPdfOperationSummary(lotIndices = null) {
@@ -45844,6 +47102,277 @@ renderRadar() {
         });
 
         return rows;
+    }
+
+    buildPdfDurabiliteNaturelleAnnexContent(lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const lots = this.data.lots || [];
+        const content = [];
+        let hasContent = false;
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = lots[lotIndex];
+            if (!lot) return;
+
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const entries = this.getLotDurabiliteNaturelleDetailEntries(lot);
+            if (!entries.length) return;
+
+            entries.forEach(({ label: essenceLabel, essence }) => {
+                const rows = this.getDurabiliteNaturelleRows(essence, 'fr').map((row) => [
+                    row.label,
+                    row.value || 'n/d',
+                    row.ref || '—'
+                ]);
+                if (!rows.length) return;
+                hasContent = true;
+                content.push(
+                    this.pdfCard(
+                        tpdf('pdf.title.durabiliteLotEssence', 'Durabilité naturelle EN 350', 'EN 350 natural durability')
+                            + ' — ' + lotLabel + ' — ' + essenceLabel,
+                        [
+                            this.pdfDataTable([
+                                tpdf('pdf.durabilite.criterion', 'Critère', 'Criterion'),
+                                tpdf('pdf.durabilite.class', 'Classe', 'Class'),
+                                tpdf('pdf.durabilite.ref', 'Référence', 'Reference')
+                            ], rows, {
+                                fontSize: f.tableCompact,
+                                widths: ['*', 'auto', 'auto'],
+                                columnAlignments: ['left', 'left', 'left'],
+                                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                            })
+                        ],
+                        { unbreakable: false, margin: [0, 0, 0, 6] }
+                    )
+                );
+            });
+        });
+
+        if (!hasContent) return [];
+
+        return [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.title.durabiliteAnnex', 'Annexe — Durabilité naturelle EN 350', 'Annex — EN 350 natural durability')),
+                style: 'title',
+                margin: [0, 0, 0, 8]
+            },
+            ...content
+        ];
+    }
+
+    buildPdfPieceDetailFiche(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {
+        const piece = entry.piece || {};
+        const allotissement = lot.allotissement || {};
+        const dash = (v) => this.pdfMetaDash(v);
+        const getPieceValue = (pieceVal, lotVal) => (pieceVal != null && pieceVal !== '' ? pieceVal : lotVal);
+        const isGroupedDefault = entry.groupedDefault === true;
+
+        const pieceSituation = getPieceValue(piece.situation, lot.situation);
+        const situationExport = this.getLocSitSituationExportInfoByValue(pieceSituation);
+        const effectiveClass = (this.getLocSitEffectiveClassState(piece, lot) || {}).activeClass;
+
+        const formatDims = () => {
+            const L = getPieceValue(piece.longueur, allotissement.longueur);
+            const l = getPieceValue(piece.largeur, allotissement.largeur);
+            const e = getPieceValue(piece.epaisseur, allotissement.epaisseur);
+            const diam = getPieceValue(piece.diametre, allotissement.diametre);
+            if (diam != null && diam !== '') return 'ø ' + diam + ' mm';
+            const parts = [L, l, e].filter((v) => v != null && v !== '');
+            return parts.length ? parts.join(' × ') + ' mm' : '—';
+        };
+
+        const sourceLabel = isGroupedDefault
+            ? tpdf('pdf.piece.sourceDefault', 'Pièce par défaut', 'Default piece')
+            : tpdf('pdf.piece.sourceDetail', 'Pièce détaillée', 'Detailed piece');
+
+        const identityPairs = [
+            { label: tpdf('pdf.piece.name', 'Nom pièce', 'Piece name'), value: dash(piece.nom) },
+            { label: tpdf('pdf.piece.source', 'Source', 'Source'), value: sourceLabel },
+            isGroupedDefault
+                ? { label: tpdf('pdf.piece.quantity', 'Quantité', 'Quantity'), value: '× ' + String(entry.sourceQuantity || '—') }
+                : { label: tpdf('pdf.piece.occurrence', 'Occ.', 'Occ.'), value: dash(entry.sourceOccurrence) },
+            { label: tpdf('pdf.lot.pieceType', 'Type pièce', 'Piece type'), value: dash(getPieceValue(piece.typePiece, allotissement.typePiece)) },
+            { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: dash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)) },
+            { label: tpdf('pdf.lot.speciesScientific', 'Ess. scientifique', 'Scientific sp.'), value: dash(getPieceValue(piece.essenceNomScientifique, allotissement.essenceNomScientifique)) }
+        ];
+
+        const dimsPairs = [
+            { label: tpdf('pdf.lot.length', 'L (mm)', 'L (mm)'), value: dash(getPieceValue(piece.longueur, allotissement.longueur)) },
+            { label: tpdf('pdf.lot.width', 'l (mm)', 'W (mm)'), value: dash(getPieceValue(piece.largeur, allotissement.largeur)) },
+            { label: tpdf('pdf.lot.thickness', 'e (mm)', 'T (mm)'), value: dash(getPieceValue(piece.epaisseur, allotissement.epaisseur)) },
+            { label: tpdf('pdf.lot.diameter', 'ø (mm)', 'ø (mm)'), value: dash(getPieceValue(piece.diametre, allotissement.diametre)) },
+            { label: tpdf('pdf.lot.volumePiece', 'Vol. (m³)', 'Vol. (m³)'), value: dash(getPieceValue(piece.volumePiecem3, piece.volumePiece)) },
+            { label: 'L × l × e', value: formatDims() }
+        ];
+
+        const massPairs = [
+            { label: tpdf('pdf.lot.masseVolumique', 'Masse vol.', 'Bulk dens.'), value: dash(getPieceValue(piece.masseVolumique, allotissement.masseVolumique)) },
+            { label: tpdf('pdf.lot.humidite', 'Humidité', 'Moisture'), value: dash(getPieceValue(piece.humidite, allotissement.humidite)) },
+            { label: tpdf('pdf.piece.prixPiece', 'Prix pièce', 'Piece price'), value: dash(piece.prixPiece) },
+            { label: tpdf('pdf.piece.ageArbre', 'Âge arbre', 'Tree age'), value: dash(piece.ageArbre) },
+            { label: tpdf('pdf.piece.dateMiseEnService', 'Date service', 'Service date'), value: dash(piece.dateMiseEnService), fieldKind: 'date' },
+            { label: tpdf('pdf.piece.mmCvLargeur', 'CV l. intra', 'Intra W CV'), value: dash(piece.mmCvLargeurIntra) },
+            { label: tpdf('pdf.piece.mmDeltaLargeur', 'Δ l. intra', 'Intra W Δ'), value: dash(piece.mmDeltaLargeurIntra) }
+        ];
+
+        const locSitPairs = [
+            { label: tpdf('pdf.piece.localisation', 'Localisation', 'Location'), value: dash(getPieceValue(piece.localisation, lot.localisation)) },
+            { label: tpdf('pdf.piece.situation', 'Situation', 'Situation'), value: dash(pieceSituation) },
+            { label: tpdf('pdf.piece.effectiveClass', 'Classe emploi', 'Use class'), value: dash(effectiveClass) },
+            { label: 'Loc-Sit (norme)', value: dash(situationExport.normRef) },
+            { label: 'Loc-Sit (guide)', value: dash(situationExport.guideShort) }
+        ];
+
+        const customPairs = [];
+        const infos = this.ensurePieceCustomInfos(piece);
+        customInfoColumns.forEach((column) => {
+            const match = infos.find((info) => info && info.labelKey === column.labelKey);
+            customPairs.push({ label: column.label, value: dash(match && match.value) });
+        });
+
+        const ficheTitle = isGroupedDefault
+            ? tpdf('pdf.piece.ficheDefaultTitle', 'Fiche pièce par défaut', 'Default piece sheet')
+                + ' — ' + (piece.nom || '—') + ' (×' + (entry.sourceQuantity || '—') + ')'
+            : tpdf('pdf.piece.ficheTitle', 'Fiche pièce', 'Piece sheet')
+                + ' #' + (pieceIndex + 1) + ' — ' + (piece.nom || '—');
+
+        const body = [
+            {
+                columns: [
+                    { width: '*', stack: [this.pdfKeyValueGrid(identityPairs, 1)] },
+                    { width: '*', stack: [this.pdfKeyValueGrid(dimsPairs, 1)] },
+                    { width: '*', stack: [this.pdfKeyValueGrid(massPairs, 1)] }
+                ],
+                columnGap: 8,
+                margin: [0, 0, 0, 4]
+            },
+            {
+                columns: [
+                    { width: '*', stack: [this.pdfKeyValueGrid(locSitPairs, 1)] },
+                    customPairs.length
+                        ? { width: '*', stack: [this.pdfKeyValueGrid(customPairs, 1)] }
+                        : { width: '*', text: '' }
+                ],
+                columnGap: 8
+            }
+        ];
+
+        return this.pdfFlatCard(ficheTitle, body, { margin: [0, 0, 0, 5] });
+    }
+
+    buildPdfPiecesDetailAnnexContent(lotIndices = []) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const customInfoColumns = this.getCsvCustomInfoColumnsForPieces(lotIndices);
+        const lots = this.data.lots || [];
+        const content = [];
+        let hasRows = false;
+        let lotBlockIndex = 0;
+
+        const pdfDash = (value) => (value != null && value !== '' ? String(value) : '—');
+        const getPieceValue = (pieceVal, lotVal) => (pieceVal != null && pieceVal !== '' ? pieceVal : lotVal);
+
+        const formatRecapDims = (piece, allotissement) => {
+            const L = getPieceValue(piece.longueur, allotissement.longueur);
+            const l = getPieceValue(piece.largeur, allotissement.largeur);
+            const e = getPieceValue(piece.epaisseur, allotissement.epaisseur);
+            const diam = getPieceValue(piece.diametre, allotissement.diametre);
+            if (diam != null && diam !== '') return 'ø' + diam;
+            const parts = [L, l, e].filter((v) => v != null && v !== '');
+            return parts.length ? parts.join('×') : '—';
+        };
+
+        lotIndices.forEach((lotIndex) => {
+            const lot = lots[lotIndex];
+            if (!lot) return;
+
+            const allotissement = lot.allotissement || {};
+            const lotLabel = this.getPdfLotLabel(lot, lotIndex);
+            const annexEntries = this.collectPdfLotPieceAnnexEntries(lot);
+            if (!annexEntries.length) return;
+
+            const recapHeaders = [
+                tpdf('pdf.piece.index', '#', '#'),
+                tpdf('pdf.piece.name', 'Nom', 'Name'),
+                tpdf('pdf.piece.source', 'Source', 'Source'),
+                tpdf('pdf.piece.quantity', 'Qté', 'Qty'),
+                tpdf('pdf.piece.localisation', 'Loc', 'Loc'),
+                tpdf('pdf.piece.situation', 'Situation', 'Situation'),
+                tpdf('pdf.lot.species', 'Essence', 'Species'),
+                'L×l×e',
+                tpdf('pdf.lot.volumePiece', 'Vol', 'Vol'),
+                tpdf('pdf.lot.humidite', 'Hum.', 'Moist.'),
+                tpdf('pdf.piece.prixPiece', 'Prix', 'Price'),
+                tpdf('pdf.piece.ageArbre', 'Âge', 'Age'),
+                tpdf('pdf.piece.dateMiseEnService', 'Service', 'Service')
+            ];
+
+            const recapRows = annexEntries.map((entry, pieceIndex) => {
+                const piece = entry.piece || {};
+                const pieceSituation = getPieceValue(piece.situation, lot.situation);
+                const sourceLabel = entry.groupedDefault
+                    ? tpdf('pdf.piece.sourceDefault', 'Pièce par défaut', 'Default piece')
+                    : tpdf('pdf.piece.sourceDetail', 'Pièce détaillée', 'Detailed piece');
+                return [
+                    String(pieceIndex + 1),
+                    pdfDash(piece.nom),
+                    sourceLabel,
+                    entry.groupedDefault ? String(entry.sourceQuantity || '—') : '1',
+                    pdfDash(getPieceValue(piece.localisation, lot.localisation)),
+                    pdfDash(pieceSituation),
+                    pdfDash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)),
+                    formatRecapDims(piece, allotissement),
+                    pdfDash(getPieceValue(piece.volumePiecem3, piece.volumePiece)),
+                    pdfDash(getPieceValue(piece.humidite, allotissement.humidite)),
+                    pdfDash(piece.prixPiece),
+                    pdfDash(piece.ageArbre),
+                    pdfDash(piece.dateMiseEnService)
+                ];
+            });
+
+            const fiches = annexEntries.map((entry, pieceIndex) =>
+                this.buildPdfPieceDetailFiche(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns)
+            );
+
+            hasRows = true;
+            const lotStack = [
+                {
+                    text: this.sanitizePdfText(lotLabel + ' — ' + tpdf('pdf.card.piecesDetail', 'Détail des pièces', 'Piece details')),
+                    style: 'title',
+                    margin: [0, 0, 0, 6]
+                }
+            ];
+            if (lotBlockIndex === 0) {
+                lotStack.unshift({
+                    text: this.sanitizePdfText(tpdf('pdf.title.piecesAnnex', 'Annexe — Pièces détaillées', 'Annex — Detailed pieces')),
+                    style: 'title',
+                    margin: [0, 0, 0, 8]
+                });
+            }
+            lotStack.push(
+                this.pdfFlatCard(tpdf('pdf.piece.recapTable', 'Tableau récapitulatif', 'Summary table'), [
+                    this.pdfDataTable(recapHeaders, recapRows, {
+                        fontSize: f.tableCompact,
+                        widths: recapHeaders.map(() => 'auto'),
+                        dontBreakRows: true,
+                        columnAlignments: recapHeaders.map(() => 'left'),
+                        padding: { left: 2.5, right: 2.5, top: 2, bottom: 2 }
+                    })
+                ], { margin: [0, 0, 0, 6] }),
+                ...fiches
+            );
+
+            content.push({
+                pageBreak: 'before',
+                pageMargins: this.getPdfRevueCompletePageMargins(),
+                stack: lotStack
+            });
+            lotBlockIndex++;
+        });
+
+        if (!hasRows) return [];
+        return content;
     }
 
     buildPdfMultipleMeasurementsAnnexContent(lotIndices = []) {
@@ -46994,9 +48523,6 @@ renderRadar() {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const opSummary = this.getPdfOperationSummary(lotIndices);
-        const meta = this.data.meta || {};
-        const geoFrance = this.getDefaultGeoFrance(meta.geoFrance || {});
-        const climate = this.getGeoFranceClimateExportData(geoFrance);
         const rows = opSummary.orientations.map((item) => [
             item.label,
             this.formatPdfVolume(item.volume),
@@ -47009,11 +48535,7 @@ renderRadar() {
             { label: tpdf('pdf.summary.circularVolume', 'Volume circulaire', 'Circular volume'), value: this.formatPdfVolume(opSummary.volCirculaire) },
             { label: tpdf('pdf.summary.financialBalance', 'Bilan monétaire', 'Financial balance'), value: this.formatPdfCurrency(opSummary.bilanMonetaire) },
             { label: tpdf('pdf.summary.circularity', 'Circularité', 'Circularity'), value: this.formatPdfPercent(opSummary.circularite) },
-            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) },
-            { label: tpdf('pdf.summary.geoDepartment', 'Département géographique', 'Geographic department'), value: geoFrance.departementNom || '—' },
-            { label: tpdf('pdf.summary.geoCanton', 'Canton géographique', 'Geographic canton'), value: geoFrance.cantonNom || '—' },
-            { label: tpdf('pdf.summary.geoClimate', 'Condition climatique d’humidification', 'Humidification climatic condition'), value: climate.niveau || '—' },
-            { label: tpdf('pdf.summary.geoWind', 'Vent de pluie dominant', 'Driving rain wind'), value: this.getGeoFranceWindExportData(geoFrance).directions || '—' }
+            { label: tpdf('pdf.summary.circularLots', 'Lots circulaires', 'Circular lots'), value: this.formatPdfLotsList(opSummary.lotsCirculaires) }
         ];
 
         return [
@@ -47028,14 +48550,14 @@ renderRadar() {
                 widths: ['auto', 'auto', 'auto', 'auto', '*'],
                 noWrapColumns: [0, 1, 2, 3],
                 columnAlignments: ['left', 'right', 'right', 'right', 'left'],
-                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                padding: this.getPdfGardeTablePadding()
             }),
-            { text: '', margin: [0, 4, 0, 0] },
+            { text: '', margin: [0, 3, 0, 0] },
             this.pdfKeyValueGrid(summaryPairs, 4)
         ];
     }
 
-    buildPdfLotsSummaryCardContent(lotEntries = null) {
+    buildPdfLotsSummaryCardContent(lotEntries = null, part = 'all') {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const allLots = this.data.lots || [];
@@ -47089,7 +48611,7 @@ renderRadar() {
             ];
         });
 
-        return [
+        const identityBlock = [
             {
                 text: this.sanitizePdfText(tpdf('pdf.lots.identitySection', 'Données lot', 'Lot data')),
                 style: 'cardTitle',
@@ -47103,15 +48625,12 @@ renderRadar() {
                     widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
                     noWrapColumns: [0, 4, 5, 6, 7, 8],
                     columnAlignments: ['left', 'left', 'left', 'left', 'center', 'right', 'right', 'left', 'right'],
-                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                    padding: this.getPdfGardeTablePadding()
                 }
-            ),
-            { text: '', margin: [0, 4, 0, 0] },
-            {
-                text: this.sanitizePdfText(tpdf('pdf.lots.scoreSection', 'Scores de valeur', 'Value scores')),
-                style: 'cardTitle',
-                margin: [0, 0, 0, 2]
-            },
+            )
+        ];
+
+        const scoresBlock = [
             this.pdfDataTable(
                 lotScoreHeaders,
                 lotScoreRows.length ? lotScoreRows : [lotScoreHeaders.map(() => '—')],
@@ -47120,72 +48639,38 @@ renderRadar() {
                     widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
                     noWrapColumns: [0, 1, 2, 3, 4, 5],
                     columnAlignments: ['left', 'right', 'right', 'right', 'right', 'right'],
-                    padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+                    padding: this.getPdfGardeTablePadding()
                 }
             )
+        ];
+
+        if (part === 'identity') return identityBlock;
+        if (part === 'scores') return scoresBlock;
+
+        return [
+            ...identityBlock,
+            { text: '', margin: [0, 2, 0, 0] },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.lots.scoreSection', 'Scores de valeur', 'Value scores')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            ...scoresBlock
         ];
     }
 
     buildPdfSelectedLotsCoverContent(validLotIndices) {
-        const f = this.getPdfFontScale();
-        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
-        const meta = this.data.meta || {};
-        const lots = this.data.lots || [];
-        const selectedLotEntries = validLotIndices
-            .map((index) => ({ index, lot: lots[index] }))
-            .filter((entry) => Number.isInteger(entry.index) && entry.lot);
-        const evalContent = this.buildPdfOperationEvalContent(validLotIndices);
-
-        const selectedLots = validLotIndices.map((idx) => {
-            const lot = lots[idx] || {};
-            return this.getPdfLotLabel(lot, idx);
-        });
-
-        const metaPairs = [
-            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
-            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
-            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
-            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
-            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' },
-            { label: tpdf('pdf.cover.lotsCount', 'Nombre de lots exportés', 'Exported lots count'), value: String(validLotIndices.length) }
-        ];
-
-        return [
-            { text: this.sanitizePdfText(tpdf('pdf.title.synthesis.cover', 'Synthèse de l\'évaluation', 'Assessment summary')), style: 'title', margin: [0, 0, 0, 10] },
-            this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [
-                this.pdfKeyValueGrid(metaPairs, 3)
-            ]),
-            this.pdfCard(tpdf('pdf.cover.selectedLots', 'Lots inclus', 'Included lots'), [
-                {
-                    text: this.sanitizePdfText(selectedLots.length ? selectedLots.join(' • ') : '—'),
-                    fontSize: f.body,
-                    color: '#1f2937'
-                }
-            ]),
-            this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent(selectedLotEntries)),
-            this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\'opération', 'Operation evaluation'), evalContent)
-        ];
+        return this.buildPdfGardeContent(validLotIndices, 'revue-complete');
     }
 
     buildPdfSynthesisDocDef() {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
-        const meta = this.data.meta || {};
-
-        const metaPairs = [
-            { label: tpdf('pdf.meta.ref', 'Référence gisement', 'Deposit reference'), value: this.getReferenceGisement(meta) || '—' },
-            { label: tpdf('pdf.meta.operation', 'Opération', 'Operation'), value: meta.operation || '—' },
-            { label: tpdf('pdf.meta.diagnostician', 'Diagnostiqueur', 'Diagnostician'), value: meta.diagnostiqueurContact || '—' },
-            { label: tpdf('pdf.meta.location', 'Localisation', 'Location'), value: meta.localisation || '—' },
-            { label: tpdf('pdf.meta.date', 'Date', 'Date'), value: meta.date || '—' }
-        ];
-
-        const evalContent = this.buildPdfOperationEvalContent();
 
         return {
             pageSize: 'A4',
             pageOrientation: 'portrait',
-            pageMargins: [20, 24, 20, 30],
+            pageMargins: this.getPdfCoverPageMargins(),
             info: this.getPdfDocInfo('synthese'),
             defaultStyle: { font: 'Roboto', fontSize: f.body },
             styles: this.getPdfmakeStyles(),
@@ -47196,12 +48681,7 @@ renderRadar() {
                 color: '#464646',
                 margin: [0, 8, 0, 0]
             }),
-            content: [
-                { text: this.sanitizePdfText(tpdf('pdf.title.synthesis', 'Synthèse de l\u2019évaluation', 'Assessment summary')), style: 'title' },
-                this.pdfCard(tpdf('pdf.card.operation', 'Fiche de l\'opération', 'Operation sheet'), [this.pdfKeyValueGrid(metaPairs, 5)]),
-                this.pdfCard(tpdf('pdf.card.lots', 'Synthèse des lots', 'Lots summary'), this.buildPdfLotsSummaryCardContent()),
-                this.pdfCard(tpdf('pdf.card.operationEval', 'Évaluation de l\u2019opération', 'Operation evaluation'), evalContent)
-            ]
+            content: this.buildPdfGardeContent(null, 'synthese')
         };
     }
 
@@ -47249,75 +48729,212 @@ renderRadar() {
     </g>`;
     }
 
-    generatePdfCategoryGaugeSvg(categoryData, width = 240, height = 16) {
+    generatePdfCategoryGaugeSvg(categoryData, width = 240, height = 22) {
         if (!categoryData) return '';
-        
-        const { letterPoints, letterColors, minScore, maxScore, rawScore, zeroPct } = categoryData;
+
+        const { letterPoints, letterColors, minScore, maxScore } = categoryData;
         if (!letterPoints || !letterColors || !Number.isFinite(minScore) || !Number.isFinite(maxScore)) {
             return '';
         }
-        
-        const scoreSpan = Math.max(1, maxScore - minScore);
-        const barHeight = Math.round(height * 0.7);
-        const barY = (height - barHeight) / 2;
+
+        const globalMin = Number.isFinite(categoryData.globalMinScore) ? categoryData.globalMinScore : minScore;
+        const globalMax = Number.isFinite(categoryData.globalMaxScore) ? categoryData.globalMaxScore : maxScore;
+        const scoreSpan = Math.max(1, globalMax - globalMin);
+        const labelAreaHeight = 8;
+        const barHeight = Math.max(7, Math.round((height - labelAreaHeight) * 0.65));
+        const barY = labelAreaHeight + Math.max(0, (height - labelAreaHeight - barHeight) / 2);
         const radius = 1;
-        
-        // Positions des bandes négatives (D à gauche de zéro, E plus à gauche)
-        const pctPerPoint = 100 / scoreSpan;
+        const pctPerPoint = width / scoreSpan;
+        const zeroPixels = Math.max(0, Math.min(width, ((0 - globalMin) / scoreSpan) * width));
+        const rawScore = Number(categoryData.rawScore) || 0;
+        const clampedRawScore = Math.max(minScore, Math.min(maxScore, rawScore));
+        const thumbX = Math.max(0, Math.min(width, ((clampedRawScore - globalMin) / scoreSpan) * width));
+        const formatSigned = (value) => {
+            const n = Math.round(Number(value) || 0);
+            return n > 0 ? `+${n}` : String(n);
+        };
+        const thumbLabel = this.escapeSvgText(formatSigned(rawScore));
+
         const negativeDWidth = Math.abs(letterPoints.D || 0) * pctPerPoint;
         const negativeEWidth = Math.abs(letterPoints.E || 0) * pctPerPoint;
         const positiveCWidth = (letterPoints.C || 0) * pctPerPoint;
         const positiveBWidth = (letterPoints.B || 0) * pctPerPoint;
         const positiveAWidth = (letterPoints.A || 0) * pctPerPoint;
-        
-        // Zéro position en %
-        const zeroPixels = (zeroPct / 100) * width;
-        
-        // Générer les bandes
+
         let bandsHtml = '';
-        
-        // Bande E (à gauche du D)
+
         if (negativeEWidth > 0) {
             const xPos = Math.max(0, zeroPixels - negativeDWidth - negativeEWidth);
             const w = Math.min(negativeEWidth, zeroPixels - xPos);
             bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.E || '#d55e00'}" stroke="none"/>`;
         }
-        
-        // Bande D
+
         if (negativeDWidth > 0) {
             const xPos = Math.max(0, zeroPixels - negativeDWidth);
             const w = Math.min(negativeDWidth, width - xPos);
             bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.D || '#e69f00'}" stroke="none"/>`;
         }
-        
-        // Bande C
+
         if (positiveCWidth > 0) {
             const xPos = zeroPixels;
             const w = Math.min(positiveCWidth, width - xPos);
             bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.C || '#9aba89'}" stroke="none"/>`;
         }
-        
-        // Bande B
+
         if (positiveBWidth > 0) {
             const xPos = Math.min(width, zeroPixels + positiveCWidth);
             const w = Math.min(positiveBWidth, width - xPos);
             bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.B || '#60914b'}" stroke="none"/>`;
         }
-        
-        // Bande A
+
         if (positiveAWidth > 0) {
             const xPos = Math.min(width, zeroPixels + positiveCWidth + positiveBWidth);
             const w = Math.min(positiveAWidth, width - xPos);
             bandsHtml += `<rect x="${xPos.toFixed(1)}" y="${barY}" width="${w.toFixed(1)}" height="${barHeight}" fill="${letterColors.A || '#009e73'}" stroke="none"/>`;
         }
-        
-        // Contour global
-        const bgHtml = `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="none" stroke="#999999" stroke-width="0.5" rx="${radius}" ry="${radius}"/>`;
-        
-        // Ligne zéro (pointillés gris)
+
+        const localMinPx = Math.max(0, Math.min(width, ((minScore - globalMin) / scoreSpan) * width));
+        const localMaxPx = Math.max(localMinPx, Math.min(width, ((maxScore - globalMin) / scoreSpan) * width));
+        const rangeOutlineHtml = `<rect x="${localMinPx.toFixed(1)}" y="${barY}" width="${Math.max(0, localMaxPx - localMinPx).toFixed(1)}" height="${barHeight}" fill="none" stroke="#666666" stroke-width="0.5" rx="${radius}"/>`;
+        const bgHtml = `<rect x="0" y="${barY}" width="${width}" height="${barHeight}" fill="rgba(0,0,0,0.06)" stroke="#999999" stroke-width="0.5" rx="${radius}"/>`;
         const zeroLineHtml = `<line x1="${zeroPixels.toFixed(1)}" y1="${barY}" x2="${zeroPixels.toFixed(1)}" y2="${barY + barHeight}" stroke="#cccccc" stroke-width="0.5" stroke-dasharray="2,2"/>`;
-        
-        return `<g>${bandsHtml}${bgHtml}${zeroLineHtml}</g>`;
+        const thumbHtml = `<rect x="${(thumbX - 1.5).toFixed(1)}" y="${barY.toFixed(1)}" width="3" height="${barHeight.toFixed(1)}" rx="1.5" fill="#111111"/>`;
+        const thumbLabelHtml = `<text x="${thumbX.toFixed(1)}" y="${(barY - 2).toFixed(1)}" font-size="7" font-weight="600" fill="#111111" text-anchor="middle">${thumbLabel}</text>`;
+
+        return `<g>${bandsHtml}${bgHtml}${rangeOutlineHtml}${zeroLineHtml}${thumbHtml}${thumbLabelHtml}</g>`;
+    }
+
+    generatePdfMatrixLockSvg(color = '#111111') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><rect x="2" y="5" width="8" height="6" rx="1.5" fill="${color}"/><path d="M3.5 5V3.5a2.5 2.5 0 0 1 5 0V5" fill="none" stroke="${color}" stroke-width="1.6"/></svg>`;
+    }
+
+    generatePdfMatrixCheckSvg(strokeColor = '#1d3d96', fillColor = '#e9f0ff') {
+        return `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12"><rect x="0.5" y="0.5" width="11" height="11" rx="2" fill="${fillColor}" stroke="${strokeColor}" stroke-width="0.8"/><path d="M3 6.2 L5.2 8.4 L9 3.8" fill="none" stroke="${strokeColor}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    }
+
+    buildPdfLetterPillsRow(letterCounts, fontSize = 6) {
+        const pills = ['A', 'B', 'C', 'D', 'E']
+            .filter((letter) => (letterCounts[letter] || 0) > 0)
+            .map((letter) => ({
+                width: 'auto',
+                margin: [0, 0, 2, 0],
+                table: {
+                    body: [[{
+                        text: `${letter}-${letterCounts[letter]}`,
+                        fontSize,
+                        bold: true,
+                        color: '#111111',
+                        fillColor: this.getPdfLetterFillColor(letter)
+                    }]]
+                },
+                layout: {
+                    hLineWidth: () => 0,
+                    vLineWidth: () => 0,
+                    paddingLeft: () => 3,
+                    paddingRight: () => 3,
+                    paddingTop: () => 1,
+                    paddingBottom: () => 1
+                }
+            }));
+        if (!pills.length) return { text: '' };
+        return { columns: pills, columnGap: 0 };
+    }
+
+    buildPdfCategoryGaugesPanel(lot, tpdf, panelWidthPt, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const categoryDefs = this.getPdfCategoryDefinitions();
+        if (!Array.isArray(categoryDefs) || !categoryDefs.length || !lot) return null;
+
+        const rawScores = this.getRawValueScoresForLot(lot);
+        const scoreRanges = this.getValueScoreRangesForLot(lot);
+        const letterColors = this.getPdfLetterColors();
+        const axisKeys = categoryDefs.map((cat) => cat.key);
+        const globalMinScore = Math.min(...axisKeys.map((key) => Math.min(0, Number((scoreRanges[key] || {}).min) || 0)));
+        const globalMaxScore = Math.max(...axisKeys.map((key) => Math.max(1, Number((scoreRanges[key] || {}).max) || 30)), 30);
+
+        const boundsWidth = 22;
+        const gap = 4;
+        const barWidth = Math.max(50, panelWidthPt - boundsWidth * 2 - gap * 2);
+        const gaugeSvgHeight = 22;
+        const gaugeBoundMarginTop = 7;
+        const formatSigned = (value) => {
+            const n = Math.round(Number(value) || 0);
+            return n > 0 ? `+${n}` : String(n);
+        };
+
+        const rows = categoryDefs.map((category, idx) => {
+            const range = scoreRanges[category.key] || { min: 0, max: 30 };
+            const minScore = Math.min(0, Number(range.min) || 0);
+            const maxScore = Math.max(1, Number(range.max) || 30);
+            const rawScore = parseFloat(rawScores[category.key]) || 0;
+            const { letterCounts, letterPoints } = this.getLetterDistributionForCategory(lot, category.key);
+            const gaugeData = {
+                letterPoints,
+                letterColors,
+                minScore,
+                maxScore,
+                globalMinScore,
+                globalMaxScore,
+                rawScore
+            };
+            const svgContent = this.generatePdfCategoryGaugeSvg(gaugeData, barWidth, gaugeSvgHeight);
+            const svgString = svgContent
+                ? `<svg width="${barWidth}" height="${gaugeSvgHeight}" viewBox="0 0 ${barWidth} ${gaugeSvgHeight}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>`
+                : '';
+            const pillsRow = this.buildPdfLetterPillsRow(letterCounts, Math.max(5, f.gaugeLabel - 1));
+
+            const gaugeCard = {
+                table: {
+                    widths: ['*'],
+                    body: [[{
+                        stack: [
+                            {
+                                columns: [
+                                    { width: '*', text: this.sanitizePdfText(category.label), bold: true, fontSize: f.gaugeLabel },
+                                    { width: 'auto', stack: [pillsRow], alignment: 'right' }
+                                ],
+                                columnGap: 4,
+                                margin: [0, 0, 0, 0]
+                            },
+                            {
+                                columns: [
+                                    { width: boundsWidth, text: formatSigned(minScore), fontSize: f.gaugeLabel, color: '#6b7280', alignment: 'right', margin: [0, gaugeBoundMarginTop, 0, 0] },
+                                    { width: barWidth, svg: svgString, margin: [0, 0, 0, 0] },
+                                    { width: boundsWidth, text: formatSigned(maxScore), fontSize: f.gaugeLabel, color: '#6b7280', alignment: 'left', margin: [0, gaugeBoundMarginTop, 0, 0] }
+                                ],
+                                columnGap: gap
+                            }
+                        ],
+                        fillColor: '#ffffff'
+                    }]]
+                },
+                layout: {
+                    hLineWidth: () => 0.5,
+                    vLineWidth: () => 0.5,
+                    hLineColor: () => '#e5e7eb',
+                    vLineColor: () => '#e5e7eb',
+                    paddingLeft: () => 3,
+                    paddingRight: () => 3,
+                    paddingTop: () => 2,
+                    paddingBottom: () => 2
+                },
+                margin: [0, 0, 0, idx < categoryDefs.length - 1 ? 2 : 0]
+            };
+
+            return gaugeCard;
+        });
+
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.notationScores', 'Scores par valeur', 'Scores by value')),
+                    fontSize: f.sectionTitle,
+                    bold: true,
+                    margin: [0, 0, 0, 3]
+                },
+                ...rows
+            ]
+        };
     }
 
     escapeSvgText(value) {
@@ -47407,9 +49024,9 @@ renderRadar() {
         if (!data || !Array.isArray(data.labels) || !Array.isArray(data.netValues) || data.labels.length !== data.netValues.length) {
             return '';
         }
-        
-        const width = 280;
-        const height = 260;
+
+        const width = 380;
+        const height = 280;
         const centerX = width / 2;
         const centerY = height / 2;
         const radius = 90;
@@ -47419,7 +49036,7 @@ renderRadar() {
         const axisCount = data.labels.length;
         const startAngle = -Math.PI / 2;
         const angleStep = (Math.PI * 2) / axisCount;
-        
+
         const toPoint = (value, axisIndex, scaleRadius = radius) => {
             const angle = startAngle + axisIndex * angleStep;
             const scaledRadius = (Math.max(0, Math.min(100, value)) / 100) * scaleRadius;
@@ -47428,41 +49045,56 @@ renderRadar() {
                 y: Math.sin(angle) * scaledRadius
             };
         };
-        
-        // Grille de cercles concentriques
+
         const circles = gridLevels.map((level) => {
             const ringRadius = (level / 100) * radius;
             const stroke = level === 100 ? '#333333' : '#d9d4ca';
             const strokeWidth = level === 100 ? 1.2 : 0.8;
             return `<circle cx="0" cy="0" r="${ringRadius.toFixed(2)}" fill="none" stroke="${stroke}" stroke-opacity="0.4" stroke-width="${strokeWidth}"/>`;
         }).join('');
-        
-        // Axes radiaux
+
         const axes = data.labels.map((_, axisIndex) => {
             const point = toPoint(100, axisIndex);
             return `<line x1="0" y1="0" x2="${point.x.toFixed(2)}" y2="${point.y.toFixed(2)}" stroke="#000000" stroke-opacity="0.12" stroke-width="0.8"/>`;
         }).join('');
-        
-        // Dataset 1: Bruts négatifs (pointillés gris)
-        const negPoints = data.grossNegativeValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
-        const negPolygon = negPoints.length > 0 ? `<polygon points="${negPoints}" fill="none" stroke="rgba(120,120,120,0.4)" stroke-width="1.2" stroke-dasharray="3,2"/>` : '';
-        
-        // Dataset 2: Bruts positifs (gris)
-        const posPoints = data.grossPositiveValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
-        const posPolygon = posPoints.length > 0 ? `<polygon points="${posPoints}" fill="none" stroke="rgba(95,95,95,0.5)" stroke-width="1.4"/>` : '';
-        
-        // Dataset 3: Net (couleur orientation)
-        const netPoints = data.netValues.map((value, idx) => toPoint(value, idx)).map(p => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+
+        const zeroPct = Number(data.zeroPct);
+        let negativeZoneHtml = '';
+        if (Number.isFinite(zeroPct) && zeroPct > 0) {
+            const zeroRingPoints = data.labels.map((_, idx) => toPoint(zeroPct, idx))
+                .map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`)
+                .join(' ');
+            negativeZoneHtml = `<polygon points="${zeroRingPoints}" fill="rgba(100,100,100,0.10)"/>`;
+        }
+
+        const grossNegValues = Array.isArray(data.grossNegativeValues) ? data.grossNegativeValues : [];
+        const grossPosValues = Array.isArray(data.grossPositiveValues) ? data.grossPositiveValues : [];
+
+        const negPoints = grossNegValues.map((value, idx) => toPoint(value, idx)).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const negPolygon = negPoints.length > 0 ? `<polygon points="${negPoints}" fill="none" stroke="rgba(120,120,120,0.55)" stroke-width="1.2" stroke-dasharray="3,2"/>` : '';
+        const negMarkers = grossNegValues.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="#ffffff" stroke="rgba(120,120,120,0.75)" stroke-width="1.2"/>`;
+        }).join('');
+
+        const posPoints = grossPosValues.map((value, idx) => toPoint(value, idx)).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
+        const posPolygon = posPoints.length > 0 ? `<polygon points="${posPoints}" fill="none" stroke="rgba(95,95,95,0.65)" stroke-width="1.4"/>` : '';
+        const posMarkers = grossPosValues.map((value, axisIndex) => {
+            const point = toPoint(value, axisIndex);
+            return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="#ffffff" stroke="rgba(95,95,95,0.75)" stroke-width="1.2"/>`;
+        }).join('');
+
+        const netPoints = data.netValues.map((value, idx) => toPoint(value, idx)).map((p) => `${p.x.toFixed(2)},${p.y.toFixed(2)}`).join(' ');
         const netColor = data.netColor || '#7A7A7A';
-        const netPolygon = netPoints.length > 0 ? `<polygon points="${netPoints}" fill="${netColor}22" stroke="${netColor}" stroke-width="2.0"/><polygon points="${netPoints}" fill="none" stroke="${netColor}" stroke-width="0" />` : '';
-        
-        // Points sur le net
+        const netPolygon = netPoints.length > 0
+            ? `<polygon points="${netPoints}" fill="${netColor}" fill-opacity="0.18" stroke="${netColor}" stroke-width="2.0"/>`
+            : '';
+
         const dataPoints = data.netValues.map((value, axisIndex) => {
             const point = toPoint(value, axisIndex);
             return `<circle cx="${point.x.toFixed(2)}" cy="${point.y.toFixed(2)}" r="${pointRadius}" fill="${netColor}" stroke="${netColor}" stroke-width="0.5"/>`;
         }).join('');
-        
-        // Labels des axes
+
         const labels = data.labels.map((label, axisIndex) => {
             const point = toPoint(100, axisIndex, labelRadius);
             const textAnchor = Math.abs(point.x) < 15 ? 'middle' : (point.x > 0 ? 'start' : 'end');
@@ -47473,8 +49105,926 @@ renderRadar() {
             const textStr = this.escapeSvgText(label);
             return `<text x="${point.x.toFixed(2)}" y="${textY.toFixed(2)}" font-size="10" font-weight="500" fill="#3a3a3a" text-anchor="${textAnchor}">${textStr}</text>`;
         }).join('');
-        
-        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}${negPolygon}${posPolygon}${netPolygon}${dataPoints}${labels}</g></svg>`;
+
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg"><g transform="translate(${centerX}, ${centerY})">${circles}${axes}${negativeZoneHtml}${negPolygon}${posPolygon}${negMarkers}${posMarkers}${netPolygon}${dataPoints}${labels}</g></svg>`;
+    }
+
+    buildPdfRadarLegend(tpdf, netColor, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const legendFontSize = Math.max(5, (f.gaugeLabel || 7) - 1);
+        const lineSvg = (stroke, dash) => {
+            const dashAttr = dash ? ` stroke-dasharray="${dash}"` : '';
+            return `<svg width="28" height="8" viewBox="0 0 28 8" xmlns="http://www.w3.org/2000/svg"><line x1="0" y1="4" x2="28" y2="4" stroke="${stroke}" stroke-width="2.5"${dashAttr}/></svg>`;
+        };
+        const items = [
+            {
+                line: lineSvg(netColor || '#7A7A7A'),
+                label: tpdf('pdf.radar.legend.net', 'Score net', 'Net score')
+            },
+            {
+                line: lineSvg('rgba(95,95,95,0.75)'),
+                label: tpdf('pdf.radar.legend.positive', 'Bruts positifs', 'Gross positive')
+            },
+            {
+                line: lineSvg('rgba(120,120,120,0.75)', '3,2'),
+                label: tpdf('pdf.radar.legend.negative', 'Bruts négatifs', 'Gross negative')
+            }
+        ];
+        return {
+            columns: [
+                { width: '*', text: '' },
+                {
+                    width: 'auto',
+                    columns: items.map((item) => ({
+                        width: 'auto',
+                        columns: [
+                            { width: 28, svg: item.line, margin: [0, 1, 0, 0] },
+                            { width: 'auto', text: this.sanitizePdfText(item.label), fontSize: legendFontSize, color: '#374151', margin: [2, 0, 0, 0] }
+                        ],
+                        columnGap: 2
+                    })),
+                    columnGap: 8
+                },
+                { width: '*', text: '' }
+            ],
+            margin: [0, 3, 0, 0]
+        };
+    }
+
+    getPdfOrientationPositionBarContext(lot, lotIndex, mode = null) {
+        const state = this.getRadarOrientationPositionData(lot, mode);
+        if (!state || !state.hasScore) return null;
+
+        const decomposition = state.decomposition || {};
+        const positiveNoConfidence = Number(decomposition.positiveNoConfidence) || 0;
+        const negativeNoConfidenceAbs = Number(decomposition.negativeNoConfidenceAbs) || 0;
+        const netNoConfidence = Number(decomposition.netNoConfidence) || 0;
+        const displayBounds = this.getValoboisOrientationDisplayBounds(mode);
+        const SCORE_MIN = Math.min(-1, Math.round(Number(state.negativeScoreMin) || -76));
+        const SCORE_MAX = Math.max(1, Math.round(Number(state.positiveScoreMax) || 126));
+        const SCORE_NEG = -Math.abs(negativeNoConfidenceAbs);
+        const SCORE_POS = Number(positiveNoConfidence) || 0;
+        const SCORE_NET = Number(netNoConfidence) || 0;
+        const hasNegative = negativeNoConfidenceAbs > 0.01;
+        const lotScore = hasNegative ? SCORE_NET : SCORE_POS;
+        const RANGE = SCORE_MAX - SCORE_MIN || 1;
+        const toPctNumber = (v) => ((v - SCORE_MIN) / RANGE * 100);
+        const clampPct = (v) => Math.max(0, Math.min(100, toPctNumber(v)));
+        const gateThreshold = displayBounds.gateThreshold;
+
+        const levelKeyLabel = (lk) => ({ fort: 'fort', moyen: 'moyen', faible: 'faible' }[String(lk || '')] || lk);
+        const buildNegZone = (orientationKey, negBound) => ({
+            title: 'Zone négative',
+            left: negBound,
+            right: 0,
+            description: '',
+            contributors: ((displayBounds.breakdownByOrientation && displayBounds.breakdownByOrientation[orientationKey]) || []).map((c) => ({
+                critere: c.critere, contribution: c.contribution, levelKey: levelKeyLabel(c.levelKey)
+            }))
+        });
+        const buildPosZone = () => ({
+            title: 'Zone positive',
+            left: displayBounds.reemploiPositiveMin,
+            right: SCORE_MAX,
+            description: '',
+            contributors: (displayBounds.reemploiPositiveBreakdown || []).map((c) => ({
+                critere: c.critere, contribution: c.contribution, levelKey: levelKeyLabel(c.levelKey)
+            }))
+        });
+
+        const laneDefs = [
+            {
+                key: 'reemploi',
+                label: 'Réemploi',
+                color: '#009E73',
+                segments: [
+                    { start: displayBounds.negative.reemploi, end: 0, color: '#53a57a', roundLeft: true, roundRight: false },
+                    { start: displayBounds.reemploiPositiveMin, end: SCORE_MAX, color: '#53a57a', roundLeft: true, roundRight: true }
+                ],
+                infoZones: [buildNegZone('reemploi', displayBounds.negative.reemploi), buildPosZone()]
+            },
+            {
+                key: 'reutilisation',
+                label: 'Réutilisation',
+                color: '#56B4E9',
+                segments: [
+                    { start: displayBounds.negative.reutilisation, end: SCORE_MAX, color: '#56B4E9', roundLeft: true, roundRight: true }
+                ],
+                infoZones: [buildNegZone('reutilisation', displayBounds.negative.reutilisation)]
+            },
+            {
+                key: 'recyclage',
+                label: 'Recyclage',
+                color: '#E69F00',
+                segments: [
+                    { start: displayBounds.negative.recyclage, end: 0, color: '#E69F00', roundLeft: true, roundRight: false }
+                ],
+                infoZones: [buildNegZone('recyclage', displayBounds.negative.recyclage)]
+            },
+            {
+                key: 'combustion',
+                label: 'Combustion',
+                color: '#d95f0e',
+                segments: [
+                    { start: SCORE_MIN, end: 0, color: '#d95f0e', roundLeft: true, roundRight: false }
+                ],
+                infoZones: [{
+                    title: 'Zone',
+                    left: SCORE_MIN,
+                    right: 0,
+                    description: '',
+                    contributors: []
+                }]
+            }
+        ];
+
+        const activeOrientation = laneDefs.some((lane) => lane.key === state.currentOrientation)
+            ? state.currentOrientation
+            : 'reutilisation';
+        const activeLaneIndex = Math.max(0, laneDefs.findIndex((lane) => lane.key === activeOrientation));
+        const lotNameRaw = String((lot && (lot.nomLot || lot.nom)) || '').trim();
+        const lotBubbleLabel = lotNameRaw || (lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot courant');
+        const formatSigned = (value) => {
+            const n = Number(value) || 0;
+            return n > 0 ? `+${n.toFixed(0)}` : `${n.toFixed(0)}`;
+        };
+
+        return {
+            state,
+            SCORE_MIN,
+            SCORE_MAX,
+            SCORE_NEG,
+            SCORE_POS,
+            lotScore,
+            hasNegative,
+            gateThreshold,
+            laneDefs,
+            activeOrientation,
+            activeLaneIndex,
+            lotBubbleLabel,
+            lotScoreLabel: formatSigned(lotScore),
+            positiveLabel: formatSigned(SCORE_POS),
+            negativeLabel: formatSigned(SCORE_NEG),
+            clampPct,
+            toPctNumber
+        };
+    }
+
+    generatePdfLotPositionBarSvg(context, width = 520, height = 92) {
+        if (!context) return '';
+        const {
+            SCORE_MIN, SCORE_MAX, SCORE_NEG, SCORE_POS, lotScore, hasNegative,
+            gateThreshold, laneDefs, activeOrientation, lotBubbleLabel, lotScoreLabel,
+            positiveLabel, negativeLabel, clampPct
+        } = context;
+
+        const labelWidth = 72;
+        const trackLeft = labelWidth + 4;
+        const trackWidth = Math.max(100, width - trackLeft - 6);
+        const laneHeight = 13;
+        const laneGap = 3;
+        const lanesTop = 4;
+        const axisY = lanesTop + laneDefs.length * (laneHeight + laneGap) + 2;
+        const toX = (scoreValue) => trackLeft + (clampPct(scoreValue) / 100) * trackWidth;
+
+        let lanesHtml = '';
+        laneDefs.forEach((lane, laneIdx) => {
+            const laneY = lanesTop + laneIdx * (laneHeight + laneGap);
+            const isActive = lane.key === activeOrientation;
+            lanesHtml += `<text x="0" y="${(laneY + laneHeight * 0.72).toFixed(1)}" font-size="7" font-weight="600" fill="${lane.color}">${this.escapeSvgText(lane.label)}</text>`;
+            lanesHtml += `<rect x="${trackLeft}" y="${laneY}" width="${trackWidth}" height="${laneHeight}" rx="3" fill="#ececec"/>`;
+            lane.segments.forEach((segment) => {
+                const x1 = toX(Math.min(segment.start, segment.end));
+                const x2 = toX(Math.max(segment.start, segment.end));
+                const segW = Math.max(0, x2 - x1);
+                if (segW <= 0) return;
+                const rx = segment.roundLeft && segment.roundRight ? 3 : (segment.roundLeft ? 3 : 0);
+                lanesHtml += `<rect x="${x1.toFixed(1)}" y="${laneY}" width="${segW.toFixed(1)}" height="${laneHeight}" rx="${rx}" fill="${segment.color}"/>`;
+            });
+            if (isActive) {
+                const zeroX = toX(0);
+                lanesHtml += `<polygon points="${(zeroX - 3).toFixed(1)},${(laneY + laneHeight + 1).toFixed(1)} ${zeroX.toFixed(1)},${(laneY + laneHeight + 5).toFixed(1)} ${(zeroX + 3).toFixed(1)},${(laneY + laneHeight + 1).toFixed(1)}" fill="#111111"/>`;
+                if (hasNegative) {
+                    const negLeft = toX(Math.min(SCORE_NEG, 0));
+                    const negW = Math.abs(toX(0) - toX(SCORE_NEG));
+                    lanesHtml += `<rect x="${negLeft.toFixed(1)}" y="${(laneY + 2).toFixed(1)}" width="${negW.toFixed(1)}" height="2" fill="#111111"/>`;
+                    lanesHtml += `<text x="${toX(SCORE_NEG).toFixed(1)}" y="${(laneY - 1).toFixed(1)}" font-size="6" fill="#111111" text-anchor="middle">${this.escapeSvgText(negativeLabel)}</text>`;
+                }
+                if (SCORE_POS > 0) {
+                    const posLeft = toX(Math.min(0, SCORE_POS));
+                    const posW = Math.abs(toX(SCORE_POS) - toX(0));
+                    lanesHtml += `<rect x="${posLeft.toFixed(1)}" y="${(laneY + 2).toFixed(1)}" width="${posW.toFixed(1)}" height="2" fill="#111111"/>`;
+                    if (hasNegative) {
+                        lanesHtml += `<text x="${toX(SCORE_POS).toFixed(1)}" y="${(laneY - 1).toFixed(1)}" font-size="6" fill="#111111" text-anchor="middle">${this.escapeSvgText(positiveLabel)}</text>`;
+                    }
+                }
+                const lotX = toX(lotScore);
+                lanesHtml += `<line x1="${lotX.toFixed(1)}" y1="${lanesTop}" x2="${lotX.toFixed(1)}" y2="${(axisY - 2).toFixed(1)}" stroke="#111111" stroke-width="1.2"/>`;
+                lanesHtml += `<circle cx="${lotX.toFixed(1)}" cy="${(laneY + laneHeight / 2).toFixed(1)}" r="3" fill="#111111"/>`;
+                const bubbleText = `${lotBubbleLabel} ${lotScoreLabel}`;
+                lanesHtml += `<rect x="${(lotX - 28).toFixed(1)}" y="0" width="56" height="10" rx="2" fill="#111111"/>`;
+                lanesHtml += `<text x="${lotX.toFixed(1)}" y="7.5" font-size="6" font-weight="600" fill="#ffffff" text-anchor="middle">${this.escapeSvgText(bubbleText)}</text>`;
+            }
+        });
+
+        const scaleMarkers = [
+            { value: SCORE_MIN, label: String(SCORE_MIN) },
+            { value: gateThreshold, label: String(gateThreshold) },
+            { value: 0, label: '0' },
+            { value: SCORE_MAX, label: `+${SCORE_MAX}` }
+        ];
+        const axisHtml = scaleMarkers.map((marker) => {
+            const x = toX(marker.value);
+            const anchor = marker.value === SCORE_MIN ? 'start' : (marker.value === SCORE_MAX ? 'end' : 'middle');
+            return `<text x="${x.toFixed(1)}" y="${(axisY + 8).toFixed(1)}" font-size="6" fill="#6b7280" text-anchor="${anchor}">${this.escapeSvgText(marker.label)}</text>`;
+        }).join('');
+
+        return `<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">${lanesHtml}${axisHtml}</svg>`;
+    }
+
+    buildPdfNotesDistributionPanel(lot, state, tpdf, panelWidth, options = {}) {
+        if (!state) return null;
+        const f = options.f || this.getPdfFontScale();
+        const letterCounts = state.letterCounts || { A: 0, B: 0, C: 0, D: 0, E: 0 };
+        const letterCapacity = { A: 41, B: 26, C: 39, D: 14, E: 5 };
+        const letterColors = this.getPdfLetterColors();
+        const activeMode = this.getValoboisActiveMatrixMode();
+        this.getValoboisActiveCustomFreeCriteria(activeMode).forEach((criterion) => {
+            const seenLetters = new Set();
+            ['fort', 'moyen', 'faible'].forEach((lk) => {
+                const score = Number(criterion && criterion.scores && criterion.scores[lk] && criterion.scores[lk].value);
+                if (!Number.isFinite(score)) return;
+                const letter = this.getValoboisFixedLetterForScore(score);
+                if (letter && !seenLetters.has(letter) && Object.prototype.hasOwnProperty.call(letterCapacity, letter)) {
+                    letterCapacity[letter] += 1;
+                    seenLetters.add(letter);
+                }
+            });
+        });
+        const activeMappings = this.getValoboisActiveCriteriaMappings(activeMode);
+        const activeCustom = this.getValoboisActiveCustomFreeCriteria(activeMode);
+        const unnotedCount = activeMappings.filter((mapping) => !this.hasValoboisCriterionValue(lot, mapping)).length
+            + activeCustom.filter((criterion) => !Number.isFinite(this.getValoboisLotCustomScoreValue(lot, String((criterion && criterion.id) || '').trim()))).length;
+
+        const leftLetters = ['A', 'B', 'C'];
+        const rightLetters = ['D', 'E'];
+        const leftColMax = Math.max(...leftLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+        const rightColMax = Math.max(...rightLetters.map((letter) => Number(letterCapacity[letter]) || 0), 1);
+        const totalColMax = leftColMax + rightColMax;
+        const outerColumnGap = 8;
+        const labelWidth = 12;
+        const rowColumnGap = 4;
+        const availableWidth = Math.max(160, panelWidth - outerColumnGap);
+        const leftColWidth = availableWidth * (leftColMax / totalColMax);
+        const rightColWidth = availableWidth * (rightColMax / totalColMax);
+        const leftBarMaxWidth = Math.max(24, leftColWidth - labelWidth - rowColumnGap);
+        const rightBarMaxWidth = Math.max(24, rightColWidth - labelWidth - rowColumnGap);
+
+        const makeLetterRow = (letter, barMaxWidth) => {
+            const cap = Math.max(1, Number(letterCapacity[letter]) || 1);
+            const count = Math.max(0, Number(letterCounts[letter]) || 0);
+            const ratio = Math.min(100, (count / cap) * 100);
+            const fillWidth = Math.max(0, (ratio / 100) * barMaxWidth);
+            const color = letterColors[letter] || '#bcbcbc';
+            const svg = `<svg width="${barMaxWidth}" height="10" viewBox="0 0 ${barMaxWidth} 10" xmlns="http://www.w3.org/2000/svg"><rect x="0" y="1" width="${barMaxWidth}" height="8" rx="2" fill="#ececec"/><rect x="0" y="1" width="${fillWidth.toFixed(1)}" height="8" rx="2" fill="${color}"/><text x="${Math.min(barMaxWidth - 2, fillWidth + 2).toFixed(1)}" y="7.5" font-size="6" font-weight="600" fill="#111111">${this.escapeSvgText(`x${count}`)}</text></svg>`;
+            return {
+                columns: [
+                    { width: labelWidth, text: letter, bold: true, fontSize: f.gaugeLabel, color: '#111111' },
+                    { width: barMaxWidth, svg, margin: [0, 1, 0, 0] }
+                ],
+                columnGap: rowColumnGap,
+                margin: [0, 0, 0, 2]
+            };
+        };
+
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.notesDistribution', 'Répartition des notes', 'Rating distribution')),
+                    fontSize: f.sectionTitle,
+                    bold: true,
+                    margin: [0, 0, 0, 3]
+                },
+                {
+                    columns: [
+                        { width: leftColWidth, stack: leftLetters.map((letter) => makeLetterRow(letter, leftBarMaxWidth)) },
+                        { width: rightColWidth, stack: [
+                            ...rightLetters.map((letter) => makeLetterRow(letter, rightBarMaxWidth)),
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.notes.missing', 'Notes manquantes', 'Missing ratings') + ` : ${unnotedCount}`),
+                                fontSize: f.gaugeLabel,
+                                color: '#6b7280',
+                                alignment: 'right',
+                                margin: [0, 2, 0, 0]
+                            }
+                        ] }
+                    ],
+                    columnGap: outerColumnGap
+                }
+            ],
+            margin: [0, 0, 0, 6]
+        };
+    }
+
+    buildPdfOrientationLocksPanel(state, tpdf, panelWidth, options = {}) {
+        if (!state || !state.rejectsByOrientation) return null;
+        const f = options.f || this.getPdfFontScale();
+        const orientationOrder = ['reemploi', 'reutilisation', 'recyclage', 'combustion'];
+        const orientationColors = {
+            reemploi: '#009E73',
+            reutilisation: '#56B4E9',
+            recyclage: '#E69F00',
+            combustion: '#d95f0e'
+        };
+        const lockRows = orientationOrder
+            .flatMap((orientationKey) => (state.rejectsByOrientation[orientationKey] || []))
+            .filter(Boolean);
+        const lockCount = lockRows.length;
+
+        const normalizeToken = (value) => String(value || '')
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+            .trim();
+        const getLevelLabel = (levelKey) => {
+            const normalized = normalizeToken(levelKey);
+            if (normalized.includes('faib')) return 'Faible';
+            if (normalized.includes('fort')) return 'Forte';
+            if (normalized.includes('moy')) return 'Moyenne';
+            return String(levelKey || '');
+        };
+        const lockColorForLevel = (levelKey) => {
+            const normalized = normalizeToken(levelKey);
+            if (normalized.includes('fort')) return '#d55e00';
+            if (normalized.includes('moy')) return '#e69f00';
+            return '#009e73';
+        };
+
+        const colWidth = Math.max(80, (panelWidth - 24) / 4);
+        const columns = orientationOrder.map((orientationKey) => {
+            const rows = state.rejectsByOrientation[orientationKey] || [];
+            const title = this.getValoboisOrientationLabel(orientationKey);
+            const groupCountLabel = `${rows.length}/${lockCount}`;
+            const headerColor = orientationColors[orientationKey] || '#666666';
+            const items = rows.map((row) => {
+                const level = getLevelLabel(row.levelKey);
+                const lockColor = lockColorForLevel(row.levelKey);
+                return {
+                    columns: [
+                        { width: 12, svg: this.generatePdfMatrixLockSvg(lockColor), margin: [0, 1, 0, 0] },
+                        { width: '*', text: this.sanitizePdfText(`${row.critere || 'Critère'} ${level}`.trim()), fontSize: Math.max(5, f.notation - 1) }
+                    ],
+                    columnGap: 2,
+                    margin: [0, 0, 0, 2]
+                };
+            });
+            return {
+                width: colWidth,
+                stack: [
+                    {
+                        table: {
+                            widths: ['*', 'auto'],
+                            body: [[
+                                { text: this.sanitizePdfText(title), bold: true, fontSize: f.gaugeLabel, color: '#ffffff', fillColor: headerColor },
+                                { text: groupCountLabel, bold: true, fontSize: f.gaugeLabel, color: '#ffffff', fillColor: headerColor, alignment: 'right' }
+                            ]]
+                        },
+                        layout: { hLineWidth: () => 0, vLineWidth: () => 0, paddingLeft: () => 3, paddingRight: () => 3, paddingTop: () => 2, paddingBottom: () => 2 },
+                        margin: [0, 0, 0, 2]
+                    },
+                    ...items
+                ]
+            };
+        });
+
+        return {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.orientationLocks', 'Verrous (facteurs de rejet)', 'Locks (rejection factors)')),
+                    fontSize: f.sectionTitle,
+                    bold: true,
+                    margin: [0, 0, 0, 3]
+                },
+                { columns, columnGap: 6 }
+            ],
+            margin: [0, 0, 0, 6]
+        };
+    }
+
+    buildPdfOrientationAnalysisStack(lot, lotIndex, tpdf, usableWidthPt, options = {}) {
+        const f = options.f || this.getPdfFontScale();
+        const mode = this.getValoboisActiveMatrixMode();
+        const state = this.getRadarOrientationPositionData(lot, mode);
+        if (!state || !state.hasScore) return null;
+
+        const positionContext = this.getPdfOrientationPositionBarContext(lot, lotIndex, mode);
+        const positionSvg = positionContext
+            ? this.generatePdfLotPositionBarSvg(positionContext, usableWidthPt, 92)
+            : '';
+        const distributionPanel = this.buildPdfNotesDistributionPanel(lot, state, tpdf, usableWidthPt, { f });
+        const locksPanel = this.buildPdfOrientationLocksPanel(state, tpdf, usableWidthPt, { f });
+
+        const stack = [];
+        if (positionSvg) {
+            stack.push({
+                text: this.sanitizePdfText(tpdf('pdf.card.lotPosition', 'Position du lot sur l\'échelle de notation', 'Lot position on rating scale')),
+                fontSize: f.sectionTitle,
+                bold: true,
+                margin: [0, 0, 0, 3]
+            });
+            stack.push({ svg: positionSvg, width: usableWidthPt, margin: [0, 0, 0, 6] });
+        }
+        if (distributionPanel) stack.push(distributionPanel);
+        if (locksPanel) stack.push(locksPanel);
+        return stack.length ? { stack, margin: [0, 0, 0, 6] } : null;
+    }
+
+    buildPdfRejectLockByRankIndex(lot, mode = null) {
+        const state = this.getRadarOrientationPositionData(lot, mode);
+        const index = new Map();
+        if (!state || !Array.isArray(state.notationRows)) return index;
+        state.notationRows.forEach((row) => {
+            const rang = Number(row.rang) || 0;
+            if (!rang) return;
+            if (Array.isArray(row.lockedOrientations) && row.lockedOrientations.length) {
+                index.set(rang, row.lockedOrientations);
+            }
+        });
+        return index;
+    }
+
+    formatExportMedoidDimValue(value) {
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? String(Math.round(n)) : '—';
+    }
+
+    formatExportPercentDisplay(value, fractionDigits = 0) {
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? this.formatPdfDecimal(n, fractionDigits, fractionDigits) + ' %' : '—';
+    }
+
+    formatExportVariationDisplay(value) {
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? '± ' + this.formatPdfDecimal(n, 0, 0) + ' %' : '—';
+    }
+
+    formatExportExtremeDeltaDisplay(value) {
+        const n = parseFloat(value);
+        return Number.isFinite(n) ? 'Δ ' + this.formatPdfDecimal(n, 0, 0) + ' %' : '—';
+    }
+
+    getLotPieceTypeExportContext(lot) {
+        const allotissement = (lot && lot.allotissement) || {};
+        const medoideDims = allotissement.medoideDims || {};
+        const mmProfileKey = (allotissement.mmGeometryProfile || this.getLotMultipleMeasurementsGeometryProfile(lot) || '')
+            .toString()
+            .toLowerCase();
+        const diametreScalar = (allotissement.diametre !== '' && allotissement.diametre != null)
+            || (parseFloat(allotissement._avgDiametre) || 0) > 0
+            || (parseFloat(medoideDims.diametre) || 0) > 0;
+        const cylindrical = mmProfileKey === 'circle-only'
+            || (mmProfileKey !== 'rect-present' && diametreScalar);
+
+        const activeDimDefs = cylindrical
+            ? [
+                { key: 'longueur', label: 'L' },
+                { key: 'diametre', label: 'ø' }
+            ]
+            : [
+                { key: 'longueur', label: 'L' },
+                { key: 'largeur', label: 'l' },
+                { key: 'epaisseur', label: 'e' }
+            ];
+
+        const strategyKey = (allotissement.similarityStrategy || this.getSimilarityStrategy(lot) || '')
+            .toString()
+            .toLowerCase();
+        const strategyLabels = this.getSimilarityStrategyLabels();
+        const mmProfileLabelByKey = {
+            'rect-present': 'Rectangulaire présent',
+            'circle-only': 'Circulaire uniquement',
+            none: 'Aucun'
+        };
+
+        return {
+            medoideLabel: allotissement.medoideLabel ? String(allotissement.medoideLabel) : '',
+            medoideDims,
+            activeDimDefs,
+            cylindrical,
+            medoideScore: allotissement.medoideScore,
+            tauxSimilarite: allotissement.tauxSimilarite,
+            dispersionScores: allotissement.dispersionScores,
+            scoreMinDelta: allotissement.scoreMinDelta,
+            scoreMinPieceLabel: allotissement.scoreMinPieceLabel ? String(allotissement.scoreMinPieceLabel) : '',
+            seuilsDestination: (lot && lot.seuilsDestination) || {},
+            conformiteLot: allotissement.conformiteLot,
+            similarityStrategyLabel: strategyLabels[strategyKey] || strategyLabels.single || '—',
+            mmProfileLabel: mmProfileLabelByKey[mmProfileKey] || '—'
+        };
+    }
+
+    getLotPieceTypeSimilarityCsvFieldDefs() {
+        const dash = (value) => (value != null && value !== '' ? value : '-');
+        const medoidDim = (lot, key) => {
+            const v = parseFloat(((lot && lot.allotissement && lot.allotissement.medoideDims) || {})[key]);
+            return Number.isFinite(v) ? Math.round(v) : '-';
+        };
+        const seuilBound = (lot, key, bound) => {
+            const raw = lot && lot.seuilsDestination && lot.seuilsDestination[key];
+            const v = raw ? raw[bound] : null;
+            return (v != null && v !== '') ? v : '-';
+        };
+        const conformiteField = (lot, field) => {
+            const c = lot && lot.allotissement && lot.allotissement.conformiteLot;
+            if (!c || typeof c !== 'object') return '-';
+            const v = c[field];
+            return v != null && v !== '' ? v : '-';
+        };
+        const percentField = (lot, path) => {
+            const v = parseFloat(path(lot));
+            return Number.isFinite(v) ? this.formatPdfDecimal(v, 0, 0) : '-';
+        };
+
+        return [
+            { label: 'Pièce type (nom)', getValue: (lot) => dash(lot && lot.allotissement && lot.allotissement.medoideLabel) },
+            { label: 'L type (mm)', getValue: (lot) => medoidDim(lot, 'longueur') },
+            { label: 'l type (mm)', getValue: (lot) => medoidDim(lot, 'largeur') },
+            { label: 'e type (mm)', getValue: (lot) => medoidDim(lot, 'epaisseur') },
+            { label: 'ø type (mm)', getValue: (lot) => medoidDim(lot, 'diametre') },
+            { label: 'Stratégie similarité', getValue: (lot) => {
+                const ctx = this.getLotPieceTypeExportContext(lot);
+                return ctx.similarityStrategyLabel !== '—' ? ctx.similarityStrategyLabel : '-';
+            } },
+            { label: 'Profil géométrie MM', getValue: (lot) => {
+                const ctx = this.getLotPieceTypeExportContext(lot);
+                return ctx.mmProfileLabel !== '—' ? ctx.mmProfileLabel : '-';
+            } },
+            { label: 'Score médoïde (%)', getValue: (lot) => percentField(lot, (l) => l?.allotissement?.medoideScore) },
+            { label: 'Similarité (%)', getValue: (lot) => percentField(lot, (l) => l?.allotissement?.tauxSimilarite) },
+            { label: 'Variation (± %)', getValue: (lot) => percentField(lot, (l) => l?.allotissement?.dispersionScores) },
+            { label: 'Écart pièce extrême (Δ %)', getValue: (lot) => percentField(lot, (l) => l?.allotissement?.scoreMinDelta) },
+            { label: 'Pièce extrême (nom)', getValue: (lot) => dash(lot && lot.allotissement && lot.allotissement.scoreMinPieceLabel) },
+            { label: 'Seuil L min (mm)', getValue: (lot) => seuilBound(lot, 'longueur', 'min') },
+            { label: 'Seuil L max (mm)', getValue: (lot) => seuilBound(lot, 'longueur', 'max') },
+            { label: 'Seuil l min (mm)', getValue: (lot) => seuilBound(lot, 'largeur', 'min') },
+            { label: 'Seuil l max (mm)', getValue: (lot) => seuilBound(lot, 'largeur', 'max') },
+            { label: 'Seuil e min (mm)', getValue: (lot) => seuilBound(lot, 'epaisseur', 'min') },
+            { label: 'Seuil e max (mm)', getValue: (lot) => seuilBound(lot, 'epaisseur', 'max') },
+            { label: 'Seuil ø min (mm)', getValue: (lot) => seuilBound(lot, 'diametre', 'min') },
+            { label: 'Seuil ø max (mm)', getValue: (lot) => seuilBound(lot, 'diametre', 'max') },
+            { label: 'Conformité — conforme', getValue: (lot) => conformiteField(lot, 'nbConformes') },
+            { label: 'Conformité — recoupe', getValue: (lot) => conformiteField(lot, 'nbRecoupe') },
+            { label: 'Conformité — corroyage', getValue: (lot) => conformiteField(lot, 'nbCorroyage') },
+            { label: 'Conformité — R&C', getValue: (lot) => conformiteField(lot, 'nbRecoupeCorroyage') },
+            { label: 'Conformité — bois court', getValue: (lot) => conformiteField(lot, 'nbBoisCourt') },
+            { label: 'Conformité — rejet', getValue: (lot) => conformiteField(lot, 'nbRejet') },
+            { label: 'Conformité — total pièces', getValue: (lot) => conformiteField(lot, 'totalPieces') },
+            { label: 'Conformité — taux (%)', getValue: (lot) => conformiteField(lot, 'tauxConformite') }
+        ];
+    }
+
+    getLotPieceTypeSimilarityCsvValues(lot) {
+        return this.getLotPieceTypeSimilarityCsvFieldDefs().map((field) => field.getValue(lot));
+    }
+
+    buildPdfLotPieceTypeSimilarityCards(lot, tpdf, options = {}) {
+        const ctx = this.getLotPieceTypeExportContext(lot);
+        const blockGapPt = options.blockGapPt || 3;
+        const f = options.f || this.getPdfFontScale();
+        const tableOpts = {
+            fontSize: f.tableCompact,
+            padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
+        };
+
+        const pieceTypePairs = [
+            { label: tpdf('pdf.pieceType.name', 'Nom pièce type', 'Piece type name'), value: ctx.medoideLabel || '—' },
+            ...ctx.activeDimDefs.map((dimDef) => ({
+                label: `${dimDef.label} type (mm)`,
+                value: this.formatExportMedoidDimValue(ctx.medoideDims[dimDef.key])
+            })),
+            { label: tpdf('pdf.lot.similarityStrategy', 'Stratégie similarité', 'Similarity strategy'), value: ctx.similarityStrategyLabel },
+            { label: tpdf('pdf.lot.mmProfile', 'Profil géométrie MM', 'MM geometry profile'), value: ctx.mmProfileLabel }
+        ];
+
+        const homoPairs = [
+            { label: tpdf('pdf.pieceType.medoidScore', 'Score médoïde', 'Medoid score'), value: this.formatExportPercentDisplay(ctx.medoideScore) },
+            { label: tpdf('pdf.pieceType.similarity', 'Similarité', 'Similarity'), value: this.formatTauxSimilarite(ctx.tauxSimilarite) || '—' }
+        ];
+        const heteroPairs = [
+            {
+                label: tpdf('pdf.pieceType.extremeDelta', 'Écart pièce extrême', 'Extreme piece delta'),
+                value: this.formatExportExtremeDeltaDisplay(ctx.scoreMinDelta)
+            },
+            {
+                label: tpdf('pdf.pieceType.extremeName', 'Pièce extrême', 'Extreme piece'),
+                value: ctx.scoreMinPieceLabel || '—'
+            },
+            { label: tpdf('pdf.pieceType.variation', 'Variation', 'Variation'), value: this.formatExportVariationDisplay(ctx.dispersionScores) }
+        ];
+
+        const seuilsRows = ctx.activeDimDefs.map((dimDef) => {
+            const bounds = ctx.seuilsDestination[dimDef.key] || {};
+            const minVal = bounds.min != null && bounds.min !== '' ? String(bounds.min) : '—';
+            const maxVal = bounds.max != null && bounds.max !== '' ? String(bounds.max) : '—';
+            return [
+                dimDef.label,
+                this.formatExportMedoidDimValue(ctx.medoideDims[dimDef.key]),
+                minVal,
+                maxVal
+            ];
+        });
+
+        const conformiteRows = [];
+        const conf = ctx.conformiteLot;
+        if (conf && typeof conf === 'object') {
+            [
+                ['Conforme', conf.nbConformes],
+                ['Recoupe', conf.nbRecoupe],
+                ['Corroyage', conf.nbCorroyage],
+                ['R&C', conf.nbRecoupeCorroyage],
+                ['Bois court', conf.nbBoisCourt],
+                ['Rejet', conf.nbRejet]
+            ].forEach(([label, count]) => {
+                conformiteRows.push([label, count != null ? String(count) : '—']);
+            });
+            if (conf.totalPieces != null) {
+                conformiteRows.push(['Total', String(conf.totalPieces)]);
+            }
+        }
+
+        const pieceTypeCard = this.pdfFlatCard(
+            tpdf('pdf.card.pieceType', 'Pièce type du lot', 'Lot piece type'),
+            [this.pdfKeyValueGrid(pieceTypePairs, 4)],
+            { margin: [0, 0, 0, blockGapPt] }
+        );
+
+        const homogeneityCard = this.pdfFlatCard(
+            tpdf('pdf.card.homogeneity', 'Homogénéité & hétérogénéité', 'Homogeneity & heterogeneity'),
+            [{
+                columns: [
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.pieceType.homoTitle', 'Homogénéité', 'Homogeneity')),
+                                style: 'cardTitle',
+                                margin: [0, 0, 0, 2]
+                            },
+                            this.pdfKeyValueGrid(homoPairs, 1)
+                        ]
+                    },
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.pieceType.heteroTitle', 'Hétérogénéité', 'Heterogeneity')),
+                                style: 'cardTitle',
+                                margin: [0, 0, 0, 2]
+                            },
+                            this.pdfKeyValueGrid(heteroPairs, 1)
+                        ]
+                    }
+                ],
+                columnGap: 8
+            }],
+            { margin: [0, 0, 0, blockGapPt] }
+        );
+
+        const thresholdsBody = [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.pieceType.seuilsTitle', 'Seuils de destination', 'Destination thresholds')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2]
+            },
+            this.pdfDataTable([
+                tpdf('pdf.pieceType.dimCol', 'Dim.', 'Dim.'),
+                tpdf('pdf.pieceType.typeDimCol', 'Pièce type (mm)', 'Piece type (mm)'),
+                tpdf('pdf.pieceType.minCol', 'Borne min', 'Min bound'),
+                tpdf('pdf.pieceType.maxCol', 'Borne max', 'Max bound')
+            ], seuilsRows.length ? seuilsRows : [['—', '—', '—', '—']], {
+                ...tableOpts,
+                columnAlignments: ['center', 'right', 'right', 'right']
+            }),
+            {
+                text: this.sanitizePdfText(tpdf('pdf.pieceType.conformityTitle', 'Conformité du lot', 'Lot conformity')),
+                style: 'cardTitle',
+                margin: [0, 4, 0, 2]
+            }
+        ];
+
+        if (conformiteRows.length) {
+            thresholdsBody.push(
+                this.pdfDataTable([
+                    tpdf('pdf.pieceType.categoryCol', 'Catégorie', 'Category'),
+                    tpdf('pdf.pieceType.countCol', 'Nombre', 'Count')
+                ], conformiteRows, {
+                    ...tableOpts,
+                    columnAlignments: ['left', 'right']
+                })
+            );
+            if (conf.tauxConformite != null && conf.tauxConformite !== '') {
+                thresholdsBody.push({
+                    text: this.sanitizePdfText(
+                        tpdf('pdf.lot.conformityRate', 'Taux conformité', 'Conformity rate') + ' : '
+                        + this.formatExportPercentDisplay(conf.tauxConformite)
+                    ),
+                    fontSize: f.label,
+                    bold: true,
+                    margin: [0, 2, 0, 0]
+                });
+            }
+        } else {
+            thresholdsBody.push({
+                text: this.sanitizePdfText('—'),
+                fontSize: f.tableCompact,
+                color: '#6b7280',
+                italics: true
+            });
+        }
+
+        const thresholdsConformityCard = this.pdfFlatCard(
+            tpdf('pdf.card.thresholdsConformity', 'Seuils & conformité', 'Thresholds & conformity'),
+            thresholdsBody,
+            { margin: [0, 0, 0, blockGapPt] }
+        );
+
+        return [pieceTypeCard, homogeneityCard, thresholdsConformityCard];
+    }
+
+    buildPdfLotPieceTypeSimilarityCompactStack(lot, tpdf, options = {}) {
+        const ctx = this.getLotPieceTypeExportContext(lot);
+        const blockGapPt = options.blockGapPt || 3;
+        const f = options.f || this.getPdfFontScale();
+        const tableOpts = {
+            fontSize: f.tableCompact,
+            padding: { left: 3, right: 3, top: 2, bottom: 2 }
+        };
+
+        const pieceTypePairs = [
+            { label: tpdf('pdf.pieceType.name', 'Nom pièce type', 'Piece type name'), value: ctx.medoideLabel || '—' },
+            ...ctx.activeDimDefs.map((dimDef) => ({
+                label: `${dimDef.label} type (mm)`,
+                value: this.formatExportMedoidDimValue(ctx.medoideDims[dimDef.key])
+            })),
+            { label: tpdf('pdf.lot.similarityStrategy', 'Stratégie similarité', 'Similarity strategy'), value: ctx.similarityStrategyLabel },
+            { label: tpdf('pdf.lot.mmProfile', 'Profil géométrie MM', 'MM geometry profile'), value: ctx.mmProfileLabel }
+        ];
+
+        const homoPairs = [
+            { label: tpdf('pdf.pieceType.medoidScore', 'Score médoïde', 'Medoid score'), value: this.formatExportPercentDisplay(ctx.medoideScore) },
+            { label: tpdf('pdf.pieceType.similarity', 'Similarité', 'Similarity'), value: this.formatTauxSimilarite(ctx.tauxSimilarite) || '—' }
+        ];
+        const heteroPairs = [
+            {
+                label: tpdf('pdf.pieceType.extremeDelta', 'Écart pièce extrême', 'Extreme piece delta'),
+                value: this.formatExportExtremeDeltaDisplay(ctx.scoreMinDelta)
+            },
+            {
+                label: tpdf('pdf.pieceType.extremeName', 'Pièce extrême', 'Extreme piece'),
+                value: ctx.scoreMinPieceLabel || '—'
+            },
+            { label: tpdf('pdf.pieceType.variation', 'Variation', 'Variation'), value: this.formatExportVariationDisplay(ctx.dispersionScores) }
+        ];
+
+        const seuilsRows = ctx.activeDimDefs.map((dimDef) => {
+            const bounds = ctx.seuilsDestination[dimDef.key] || {};
+            const minVal = bounds.min != null && bounds.min !== '' ? String(bounds.min) : '—';
+            const maxVal = bounds.max != null && bounds.max !== '' ? String(bounds.max) : '—';
+            return [
+                dimDef.label,
+                this.formatExportMedoidDimValue(ctx.medoideDims[dimDef.key]),
+                minVal,
+                maxVal
+            ];
+        });
+
+        const conformiteRows = [];
+        const conf = ctx.conformiteLot;
+        if (conf && typeof conf === 'object') {
+            [
+                ['Conforme', conf.nbConformes],
+                ['Recoupe', conf.nbRecoupe],
+                ['Corroyage', conf.nbCorroyage],
+                ['R&C', conf.nbRecoupeCorroyage],
+                ['Bois court', conf.nbBoisCourt],
+                ['Rejet', conf.nbRejet]
+            ].forEach(([label, count]) => {
+                conformiteRows.push([label, count != null ? String(count) : '—']);
+            });
+            if (conf.totalPieces != null) {
+                conformiteRows.push(['Total', String(conf.totalPieces)]);
+            }
+        }
+
+        const sectionTitleMargin = [0, 0, 0, 2];
+        const sectionGap = blockGapPt + 1;
+        const stack = [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.card.pieceType', 'Pièce type du lot', 'Lot piece type')),
+                style: 'cardTitle',
+                margin: sectionTitleMargin
+            },
+            this.pdfKeyValueGrid(pieceTypePairs, 2, { compact: true }),
+            {
+                text: this.sanitizePdfText(tpdf('pdf.card.homogeneity', 'Homogénéité & hétérogénéité', 'Homogeneity & heterogeneity')),
+                style: 'cardTitle',
+                margin: [0, sectionGap, 0, 2]
+            },
+            {
+                columns: [
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.pieceType.homoTitle', 'Homogénéité', 'Homogeneity')),
+                                fontSize: f.sectionTitle,
+                                bold: true,
+                                margin: [0, 0, 0, 1]
+                            },
+                            this.pdfKeyValueGrid(homoPairs, 1, { compact: true })
+                        ]
+                    },
+                    {
+                        width: '*',
+                        stack: [
+                            {
+                                text: this.sanitizePdfText(tpdf('pdf.pieceType.heteroTitle', 'Hétérogénéité', 'Heterogeneity')),
+                                fontSize: f.sectionTitle,
+                                bold: true,
+                                margin: [0, 0, 0, 1]
+                            },
+                            this.pdfKeyValueGrid(heteroPairs, 1, { compact: true })
+                        ]
+                    }
+                ],
+                columnGap: 6
+            },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.card.thresholdsConformity', 'Seuils & conformité', 'Thresholds & conformity')),
+                style: 'cardTitle',
+                margin: [0, sectionGap, 0, 2]
+            },
+            {
+                text: this.sanitizePdfText(tpdf('pdf.pieceType.seuilsTitle', 'Seuils de destination', 'Destination thresholds')),
+                fontSize: f.sectionTitle,
+                bold: true,
+                margin: [0, 0, 0, 1]
+            },
+            this.pdfDataTable([
+                tpdf('pdf.pieceType.dimCol', 'Dim.', 'Dim.'),
+                tpdf('pdf.pieceType.typeDimCol', 'Pièce type (mm)', 'Piece type (mm)'),
+                tpdf('pdf.pieceType.minCol', 'Borne min', 'Min bound'),
+                tpdf('pdf.pieceType.maxCol', 'Borne max', 'Max bound')
+            ], seuilsRows.length ? seuilsRows : [['—', '—', '—', '—']], {
+                ...tableOpts,
+                columnAlignments: ['center', 'right', 'right', 'right']
+            }),
+            {
+                text: this.sanitizePdfText(tpdf('pdf.pieceType.conformityTitle', 'Conformité du lot', 'Lot conformity')),
+                fontSize: f.sectionTitle,
+                bold: true,
+                margin: [0, 3, 0, 1]
+            }
+        ];
+
+        if (conformiteRows.length) {
+            stack.push(
+                this.pdfDataTable([
+                    tpdf('pdf.pieceType.categoryCol', 'Catégorie', 'Category'),
+                    tpdf('pdf.pieceType.countCol', 'Nombre', 'Count')
+                ], conformiteRows, {
+                    ...tableOpts,
+                    columnAlignments: ['left', 'right']
+                })
+            );
+            if (conf.tauxConformite != null && conf.tauxConformite !== '') {
+                stack.push({
+                    text: this.sanitizePdfText(
+                        tpdf('pdf.lot.conformityRate', 'Taux conformité', 'Conformity rate') + ' : '
+                        + this.formatExportPercentDisplay(conf.tauxConformite)
+                    ),
+                    fontSize: f.label,
+                    bold: true,
+                    margin: [0, 2, 0, 0]
+                });
+            }
+        } else {
+            stack.push({
+                text: this.sanitizePdfText('—'),
+                fontSize: f.tableCompact,
+                color: '#6b7280',
+                italics: true
+            });
+        }
+
+        return { stack };
+    }
+
+    filterPdfKeyValuePairsWithData(pairs) {
+        return pairs.filter((pair) => {
+            const value = pair && pair.value != null ? String(pair.value).trim() : '';
+            return value !== '' && value !== '—';
+        });
     }
 
     buildPdfActiveLotDocDef(lotIndex) {
@@ -47528,41 +50078,6 @@ renderRadar() {
             dimensionsValue = [displayLongueur, displayLargeur, displayEpaisseur].map((v) => v || '0').join(' × ');
         }
 
-        const similarityStrategy = (allotissement.similarityStrategy || this.getSimilarityStrategy(currentLot) || '').toString().toLowerCase();
-        const similarityStrategyLabel = similarityStrategy === 'multiple'
-            ? tpdf('pdf.lot.similarityStrategy.multiple', 'Multiple', 'Multiple')
-            : similarityStrategy === 'single'
-                ? tpdf('pdf.lot.similarityStrategy.single', 'Unique', 'Single')
-                : '—';
-
-        const mmProfileKey = (allotissement.mmGeometryProfile || this.getLotMultipleMeasurementsGeometryProfile(currentLot) || '').toString().toLowerCase();
-        const mmProfileLabel = mmProfileKey === 'rect-present'
-            ? tpdf('pdf.lot.mmProfile.rectPresent', 'Rectangulaire présent', 'Rectangular present')
-            : mmProfileKey === 'circle-only'
-                ? tpdf('pdf.lot.mmProfile.circleOnly', 'Circulaire uniquement', 'Circular only')
-                : mmProfileKey === 'none'
-                    ? tpdf('pdf.lot.mmProfile.none', 'Aucun', 'None')
-                    : '—';
-
-        const formatPercentMetric = (value, fractionDigits = 0) => {
-            const n = parseFloat(value);
-            return Number.isFinite(n) ? this.formatPdfDecimal(n, fractionDigits, fractionDigits) + ' %' : '—';
-        };
-
-        const formatScoreMetric = (value) => {
-            const n = parseFloat(value);
-            return Number.isFinite(n) ? this.formatPdfDecimal(n, 0, 0) : '—';
-        };
-
-        const conformiteRaw = allotissement.conformiteLot;
-        const conformiteTaux = conformiteRaw && typeof conformiteRaw === 'object'
-            ? conformiteRaw.tauxConformite
-            : conformiteRaw;
-
-        const medoideLabel = allotissement.medoideLabel ? String(allotissement.medoideLabel) : '—';
-        const medoideScore = formatPercentMetric(allotissement.medoideScore, 0);
-        const scoreMinPieceLabel = allotissement.scoreMinPieceLabel ? String(allotissement.scoreMinPieceLabel) : '—';
-        const scoreMinDelta = formatScoreMetric(allotissement.scoreMinDelta);
         const mmSummary = this.getPdfLotMultipleMeasurementsSummary(currentLot);
         const mmValidLabel = mmSummary.hasValid
             ? tpdf('pdf.common.yes', 'Oui', 'Yes') + ` (${this.formatPdfDecimal(mmSummary.validPieces, 0, 0)})`
@@ -47572,79 +50087,61 @@ renderRadar() {
         const orientationSummary = this.getPdfOrientationSummary(currentLot);
 
         const lotPairs = [
+            { label: tpdf('pdf.lot.localisation', 'Localisation du lot', 'Lot location'), value: currentLot.localisation || '—' },
+            { label: tpdf('pdf.lot.situation', 'Situation du lot', 'Lot situation'), value: currentLot.situation || '—' },
             { label: tpdf('pdf.lot.pieceType', 'Type de pièces', 'Piece type'), value: this.getPdfLotCompositionValue(currentLot, 'typePiece') },
             { label: tpdf('pdf.lot.productType', 'Type de produit', 'Product type'), value: this.getPdfLotCompositionValue(currentLot, 'typeProduit') },
             { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: this.getPdfLotCompositionValue(currentLot, 'essenceNomCommun') },
+            { label: tpdf('pdf.lot.speciesScientific', 'Essence (nom scientifique)', 'Species (scientific name)'), value: (this.getLotAggregatedTextValue(currentLot, 'essenceNomScientifique') || allotissement.essenceNomScientifique || '—') },
             { label: tpdf('pdf.lot.effectiveUseClass', 'Classe d’emploi effective', 'Effective use class'), value: this.formatPdfLotEffectiveUseClasses(currentLot) },
             { label: tpdf('pdf.lot.situationNormRef', 'Réf. normative situation', 'Situation norm ref'), value: lotSituationExport.normRef || '—' },
             { label: tpdf('pdf.lot.situationGuide', 'Note guide situation', 'Situation guide note'), value: lotSituationExport.guideShort || '—' },
+            { label: tpdf('pdf.lot.destination', 'Destination', 'Destination'), value: allotissement.destination || '—' },
+            { label: tpdf('pdf.lot.destinationContact', 'Destination (Contact)', 'Destination (contact)'), value: allotissement.destinationContact || '—' },
+            { label: tpdf('pdf.lot.destinationMail', 'Destination (Mail)', 'Destination (email)'), value: allotissement.destinationMail || '—' },
+            { label: tpdf('pdf.lot.destinationPhone', 'Destination (Tél)', 'Destination (phone)'), value: allotissement.destinationTelephone || '—' },
+            { label: tpdf('pdf.lot.destinationAddress', 'Destination (Adresse)', 'Destination (address)'), value: allotissement.destinationAdresse || '—' },
             { label: tpdf('pdf.lot.quantity', 'Quantité', 'Quantity'), value: allotissement.quantite != null && allotissement.quantite !== '' ? String(allotissement.quantite) : '—' },
+            { label: tpdf('pdf.lot.length', 'Longueur (mm)', 'Length (mm)'), value: allotissement.longueur != null && allotissement.longueur !== '' ? String(allotissement.longueur) : '—' },
+            { label: tpdf('pdf.lot.width', 'Largeur (mm)', 'Width (mm)'), value: allotissement.largeur != null && allotissement.largeur !== '' ? String(allotissement.largeur) : '—' },
+            { label: tpdf('pdf.lot.thickness', 'Hauteur / Épaisseur (mm)', 'Height / Thickness (mm)'), value: allotissement.epaisseur != null && allotissement.epaisseur !== '' ? String(allotissement.epaisseur) : '—' },
+            { label: tpdf('pdf.lot.diameter', 'Diamètre (mm)', 'Diameter (mm)'), value: allotissement.diametre != null && allotissement.diametre !== '' ? String(allotissement.diametre) : '—' },
             { label: tpdf('pdf.lot.avgDims', 'Dimensions moyennes (mm) (L × l × e)', 'Average dimensions (mm) (L × W × T)'), value: dimensionsValue },
+            { label: tpdf('pdf.lot.surfacePiece', 'Surface par pièce (m²)', 'Surface per piece (m²)'), value: allotissement.surfacePiece != null && allotissement.surfacePiece !== '' ? this.formatPdfDecimal(parseFloat(allotissement.surfacePiece), 2, 2) : '—' },
+            { label: tpdf('pdf.lot.surfaceLot', 'Surface lot (m²)', 'Lot surface (m²)'), value: allotissement.surfaceLot != null && allotissement.surfaceLot !== '' ? this.formatPdfDecimal(parseFloat(allotissement.surfaceLot), 2, 2) : '—' },
+            { label: tpdf('pdf.lot.volumePiece', 'Volume par pièce (m³)', 'Volume per piece (m³)'), value: this.formatPdfVolume(allotissement.volumePiece) },
             { label: tpdf('pdf.lot.volumeLot', 'Volume lot', 'Lot volume'), value: this.formatPdfVolume(allotissement.volumeLot) },
+            { label: tpdf('pdf.lot.lineaireLot', 'Linéaire lot (m)', 'Lot linear (m)'), value: allotissement.lineaireLot != null && allotissement.lineaireLot !== '' ? this.formatPdfDecimal(parseFloat(allotissement.lineaireLot), 2, 2) : '—' },
+            { label: tpdf('pdf.lot.masseVolumique', 'Masse volumique est. (kg/m³)', 'Est. bulk density (kg/m³)'), value: allotissement.masseVolumique != null && allotissement.masseVolumique !== '' ? String(parseFloat(allotissement.masseVolumique) || '—') : '—' },
+            { label: tpdf('pdf.lot.humidite', 'Humidité (%)', 'Moisture (%)'), value: allotissement.humidite != null && allotissement.humidite !== '' ? String(parseFloat(allotissement.humidite) || '—') : '—' },
+            { label: tpdf('pdf.lot.fractionCarbonee', 'Fraction carbonée (%)', 'Carbon fraction (%)'), value: allotissement.fractionCarbonee != null && allotissement.fractionCarbonee !== '' ? String(parseFloat(allotissement.fractionCarbonee) || '—') : '—' },
+            { label: tpdf('pdf.lot.bois', 'Proportion de bois (%)', 'Wood proportion (%)'), value: allotissement.bois != null && allotissement.bois !== '' ? String(parseFloat(allotissement.bois) || '—') : '—' },
+            { label: tpdf('pdf.lot.masseLot', 'Masse du lot (kg)', 'Lot mass (kg)'), value: allotissement.masseLot != null && allotissement.masseLot !== '' ? String(parseFloat(allotissement.masseLot) || '—') : '—' },
+            { label: tpdf('pdf.lot.carboneBiogenique', 'Carbone biogénique (kgCO₂eq)', 'Biogenic carbon (kgCO₂eq)'), value: allotissement.carboneBiogeniqueEstime != null && allotissement.carboneBiogeniqueEstime !== '' ? String(parseFloat(allotissement.carboneBiogeniqueEstime) || '—') : '—' },
+            { label: tpdf('pdf.lot.pricingUnit', 'Unité de tarification', 'Pricing unit'), value: ((allotissement.prixMode || '') + '').toLowerCase() === 't' ? 't' : (allotissement.prixUnite || '—') },
             { label: tpdf('pdf.lot.marketPrice', 'Prix marché /m³', 'Market price /m³'), value: this.formatPdfCurrency(parseFloat(allotissement.prixMarche) || 0) },
             { label: tpdf('pdf.lot.integrityCoeff', 'Coeff. intégrité', 'Integrity coeff.'), value: integrity && integrity.ignore ? tpdf('pdf.common.ignored', 'Ignoré', 'Ignored') : integrity && integrity.coeff != null ? String(integrity.coeff).replace('.', ',') : '—' },
             { label: tpdf('pdf.lot.lotPrice', 'Prix lot', 'Lot price'), value: this.formatPdfCurrency(allotissement.prixLot) },
-            { label: tpdf('pdf.lot.similarityStrategy', 'Stratégie similarité', 'Similarity strategy'), value: similarityStrategyLabel },
-            { label: tpdf('pdf.lot.mmProfile', 'Profil géométrie MM', 'MM geometry profile'), value: mmProfileLabel },
-            { label: tpdf('pdf.lot.similarityRate', 'Taux similarité', 'Similarity rate'), value: formatPercentMetric(allotissement.tauxSimilarite, 0) },
-            { label: tpdf('pdf.lot.conformityRate', 'Taux conformité', 'Conformity rate'), value: formatPercentMetric(conformiteTaux, 0) },
-            { label: tpdf('pdf.lot.dispersionScore', 'Dispersion scores', 'Score dispersion'), value: formatPercentMetric(allotissement.dispersionScores, 0) },
-            { label: tpdf('pdf.lot.medoid', 'Pièce médoïde', 'Medoid piece'), value: medoideLabel + ' (' + medoideScore + ')' },
-            { label: tpdf('pdf.lot.minPieceDelta', 'Pièce min / Delta', 'Min piece / Delta'), value: scoreMinPieceLabel + ' (Δ ' + scoreMinDelta + ')' },
+            { label: tpdf('pdf.lot.lotPriceIntegrity', 'Prix lot aj. intégrité (€)', 'Lot price adj. integrity (€)'), value: allotissement.prixLotAjusteIntegrite != null && allotissement.prixLotAjusteIntegrite !== '' ? this.formatPdfCurrency(allotissement.prixLotAjusteIntegrite) : '—' },
             { label: tpdf('pdf.lot.mmValid', 'Mesures multiples valides', 'Valid multiple measurements'), value: mmValidLabel },
             { label: tpdf('pdf.lot.mmSections', 'Sections MM relevées', 'Recorded MM sections'), value: mmSectionsLabel },
             { label: tpdf('pdf.lot.customCodes', 'Codes lot (ajouts)', 'Lot codes (additions)'), value: this.formatLotCustomCodesForExport(currentLot) || '—' },
             { label: tpdf('pdf.lot.orientation', 'Orientation', 'Orientation'), value: orientationSummary.label || '—' },
+            { label: tpdf('pdf.lot.orientationPercent', 'Orientation (%)', 'Orientation (%)'), value: orientationSummary.percentage != null && orientationSummary.percentage !== '' ? this.formatPdfDecimal(orientationSummary.percentage, 1, 1) + ' %' : '—' },
             { label: tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status'), value: orientationSummary.statusLabel || '—' },
             { label: tpdf('pdf.lot.combustionCaution', 'Alerte combustion', 'Combustion warning'), value: orientationSummary.combustionCaution || '—' }
         ];
 
-        // ── Inspection card ──
-        const inspectionRows = this.getPdfSectionDefinitions()
-            .find((s) => s.key === 'inspection')
-            .rows.map((rowDef) => {
-                const rv = this.getPdfNotationRowValue(currentLot, 'inspection', rowDef.key);
-                return [rowDef.label, rv.niveau, rv.note];
-            });
+        const customInfoColumns = this.getCsvCustomInfoColumnsForPieces([lotIndex]);
+        const customInfoPairs = customInfoColumns.map((column) => ({
+            label: column.label,
+            value: this.getCsvCustomInfoAggregateValueForLot(currentLot, column.labelKey) || '—'
+        }));
 
-        // ── Labels & Jauges (colonnes individuelles) ──
-        let jaugesData = null;
-        const categoryDefs = this.getPdfCategoryDefinitions();
-        const categoryScores = this.getValueScoresForLot(currentLot);
-        if (Array.isArray(categoryDefs) && categoryDefs.length) {
-            const rawScores = this.getRawValueScoresForLot(currentLot);
-            const scoreRanges = this.getValueScoreRangesForLot(currentLot);
-            const letterColors = { A: '#009e73', B: '#60914b', C: '#9aba89', D: '#e69f00', E: '#d55e00' };
-            
-            jaugesData = categoryDefs.map((category) => {
-                const rawScore = parseFloat(rawScores[category.key]) || 0;
-                const score = parseFloat(categoryScores[category.key]) || 0;
-                const range = scoreRanges[category.key] || { min: 0, max: 30 };
-                const { letterCounts, letterPoints } = this.getLetterDistributionForCategory(currentLot, category.key);
-                
-                const minScore = Math.min(0, Number(range.min) || 0);
-                const maxScore = Math.max(1, Number(range.max) || 30);
-                const scoreSpan = Math.max(1, maxScore - minScore);
-                const zeroPct = Math.max(0, Math.min(100, ((0 - minScore) / scoreSpan) * 100));
-                const scorePct = Math.max(0, Math.min(100, ((rawScore - minScore) / scoreSpan) * 100));
-                
-                return {
-                    labelStr: category.label,
-                    scoreStr: this.formatPdfDecimal(score, 0, 0) + '/30',
-                    letterCounts,
-                    letterPoints,
-                    letterColors,
-                    scorePct,
-                    zeroPct,
-                    minScore,
-                    maxScore,
-                    rawScore
-                };
-            });
-        }
+        const lotPairsVisible = this.filterPdfKeyValuePairsWithData(lotPairs);
+        const lotPairsForGrid = lotPairsVisible.length ? lotPairsVisible : lotPairs;
 
-        // ── Radar (vecteur SVG) ──
-        const radarScores = this.getValueScoresForLot(currentLot);
+        // ── Radar SVG (scores par valeur via buildPdfCategoryGaugesPanel) ──
         const radarLabels = [
             tpdf('pdf.axis.economic', 'Économique', 'Economic'),
             tpdf('pdf.axis.ecological', 'Écologique', 'Ecological'),
@@ -47652,30 +50149,17 @@ renderRadar() {
             tpdf('pdf.axis.historical', 'Historique', 'Historical'),
             tpdf('pdf.axis.aesthetic', 'Esthétique', 'Aesthetic')
         ];
-        const toRadarPercent = (score) => Math.min(100, Math.max(0, Math.round(((score || 0) / 30) * 100)));
-        const radarValues = [
-            toRadarPercent(radarScores.economique),
-            toRadarPercent(radarScores.ecologique),
-            toRadarPercent(radarScores.mecanique),
-            toRadarPercent(radarScores.historique),
-            toRadarPercent(radarScores.esthetique)
-        ];
-        
-        // Calculer les 3 datasets radar : net + bruts +/-
         const axisKeys = ['economique', 'ecologique', 'mecanique', 'historique', 'esthetique'];
         const rawScores = this.getRawValueScoresForLot(currentLot);
         const scoreRanges = this.getValueScoreRangesForLot(currentLot);
-        
-        const globalMinScore = Math.min(...axisKeys.map(key => Math.min(0, Number((scoreRanges[key] || {}).min) || 0)));
-        const globalMaxScore = Math.max(...axisKeys.map(key => Math.max(1, Number((scoreRanges[key] || {}).max) || 30)), 30);
+        const globalMinScore = Math.min(...axisKeys.map((key) => Math.min(0, Number((scoreRanges[key] || {}).min) || 0)));
+        const globalMaxScore = Math.max(...axisKeys.map((key) => Math.max(1, Number((scoreRanges[key] || {}).max) || 30)), 30);
         const globalSpan = Math.max(1, globalMaxScore - globalMinScore);
         const toRadarScale = (value) => Math.max(0, Math.min(100, ((value - globalMinScore) / globalSpan) * 100));
-        
-        const netDataset = axisKeys.map(key => toRadarScale(Number(rawScores[key]) || 0));
+        const netDataset = axisKeys.map((key) => toRadarScale(Number(rawScores[key]) || 0));
         const grossPositiveDataset = [];
         const grossNegativeDataset = [];
-        
-        axisKeys.forEach(key => {
+        axisKeys.forEach((key) => {
             const dist = this.getLetterDistributionForCategory(currentLot, key);
             const lp = dist.letterPoints || {};
             const posTotal = Math.max(0, (lp.A || 0) + (lp.B || 0) + (lp.C || 0));
@@ -47683,8 +50167,6 @@ renderRadar() {
             grossPositiveDataset.push(toRadarScale(posTotal));
             grossNegativeDataset.push(toRadarScale(negTotal));
         });
-        
-        // Couleur d'orientation du lot
         const orientationResult = this.getValoboisOrientationResult(currentLot) || this.computeOrientationFromMatrix(currentLot, this.getValoboisActiveMatrixMode());
         const orientationCode = (orientationResult && orientationResult.orientation) || currentLot.orientationCode || 'none';
         const orientationColors = {
@@ -47695,273 +50177,198 @@ renderRadar() {
             none: '#7A7A7A'
         };
         const netColor = orientationColors[orientationCode] || orientationColors.none;
-        
+        const radarZeroPct = toRadarScale(0);
         const radarSvg = this.generatePdfRadarSvg({
             labels: radarLabels,
             netValues: netDataset,
             grossPositiveValues: grossPositiveDataset,
             grossNegativeValues: grossNegativeDataset,
-            netColor: netColor
+            netColor: netColor,
+            zeroPct: radarZeroPct
         });
 
-        const inspectionCard = this.pdfCard(tpdf('pdf.card.inspection', 'Inspection', 'Inspection'), [
-            this.pdfDataTable([
-                tpdf('pdf.table.criteria', 'Critère', 'Criterion'),
-                tpdf('pdf.table.level', 'Niveau', 'Level'),
-                tpdf('pdf.table.note', 'Note', 'Score')
-            ], inspectionRows, {
-                fontSize: f.table,
-                columnAlignments: ['left', 'left', 'right'],
-                padding: { left: 4, right: 4, top: 2.5, bottom: 2.5 }
-            })
-        ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
-        const lotCard = this.pdfCard(tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'), [this.pdfKeyValueGrid(lotPairs, 2)], { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: true });
-
-        const buildOrientationDriversList = (items, emptyText) => {
-            if (!Array.isArray(items) || !items.length) {
-                return {
-                    text: this.sanitizePdfText(emptyText),
-                    fontSize: f.tableCompact,
-                    color: '#6b7280',
-                    italics: true,
-                    margin: [0, 1, 0, 3]
-                };
-            }
-            return {
-                ul: items.map((item) => this.sanitizePdfText(item && item.text ? item.text : '—')),
-                fontSize: f.tableCompact,
-                color: '#1f2937',
-                margin: [0, 1, 0, 3]
-            };
-        };
-
-        const orientationJustificationCard = this.pdfCard(
-            tpdf('pdf.card.orientationJustification', 'Justification de l\'orientation', 'Orientation rationale'),
-            [
-                {
-                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientation', 'Orientation', 'Orientation')} : ${orientationSummary.label || '—'}`),
-                    fontSize: f.body,
-                    bold: true,
-                    margin: [0, 0, 0, 2]
-                },
-                {
-                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status')} : ${orientationSummary.statusLabel || '—'}`),
-                    fontSize: f.label,
-                    color: '#374151',
-                    margin: [0, 0, 0, 4]
-                },
-                {
-                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects')} (${orientationSummary.activeRejectsItems.length})`),
-                    fontSize: f.label,
-                    bold: true,
-                    color: '#4b5563',
-                    margin: [0, 0, 0, 1]
-                },
-                buildOrientationDriversList(
-                    orientationSummary.activeRejectsItems,
-                    tpdf('pdf.orientation.emptyRejects', 'Aucun rejet actif pour cette orientation.', 'No active reject for this orientation.')
-                ),
-                {
-                    text: this.sanitizePdfText(`${tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors')} (${orientationSummary.activeVectorsItems.length})`),
-                    fontSize: f.label,
-                    bold: true,
-                    color: '#4b5563',
-                    margin: [0, 1, 0, 1]
-                },
-                buildOrientationDriversList(
-                    orientationSummary.activeVectorsItems,
-                    tpdf('pdf.orientation.emptyVectors', 'Aucun vecteur actif pour cette orientation.', 'No active vector for this orientation.')
-                )
+        const lotCard = this.pdfFlatCard(tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'), [
+            this.pdfKeyValueGrid(lotPairsForGrid, 5, { compact: true })
+        ], { margin: [0, 0, 0, 0] });
+        const pieceTypeCompactStack = this.buildPdfLotPieceTypeSimilarityCompactStack(currentLot, tpdf, {
+            blockGapPt,
+            f
+        });
+        const pieceTypeColumnCard = this.pdfFlatCard(null, [pieceTypeCompactStack], { margin: [0, 0, 0, 0] });
+        const lotSummaryHalfPage = {
+            columns: [
+                { width: '50%', stack: [lotCard] },
+                { width: '50%', stack: [pieceTypeColumnCard] }
             ],
-            { margin: [0, 0, 0, blockGapPt], padding: cardPadding, unbreakable: false }
-        );
+            columnGap: 8,
+            margin: [0, 0, 0, blockGapPt]
+        };
+        const customInfoCard = customInfoPairs.length
+            ? this.pdfFlatCard(tpdf('pdf.card.customInfo', 'Informations personnalisées', 'Custom information'), [
+                this.pdfKeyValueGrid(customInfoPairs, 4)
+            ], { margin: [0, 0, 0, blockGapPt] })
+            : null;
 
-        const pageWidthPt = 595.28; // A4 width in points
+        const pageOrientation = 'landscape';
+        const pageWidthPt = this.getPdfA4PageWidthPt(pageOrientation);
         const usableWidthPt = pageWidthPt - pageMargins[0] - pageMargins[2];
         const columnGapPt = 8;
-        const leftWidth = Math.floor((usableWidthPt - columnGapPt) * 0.52);
-        const rightWidth = usableWidthPt - columnGapPt - leftWidth;
+        const gaugePanelWidth = Math.max(180, usableWidthPt * 0.66 - columnGapPt);
+        const scaledRadarSize = Math.floor(Math.min(usableWidthPt * 0.32, preset.radarVisualSize));
+        const gaugesPanel = this.buildPdfCategoryGaugesPanel(currentLot, tpdf, gaugePanelWidth, { f });
+        const radarPanel = radarSvg ? {
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.card.radar', 'Radar des valeurs', 'Value radar')),
+                    fontSize: f.sectionTitle,
+                    bold: true,
+                    alignment: 'center',
+                    margin: [0, 0, 0, 4]
+                },
+                { svg: radarSvg, width: scaledRadarSize, alignment: 'center' },
+                this.buildPdfRadarLegend(tpdf, netColor, { f })
+            ],
+            alignment: 'center'
+        } : { text: '' };
 
-        // ── Contraindre les visuels à halfWidth ──
-        const visualPad = cardPadding[0] + cardPadding[2] + 2; // padding horizontal total + marge table
-        const maxVisualContentWidth = leftWidth - visualPad;
+        const scoresVisualRow = (gaugesPanel || radarSvg) ? {
+            columns: [
+                { width: '66%', stack: gaugesPanel ? [gaugesPanel] : [{ text: '' }] },
+                { width: '34%', stack: [radarPanel], alignment: 'center' }
+            ],
+            columnGap: columnGapPt,
+            margin: [0, 0, 0, blockGapPt],
+            unbreakable: true
+        } : null;
 
-        // Build Gauges Card with horizontal stacked layout
-        const buildGaugesStacked = (totalAvailableWidth) => {
-            const gaugeThickness = 12; // Thin horizontal bars
-            const labelWidth = 65;
-            const valueWidth = 55;
-            const gap = 5;
-            const barWidth = Math.max(80, totalAvailableWidth - labelWidth - valueWidth - (gap * 2));
-
-            const rows = jaugesData.map(g => {
-                const svgContent = this.generatePdfCategoryGaugeSvg(g, barWidth, gaugeThickness);
-                const svgString = svgContent ? `<svg width="${barWidth}" height="${gaugeThickness}" viewBox="0 0 ${barWidth} ${gaugeThickness}" xmlns="http://www.w3.org/2000/svg">${svgContent}</svg>` : '';
-                
-                // Format: "Net: +12 (X2, B1)"
-                const netStr = g.rawScore > 0 ? `+${Math.round(g.rawScore)}` : `${Math.round(g.rawScore)}`;
-                const letterList = ['A', 'B', 'C', 'D', 'E']
-                    .filter(l => (g.letterCounts[l] || 0) > 0)
-                    .map(l => `${l}${g.letterCounts[l]}`)
-                    .join(', ');
-                const valueStr = letterList ? `${netStr} (${letterList})` : `${netStr}`;
-                
-                return {
-                    columns: [
-                        { width: labelWidth, text: g.labelStr, bold: true, fontSize: f.gaugeLabel, alignment: 'right', margin: [0, 1.5, 0, 0] },
-                        { width: barWidth, svg: svgString, margin: [0, 1.5, 0, 0] },
-                        { width: valueWidth, text: valueStr, fontSize: f.gaugeLabel, bold: false, alignment: 'left', margin: [0, 1.5, 0, 0] }
-                    ],
-                    columnGap: gap,
-                    margin: [0, 0, 0, 6] // vertical gap between gauges
-                };
-            });
-
-            if (rows.length > 0) {
-                rows[rows.length - 1].margin = [0, 0, 0, 0];
-            }
-
-            return {
-                stack: rows
-            };
-        };
-
-        let gaugesCard = null;
-        let radarCard = null;
-        if (jaugesData && jaugesData.length > 0) {
-            const gaugesStack = buildGaugesStacked(maxVisualContentWidth);
-            gaugesCard = this.pdfCard(null, [gaugesStack], {
-                margin: [0, 0, 0, blockGapPt],
-                padding: [Math.max(3, cardPadding[0] - 1), Math.max(4, cardPadding[1] + 2), Math.max(3, cardPadding[2] - 1), Math.max(4, cardPadding[3] + 2)],
-                unbreakable: true
-            });
-        }
-
-        if (radarSvg) {
-            const scaledRadarSize = Math.floor(Math.min(preset.radarVisualSize, maxVisualContentWidth));
-            radarCard = this.pdfCard(null, [
-                { svg: radarSvg, width: scaledRadarSize, alignment: 'center' }
-            ], { margin: [0, 0, 0, blockGapPt], padding: cardPadding.map(p => Math.ceil(p / 2)), unbreakable: true });
-        }
-
-        // Colonne gauche : Inspection -> Fiche lot (sans visuels)
-        const visualBlocks = [];
-        if (gaugesCard) visualBlocks.push(gaugesCard);
-        if (radarCard) visualBlocks.push(radarCard);
-
-        const mainLeftStack = [inspectionCard, lotCard];
-        mainLeftStack.push(orientationJustificationCard);
+        const mainLeftStack = [lotSummaryHalfPage];
+        if (customInfoCard) mainLeftStack.push(customInfoCard);
         if (mainLeftStack.length) {
             mainLeftStack[mainLeftStack.length - 1].margin = [0, 0, 0, 0];
         }
 
-        // Titre pleine largeur
         const topCards = [
             { text: this.sanitizePdfText(this.getPdfLotLabel(currentLot, lotIndex)), style: 'smallTitle' }
         ];
 
-        // ── Bottom grid: 10 notation sections in 5-col layout ──
-        // Flatten to a single table per section (no pdfCard wrapper) to avoid 3-level nesting
-        const c = this.getPdfmakeColors();
-        const notationSections = this.getPdfSectionDefinitions().filter((s) => s.key !== 'inspection');
-        const notationCells = notationSections.map((sectionDef) => {
-            const headRow = [
-                    { text: this.sanitizePdfText(tpdf('pdf.table.criteria', 'Critère', 'Criterion')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
-                    { text: this.sanitizePdfText(tpdf('pdf.table.level', 'Niveau', 'Level')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg },
-                    { text: this.sanitizePdfText(tpdf('pdf.table.note', 'Note', 'Score')), bold: true, fontSize: notationFontSize, color: c.labelColor, fillColor: c.headerBg }
-            ];
-            const dataRows = sectionDef.rows.map((rowDef, rowIdx) => {
-                const rv = this.getPdfNotationRowValue(currentLot, sectionDef.key, rowDef.key);
-                const bg = rowIdx % 2 === 1 ? c.altRowBg : null;
-                return [
-                        { text: this.sanitizePdfText(rowDef.label), fontSize: notationFontSize, fillColor: bg },
-                        { text: this.sanitizePdfText(rv.niveau), fontSize: notationFontSize, fillColor: bg },
-                        { text: this.sanitizePdfText(rv.note), fontSize: notationFontSize, fillColor: bg }
-                ];
-            });
-            return {
-                stack: [
-                    { text: this.sanitizePdfText(sectionDef.title), bold: true, fontSize: sectionTitleFontSize, margin: [0, 0, 0, 2] },
-                    {
-                        table: { dontBreakRows: true, headerRows: 1, widths: ['auto', '*', 'auto'], body: [headRow, ...dataRows] },
-                        layout: {
-                            hLineWidth: () => 0.3,
-                            vLineWidth: () => 0,
-                            hLineColor: () => '#eee7db',
-                            paddingLeft: () => 3,
-                            paddingRight: () => 3,
-                            paddingTop: () => 2,
-                            paddingBottom: () => 2
-                        }
-                    }
-                ],
-                fillColor: c.cardBg,
-                unbreakable: true
-            };
-        });
+        const matrixRoleIndex = this.buildPdfOrientationMatrixRoleIndex(currentLot);
+        const rejectLockByRankIndex = this.buildPdfRejectLockByRankIndex(currentLot);
+        const orientationAnalysisStack = this.buildPdfOrientationAnalysisStack(currentLot, lotIndex, tpdf, usableWidthPt, { f });
+        const notationSections = this.getPdfNotationSectionsForExport(currentLot, tpdf);
+        const compactNotationFontSize = Math.max(6.1, notationFontSize + 0.3);
+        const compactSectionTitleFontSize = Math.max(8, sectionTitleFontSize);
+        const notationTableRowHeight = 11;
+        const notationGridColumnGap = 10;
+        const notationGridColumns = 3;
+        const notationGridPageInset = 12;
+        const notationGridUsableWidth = Math.max(320, usableWidthPt - notationGridPageInset * 2);
+        const notationColumnWidth = Math.floor((notationGridUsableWidth - notationGridColumnGap * (notationGridColumns - 1)) / notationGridColumns);
+        const notationGridVerticalGap = 5 * MM_TO_PT;
+        const notationTableOptions = {
+            notationFontSize: compactNotationFontSize,
+            sectionTitleFontSize: compactSectionTitleFontSize,
+            rowHeight: notationTableRowHeight,
+            columnWidth: notationColumnWidth
+        };
+        const notationCells = notationSections.map((sectionDef) => this.buildPdfNotationSectionCell(currentLot, sectionDef, tpdf, matrixRoleIndex, {
+            f,
+            rejectLockByRankIndex,
+            ...notationTableOptions
+        }));
 
-        // Build grid rows (2 columns × 5 rows)
-        const gridRows = [];
-        for (let i = 0; i < notationCells.length; i += 2) {
-            const row = [];
-            for (let j = 0; j < 2; j++) {
-                row.push(notationCells[i + j] || { text: '' });
+        const customCriteriaTable = this.buildPdfLotCustomCriteriaTable(currentLot, tpdf, matrixRoleIndex, {
+            f,
+            margin: [0, 0, 0, 0],
+            rejectLockByRankIndex,
+            ...notationTableOptions
+        });
+        const inspectionReminderTable = this.buildPdfLotInspectionReminderTable(currentLot, tpdf, {
+            f,
+            margin: [0, 0, 0, 0],
+            ...notationTableOptions
+        });
+        const notationGridCells = [
+            ...notationCells,
+            ...(customCriteriaTable ? [customCriteriaTable] : []),
+            ...(inspectionReminderTable ? [inspectionReminderTable] : [])
+        ];
+        const notationGridRows = [];
+        for (let i = 0; i < notationGridCells.length; i += notationGridColumns) {
+            const gridRowIndex = Math.floor(i / notationGridColumns);
+            const rowCells = notationGridCells.slice(i, i + notationGridColumns);
+            while (rowCells.length < notationGridColumns) rowCells.push({ text: '' });
+            const isLastGridRow = i + notationGridColumns >= notationGridCells.length;
+            if (gridRowIndex > 0) {
+                const rowSpacer = this.buildPdfNotationGridVerticalSpacer(notationGridVerticalGap, notationGridPageInset);
+                if (rowSpacer) notationGridRows.push(rowSpacer);
             }
-            gridRows.push(row);
+            notationGridRows.push({
+                columns: rowCells.map((cell) => ({ width: notationColumnWidth, stack: [cell] })),
+                columnGap: notationGridColumnGap,
+                margin: [notationGridPageInset, 0, notationGridPageInset, isLastGridRow ? notationGridPageInset : 0]
+            });
         }
 
-        const notationGrid = {
-            table: {
-                dontBreakRows: true,
-                widths: ['*', '*'],
-                body: gridRows
-            },
-            layout: {
-                hLineWidth: () => 0.5,
-                vLineWidth: () => 0.5,
-                hLineColor: () => c.border,
-                vLineColor: () => c.border,
-                paddingLeft: () => 3,
-                paddingRight: () => 3,
-                paddingTop: () => 3,
-                paddingBottom: () => 3,
-                defaultBorder: false,
-                borderRadius: () => 4
-            },
-            unbreakable: true
-        };
+        const activeRejectCount = Array.isArray(orientationSummary.activeRejects) ? orientationSummary.activeRejects.length : 0;
+        const activeVectorCount = Array.isArray(orientationSummary.activeVectors) ? orientationSummary.activeVectors.length : 0;
+        const orientationSummaryLine = [
+            `${tpdf('pdf.lot.orientation', 'Orientation', 'Orientation')} : ${orientationSummary.label || '—'}`,
+            `${tpdf('pdf.lot.orientationStatus', 'Statut orientation', 'Orientation status')} : ${orientationSummary.statusLabel || '—'}`,
+            `${tpdf('pdf.lot.orientationRejects', 'Rejets actifs', 'Active rejects')} : ${activeRejectCount}`,
+            `${tpdf('pdf.lot.orientationVectors', 'Vecteurs actifs', 'Active vectors')} : ${activeVectorCount}`
+        ].join(' · ');
 
-        // Colonne gauche unifiée : Inspection + Lot + Visuels
-        const fullLeftStack = [
-            ...mainLeftStack
+        const notationBlock = [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.card.notationOrientation', 'Notation & justification de l\'orientation', 'Scoring & orientation rationale')),
+                style: 'cardTitle',
+                margin: [0, 0, 0, 2],
+                pageBreak: 'before'
+            },
+            {
+                text: this.sanitizePdfText(orientationSummaryLine),
+                fontSize: f.label,
+                color: '#374151',
+                margin: [0, 0, 0, orientationSummary.combustionCaution ? 2 : 4]
+            },
+            ...(orientationSummary.combustionCaution ? [{
+                text: this.sanitizePdfText(orientationSummary.combustionCaution),
+                fontSize: f.label,
+                color: '#b45309',
+                italics: true,
+                margin: [0, 0, 0, 4]
+            }] : []),
+            ...(scoresVisualRow ? [scoresVisualRow] : []),
+            ...(orientationAnalysisStack ? [orientationAnalysisStack] : [])
         ];
 
-        const mainColumns = {
-            columns: [
-                {
-                    width: leftWidth,
-                    stack: fullLeftStack
-                },
-                {
-                    width: rightWidth,
-                    stack: [
-                        notationGrid,
-                        ...(visualBlocks.length ? [
-                            { text: '', margin: [0, blockGapPt, 0, 0] },
-                            ...visualBlocks
-                        ] : [])
-                    ]
-                }
-            ],
-            columnGap: columnGapPt,
-            unbreakable: true // Force l'ensemble à rester sur la même page
-        };
+        const notationTablesPageBlock = [
+            {
+                text: this.sanitizePdfText(tpdf('pdf.card.notationDetailGrid', 'Grille de notation', 'Scoring grid')),
+                style: 'cardTitle',
+                pageBreak: 'before',
+                margin: [notationGridPageInset, 0, notationGridPageInset, 2]
+            },
+            {
+                text: this.sanitizePdfText(this.getPdfLotLabel(currentLot, lotIndex)),
+                fontSize: f.sectionTitle,
+                bold: true,
+                color: '#374151',
+                margin: [notationGridPageInset, 0, notationGridPageInset, 6]
+            },
+            ...notationGridRows
+        ];
 
-        const content = [...topCards, mainColumns];
+        const content = [
+            ...topCards,
+            ...mainLeftStack,
+            ...notationBlock,
+            ...notationTablesPageBlock
+        ];
 
         return {
             pageSize: 'A4',
-            pageOrientation: 'portrait',
+            pageOrientation,
             pageMargins,
             info: this.getPdfDocInfo('lot', this.getPdfLotLabel(currentLot, lotIndex)),
             defaultStyle: { font: 'Roboto', fontSize: f.body },
@@ -48105,7 +50512,7 @@ renderRadar() {
             'Essence (libellé)',
             'Longueur (mm)',
             'Largeur (mm)',
-            'Hauteur / Epaisseur (mm)',
+            'Hauteur / Épaisseur (mm)',
             'Diamètre (mm)',
             'Surface pièce (m2)',
             'Volume pièce (m3)',
@@ -48119,16 +50526,16 @@ renderRadar() {
             'Humidité (%)',
             'Fraction carbonée (%)',
             'Proportion de bois (%)',
-            'Age arbre',
+            'Âge arbre',
             'Date mise en service',
             'Masse pièce (kg)',
             'Carbone biogénique pièce (kgCO₂eq)',
             'Largeur moyenne intra (mm)',
-            'Epaisseur moyenne intra (mm)',
+            'Épaisseur moyenne intra (mm)',
             'CV largeur intra (%)',
-            'CV epaisseur intra (%)',
+            'CV épaisseur intra (%)',
             'Delta largeur intra (mm)',
-            'Delta epaisseur intra (mm)',
+            'Delta épaisseur intra (mm)',
             'Quantité source (pièce par défaut)',
             'Localisation lot',
             'Situation lot',
@@ -48143,7 +50550,7 @@ renderRadar() {
             'Quantité lot',
             'Longueur lot (mm)',
             'Largeur lot (mm)',
-            'Hauteur / Epaisseur lot (mm)',
+            'Hauteur / Épaisseur lot (mm)',
             'Diamètre lot (mm)',
             'Surface lot (m2)',
             'Volume lot (m3)',
@@ -48227,27 +50634,7 @@ renderRadar() {
             'Vices apparents',
             'Précautions démolition/rénovation',
             'Commentaires généraux',
-            'Stratégie de similarité',
-            'Profil géométrie MM',
-            'CV longueur lot (%)',
-            'CV largeur lot (%)',
-            'CV epaisseur lot (%)',
-            'CV diamètre lot (%)',
-            'EIQ longueur lot',
-            'EIQ largeur lot',
-            'EIQ epaisseur lot',
-            'EIQ diamètre lot',
-            'EIQ abs longueur lot',
-            'EIQ abs largeur lot',
-            'EIQ abs epaisseur lot',
-            'EIQ abs diamètre lot',
-            'MAD longueur lot',
-            'MAD largeur lot',
-            'MAD epaisseur lot',
-            'MAD diamètre lot',
-            'Conformité lot',
-            'Taux similarité lot (%)',
-            'Seuil suggestion',
+            ...this.getLotPieceTypeSimilarityCsvFieldDefs().map((field) => field.label),
             'Inspection visibilité',
             'Inspection instrumentation',
             'Inspection intégrité (niveau)',
@@ -48283,32 +50670,7 @@ renderRadar() {
             const orientation = this.getPdfOrientationSummary(lot);
             const lotEffectiveUseClasses = this.formatPdfLotEffectiveUseClasses(lot);
             const lotSituationExport = this.getLocSitLotSituationExportSummary(lot);
-            const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
-            const expandedPieces = [];
-
-            defaultPieces.forEach((defaultPiece) => {
-                const quantity = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
-                for (let q = 0; q < quantity; q++) {
-                    expandedPieces.push({
-                        piece: defaultPiece,
-                        sourceType: 'default',
-                        sourceOccurrence: q + 1,
-                        sourceQuantity: defaultPiece && defaultPiece.quantite != null ? defaultPiece.quantite : ''
-                    });
-                }
-            });
-
-            if (Array.isArray(lot.pieces)) {
-                lot.pieces.forEach((piece) => {
-                    if (!piece || typeof piece !== 'object') return;
-                    expandedPieces.push({
-                        piece,
-                        sourceType: 'detail',
-                        sourceOccurrence: '',
-                        sourceQuantity: ''
-                    });
-                });
-            }
+            const expandedPieces = this.collectExpandedLotPieces(lot);
 
             expandedPieces.forEach((entry, pieceIndex) => {
                 const piece = entry.piece || {};
@@ -48467,27 +50829,7 @@ renderRadar() {
                     withDash(meta.vicesApparents),
                     withDash(meta.precautionsDemolition),
                     withDash(meta.commentaires),
-                    withDash(allotissement.similarityStrategy),
-                    withDash(allotissement.mmGeometryProfile),
-                    withDash(allotissement.cvLongueur),
-                    withDash(allotissement.cvLargeur),
-                    withDash(allotissement.cvEpaisseur),
-                    withDash(allotissement.cvDiametre),
-                    withDash(allotissement.eiqLongueur),
-                    withDash(allotissement.eiqLargeur),
-                    withDash(allotissement.eiqEpaisseur),
-                    withDash(allotissement.eiqDiametre),
-                    withDash(allotissement.eiqAbsLongueur),
-                    withDash(allotissement.eiqAbsLargeur),
-                    withDash(allotissement.eiqAbsEpaisseur),
-                    withDash(allotissement.eiqAbsDiametre),
-                    withDash(allotissement.madLongueur),
-                    withDash(allotissement.madLargeur),
-                    withDash(allotissement.madEpaisseur),
-                    withDash(allotissement.madDiametre),
-                    withDash(allotissement.conformiteLot),
-                    withDash(allotissement.tauxSimilarite),
-                    withDash(allotissement.seuilSuggest),
+                    ...this.getLotPieceTypeSimilarityCsvValues(lot).map((value) => withDash(value)),
                     withDash((lot.inspection || {}).visibilite),
                     withDash((lot.inspection || {}).instrumentation),
                     withDash(((lot.inspection || {}).integrite || {}).niveau),
@@ -48639,7 +50981,7 @@ renderRadar() {
                 const v = ((lot && lot.allotissement) || {}).largeur;
                 return (v != null && v !== '') ? v : '-';
             } },
-            { label: 'Hauteur / Epaisseur (mm)', getValue: (lot) => {
+            { label: 'Hauteur / Épaisseur (mm)', getValue: (lot) => {
                 const v = ((lot && lot.allotissement) || {}).epaisseur;
                 return (v != null && v !== '') ? v : '-';
             } },
@@ -48713,6 +51055,9 @@ renderRadar() {
                 const v = ((lot && lot.allotissement) || {}).prixLotAjusteIntegrite;
                 return (v != null && v !== '') ? Math.round(parseFloat(v)) : '-';
             } },
+
+            // --- PIÈCE TYPE, SIMILARITÉ & CONFORMITÉ ---
+            ...this.getLotPieceTypeSimilarityCsvFieldDefs(),
 
             // --- RÉSULTATS D'AIDE À LA DÉCISION ---
             { label: 'Orientation', getValue: (lot) => this.getPdfOrientationSummary(lot).label || '-' },
@@ -49092,19 +51437,27 @@ renderRadar() {
 
             // Merge all lot doc definitions into a single document
             const mergedContent = [];
-            const includeCoverPage = validLotIndices.length > 1;
+            const includeCoverPage = true;
 
-            if (includeCoverPage) {
-                const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
-                mergedContent.push(...coverContent);
-            }
+            const revueMargins = this.getPdfRevueCompletePageMargins();
+            const lotPageMargins = this.getPdfRevueCompleteLotPageMargins();
+            const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
+            mergedContent.push({
+                pageOrientation: 'landscape',
+                pageMargins: revueMargins,
+                stack: coverContent
+            });
 
-            docDefPages.forEach((dd, idx) => {
-                if ((includeCoverPage && idx === 0) || idx > 0) {
-                    mergedContent.push({ text: '', pageBreak: 'before' });
-                }
+            docDefPages.forEach((dd) => {
+                mergedContent.push({ text: '', pageBreak: 'before', pageOrientation: 'landscape', pageMargins: lotPageMargins });
                 mergedContent.push(...(Array.isArray(dd.content) ? dd.content : [dd.content]));
             });
+
+            const durabiliteAnnexContent = this.buildPdfDurabiliteNaturelleAnnexContent(validLotIndices);
+            if (durabiliteAnnexContent.length) {
+                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push(...durabiliteAnnexContent);
+            }
 
             const mmAnnexContent = this.buildPdfMultipleMeasurementsAnnexContent(validLotIndices);
             if (mmAnnexContent.length) {
@@ -49112,16 +51465,23 @@ renderRadar() {
                 mergedContent.push(...mmAnnexContent);
             }
 
+            const piecesAnnexContent = this.buildPdfPiecesDetailAnnexContent(validLotIndices);
+            if (piecesAnnexContent.length) {
+                mergedContent.push(...piecesAnnexContent);
+            }
+
             const criteriaAnnexContent = this.buildPdfCriteriaAnnexContent(validLotIndices);
             if (criteriaAnnexContent.length) {
-                mergedContent.push({ text: '', pageBreak: 'before' });
+                mergedContent.push({ text: '', pageBreak: 'before', pageOrientation: 'landscape', pageMargins: revueMargins });
                 mergedContent.push(...criteriaAnnexContent);
             }
 
             const mergedDocDef = {
                 ...docDefPages[0],
+                pageOrientation: 'landscape',
+                pageMargins: revueMargins,
                 content: mergedContent,
-                info: this.getPdfDocInfo(includeCoverPage ? 'lots-selectionnes' : 'lot-selectionne')
+                info: this.getPdfDocInfo('lots-selectionnes')
             };
 
             const stamp = new Date().toISOString().slice(0, 10);
