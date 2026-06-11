@@ -50,12 +50,36 @@ const asserts = [
     ['pdfFlatCard défini', () => src.includes('pdfFlatCard(titleText, bodyContent')],
     ['maxGaugeWidth défini dans fiche lot', () => fnBody.includes('buildPdfCategoryGaugesPanel(currentLot, tpdf, gaugePanelWidth')],
     ['pas de mainColumns unbreakable', () => !fnBody.includes('mainColumns')],
-    ['fiche lot via pdfFlatCard', () => fnBody.includes("pdfFlatCard(tpdf('pdf.card.lotSheet'")],
+    ['fiche lot via blocs bornés', () => src.includes('buildPdfLotSheetBoundedBlock(')
+        && src.includes("tpdf('pdf.card.lotSheet'")],
     ['fiche lot en paysage', () => fnBody.includes("pageOrientation = 'landscape'")],
-    ['fiche lot condensée demi-page', () => fnBody.includes('filterPdfKeyValuePairsWithData(lotPairs)')
-        && fnBody.includes('pdfKeyValueGrid(lotPairsForGrid, 5, { compact: true })')],
-    ['pièce type compacte demi-page', () => fnBody.includes('buildPdfLotPieceTypeSimilarityCompactStack(currentLot, tpdf')
-        && fnBody.includes('lotSummaryHalfPage')],
+    ['fiche lot colonne unique sidebar', () => fnBody.includes('ficheLotPairsForGrid')
+        && fnBody.includes('buildPdfLotSummaryZonedLayout(currentLot, tpdf')
+        && fnBody.includes('customInfoPairs')
+        && fnBody.includes('const ficheLotPairsForGrid = lotPairs')
+        && src.includes('options.pairs || []')],
+    ['zonage maquette 100/170 mm', () => {
+        const zonedStart = src.indexOf('buildPdfLotSummaryZonedLayout(lot, tpdf');
+        const zonedEnd = src.indexOf('buildPdfLotPieceTypeSimilarityZonedBand', zonedStart);
+        const zonedFn = zonedStart >= 0 && zonedEnd > zonedStart ? src.slice(zonedStart, zonedEnd) : '';
+        return fnBody.includes('buildPdfLotSummaryZonedLayout(currentLot, tpdf')
+            && zonedFn.includes('mainColWeights')
+            && zonedFn.includes('middleColWeights')
+            && zonedFn.includes('getPdfSheetColumnWidthsPt(mainColWeights')
+            && zonedFn.includes('width: mainColWidthsPt[0]')
+            && zonedFn.includes('width: middleColWidthsPt[0]')
+            && !zonedFn.includes('width: mainColWeights')
+            && !zonedFn.includes('width: middleColWeights')
+            && zonedFn.includes('getPdfOperationSheetColumnGapPt()')
+            && zonedFn.includes('pdf.pieceType.seuilsTitle')
+            && zonedFn.includes('pdfLotSheetLabelValueTable')
+            && zonedFn.includes('45 * MM_TO_PT')
+            && !zonedFn.includes('pdf.card.lotDestination')
+            && !zonedFn.includes('pdf.pieceType.homoTitle')
+            && !zonedFn.includes('pdf.card.pieceType')
+            && !fnBody.includes('lotSummaryHalfPage')
+            && !fnBody.includes('customInfoCard');
+    }],
     ['inspection retirée du haut fiche lot', () => !fnBody.includes('orientationJustificationCard')
         && fnBody.includes('buildPdfLotInspectionReminderTable(currentLot, tpdf')],
     ['plus de carte justification orientation', () => !fnBody.includes('orientationJustificationCard')
@@ -148,7 +172,7 @@ const asserts = [
         && src.includes('getPdfNotationCustomTableWidths(columnWidth, notationFontSize)')],
     ['couleurs notes A-E', () => src.includes('getPdfLetterFillColor(letter)')
         && src.includes('buildPdfNotationNoteCell(')],
-    ['demi-page sans unbreakable droite', () => !fnBody.includes('pieceTypeColumnCard], unbreakable: true')],
+    ['demi-page sans unbreakable droite', () => !fnBody.includes('pieceTypeColumnCard') && !fnBody.includes('lotSummaryHalfPage')],
     ['plus de carte CV/EIQ/MAD', () => !fnBody.includes('dispersionPairs') && !fnBody.includes('pdf.card.dispersionMetrics')],
     ['notation en lignes fragmentables', () => fnBody.includes('notationGridRows')],
     ['radar non unbreakable', () => !/radarCard[\s\S]{0,200}unbreakable: true/.test(fnBody)],

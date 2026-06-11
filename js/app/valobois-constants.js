@@ -552,9 +552,9 @@
 
     var VALOBOIS_PDF_TEXT_MAP = Object.freeze({
         'pdf.common.none': Object.freeze({ fr: 'Aucun', en: 'None' }),
-        'pdf.orientation.status.confirmed': Object.freeze({ fr: 'Confirmee', en: 'Confirmed' }),
-        'pdf.orientation.status.forced': Object.freeze({ fr: 'Forcee', en: 'Forced' }),
-        'pdf.orientation.status.unconfirmedCombustion': Object.freeze({ fr: 'Deduite (non confirmee)', en: 'Inferred (unconfirmed)' }),
+        'pdf.orientation.status.confirmed': Object.freeze({ fr: 'Confirmée', en: 'Confirmed' }),
+        'pdf.orientation.status.forced': Object.freeze({ fr: 'Forcée', en: 'Forced' }),
+        'pdf.orientation.status.unconfirmedCombustion': Object.freeze({ fr: 'Déduite (non confirmée)', en: 'Inferred (unconfirmed)' }),
         'pdf.orientation.status.inProgress': Object.freeze({ fr: 'En cours', en: 'In progress' }),
         'pdf.lot.orientationStatus': Object.freeze({ fr: 'Statut orientation', en: 'Orientation status' }),
         'pdf.lot.orientationRejects': Object.freeze({ fr: 'Rejets actifs', en: 'Active rejects' }),
@@ -564,7 +564,7 @@
         'pdf.orientation.emptyVectors': Object.freeze({ fr: 'Aucun vecteur actif pour cette orientation.', en: 'No active vector for this orientation.' }),
         'pdf.lot.combustionCaution': Object.freeze({ fr: 'Alerte combustion', en: 'Combustion warning' }),
         'pdf.orientation.combustionCaution': Object.freeze({
-            fr: 'Orientation deduite par elimination, non confirmee positivement par la matrice.',
+            fr: 'Orientation déduite par élimination, non confirmée positivement par la matrice.',
             en: 'Orientation inferred by elimination, not positively confirmed by the matrix.'
         })
     });

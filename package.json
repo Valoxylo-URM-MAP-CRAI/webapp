@@ -9,6 +9,11 @@
     "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "check:orientation-parity": "node scripts/check-orientation-class-parity.mjs",
     "check:code-zone-size": "node scripts/check-code-zone-size.mjs",
+    "check:pdf-lot-export": "node scripts/check-pdf-lot-export.mjs",
+    "check:pdf-cover-structure": "node scripts/check-pdf-cover-structure.mjs",
+    "check:pdf-pieces-annex": "node scripts/check-pdf-pieces-annex.mjs",
+    "check:export-accentuation": "node scripts/check-export-accentuation.mjs",
+    "check:pdf-piece-type-export": "node scripts/check-pdf-piece-type-export.mjs",
     "serve": "npx --yes serve .",
     "import:france-geojson": "node scripts/import-france-geojson.mjs"
   },
