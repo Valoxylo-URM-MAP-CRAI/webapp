@@ -3299,6 +3299,7 @@ class ValoboisApp {
                 const reason = !entry.activeClass && entry.tooltip ? ` — ${entry.tooltip}` : '';
                 return `${entry.label}: ${cls}${reason}`;
             });
+        const groupedDetailLines = this.groupLotEmploymentClassDetailLines(entries);
 
         const alertText = !entries.length
             ? 'La section Localisation - Situation ne dispose pas de données exploitables dans le Détail du lot.'
@@ -3316,8 +3317,34 @@ class ValoboisApp {
             hasMissing,
             showDetail: hasDivergence || hasMissing,
             detailLines,
+            groupedDetailLines,
             alertText
         };
+    }
+
+    /** Regroupe les pièces partageant la même classe d'emploi (ou le même message d'erreur). */
+    groupLotEmploymentClassDetailLines(entries) {
+        if (!Array.isArray(entries) || !entries.length) {
+            return ['Aucune pièce détaillée active ne permet de calculer la classe d’emploi du lot.'];
+        }
+        const groups = [];
+        const groupIndexByKey = new Map();
+        entries.forEach((entry) => {
+            const cls = entry.activeClass || 'Données manquantes';
+            const reason = !entry.activeClass && entry.tooltip ? ` — ${entry.tooltip}` : '';
+            const key = `${cls}${reason}`;
+            if (!groupIndexByKey.has(key)) {
+                groupIndexByKey.set(key, groups.length);
+                groups.push({ labels: [], text: `${cls}${reason}` });
+            }
+            groups[groupIndexByKey.get(key)].labels.push(entry.label);
+        });
+        return groups.map((group) => {
+            if (group.labels.length >= 2) {
+                return `${group.labels.join(', ')} : ${group.text}`;
+            }
+            return `${group.labels[0]}: ${group.text}`;
+        });
     }
 
     updateLocSitCardDisplays(cardRoot, pieceLike, lot, { isDefault = false, defaultPieceId = '', pieceIndex = -1 } = {}) {
@@ -45190,7 +45217,8 @@ renderRadar() {
             'pdf.piece.quantity': { fr: 'Quantité', en: 'Quantity' },
             'pdf.piece.sourceDefault': { fr: 'Pièce par défaut', en: 'Default piece' },
             'pdf.piece.sourceDetail': { fr: 'Pièce détaillée', en: 'Detailed piece' },
-            'pdf.piece.recapTable': { fr: 'Tableau récapitulatif', en: 'Summary table' }
+            'pdf.piece.recapTable': { fr: 'Tableau récapitulatif', en: 'Summary table' },
+            'pdf.lot.sheetContinuation': { fr: 'Suite de la fiche du lot', en: 'Lot sheet continuation' }
         };
 
         const locale = this.getPdfLocaleCode();
@@ -45316,12 +45344,13 @@ renderRadar() {
                         // Texte fluide (label + valeur) plutôt que colonnes auto/star :
                         // un label long s'enroule dans la cellule au lieu de déborder
                         // sur la colonne voisine (cause des superpositions en demi-page).
-                        row.push({
-                            text: [
+                        const textParts = safeLabel
+                            ? [
                                 { text: safeLabel + ' : ', fontSize: f.label, color: '#6a6257' },
                                 { text: safeValue, fontSize: f.value, bold: true }
                             ]
-                        });
+                            : [{ text: safeValue, fontSize: f.value, bold: true }];
+                        row.push({ text: textParts });
                     } else {
                         row.push({
                             stack: [
@@ -45602,12 +45631,36 @@ renderRadar() {
         };
     }
 
+    /** Titres de blocs (sections) fiche opération / synthèse / fiche lot. */
+    getPdfZonedSheetTitleFontSize(f) {
+        const scale = f || this.getPdfOperationSheetFontScale();
+        return Math.max(8, scale.sectionTitle || 8);
+    }
+
+    /** Titres de page — même taille que « Grille de notation » (cardTitle). */
+    getPdfZonedSheetPageTitleFontSize() {
+        return this.getPdfFontScale().cardTitle;
+    }
+
+    buildPdfZonedSheetPageTitle(titleText, options = {}) {
+        const bottomGapPt = options.bottomGapPt != null
+            ? options.bottomGapPt
+            : this.getPdfOperationSheetColumnGapPt();
+        return {
+            text: this.sanitizePdfText(titleText),
+            fontSize: this.getPdfZonedSheetPageTitleFontSize(),
+            bold: true,
+            alignment: 'left',
+            margin: [0, 0, 0, bottomGapPt]
+        };
+    }
+
     getPdfOperationSheetGridLayout() {
         return {
-            hLineWidth: () => 0.3,
-            vLineWidth: () => 0.3,
-            hLineColor: () => '#e7e1d6',
-            vLineColor: () => '#e7e1d6',
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            hLineColor: () => '#ffffff',
+            vLineColor: () => '#ffffff',
             fillColor: () => '#ffffff',
             paddingLeft: () => 2,
             paddingRight: () => 2,
@@ -45618,10 +45671,10 @@ renderRadar() {
 
     getPdfOperationSheetHeaderLayout() {
         return {
-            hLineWidth: () => 0.3,
-            vLineWidth: () => 0.3,
-            hLineColor: () => '#e7e1d6',
-            vLineColor: () => '#e7e1d6',
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            hLineColor: () => '#ffffff',
+            vLineColor: () => '#ffffff',
             fillColor: () => '#ffffff',
             paddingLeft: () => 2,
             paddingRight: () => 2,
@@ -45657,7 +45710,7 @@ renderRadar() {
     buildPdfOperationSheetBoundedBlock(title, pairs, options = {}) {
         const f = options.f || this.getPdfOperationSheetFontScale();
         const heightPt = options.heightPt;
-        const titleFontSize = Math.max(6.5, f.sectionTitle - 0.5);
+        const titleFontSize = this.getPdfZonedSheetTitleFontSize(f);
         const innerStack = {
             margin: [0, 0, 0, 0],
             stack: [
@@ -45665,6 +45718,7 @@ renderRadar() {
                     text: this.sanitizePdfText(title),
                     bold: true,
                     fontSize: titleFontSize,
+                    alignment: 'left',
                     margin: [0, 0, 0, 1]
                 },
                 this.pdfKeyValueGrid(pairs, 1, { compact: true, f })
@@ -45745,8 +45799,6 @@ renderRadar() {
         const f = this.getPdfOperationSheetFontScale();
         const columnGap = this.getPdfOperationSheetColumnGapPt();
         const colWeights = this.getPdfOperationSheetColumnWeights();
-        const headerHeightPt = 10 * MM_TO_PT;
-        const headerFontSize = Math.max(7, f.sectionTitle - 0.5);
         const bounded = (heightPt) => ({ f, heightPt });
 
         const referencePairs = [...pairs.operationReference];
@@ -45784,21 +45836,7 @@ renderRadar() {
         return {
             margin: [0, 0, 0, 0],
             stack: [
-                {
-                    margin: [0, 0, 0, columnGap],
-                    table: {
-                        widths: ['*'],
-                        heights: [headerHeightPt],
-                        body: [[{
-                            text: headerTitle,
-                            fontSize: headerFontSize,
-                            bold: true,
-                            alignment: 'center',
-                            margin: [0, 0, 0, 0]
-                        }]]
-                    },
-                    layout: this.getPdfOperationSheetHeaderLayout()
-                },
+                this.buildPdfZonedSheetPageTitle(headerTitle, { f, bottomGapPt: columnGap }),
                 {
                     columns: [
                         {
@@ -46002,7 +46040,7 @@ renderRadar() {
     buildPdfSynthesisSheetBoundedBlock(title, bodyContent, options = {}) {
         const f = options.f || this.getPdfOperationSheetFontScale();
         const heightPt = options.heightPt;
-        const titleFontSize = Math.max(6.5, f.sectionTitle - 0.5);
+        const titleFontSize = this.getPdfZonedSheetTitleFontSize(f);
         const body = Array.isArray(bodyContent)
             ? { stack: bodyContent }
             : (bodyContent || { text: '' });
@@ -46012,6 +46050,7 @@ renderRadar() {
                     text: this.sanitizePdfText(title),
                     bold: true,
                     fontSize: titleFontSize,
+                    alignment: 'left',
                     margin: [0, 0, 0, 1]
                 }] : []),
                 body
@@ -46041,8 +46080,6 @@ renderRadar() {
                 .filter((entry) => Number.isInteger(entry.index) && entry.lot)
             : null;
         const summaryEntries = selectedLotEntries || lots.map((lot, index) => ({ lot, index }));
-        const headerHeightPt = 10 * MM_TO_PT;
-        const headerFontSize = Math.max(7, f.sectionTitle - 0.5);
         const evalHeightPt = 40 * MM_TO_PT;
         const scoresHeightPt = 120 * MM_TO_PT;
         const lotsHeightPt = 140 * MM_TO_PT;
@@ -46057,21 +46094,7 @@ renderRadar() {
         return {
             margin: [0, 0, 0, 0],
             stack: [
-                {
-                    margin: [0, 0, 0, columnGap],
-                    table: {
-                        widths: ['*'],
-                        heights: [headerHeightPt],
-                        body: [[{
-                            text: this.sanitizePdfText(pageTitle),
-                            fontSize: headerFontSize,
-                            bold: true,
-                            alignment: 'center',
-                            margin: [0, 0, 0, 0]
-                        }]]
-                    },
-                    layout: this.getPdfOperationSheetHeaderLayout()
-                },
+                this.buildPdfZonedSheetPageTitle(pageTitle, { f, bottomGapPt: columnGap }),
                 this.buildPdfSynthesisSheetBoundedBlock(
                     tpdf('pdf.card.operationEval', 'Évaluation de l\'opération', 'Operation evaluation'),
                     this.buildPdfOperationEvalContent(validLotIndices),
@@ -46146,7 +46169,7 @@ renderRadar() {
             bold: true,
             fontSize,
             color: c.labelColor,
-            fillColor: c.headerBg,
+            fillColor: options.plainHeader ? '#ffffff' : c.headerBg,
             noWrap: noWrapColumns.includes(colIdx),
             alignment: columnAlignments[colIdx] || 'left'
         }));
@@ -46202,7 +46225,7 @@ renderRadar() {
             })
         );
 
-        return {
+        const node = {
             table: {
                 dontBreakRows: true,
                 headerRows: 1,
@@ -46219,6 +46242,8 @@ renderRadar() {
                 paddingBottom: () => paddingBottom
             }
         };
+        if (options.fullWidth) node.width = '*';
+        return node;
     }
 
     /** Tableau fiche lot : en-têtes et colonnes libellé en gris (#6a6257), données en noir gras — aligné sur pdfKeyValueGrid compact. */
@@ -48918,8 +48943,10 @@ renderRadar() {
                 tpdf('pdf.table.lots', 'Lots', 'Lots')
             ], rows, {
                 fontSize: f.tableCompact,
-                widths: ['auto', 'auto', 'auto', 'auto', '*'],
-                noWrapColumns: [0, 1, 2, 3],
+                widths: ['*', '*', '*', '*', '*'],
+                plainHeader: true,
+                fullWidth: true,
+                noWrapColumns: [1, 2, 3],
                 columnAlignments: ['left', 'right', 'right', 'right', 'left'],
                 padding: this.getPdfGardeTablePadding()
             }),
@@ -48993,8 +49020,10 @@ renderRadar() {
                 lotIdentityRows.length ? lotIdentityRows : [lotIdentityHeaders.map(() => '—')],
                 {
                     fontSize: f.tableCompact,
-                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
-                    noWrapColumns: [0, 4, 5, 6, 7, 8],
+                    widths: ['auto', '*', '*', '*', 'auto', 'auto', 'auto', '*', 'auto'],
+                    plainHeader: true,
+                    fullWidth: true,
+                    noWrapColumns: [0, 4, 5, 6, 8],
                     columnAlignments: ['left', 'left', 'left', 'left', 'center', 'right', 'right', 'left', 'right'],
                     padding: this.getPdfGardeTablePadding()
                 }
@@ -49007,7 +49036,9 @@ renderRadar() {
                 lotScoreRows.length ? lotScoreRows : [lotScoreHeaders.map(() => '—')],
                 {
                     fontSize: f.tableCompact,
-                    widths: ['auto', 'auto', 'auto', 'auto', 'auto', 'auto'],
+                    widths: ['auto', '*', '*', '*', '*', '*'],
+                    plainHeader: true,
+                    fullWidth: true,
                     noWrapColumns: [0, 1, 2, 3, 4, 5],
                     columnAlignments: ['left', 'right', 'right', 'right', 'right', 'right'],
                     padding: this.getPdfGardeTablePadding()
@@ -50536,15 +50567,65 @@ renderRadar() {
             value: lotSituationExport.guideShort || '—'
         });
 
-        const empSummary = this.getLotEmploymentClassSummary(lot);
-        pairs.push({
-            label: tpdf('pdf.lot.effectiveUseClass', 'Classe(s) d\'emploi du lot', 'Lot use class(es)'),
-            value: (empSummary.showDetail && empSummary.detailLines.length)
-                ? empSummary.detailLines.join(' · ')
-                : (empSummary.display || '—')
-        });
-
         return pairs;
+    }
+
+    getPdfLotEmploymentClassExportPairs(lot, tpdf) {
+        const empSummary = this.getLotEmploymentClassSummary(lot);
+        const lines = Array.isArray(empSummary.groupedDetailLines) ? empSummary.groupedDetailLines : [];
+        if (!lines.length) {
+            return [{
+                label: tpdf('pdf.lot.effectiveUseClass', 'Classe(s) d\'emploi du lot', 'Lot use class(es)'),
+                value: '—'
+            }];
+        }
+        return lines.map((line, index) => ({
+            label: index === 0
+                ? tpdf('pdf.lot.effectiveUseClass', 'Classe(s) d\'emploi du lot', 'Lot use class(es)')
+                : '',
+            value: line
+        }));
+    }
+
+    getPdfLotDestinationExportPairs(lot, tpdf) {
+        const allotissement = (lot && lot.allotissement) || {};
+        const dash = (value) => (value != null && String(value).trim() !== '' ? value : '—');
+        return [
+            { label: tpdf('pdf.meta.destination', 'Destination', 'Destination'), value: dash(allotissement.destination) },
+            { label: tpdf('pdf.meta.address', 'Adresse', 'Address'), value: dash(allotissement.destinationAdresse) },
+            { label: tpdf('pdf.meta.contact', 'Contact', 'Contact'), value: dash(allotissement.destinationContact) },
+            { label: tpdf('pdf.meta.mail', 'Mail', 'Email'), value: dash(allotissement.destinationMail), fieldKind: 'email' },
+            { label: tpdf('pdf.meta.phone', 'Tél', 'Phone'), value: dash(allotissement.destinationTelephone) }
+        ];
+    }
+
+    getPdfLotSheetKvRowHeightPt(f) {
+        return Math.max(9, (f && f.value ? f.value : 6) + 3.5);
+    }
+
+    getPdfLotSheetMaxRowsForHeight(heightMm, f, hasTitle = true) {
+        const MM_TO_PT = 72 / 25.4;
+        const heightPt = heightMm * MM_TO_PT;
+        const titlePt = hasTitle ? Math.max(12, this.getPdfZonedSheetTitleFontSize(f) + 2) : 0;
+        const paddingPt = 5;
+        const rowPt = this.getPdfLotSheetKvRowHeightPt(f);
+        return Math.max(1, Math.floor((heightPt - titlePt - paddingPt) / rowPt));
+    }
+
+    splitPdfKvPairsByRowBudget(pairs, maxRows) {
+        const safePairs = Array.isArray(pairs) ? pairs : [];
+        const budget = Math.max(0, maxRows);
+        if (!safePairs.length || budget <= 0) {
+            return { visible: [], overflow: safePairs.slice() };
+        }
+        return {
+            visible: safePairs.slice(0, budget),
+            overflow: safePairs.slice(budget)
+        };
+    }
+
+    buildPdfLotSheetPageHeader(titleText, f) {
+        return this.buildPdfZonedSheetPageTitle(titleText, { f });
     }
 
     getPdfLotSheetFontScale() {
@@ -50554,7 +50635,7 @@ renderRadar() {
     buildPdfLotSheetBoundedBlock(title, options = {}) {
         const f = options.f || this.getPdfLotSheetFontScale();
         const heightPt = options.heightPt;
-        const titleFontSize = Math.max(6.5, f.sectionTitle - 0.5);
+        const titleFontSize = this.getPdfZonedSheetTitleFontSize(f);
         const body = options.body || this.pdfKeyValueGrid(
             options.pairs || [],
             options.gridColumns || 1,
@@ -50566,6 +50647,7 @@ renderRadar() {
                     text: this.sanitizePdfText(title),
                     bold: true,
                     fontSize: titleFontSize,
+                    alignment: 'left',
                     margin: [0, 0, 0, 1]
                 }] : []),
                 body
@@ -50615,7 +50697,7 @@ renderRadar() {
         };
     }
 
-    buildPdfLotSummaryZonedLayout(lot, tpdf, options = {}) {
+    buildPdfLotSummaryZonedPages(lot, tpdf, options = {}) {
         const MM_TO_PT = 72 / 25.4;
         const blockGapPt = options.blockGapPt || 3;
         const columnGap = this.getPdfOperationSheetColumnGapPt();
@@ -50623,15 +50705,21 @@ renderRadar() {
         const bounded = (heightPt) => ({ f, heightPt });
         const mainColWeights = [100, 170];
         const middleColWeights = [60, 110];
-        const fichePairs = Array.isArray(options.fichePairs) ? options.fichePairs : [];
-        const customInfoPairs = Array.isArray(options.customInfoPairs) ? options.customInfoPairs : [];
+        const fichePairsAll = Array.isArray(options.fichePairs) ? options.fichePairs : [];
+        const customInfoPairsAll = Array.isArray(options.customInfoPairs) ? options.customInfoPairs : [];
+        const lotNumber = options.lotNumber != null ? options.lotNumber : '';
         const {
             pieceTypePairs,
+            homoPairs,
+            heteroPairs,
             seuilsRows,
             conformiteRows,
             conf
         } = this.getPdfLotPieceTypeSimilarityExportParts(lot, tpdf);
-        const localisationPairsForGrid = this.getPdfLotLocalisationExportPairs(lot, tpdf);
+        const destinationPairs = this.getPdfLotDestinationExportPairs(lot, tpdf);
+        const employmentClassPairs = this.getPdfLotEmploymentClassExportPairs(lot, tpdf);
+        const localisationBasePairs = this.getPdfLotLocalisationExportPairs(lot, tpdf);
+        const localisationPairsAll = [...localisationBasePairs, ...employmentClassPairs];
         const tableOpts = {
             f,
             fontSize: Math.max(5, f.tableCompact - 0.5),
@@ -50648,80 +50736,199 @@ renderRadar() {
         ], seuilsRows.length ? seuilsRows : [['—', '—', '—', '—']], tableOpts);
         const conformityBody = this.buildPdfLotConformitySheetBody(tpdf, conformiteRows, conf, f);
 
-        const mainHeightPt = 180 * MM_TO_PT;
-        const middleRowHeightPt = 110 * MM_TO_PT;
-        const metrageHeightPt = 20 * MM_TO_PT;
-        const customInfoHeightPt = 45 * MM_TO_PT;
+        const mainHeightMm = 180;
+        const middleRowHeightMm = 110;
+        const pieceTypeHeightMm = 20;
+        const customInfoHeightMm = 50;
+        const pieceTypeHeightPt = pieceTypeHeightMm * MM_TO_PT;
+        const customInfoHeightPt = customInfoHeightMm * MM_TO_PT;
+        const continuationColumnHeightMm = 180;
 
-        const customInfoPairsResolved = customInfoPairs.length
-            ? customInfoPairs
+        const customInfoPairsResolved = customInfoPairsAll.length
+            ? customInfoPairsAll
             : [{ label: '—', value: '—' }];
-        const customInfoGridColumns = Math.max(4, customInfoPairs.length || 1);
+        const customInfoGridColumns = Math.max(4, customInfoPairsAll.length || 1);
 
         const usableWidthPt = options.usableWidthPt || this.getPdfSheetUsableWidthPt('landscape', this.getPdfOperationSheetPageMargins());
         const mainColWidthsPt = this.getPdfSheetColumnWidthsPt(mainColWeights, usableWidthPt, columnGap);
         const middleColWidthsPt = this.getPdfSheetColumnWidthsPt(middleColWeights, mainColWidthsPt[1], columnGap);
 
-        const rightColumnStack = [
-            {
-                columns: [
-                    {
-                        width: middleColWidthsPt[0],
-                        stack: [
-                            this.buildPdfLotSheetBoundedBlock(
-                                tpdf('pdf.card.lotMetrage', 'Métrage du lot', 'Lot measurement'),
-                                { pairs: pieceTypePairs, gridColumns: 1, ...bounded(metrageHeightPt) }
-                            ),
-                            this.buildPdfLotSheetBoundedBlock(
-                                tpdf('pdf.pieceType.seuilsTitle', 'Seuils de destination', 'Destination thresholds'),
-                                { body: seuilsTable, ...bounded(20 * MM_TO_PT) }
-                            ),
-                            this.buildPdfLotSheetBoundedBlock(
-                                null,
-                                { body: conformityBody, ...bounded(35 * MM_TO_PT) }
-                            )
-                        ]
-                    },
-                    {
-                        width: middleColWidthsPt[1],
-                        stack: [
-                            this.buildPdfLotSheetBoundedBlock(
-                                tpdf('pdf.card.lotLocalisation', 'Localisation du lot', 'Lot location'),
-                                { pairs: localisationPairsForGrid, ...bounded(middleRowHeightPt) }
-                            )
-                        ]
-                    }
-                ],
-                columnGap
-            },
-            this.buildPdfLotSheetBoundedBlock(
-                tpdf('pdf.card.customInfo', 'Informations personnalisées', 'Custom information'),
-                {
-                    pairs: customInfoPairsResolved,
-                    gridColumns: customInfoGridColumns,
-                    ...bounded(customInfoHeightPt)
+        const buildRightColumnStack = (localisationPairs, customInfoPairs, layoutOptions = {}) => {
+            if (layoutOptions.isContinuation) {
+                const stack = [];
+                if (localisationPairs.length) {
+                    stack.push(this.buildPdfLotSheetBoundedBlock(
+                        tpdf('pdf.lot.sheetContinuation', 'Suite de la fiche du lot', 'Lot sheet continuation'),
+                        { pairs: localisationPairs, ...bounded(continuationColumnHeightMm * MM_TO_PT) }
+                    ));
                 }
-            )
-        ];
+                if (customInfoPairs.length) {
+                    stack.push(this.buildPdfLotSheetBoundedBlock(
+                        tpdf('pdf.lot.sheetContinuation', 'Suite de la fiche du lot', 'Lot sheet continuation'),
+                        {
+                            pairs: customInfoPairs,
+                            gridColumns: customInfoGridColumns,
+                            ...bounded(continuationColumnHeightMm * MM_TO_PT)
+                        }
+                    ));
+                }
+                return stack;
+            }
 
-        return {
+            const stack = [
+                this.buildPdfLotSheetBoundedBlock(
+                    tpdf('pdf.card.pieceType', 'Pièce type du lot', 'Lot piece type'),
+                    { pairs: pieceTypePairs, gridColumns: 2, ...bounded(pieceTypeHeightPt) }
+                ),
+                {
+                    columns: [
+                        {
+                            width: middleColWidthsPt[0],
+                            stack: [
+                                this.buildPdfLotSheetBoundedBlock(
+                                    tpdf('pdf.card.lotDestination', 'Destination du lot', 'Lot destination'),
+                                    { pairs: destinationPairs, ...bounded(25 * MM_TO_PT) }
+                                ),
+                                this.buildPdfLotSheetBoundedBlock(
+                                    tpdf('pdf.pieceType.homoTitle', 'Homogénéité', 'Homogeneity'),
+                                    { pairs: homoPairs, gridColumns: 2, ...bounded(10 * MM_TO_PT) }
+                                ),
+                                this.buildPdfLotSheetBoundedBlock(
+                                    tpdf('pdf.pieceType.heteroTitle', 'Hétérogénéité', 'Heterogeneity'),
+                                    { pairs: heteroPairs, gridColumns: 2, ...bounded(15 * MM_TO_PT) }
+                                ),
+                                this.buildPdfLotSheetBoundedBlock(
+                                    tpdf('pdf.pieceType.seuilsTitle', 'Seuils de destination', 'Destination thresholds'),
+                                    { body: seuilsTable, ...bounded(20 * MM_TO_PT) }
+                                ),
+                                this.buildPdfLotSheetBoundedBlock(
+                                    null,
+                                    { body: conformityBody, ...bounded(40 * MM_TO_PT) }
+                                )
+                            ]
+                        },
+                        {
+                            width: middleColWidthsPt[1],
+                            stack: [
+                                this.buildPdfLotSheetBoundedBlock(
+                                    tpdf('pdf.card.lotLocalisation', 'Localisation du lot', 'Lot location'),
+                                    { pairs: localisationPairs, ...bounded(middleRowHeightMm * MM_TO_PT) }
+                                )
+                            ]
+                        }
+                    ],
+                    columnGap
+                }
+            ];
+            if (customInfoPairs.length) {
+                stack.push(this.buildPdfLotSheetBoundedBlock(
+                    tpdf('pdf.card.customInfo', 'Informations personnalisées', 'Custom information'),
+                    {
+                        pairs: customInfoPairs,
+                        gridColumns: customInfoGridColumns,
+                        ...bounded(customInfoHeightPt)
+                    }
+                ));
+            }
+            return stack;
+        };
+
+        const buildColumnsLayout = (pageSlices, layoutOptions = {}) => ({
             columns: [
                 {
                     width: mainColWidthsPt[0],
                     stack: [
                         this.buildPdfLotSheetBoundedBlock(
-                            tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'),
-                            { pairs: fichePairs, ...bounded(mainHeightPt) }
+                            layoutOptions.isContinuation
+                                ? tpdf('pdf.lot.sheetContinuation', 'Suite de la fiche du lot', 'Lot sheet continuation')
+                                : tpdf('pdf.card.lotSheet', 'Fiche du lot', 'Lot sheet'),
+                            {
+                                pairs: pageSlices.fichePairs,
+                                ...bounded((layoutOptions.isContinuation ? continuationColumnHeightMm : mainHeightMm) * MM_TO_PT)
+                            }
                         )
                     ]
                 },
-                { width: mainColWidthsPt[1], stack: rightColumnStack }
+                {
+                    width: mainColWidthsPt[1],
+                    stack: buildRightColumnStack(pageSlices.localisationPairs, pageSlices.customInfoPairs, layoutOptions)
+                }
             ],
             columnGap,
             margin: [0, blockGapPt, 0, blockGapPt]
-        };
+        });
+
+        let ficheOverflow = fichePairsAll.slice();
+        let localisationOverflow = localisationPairsAll.slice();
+        let customOverflow = customInfoPairsResolved.slice();
+
+        const ficheMain = this.splitPdfKvPairsByRowBudget(
+            ficheOverflow,
+            this.getPdfLotSheetMaxRowsForHeight(mainHeightMm, f, true)
+        );
+        ficheOverflow = ficheMain.overflow;
+
+        const locMain = this.splitPdfKvPairsByRowBudget(
+            localisationOverflow,
+            this.getPdfLotSheetMaxRowsForHeight(middleRowHeightMm, f, true)
+        );
+        localisationOverflow = locMain.overflow;
+
+        const customMain = this.splitPdfKvPairsByRowBudget(
+            customOverflow,
+            this.getPdfLotSheetMaxRowsForHeight(customInfoHeightMm, f, true)
+        );
+        customOverflow = customMain.overflow;
+
+        const pages = [
+            buildColumnsLayout({
+                fichePairs: ficheMain.visible,
+                localisationPairs: locMain.visible,
+                customInfoPairs: customMain.visible
+            })
+        ];
+
+        let continuationIndex = 0;
+        while (ficheOverflow.length || localisationOverflow.length || customOverflow.length) {
+            continuationIndex += 1;
+            const contFiche = this.splitPdfKvPairsByRowBudget(
+                ficheOverflow,
+                this.getPdfLotSheetMaxRowsForHeight(continuationColumnHeightMm, f, true)
+            );
+            const contLoc = this.splitPdfKvPairsByRowBudget(
+                localisationOverflow,
+                this.getPdfLotSheetMaxRowsForHeight(continuationColumnHeightMm, f, true)
+            );
+            const contCustom = this.splitPdfKvPairsByRowBudget(
+                customOverflow,
+                this.getPdfLotSheetMaxRowsForHeight(continuationColumnHeightMm, f, true)
+            );
+            ficheOverflow = contFiche.overflow;
+            localisationOverflow = contLoc.overflow;
+            customOverflow = contCustom.overflow;
+
+            const lotSuffix = lotNumber !== '' ? String(lotNumber) : String(continuationIndex);
+            const continuationTitle = tpdf('pdf.lot.sheetContinuation', 'Suite de la fiche du lot', 'Lot sheet continuation') + ' ' + lotSuffix;
+            pages.push({
+                pageBreak: 'before',
+                stack: [
+                    this.buildPdfLotSheetPageHeader(continuationTitle, f),
+                    buildColumnsLayout({
+                        fichePairs: contFiche.visible,
+                        localisationPairs: contLoc.visible,
+                        customInfoPairs: contCustom.visible
+                    }, { isContinuation: true })
+                ]
+            });
+        }
+
+        return pages;
     }
 
+    buildPdfLotSummaryZonedLayout(lot, tpdf, options = {}) {
+        const pages = this.buildPdfLotSummaryZonedPages(lot, tpdf, options);
+        return pages[0] || { text: '' };
+    }
     buildPdfLotPieceTypeSimilarityZonedBand(lot, tpdf, options = {}) {
         return this.buildPdfLotSummaryZonedLayout(lot, tpdf, options);
     }
@@ -51001,11 +51208,12 @@ renderRadar() {
             zeroPct: radarZeroPct
         });
 
-        const lotSummaryZonedBlock = this.buildPdfLotSummaryZonedLayout(currentLot, tpdf, {
+        const lotSummaryPages = this.buildPdfLotSummaryZonedPages(currentLot, tpdf, {
             fichePairs: ficheLotPairsForGrid,
             customInfoPairs,
             blockGapPt,
-            f: this.getPdfLotSheetFontScale()
+            f: this.getPdfLotSheetFontScale(),
+            lotNumber: lotIndex + 1
         });
 
         const pageOrientation = 'landscape';
@@ -51040,13 +51248,13 @@ renderRadar() {
             unbreakable: true
         } : null;
 
-        const mainLeftStack = [lotSummaryZonedBlock];
-        if (mainLeftStack.length) {
-            mainLeftStack[mainLeftStack.length - 1].margin = [0, 0, 0, 0];
-        }
+        const mainLeftStack = lotSummaryPages.length ? lotSummaryPages : [{ text: '' }];
 
         const topCards = [
-            { text: this.sanitizePdfText(this.getPdfLotLabel(currentLot, lotIndex)), style: 'smallTitle' }
+            this.buildPdfZonedSheetPageTitle(this.getPdfLotLabel(currentLot, lotIndex), {
+                f: this.getPdfLotSheetFontScale(),
+                bottomGapPt: blockGapPt
+            })
         ];
 
         const matrixRoleIndex = this.buildPdfOrientationMatrixRoleIndex(currentLot);

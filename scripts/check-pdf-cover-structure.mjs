@@ -87,7 +87,7 @@ const asserts = [
         && zonedSlice.includes('30 * MM_TO_PT')
         && zonedSlice.includes('60 * MM_TO_PT')
         && zonedSlice.includes('120 * MM_TO_PT')
-        && zonedSlice.includes('headerHeightPt')
+        && zonedSlice.includes('buildPdfZonedSheetPageTitle')
         && zonedSlice.includes('buildPdfOperationSheetBoundedBlock')],
     ['visite PEMD colonne 4', () => zonedSlice.includes('pdf.card.pemdVisit')
         && zonedSlice.includes('pemdVisitPairs')],
@@ -98,11 +98,11 @@ const asserts = [
     ['Diagnostiqueur (Bois) dans référence', () => src.includes("'Diagnostiqueur (Bois)'")],
     ['contacts sans libellé structure redondant', () => src.includes('buildPdfOperationSheetContactBlock')
         && src.includes('standardLabels')],
-    ['titre fiche opération centré', () => zonedSlice.includes("alignment: 'center'")
-        && zonedSlice.includes("tpdf('pdf.card.operation'")
-        && zonedSlice.includes('getPdfOperationSheetHeaderLayout()')],
+    ['titre fiche opération aligné à gauche', () => zonedSlice.includes('buildPdfZonedSheetPageTitle')
+        && src.includes('getPdfZonedSheetPageTitleFontSize')
+        && src.includes("alignment: 'left'")],
     ['synthèse lots pageBreak revue complète', () => syntheseSlice.includes("synthesePage.pageBreak = 'before'")],
-    ['synthèse page unique zonée', () => synthesisZonedSlice.includes('headerHeightPt')
+    ['synthèse page unique zonée', () => synthesisZonedSlice.includes('buildPdfZonedSheetPageTitle')
         && synthesisZonedSlice.includes('evalHeightPt')
         && synthesisZonedSlice.includes('scoresHeightPt')
         && synthesisZonedSlice.includes('lotsHeightPt')

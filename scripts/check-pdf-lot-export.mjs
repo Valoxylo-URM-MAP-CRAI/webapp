@@ -54,15 +54,18 @@ const asserts = [
         && src.includes("tpdf('pdf.card.lotSheet'")],
     ['fiche lot en paysage', () => fnBody.includes("pageOrientation = 'landscape'")],
     ['fiche lot colonne unique sidebar', () => fnBody.includes('ficheLotPairsForGrid')
-        && fnBody.includes('buildPdfLotSummaryZonedLayout(currentLot, tpdf')
+        && fnBody.includes('buildPdfLotSummaryZonedPages(currentLot, tpdf')
         && fnBody.includes('customInfoPairs')
         && fnBody.includes('const ficheLotPairsForGrid = lotPairs')
         && src.includes('options.pairs || []')],
+    ['titres fiche lot harmonisés', () => src.includes('getPdfZonedSheetPageTitleFontSize')
+        && src.includes('buildPdfZonedSheetPageTitle')
+        && fnBody.includes('buildPdfZonedSheetPageTitle(this.getPdfLotLabel')],
     ['zonage maquette 100/170 mm', () => {
-        const zonedStart = src.indexOf('buildPdfLotSummaryZonedLayout(lot, tpdf');
-        const zonedEnd = src.indexOf('buildPdfLotPieceTypeSimilarityZonedBand', zonedStart);
+        const zonedStart = src.indexOf('buildPdfLotSummaryZonedPages(lot, tpdf');
+        const zonedEnd = src.indexOf('buildPdfLotSummaryZonedLayout(lot, tpdf', zonedStart);
         const zonedFn = zonedStart >= 0 && zonedEnd > zonedStart ? src.slice(zonedStart, zonedEnd) : '';
-        return fnBody.includes('buildPdfLotSummaryZonedLayout(currentLot, tpdf')
+        return fnBody.includes('buildPdfLotSummaryZonedPages(currentLot, tpdf')
             && zonedFn.includes('mainColWeights')
             && zonedFn.includes('middleColWeights')
             && zonedFn.includes('getPdfSheetColumnWidthsPt(mainColWeights')
@@ -71,15 +74,29 @@ const asserts = [
             && !zonedFn.includes('width: mainColWeights')
             && !zonedFn.includes('width: middleColWeights')
             && zonedFn.includes('getPdfOperationSheetColumnGapPt()')
+            && zonedFn.includes('20 * MM_TO_PT')
+            && zonedFn.includes('middleRowHeightMm = 110')
+            && zonedFn.includes('customInfoHeightMm = 50')
+            && zonedFn.includes('10 * MM_TO_PT')
+            && zonedFn.includes('15 * MM_TO_PT')
+            && zonedFn.includes('40 * MM_TO_PT')
+            && zonedFn.includes('pdf.card.lotDestination')
+            && zonedFn.includes('pdf.pieceType.homoTitle')
+            && zonedFn.includes('pdf.card.pieceType')
             && zonedFn.includes('pdf.pieceType.seuilsTitle')
             && zonedFn.includes('pdfLotSheetLabelValueTable')
-            && zonedFn.includes('45 * MM_TO_PT')
-            && !zonedFn.includes('pdf.card.lotDestination')
-            && !zonedFn.includes('pdf.pieceType.homoTitle')
-            && !zonedFn.includes('pdf.card.pieceType')
+            && !zonedFn.includes('45 * MM_TO_PT')
+            && !zonedFn.includes('35 * MM_TO_PT')
             && !fnBody.includes('lotSummaryHalfPage')
             && !fnBody.includes('customInfoCard');
     }],
+    ['classes emploi groupées export PDF', () => src.includes('groupLotEmploymentClassDetailLines(entries)')
+        && src.includes('getPdfLotEmploymentClassExportPairs(lot, tpdf)')
+        && src.includes('groupedDetailLines')],
+    ['suite fiche lot pagination', () => src.includes('buildPdfLotSheetPageHeader(continuationTitle, f)')
+        && src.includes("pageBreak: 'before'")
+        && src.includes('buildPdfLotSummaryZonedPages')
+        && src.includes('splitPdfKvPairsByRowBudget')],
     ['inspection retirée du haut fiche lot', () => !fnBody.includes('orientationJustificationCard')
         && fnBody.includes('buildPdfLotInspectionReminderTable(currentLot, tpdf')],
     ['plus de carte justification orientation', () => !fnBody.includes('orientationJustificationCard')
