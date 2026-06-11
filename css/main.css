@@ -437,6 +437,9 @@
             --font-weight-regular: 400;
             --font-weight-medium: 500;
             --font-weight-semibold: 600;
+
+            --lot-input-min-height: 28px;
+            --lot-input-pad-y: var(--space-4);
         }
 
         * {
@@ -3561,13 +3564,13 @@ body.day-mode .lot-group--collapsible summary::after {
 .rarete-custom-editor select.lot-input,
 .rarete-custom-create-grid .btn,
 .rarete-custom-row .rarete-custom-remove-btn {
-    height: 30px;
+    height: var(--lot-input-min-height);
     box-sizing: border-box;
     min-height: unset;
     font-size: var(--font-size-sm);
     padding-top: 0;
     padding-bottom: 0;
-    line-height: 30px;
+    line-height: var(--lot-input-min-height);
 }
 
 #rareteInfoModalBody > * {
@@ -3729,7 +3732,7 @@ body.day-mode .lot-group--collapsible summary::after {
 
 .loc-sit-conception-btn {
     flex: 1;
-    min-height: 30px;
+    min-height: var(--lot-input-min-height);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-base);
     background: #ececec;
@@ -3751,7 +3754,7 @@ body.day-mode .lot-group--collapsible summary::after {
 }
 
 .loc-sit-class-pill {
-    height: 30px;
+    height: var(--lot-input-min-height);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-base);
     background: #ececec;
@@ -3847,7 +3850,7 @@ body.day-mode .lot-group--collapsible summary::after {
 }
 
 .loc-sit-row__value {
-    min-height: 34px;
+    min-height: var(--lot-input-min-height);
     display: flex;
     align-items: center;
     padding: 0 8px;
@@ -4297,12 +4300,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     background-color: var(--bleu-crai);
     color: var(--color-white);
     border: 1px solid var(--bleu-crai);
-    min-height: 26px;
-}
-
-.lot-type-with-detail .lot-input,
-.lot-essence-with-detail .lot-input {
-    min-height: 26px;
+    min-height: var(--lot-input-min-height);
 }
 
 .tropix-link-btn {
@@ -4465,9 +4463,11 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-seuils-input {
     width: 100%;
+    min-height: var(--lot-input-min-height);
     text-align: right;
-    padding: 2px 4px;
+    padding: var(--lot-input-pad-y) 4px;
     font-size: var(--font-size-xs);
+    box-sizing: border-box;
 }
 
 /* Supprime les flèches natives des input[type=number] */
@@ -4494,9 +4494,11 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-seuils-poids-input {
     width: 100%;
+    min-height: var(--lot-input-min-height);
     text-align: right;
-    padding: 2px 4px;
+    padding: var(--lot-input-pad-y) 4px;
     font-size: var(--font-size-xs);
+    box-sizing: border-box;
     background-color: #f2efe7;
     border: 1px solid #ddd6c8;
     color: #5d564a;
@@ -4523,9 +4525,11 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-dest-input {
     width: 100%;
+    min-height: var(--lot-input-min-height);
     text-align: right;
-    padding: var(--space-4) var(--space-8);
+    padding: var(--lot-input-pad-y) var(--space-8);
     font-size: var(--font-size-sm);
+    box-sizing: border-box;
     background-color: #e6e6e6;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
@@ -4620,7 +4624,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     align-items: center;
     justify-content: center;
     width: 60px;
-    height: 30px;
+    height: var(--lot-input-min-height);
     padding: 0 var(--space-4);
     border-radius: var(--radius-base);
     border: 1px solid #A8B7BF;
@@ -4643,8 +4647,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-taux-info-btn {
     flex-shrink: 0;
-    width: 30px;
-    height: 30px;
+    width: var(--lot-input-min-height);
+    height: var(--lot-input-min-height);
     padding: 0;
     border-radius: var(--radius-base);
     border: 1px solid var(--bleu-crai);
@@ -4752,8 +4756,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 .lot-extreme-piece-info-btn {
     flex: 0 0 auto;
-    width: 30px;
-    height: 30px;
+    width: var(--lot-input-min-height);
+    height: var(--lot-input-min-height);
     padding: 0;
     border-radius: var(--radius-base);
     border: 1px solid var(--bleu-crai);
@@ -4979,8 +4983,8 @@ body.day-mode .lot-group--collapsible summary:hover {
   flex: 1;
     width: 100%;
   min-width: 0;
-  min-height: 36px;
-  padding: var(--space-8) var(--space-12);
+  min-height: var(--lot-input-min-height);
+  padding: var(--lot-input-pad-y) var(--space-12);
   font-size: var(--font-size-sm);
   border-radius: var(--radius-sm);
   border: 1px solid var(--color-border);
@@ -5021,7 +5025,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     content: '\25BE';
     position: absolute;
     right: 8px;
-    bottom: 7px;
+    bottom: 5px;
     font-size: 12px;
     line-height: 1;
     color: var(--color-text);
@@ -6204,6 +6208,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     cursor: pointer;
     width: 100%;
     min-width: 0;
+    min-height: var(--lot-input-min-height);
     line-height: 1.2;
     white-space: nowrap;
 }
@@ -6271,7 +6276,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 .meta-toggle-group .lot-price-unit-btn {
     flex: 1;
     min-width: unset;
-    height: 30px;
+    height: var(--lot-input-min-height);
 }
 
 .meta-toggle-group .lot-price-unit-btn[aria-pressed="false"] {
@@ -16492,8 +16497,9 @@ body.day-mode .inspection-ignore-box {
 
 .mesures-resume-dim .lot-input {
     font-size: 0.82rem;
-    padding: 2px 26px 2px 6px;
-    height: 26px;
+    padding: var(--lot-input-pad-y) 26px var(--lot-input-pad-y) 6px;
+    min-height: var(--lot-input-min-height);
+    height: var(--lot-input-min-height);
     text-align: right;
 }
 
