@@ -35,6 +35,24 @@
  *       allow update: if isOwner(userId) || sharedEditorPayloadOnlyUpdate();
  *       allow delete: if isOwner(userId);
  *     }
+ *     match /feedback/{docId} {
+ *       allow read: if false;
+ *       allow create: if
+ *         request.resource.data.keys().hasAll(['title', 'email', 'message', 'sourceApp'])
+ *         && request.resource.data.title is string
+ *         && request.resource.data.title.size() > 0
+ *         && request.resource.data.title.size() <= 200
+ *         && request.resource.data.email is string
+ *         && request.resource.data.email.size() > 0
+ *         && request.resource.data.email.size() <= 320
+ *         && request.resource.data.message is string
+ *         && request.resource.data.message.size() > 0
+ *         && request.resource.data.message.size() <= 10000
+ *         && request.resource.data.sourceApp == 'Valobois'
+ *         && (!('createdAt' in request.resource.data)
+ *              || request.resource.data.createdAt == null);
+ *       allow update, delete: if false;
+ *     }
  *   }
  * }
  */

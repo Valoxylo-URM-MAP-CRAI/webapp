@@ -457,6 +457,7 @@
                 <button type="button" class="editor-tab" id="editor-tab-analyse" role="tab" aria-selected="false" aria-controls="editor-tabpanel-analyse" data-tab-id="analyse" tabindex="-1" data-i18n="editor.tabs.analyse">Analyse</button>
                 <button type="button" class="editor-tab" id="editor-tab-synthese" role="tab" aria-selected="false" aria-controls="editor-tabpanel-synthese" data-tab-id="synthese" tabindex="-1" data-i18n="editor.tabs.synthese">Synthèse</button>
                 <button type="button" class="editor-tab" id="editor-tab-matrice" role="tab" aria-selected="false" aria-controls="editor-tabpanel-matrice" data-tab-id="matrice" tabindex="-1" data-i18n="editor.tabs.matrice">Matrice</button>
+                <button type="button" class="editor-tab" id="editor-tab-feedback" role="tab" aria-selected="false" aria-controls="editor-tabpanel-feedback" data-tab-id="feedback" tabindex="-1" data-i18n="editor.tabs.feedback">Nous écrire</button>
             </nav>
             <div id="editor-tab-panels" class="editor-tab-panels">
             <div class="editor-tab-panel" role="tabpanel" id="editor-tabpanel-general" aria-labelledby="editor-tab-general">
@@ -3555,6 +3556,44 @@
             <div class="valobois-matrix-table-wrap" id="valoboisMatrixTableWrap"></div>
         </section>
             </div>
+
+            <div class="editor-tab-panel" role="tabpanel" id="editor-tabpanel-feedback" hidden aria-labelledby="editor-tab-feedback">
+        <section class="card mt-16 feedback-card">
+            <header>
+                <h2 class="card-title" data-i18n="editor.feedback.title">Nous écrire</h2>
+                <p class="feedback-intro" data-i18n="editor.feedback.intro">Un problème, une remarque ou une suggestion d'amélioration ? Vous pouvez nous envoyer un message directement depuis cet onglet.</p>
+            </header>
+            <form id="feedbackForm" class="auth-form feedback-form" novalidate>
+                <label class="auth-label" for="feedbackTitle" data-i18n="editor.feedback.labelTitle">Titre</label>
+                <input class="auth-input" type="text" id="feedbackTitle" name="feedbackTitle" required maxlength="200" autocomplete="off">
+
+                <label class="auth-label" for="feedbackEmail" data-i18n="editor.feedback.labelEmail">Votre e-mail</label>
+                <input class="auth-input" type="email" id="feedbackEmail" name="feedbackEmail" required maxlength="320" autocomplete="email" inputmode="email">
+
+                <label class="auth-label" for="feedbackMessage" data-i18n="editor.feedback.labelMessage">Message</label>
+                <textarea class="auth-input feedback-textarea" id="feedbackMessage" name="feedbackMessage" required maxlength="10000" rows="8"></textarea>
+
+                <p id="feedbackError" class="auth-error" hidden role="alert"></p>
+                <p id="feedbackSuccess" class="auth-success" hidden role="status" aria-live="polite"></p>
+
+                <div class="feedback-actions">
+                    <button type="submit" class="btn btn-primary" id="btnFeedbackSubmit" disabled data-i18n="editor.feedback.submit">Envoyer le commentaire</button>
+                    <button type="button" class="btn btn-secondary" id="btnFeedbackMailto" data-i18n="editor.feedback.mailto">Ouvrir mon client mail</button>
+                </div>
+
+                <p class="feedback-contact">
+                    <span data-i18n="editor.feedback.contactLabel">Vous pouvez aussi nous écrire à</span>
+                    <a href="mailto:maxence.lebosse@nancy.archi.fr">maxence.lebosse@nancy.archi.fr</a>
+                </p>
+            </form>
+
+            <aside class="feedback-github-block" aria-labelledby="feedbackGithubTitle">
+                <h3 class="feedback-github-title" id="feedbackGithubTitle" data-i18n="editor.feedback.githubTitle">Publier une Issue</h3>
+                <p data-i18n="editor.feedback.githubIntro">Si vous êtes à l'aise avec GitHub, vous pouvez aussi signaler un problème ou proposer une amélioration directement dans les Issues du projet.</p>
+                <a class="feedback-github-link" href="https://github.com/Valoxylo-URM-MAP-CRAI/webapp/issues" target="_blank" rel="noopener noreferrer" data-i18n="editor.feedback.githubLink">Issues GitHub du projet</a>
+            </aside>
+        </section>
+            </div>
             </div>
 
             <div id="editor-modals-root" class="editor-modals-root">
@@ -5704,6 +5743,7 @@
     <script defer src="js/app/editor-tab-analyse.js"></script>
     <script defer src="js/app/editor-tab-synthese.js"></script>
     <script defer src="js/app/editor-tab-matrice.js"></script>
+    <script defer src="js/app/editor-tab-feedback.js"></script>
     <script defer src="js/app/editor-tabs.js"></script>
     <script defer src="js/lib/build-glb.js"></script>
     <script defer src="js/lib/build-dae.js"></script>
