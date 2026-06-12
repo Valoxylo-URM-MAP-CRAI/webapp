@@ -70,15 +70,66 @@ const asserts = [
     }],
     ['table récap avec colonne quantité', () => src.includes("tpdf('pdf.piece.quantity'")
         && src.includes('buildPdfPiecesDetailAnnexRecapHeaders')
+        && src.includes("tpdf('pdf.lot.orientation'")
+        && src.includes('getPdfPieceRecapOrientationLabel(')
+        && src.includes('getPdfPieceRecapDisplayName(')
+        && src.includes('formatPdfPiecesRecapDims(')
         && (() => {
             const fn = src.slice(
                 src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, options = {})'),
                 src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, options = {})') + 1200
             );
-            return fn.includes("widths: recapHeaders.map(() => '*')")
-                && fn.includes('fullWidth: true')
+            return fn.includes('getPdfPiecesDetailAnnexRecapColumnWidthsPt(')
+                && !fn.includes('fullWidth: true')
                 && fn.includes('titleNode.id = options.destId');
         })()],
+    ['récap annexe dimensions en mm', () => {
+        const fnStart = src.indexOf('formatPdfPiecesRecapDims(sourcePiece, lot) {');
+        const fnEnd = src.indexOf('/** Nom affiché dans le récap annexe pièces.', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        return fn.includes("getPdfPieceRecapGeometryMode(sourcePiece, lot)")
+            && fn.includes("mode === 'circular'")
+            && fn.includes("'ø' + d")
+            && fn.includes("dimParts.join('×')");
+    }],
+    ['récap annexe profil circulaire pièce', () => src.includes('getPieceMultipleMeasurementsGeometryProfile(piece)')
+        && src.includes('getPdfPieceRecapGeometryMode(sourcePiece, lot)')
+        && src.includes("return 'circular'")],
+    ['récap annexe nom pièce par défaut numéroté', () => {
+        const fn = src.slice(
+            src.indexOf('collectPdfLotPieceAnnexEntries(lot)'),
+            src.indexOf('resolvePdfPieceExportPiece(entry, lot)')
+        );
+        return fn.includes('defaultPieceIndex: index + 1')
+            && src.includes('getPdfPieceRecapDisplayName(entry, sourcePiece, tpdf)')
+            && src.includes("tpdf('pdf.piece.defaultPieceRecapName'");
+    }],
+    ['récap annexe unités volume humidité prix âge', () => {
+        const fn = src.slice(
+            src.indexOf('buildPdfLotPiecesRecapRows(annexEntries, lot, allotissement, tpdf, pdfDash, getPieceValue, formatRecapDims)'),
+            src.indexOf('buildPdfPiecesDetailAnnexRecapHeaders(tpdf)')
+        );
+        return fn.includes("withUnit(volumeDisplay, 'm³')")
+            && fn.includes("withUnit(getPieceValue(piece.humidite, allotissement.humidite), '%')")
+            && fn.includes("withUnit(prixDisplay, '€')")
+            && fn.includes("withUnit(sourcePiece.ageArbre, 'ans')");
+    }],
+    ['récap annexe colonnes pondérées 100 %', () => {
+        const fnStart = src.indexOf('getPdfPiecesDetailAnnexRecapColumnWeights() {');
+        const fnEnd = src.indexOf('buildPdfPiecesDetailAnnexContent(lotIndices', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        const match = fn.match(/return \[([^\]]+)\]/);
+        if (!match) return false;
+        const weights = match[1].split(',').map((part) => Number(part.trim()));
+        return weights.length === 13
+            && weights.reduce((sum, w) => sum + w, 0) === 100
+            && weights[0] === 4
+            && weights[5] === 25
+            && weights[6] === 15
+            && src.includes('getPdfPiecesDetailAnnexRecapColumnWidthsPt(pageMargins)')
+            && src.includes('getPdfTableCellPaddingOverheadPt(')
+            && src.includes('getPdfSheetColumnWidthsPt(');
+    }],
     ['annexe pièces démarre nouvelle page', () => {
         const fn = src.slice(
             src.indexOf('buildPdfPiecesDetailAnnexContent(lotIndices'),
