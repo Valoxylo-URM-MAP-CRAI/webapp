@@ -72,11 +72,12 @@ const asserts = [
         && src.includes('buildPdfPiecesDetailAnnexRecapHeaders')
         && (() => {
             const fn = src.slice(
-                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f)'),
-                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f)') + 600
+                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, options = {})'),
+                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, options = {})') + 1200
             );
             return fn.includes("widths: recapHeaders.map(() => '*')")
-                && fn.includes('fullWidth: true');
+                && fn.includes('fullWidth: true')
+                && fn.includes('titleNode.id = options.destId');
         })()],
     ['annexe pièces démarre nouvelle page', () => {
         const fn = src.slice(
@@ -224,7 +225,7 @@ const asserts = [
     }],
     ['revue complète sans retour portrait', () => !exportSlice.includes("pageOrientation: 'portrait'")],
     ['fiche lot zonage sidebar', () => {
-        const fn = src.slice(src.indexOf('buildPdfActiveLotDocDef(lotIndex)'), src.indexOf('buildPdfActiveLotDocDef(lotIndex)') + 25000);
+        const fn = src.slice(src.indexOf('buildPdfActiveLotDocDef(lotIndex, options = {})'), src.indexOf('buildPdfActiveLotDocDef(lotIndex, options = {})') + 25000);
         return fn.includes('buildPdfLotSummaryZonedPages(currentLot, tpdf')
             && fn.includes('ficheLotPairsForGrid')
             && fn.includes('customInfoPairs')

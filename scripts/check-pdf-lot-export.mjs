@@ -11,9 +11,11 @@ const appPath = path.join(__dirname, '../js/app/valobois-app.js');
 const src = fs.readFileSync(appPath, 'utf8');
 
 const fnBody = (() => {
-    const start = src.indexOf('buildPdfActiveLotDocDef(lotIndex)');
+    const sig = 'buildPdfActiveLotDocDef(lotIndex, options = {})';
+    const start = src.indexOf(sig);
     if (start < 0) throw new Error('buildPdfActiveLotDocDef introuvable');
-    const open = src.indexOf('{', start);
+    const open = src.indexOf('{', start + sig.length);
+    if (open < 0) throw new Error('Corps buildPdfActiveLotDocDef introuvable');
     let depth = 0;
     for (let i = open; i < src.length; i++) {
         if (src[i] === '{') depth++;
@@ -27,7 +29,7 @@ const fnBody = (() => {
 
 const exportSlice = (() => {
     const start = src.indexOf('exportSelectedLotsToPdf(lotIndices)');
-    return start >= 0 ? src.slice(start, start + 4000) : '';
+    return start >= 0 ? src.slice(start, start + 5000) : '';
 })();
 
 const notesDistributionFnBody = (() => {
@@ -207,17 +209,24 @@ const asserts = [
     ['plus de carte CV/EIQ/MAD', () => !fnBody.includes('dispersionPairs') && !fnBody.includes('pdf.card.dispersionMetrics')],
     ['notation en lignes fragmentables', () => fnBody.includes('notationGridRows')],
     ['radar non unbreakable', () => !/radarCard[\s\S]{0,200}unbreakable: true/.test(fnBody)],
-    ['pageBreak avant chaque lot fusionné', () => /docDefPages\.forEach\([\s\S]*pageBreak: 'before'/.test(exportSlice)
+    ['pageBreak avant chaque lot fusionné', () => /lotExportEntries\.forEach\([\s\S]*pageBreak: 'before'/.test(exportSlice)
         && !/if \(idx > 0\)[\s\S]{0,80}pageBreak: 'before'/.test(exportSlice)],
     ['revue complète entièrement paysage', () => exportSlice.includes("pageOrientation: 'landscape'")
         && !exportSlice.includes("pageOrientation: 'portrait'")],
     ['page de couverture revue complète avant fiche opération', () => {
-        const exportBlock = src.slice(src.indexOf('exportSelectedLotsToPdf(lotIndices)'), src.indexOf('exportSelectedLotsToPdf(lotIndices)') + 8000);
+        const exportBlock = src.slice(src.indexOf('exportSelectedLotsToPdf(lotIndices)'), src.indexOf('exportSelectedLotsToPdf(lotIndices)') + 9000);
         const coverPushIdx = exportBlock.indexOf('mergedContent.push(this.buildPdfRevueCompleteCoverPage(validLotIndices))');
-        const gardePushIdx = exportBlock.indexOf('stack: coverContent');
-        const breakIdx = exportBlock.indexOf("pageBreak: 'before'", coverPushIdx);
-        return coverPushIdx >= 0 && gardePushIdx > coverPushIdx && breakIdx > coverPushIdx && breakIdx < gardePushIdx;
-    }]
+        const sommairePushIdx = exportBlock.indexOf('mergedContent.push(this.buildPdfRevueCompleteSommairePage(validLotIndices))');
+        const operationDestIdx = exportBlock.indexOf("this.getPdfRevueCompleteDestinationId('operation')");
+        const breakIdx = exportBlock.indexOf("pageBreak: 'before'", exportBlock.indexOf('markPdfContentFirstNodeId('));
+        return coverPushIdx >= 0
+            && sommairePushIdx > coverPushIdx
+            && operationDestIdx > sommairePushIdx
+            && breakIdx > operationDestIdx;
+    }],
+    ['sommaire avec destinations lot et annexes', () => src.includes("destinationId: this.getPdfRevueCompleteDestinationId('lot', lotIndex)")
+        && src.includes("getPdfRevueCompleteDestinationId('annex-pieces-lot', lotIndex)")
+        && src.includes('markPdfContentFirstNodeId(')]
 ];
 
 let failed = 0;

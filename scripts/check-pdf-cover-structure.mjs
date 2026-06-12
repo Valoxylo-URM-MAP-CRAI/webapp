@@ -92,6 +92,30 @@ const asserts = [
                 && metaRowFn.includes("alignment: 'right'")
                 && metaRowFn.includes("alignment: 'left'");
         })()],
+    ['sommaire revue complète en 1 colonne', () => src.includes('buildPdfRevueCompleteSommairePage(')
+        && src.includes('collectPdfRevueCompleteSommaireEntries(')
+        && src.includes('buildPdfSommaireEntryNode(')
+        && src.includes('getPdfRevueCompleteDestinationId(')
+        && src.includes('linkToDestination: entry.destId')
+        && src.includes('pageReference: entry.destId')
+        && src.includes('findPdfTextDestinationAnchor(')
+        && src.includes('markPdfContentFirstNodeId(')
+        && (() => {
+            const fnStart = src.indexOf('buildPdfRevueCompleteSommairePage(validLotIndices');
+            const fnEnd = src.indexOf('    /** Marges communes à l\'export PDF « Revue complète » (paysage). */', fnStart);
+            const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+            return fn.includes('stack: entryNodes')
+                && !fn.includes('const columnCount = 3')
+                && fn.includes("alignment: 'left'")
+                && fn.includes("tpdf('pdf.title.sommaire'");
+        })()],
+    ['destination fiche lot sur titre visible', () => {
+        const fnStart = src.indexOf('buildPdfActiveLotDocDef(lotIndex, options = {})');
+        const fnEnd = src.indexOf('    normalizeDecimalForCsv(value)', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        return fn.includes('destinationId = options.destinationId')
+            && fn.includes('if (destinationId) lotTitleNode.id = destinationId');
+    }],
     ['synthèse utilise buildPdfGardeContent', () => /buildPdfSynthesisDocDef[\s\S]{0,800}buildPdfGardeContent/.test(src)],
     ['plus de buildPdfOperationMetaSections', () => !src.includes('buildPdfOperationMetaSections')],
     ['contacts fusionnés dans fiche opération', () => contactsSlice.includes('return [];')

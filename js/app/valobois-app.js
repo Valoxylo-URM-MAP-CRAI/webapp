@@ -45233,6 +45233,9 @@ renderRadar() {
             'pdf.durabilite.ref': { fr: 'Référence', en: 'Reference' },
             'pdf.title.garde': { fr: 'Revue complète — Fiche opération', en: 'Full review — Operation sheet' },
             'pdf.title.revueCompleteCover': { fr: 'Revue complète', en: 'Full review' },
+            'pdf.title.sommaire': { fr: 'Sommaire', en: 'Table of contents' },
+            'pdf.sommaire.section.lotSheets': { fr: 'Fiches lot', en: 'Lot sheets' },
+            'pdf.sommaire.lotSheet': { fr: 'Fiche lot', en: 'Lot sheet' },
             'pdf.cover.exportDate': { fr: 'Date d\'export', en: 'Export date' },
             'pdf.cover.valoboisSubtitle': { fr: 'Évaluation bois d\'occasion', en: 'Reclaimed timber assessment' },
             'pdf.section.operationReference': { fr: 'Référence de l\'opération', en: 'Operation reference' },
@@ -45591,6 +45594,218 @@ renderRadar() {
                 ]
             },
             layout: this.getPdfCoverPageNoBorderLayout()
+        };
+    }
+
+    /** Identifiant pdfmake de destination interne (liens sommaire). */
+    getPdfRevueCompleteDestinationId(kind, lotIndex = null) {
+        if (kind === 'operation') return 'valobois-pdf-operation';
+        if (kind === 'lot' && Number.isInteger(lotIndex)) return `valobois-pdf-lot-${lotIndex}`;
+        if (kind === 'annex-durabilite') return 'valobois-pdf-annex-durabilite';
+        if (kind === 'annex-pieces') return 'valobois-pdf-annex-pieces';
+        if (kind === 'annex-pieces-lot' && Number.isInteger(lotIndex)) return `valobois-pdf-annex-pieces-lot-${lotIndex}`;
+        if (kind === 'annex-criteria') return 'valobois-pdf-annex-criteria';
+        return null;
+    }
+
+    /** Premier nœud texte pdfmake utilisable comme destination de lien interne. */
+    findPdfTextDestinationAnchor(node, depth = 0) {
+        if (!node || typeof node !== 'object' || depth > 14) return null;
+        if (node.id) return null;
+        if (Object.prototype.hasOwnProperty.call(node, 'text')) return node;
+        const childLists = [node.stack, node.columns, node.content].filter(Array.isArray);
+        for (let i = 0; i < childLists.length; i++) {
+            const children = childLists[i];
+            for (let j = 0; j < children.length; j++) {
+                const found = this.findPdfTextDestinationAnchor(children[j], depth + 1);
+                if (found) return found;
+            }
+        }
+        return null;
+    }
+
+    /** Pose l'id de destination sur le premier texte visible (pdfmake exige un nœud texte). */
+    markPdfContentFirstNodeId(content, destId) {
+        if (!destId || content == null) return content;
+        const roots = Array.isArray(content) ? content : [content];
+        for (let i = 0; i < roots.length; i++) {
+            const anchor = this.findPdfTextDestinationAnchor(roots[i]);
+            if (anchor) {
+                anchor.id = destId;
+                return content;
+            }
+        }
+        return content;
+    }
+
+    hasPdfDurabiliteNaturelleAnnex(lotIndices = []) {
+        const lots = this.data.lots || [];
+        return lotIndices.some((lotIndex) => {
+            const lot = lots[lotIndex];
+            return lot && this.getLotDurabiliteNaturelleDetailEntries(lot).length > 0;
+        });
+    }
+
+    getPdfPiecesAnnexLotIndices(lotIndices = []) {
+        const lots = this.data.lots || [];
+        return lotIndices.filter((lotIndex) => {
+            const lot = lots[lotIndex];
+            return lot && this.collectPdfLotPieceAnnexEntries(lot).length > 0;
+        });
+    }
+
+    hasPdfCriteriaAnnexContent() {
+        return this.buildPdfCriteriaAnnexContent([]).length > 0;
+    }
+
+    collectPdfRevueCompleteSommaireEntries(validLotIndices = []) {
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const entries = [];
+        const lots = this.data.lots || [];
+
+        entries.push({
+            label: tpdf('pdf.title.garde', 'Revue complète — Fiche opération', 'Full review — Operation sheet'),
+            destId: this.getPdfRevueCompleteDestinationId('operation'),
+            level: 0
+        });
+
+        entries.push({
+            label: tpdf('pdf.sommaire.section.lotSheets', 'Fiches lot', 'Lot sheets'),
+            level: 0,
+            isSection: true
+        });
+        validLotIndices.forEach((lotIndex) => {
+            const lot = lots[lotIndex];
+            if (!lot) return;
+            entries.push({
+                label: tpdf('pdf.sommaire.lotSheet', 'Fiche lot', 'Lot sheet')
+                    + ' — '
+                    + this.getPdfLotLabel(lot, lotIndex),
+                destId: this.getPdfRevueCompleteDestinationId('lot', lotIndex),
+                level: 1
+            });
+        });
+
+        if (this.hasPdfDurabiliteNaturelleAnnex(validLotIndices)) {
+            entries.push({
+                label: tpdf('pdf.title.durabiliteAnnex', 'Annexe — Durabilité naturelle EN 350', 'Annex — EN 350 natural durability'),
+                destId: this.getPdfRevueCompleteDestinationId('annex-durabilite'),
+                level: 0
+            });
+        }
+
+        const piecesLotIndices = this.getPdfPiecesAnnexLotIndices(validLotIndices);
+        if (piecesLotIndices.length) {
+            entries.push({
+                label: tpdf('pdf.title.piecesAnnex', 'Annexe — Pièces détaillées', 'Annex — Detailed pieces'),
+                destId: this.getPdfRevueCompleteDestinationId('annex-pieces'),
+                level: 0
+            });
+            piecesLotIndices.forEach((lotIndex) => {
+                const lot = lots[lotIndex];
+                if (!lot) return;
+                entries.push({
+                    label: this.getPdfLotLabel(lot, lotIndex),
+                    destId: this.getPdfRevueCompleteDestinationId('annex-pieces-lot', lotIndex),
+                    level: 1
+                });
+            });
+        }
+
+        if (this.hasPdfCriteriaAnnexContent()) {
+            entries.push({
+                label: tpdf('pdf.title.criteriaAnnex', 'Annexe — Référentiel des critères de notation', 'Annex — Scoring criteria reference'),
+                destId: this.getPdfRevueCompleteDestinationId('annex-criteria'),
+                level: 0
+            });
+        }
+
+        return entries;
+    }
+
+    buildPdfSommaireEntryNode(entry, f) {
+        const scale = f || this.getPdfFontScale();
+        const indent = Math.max(0, Number(entry.level) || 0) * 16;
+        const labelText = this.sanitizePdfText(entry.label || '', { fallback: '' });
+        const linkFontSize = Math.max(scale.body + 1.5, 10.5);
+        const sectionFontSize = Math.max(scale.body + 2, 11);
+        const pageNumFontSize = Math.max(scale.label + 1, 9.5);
+
+        if (entry.isSection) {
+            return {
+                text: labelText,
+                fontSize: sectionFontSize,
+                bold: true,
+                color: '#374151',
+                margin: [indent, 10, 0, 5]
+            };
+        }
+
+        if (!entry.destId) {
+            return {
+                text: labelText,
+                fontSize: linkFontSize,
+                color: '#111111',
+                margin: [indent, 0, 0, 6]
+            };
+        }
+
+        return {
+            columns: [
+                {
+                    width: '*',
+                    text: {
+                        text: labelText,
+                        linkToDestination: entry.destId,
+                        fontSize: linkFontSize,
+                        color: '#173898',
+                        decoration: 'underline'
+                    },
+                    margin: [indent, 0, 8, 0]
+                },
+                {
+                    width: 28,
+                    text: {
+                        text: '',
+                        pageReference: entry.destId,
+                        fontSize: pageNumFontSize,
+                        color: '#6a6257',
+                        alignment: 'right'
+                    }
+                }
+            ],
+            columnGap: 6,
+            margin: [0, 0, 0, 6]
+        };
+    }
+
+    /** Page sommaire « Revue complète » — 1 colonne, liens internes. */
+    buildPdfRevueCompleteSommairePage(validLotIndices = null) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const lotIndices = Array.isArray(validLotIndices) && validLotIndices.length
+            ? validLotIndices
+            : (this.data.lots || []).map((_, index) => index);
+        const entries = this.collectPdfRevueCompleteSommaireEntries(lotIndices);
+        const entryNodes = entries.map((entry) => this.buildPdfSommaireEntryNode(entry, f));
+
+        return {
+            pageOrientation: 'landscape',
+            pageMargins: this.getPdfRevueCompleteCoverPageMargins(),
+            pageBreak: 'before',
+            stack: [
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.title.sommaire', 'Sommaire', 'Table of contents')),
+                    fontSize: Math.max(f.sectionTitle + 4, 16),
+                    bold: true,
+                    alignment: 'left',
+                    color: '#111111',
+                    margin: [0, 0, 0, 16]
+                },
+                {
+                    stack: entryNodes
+                }
+            ]
         };
     }
 
@@ -48235,6 +48450,7 @@ renderRadar() {
             {
                 text: this.sanitizePdfText(tpdf('pdf.title.durabiliteAnnex', 'Annexe — Durabilité naturelle EN 350', 'Annex — EN 350 natural durability')),
                 style: 'title',
+                id: this.getPdfRevueCompleteDestinationId('annex-durabilite'),
                 margin: [0, 0, 0, 8]
             },
             ...this.buildPdfDurabiliteNaturelleAnnexRows(cards)
@@ -48595,8 +48811,8 @@ renderRadar() {
         return pages;
     }
 
-    buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f) {
-        return this.pdfFlatCard(
+    buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, options = {}) {
+        const card = this.pdfFlatCard(
             lotLabel + ' — ' + tpdf('pdf.piece.recapTable', 'Tableau récapitulatif', 'Summary table'),
             [
                 this.pdfDataTable(recapHeaders, recapRows, {
@@ -48610,6 +48826,13 @@ renderRadar() {
             ],
             { margin: [0, 0, 0, 6] }
         );
+        if (options.destId) {
+            const titleNode = Array.isArray(card.stack)
+                ? card.stack.find((node) => node && Object.prototype.hasOwnProperty.call(node, 'text'))
+                : null;
+            if (titleNode) titleNode.id = options.destId;
+        }
+        return card;
     }
 
     buildPdfLotPiecesRecapRows(annexEntries, lot, allotissement, tpdf, pdfDash, getPieceValue, formatRecapDims) {
@@ -48702,7 +48925,9 @@ renderRadar() {
                 getPieceValue,
                 formatRecapDims
             );
-            recapContent.push(this.buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f));
+            recapContent.push(this.buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f, {
+                destId: this.getPdfRevueCompleteDestinationId('annex-pieces-lot', lotIndex)
+            }));
 
             lotDetailBlocks.push(...this.buildPdfLotPiecesDetailPages(
                 lotLabel,
@@ -48725,6 +48950,7 @@ renderRadar() {
                 pageBreak: 'before',
                 pageOrientation: 'landscape',
                 pageMargins: annexMargins,
+                id: this.getPdfRevueCompleteDestinationId('annex-pieces'),
                 margin: [0, 0, 0, 8]
             },
             ...recapContent,
@@ -49819,6 +50045,7 @@ renderRadar() {
             {
                 text: this.sanitizePdfText(tpdf('pdf.title.criteriaAnnex', 'Annexe — Référentiel des critères de notation', 'Annex — Scoring criteria reference')),
                 style: 'title',
+                id: this.getPdfRevueCompleteDestinationId('annex-criteria'),
                 margin: [0, 0, 0, 8]
             },
             {
@@ -51982,11 +52209,12 @@ renderRadar() {
         });
     }
 
-    buildPdfActiveLotDocDef(lotIndex) {
+    buildPdfActiveLotDocDef(lotIndex, options = {}) {
         const f = this.getPdfFontScale();
         const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
         const currentLot = this.data.lots && this.data.lots[lotIndex];
         if (!currentLot) return null;
+        const destinationId = options.destinationId || null;
 
         // Page geometry (pdfmake uses points, A4 height ≈ 841.89 pt)
         const MM_TO_PT = 72 / 25.4;
@@ -52172,12 +52400,13 @@ renderRadar() {
 
         const mainLeftStack = lotSummaryPages.length ? lotSummaryPages : [{ text: '' }];
 
-        const topCards = [
-            this.buildPdfZonedSheetPageTitle(this.getPdfLotLabel(currentLot, lotIndex), {
-                f: this.getPdfLotSheetFontScale(),
-                bottomGapPt: blockGapPt
-            })
-        ];
+        const lotTitleNode = this.buildPdfZonedSheetPageTitle(this.getPdfLotLabel(currentLot, lotIndex), {
+            f: this.getPdfLotSheetFontScale(),
+            bottomGapPt: blockGapPt
+        });
+        if (destinationId) lotTitleNode.id = destinationId;
+
+        const topCards = [lotTitleNode];
 
         const matrixRoleIndex = this.buildPdfOrientationMatrixRoleIndex(currentLot);
         const rejectLockByRankIndex = this.buildPdfRejectLockByRankIndex(currentLot);
@@ -53352,16 +53581,18 @@ renderRadar() {
         }
 
         try {
-            const docDefPages = [];
+            const lotExportEntries = [];
 
             for (let i = 0; i < validLotIndices.length; i++) {
                 const lotIndex = validLotIndices[i];
-                const lotDocDef = this.buildPdfActiveLotDocDef(lotIndex);
+                const lotDocDef = this.buildPdfActiveLotDocDef(lotIndex, {
+                    destinationId: this.getPdfRevueCompleteDestinationId('lot', lotIndex)
+                });
                 if (!lotDocDef) continue;
-                docDefPages.push(lotDocDef);
+                lotExportEntries.push({ lotIndex, lotDocDef });
             }
 
-            if (!docDefPages.length) {
+            if (!lotExportEntries.length) {
                 alert('Aucun lot valide à exporter.');
                 return;
             }
@@ -53375,17 +53606,26 @@ renderRadar() {
             const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
 
             mergedContent.push(this.buildPdfRevueCompleteCoverPage(validLotIndices));
+            mergedContent.push(this.buildPdfRevueCompleteSommairePage(validLotIndices));
             mergedContent.push({
                 text: '',
                 pageBreak: 'before',
                 pageOrientation: 'landscape',
                 pageMargins: operationMargins,
-                stack: coverContent
+                stack: this.markPdfContentFirstNodeId(
+                    coverContent,
+                    this.getPdfRevueCompleteDestinationId('operation')
+                )
             });
 
-            docDefPages.forEach((dd) => {
-                mergedContent.push({ text: '', pageBreak: 'before', pageOrientation: 'landscape', pageMargins: lotPageMargins });
-                mergedContent.push(...(Array.isArray(dd.content) ? dd.content : [dd.content]));
+            lotExportEntries.forEach(({ lotDocDef }) => {
+                mergedContent.push({
+                    text: '',
+                    pageBreak: 'before',
+                    pageOrientation: 'landscape',
+                    pageMargins: lotPageMargins
+                });
+                mergedContent.push(...(Array.isArray(lotDocDef.content) ? lotDocDef.content : [lotDocDef.content]));
             });
 
             const durabiliteAnnexContent = this.buildPdfDurabiliteNaturelleAnnexContent(validLotIndices);
@@ -53406,7 +53646,7 @@ renderRadar() {
             }
 
             const mergedDocDef = {
-                ...docDefPages[0],
+                ...lotExportEntries[0].lotDocDef,
                 pageOrientation: 'landscape',
                 pageMargins: revueMargins,
                 content: mergedContent,
