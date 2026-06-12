@@ -69,7 +69,24 @@ const asserts = [
             && src.includes('getPdfPieceDetailColumnMaxRows(f, layout, pageMargins)');
     }],
     ['table récap avec colonne quantité', () => src.includes("tpdf('pdf.piece.quantity'")
-        && src.includes('buildPdfPiecesDetailAnnexRecapHeaders')],
+        && src.includes('buildPdfPiecesDetailAnnexRecapHeaders')
+        && (() => {
+            const fn = src.slice(
+                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f)'),
+                src.indexOf('buildPdfLotPiecesRecapTable(lotLabel, recapHeaders, recapRows, tpdf, f)') + 600
+            );
+            return fn.includes("widths: recapHeaders.map(() => '*')")
+                && fn.includes('fullWidth: true');
+        })()],
+    ['annexe pièces démarre nouvelle page', () => {
+        const fn = src.slice(
+            src.indexOf('buildPdfPiecesDetailAnnexContent(lotIndices'),
+            src.indexOf('formatPdfCriteriaAnnexBodyText(value, fieldTitle')
+        );
+        return fn.includes("tpdf('pdf.title.piecesAnnex'")
+            && fn.includes("pageBreak: 'before'")
+            && fn.includes('pageMargins: annexMargins');
+    }],
     ['fiches en colonnes zonées', () => src.includes('buildPdfPieceDetailColumn(')
         && src.includes('buildPdfPieceDetailColumnHeader(')
         && src.includes('buildPdfPieceDetailColumnData(pairs, layout, f)')

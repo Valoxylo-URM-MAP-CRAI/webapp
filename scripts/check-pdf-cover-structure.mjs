@@ -67,6 +67,31 @@ const asserts = [
     ['buildPdfSynthesisZonedLayout défini', () => src.includes('buildPdfSynthesisZonedLayout(validLotIndices, tpdf')],
     ['buildPdfSynthesisSheetBoundedBlock défini', () => src.includes('buildPdfSynthesisSheetBoundedBlock(title, bodyContent')],
     ['cover utilise buildPdfGardeContent', () => /buildPdfSelectedLotsCoverContent[\s\S]{0,120}buildPdfGardeContent/.test(src)],
+    ['page de couverture revue complète', () => src.includes('buildPdfRevueCompleteCoverPage(')
+        && src.includes('getPdfValoxyloLogoSvg(')
+        && src.includes('buildPdfCoverMetaRow(')
+        && src.includes('formatPdfExportDateDisplay(')
+        && (() => {
+            const fnStart = src.indexOf('buildPdfRevueCompleteCoverPage(_validLotIndices');
+            const fnEnd = src.indexOf('    /** Marges communes à l\'export PDF « Revue complète » (paysage). */', fnStart);
+            const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+            const metaRowStart = src.indexOf('buildPdfCoverMetaRow(label, value, f)');
+            const metaRowEnd = src.indexOf('formatPdfExportDateDisplay(date', metaRowStart);
+            const metaRowFn = metaRowStart >= 0 && metaRowEnd > metaRowStart ? src.slice(metaRowStart, metaRowEnd) : '';
+            return fn.includes("tpdf('pdf.meta.diagnosticianWood'")
+                && fn.includes("tpdf('pdf.meta.location'")
+                && fn.includes("tpdf('pdf.meta.versionEtude'")
+                && fn.includes("tpdf('pdf.meta.statutEtude'")
+                && fn.includes("tpdf('pdf.cover.exportDate'")
+                && fn.includes('getPdfRevueCompleteCoverVerticalLayout(pageMargins)')
+                && fn.includes('heights: [topSpacerPt, contentZonePt]')
+                && fn.includes('verticalAlignment: \'middle\'')
+                && fn.includes('stack: metaRows')
+                && !fn.includes('coverMetaBlockWidth')
+                && metaRowFn.includes("width: '*'")
+                && metaRowFn.includes("alignment: 'right'")
+                && metaRowFn.includes("alignment: 'left'");
+        })()],
     ['synthèse utilise buildPdfGardeContent', () => /buildPdfSynthesisDocDef[\s\S]{0,800}buildPdfGardeContent/.test(src)],
     ['plus de buildPdfOperationMetaSections', () => !src.includes('buildPdfOperationMetaSections')],
     ['contacts fusionnés dans fiche opération', () => contactsSlice.includes('return [];')

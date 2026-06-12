@@ -210,7 +210,14 @@ const asserts = [
     ['pageBreak avant chaque lot fusionné', () => /docDefPages\.forEach\([\s\S]*pageBreak: 'before'/.test(exportSlice)
         && !/if \(idx > 0\)[\s\S]{0,80}pageBreak: 'before'/.test(exportSlice)],
     ['revue complète entièrement paysage', () => exportSlice.includes("pageOrientation: 'landscape'")
-        && !exportSlice.includes("pageOrientation: 'portrait'")]
+        && !exportSlice.includes("pageOrientation: 'portrait'")],
+    ['page de couverture revue complète avant fiche opération', () => {
+        const exportBlock = src.slice(src.indexOf('exportSelectedLotsToPdf(lotIndices)'), src.indexOf('exportSelectedLotsToPdf(lotIndices)') + 8000);
+        const coverPushIdx = exportBlock.indexOf('mergedContent.push(this.buildPdfRevueCompleteCoverPage(validLotIndices))');
+        const gardePushIdx = exportBlock.indexOf('stack: coverContent');
+        const breakIdx = exportBlock.indexOf("pageBreak: 'before'", coverPushIdx);
+        return coverPushIdx >= 0 && gardePushIdx > coverPushIdx && breakIdx > coverPushIdx && breakIdx < gardePushIdx;
+    }]
 ];
 
 let failed = 0;

@@ -45232,6 +45232,9 @@ renderRadar() {
             'pdf.durabilite.class': { fr: 'Classe', en: 'Class' },
             'pdf.durabilite.ref': { fr: 'Référence', en: 'Reference' },
             'pdf.title.garde': { fr: 'Revue complète — Fiche opération', en: 'Full review — Operation sheet' },
+            'pdf.title.revueCompleteCover': { fr: 'Revue complète', en: 'Full review' },
+            'pdf.cover.exportDate': { fr: 'Date d\'export', en: 'Export date' },
+            'pdf.cover.valoboisSubtitle': { fr: 'Évaluation bois d\'occasion', en: 'Reclaimed timber assessment' },
             'pdf.section.operationReference': { fr: 'Référence de l\'opération', en: 'Operation reference' },
             'pdf.section.contacts': { fr: 'Contacts de l\'opération', en: 'Operation contacts' },
             'pdf.section.contexte': { fr: 'Contexte technique et diagnostics', en: 'Technical context and diagnostics' },
@@ -45439,6 +45442,156 @@ renderRadar() {
     getPdfOperationSheetPageMargins() {
         const MM_TO_PT = 72 / 25.4;
         return [10 * MM_TO_PT, 10 * MM_TO_PT, 17 * MM_TO_PT, 10 * MM_TO_PT];
+    }
+
+    /** Marges page de couverture « Revue complète » (paysage). */
+    getPdfRevueCompleteCoverPageMargins() {
+        const MM_TO_PT = 72 / 25.4;
+        return [20 * MM_TO_PT, 18 * MM_TO_PT, 20 * MM_TO_PT, 18 * MM_TO_PT];
+    }
+
+    /** Zone utile couverture : 1/3 haut vide, contenu centré dans les 2/3 bas. */
+    getPdfRevueCompleteCoverVerticalLayout(pageMargins) {
+        const margins = pageMargins || this.getPdfRevueCompleteCoverPageMargins();
+        const pageH = this.getPdfA4PageHeightPt('landscape');
+        const usablePt = Math.max(120, pageH - margins[1] - margins[3]);
+        return {
+            topSpacerPt: usablePt / 3,
+            contentZonePt: (usablePt * 2) / 3
+        };
+    }
+
+    getPdfCoverPageNoBorderLayout() {
+        return {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+            paddingLeft: () => 0,
+            paddingRight: () => 0,
+            paddingTop: () => 0,
+            paddingBottom: () => 0
+        };
+    }
+
+    /** Logo Valoxylo (SVG vectoriel pour pdfmake). */
+    getPdfValoxyloLogoSvg(fillColor = '#173898') {
+        const fill = String(fillColor || '#173898').replace(/"/g, '');
+        return `<svg viewBox="23.4 10.5 64.4 38.3" xmlns="http://www.w3.org/2000/svg"><g fill="${fill}"><path d="M35.28,32.45h-3.38l-2.04-8.34h3.38ZM37.65,24.1l-1.69,6.47-1.69-6.47h3.38Z"/><path d="M41.75,32.45h-1.69l-1.69-2.09V26.2l1.69-2.09h1.69ZM46.16,32.45h-3.38V24.1h3.38Z"/><path d="M51.4,32.45h-3.4V15.76h3.4Z"/><path d="M56.47,32.45H54.78l-1.69-2.09V26.2l1.69-2.09h1.69ZM60.87,30.36l-1.69,2.09H57.5V24.1h1.69l1.69,2.09Z"/><path d="M50.27,44.63h-2.7l1.34-3.75ZM54.7,44.63h-3.42l-3.38-8.34h3.38Z"/><path d="M55.02,36.29l-1.36,3.75-1.36-3.75Z"/><path d="M60.77,48.8h-3.38c0.52-2.79-1.31-9.79-2.04-12.52h3.38C59.47,39.04,61.28,46,60.77,48.8ZM63.13,36.29l-1.69,6.47-1.69-6.47Z"/><path d="M67.61,44.63h-3.4V27.94h3.4Z"/><path d="M72.67,44.63H71l-1.69-2.09v-4.17l1.69-2.09h1.69ZM77.08,42.55l-1.69,2.09H73.7V36.29h1.69l1.69,2.09Z"/><polygon points="87.77,25.87 84.82,24.39 84.02,24.89 84.02,25.8 62.51,25.8 61.96,26.35 61.96,33.77 27.22,33.77 27.22,32.85 26.42,32.35 23.47,33.83 23.47,34.82 26.42,36.29 27.22,35.8 27.22,34.87 62.51,34.87 63.07,34.32 63.07,26.91 84.02,26.91 84.02,27.84 84.82,28.34 87.77,26.86"/></g></svg>`;
+    }
+
+    buildPdfCoverMetaRow(label, value, f) {
+        const scale = f || this.getPdfFontScale();
+        const safeLabel = this.sanitizePdfText(label || '', { fallback: '' });
+        const safeValue = this.sanitizePdfText(value || '—', { fallback: '—' });
+        return {
+            columns: [
+                {
+                    width: '*',
+                    text: safeLabel,
+                    fontSize: scale.label,
+                    color: '#6a6257',
+                    alignment: 'right'
+                },
+                {
+                    width: '*',
+                    text: safeValue,
+                    fontSize: Math.max(scale.value, scale.body),
+                    bold: true,
+                    color: '#111111',
+                    alignment: 'left'
+                }
+            ],
+            columnGap: 14,
+            margin: [0, 0, 0, 7]
+        };
+    }
+
+    formatPdfExportDateDisplay(date = new Date()) {
+        const locale = this.getPdfLocaleCode() === 'en' ? 'en-GB' : 'fr-FR';
+        try {
+            return date.toLocaleDateString(locale, { day: 'numeric', month: 'long', year: 'numeric' });
+        } catch (_err) {
+            return date.toISOString().slice(0, 10);
+        }
+    }
+
+    /** Page de couverture « Revue complète » (logo, opération, méta clés). */
+    buildPdfRevueCompleteCoverPage(_validLotIndices = null) {
+        const f = this.getPdfFontScale();
+        const tpdf = (key, fr, en) => this.getPdfText(key, fr, en);
+        const meta = this.data.meta || {};
+        const dash = (v) => this.pdfMetaDash(v);
+        const operationName = dash(meta.operation);
+        const diagnostician = dash(meta.diagnostiqueurNom);
+        const operationAddress = dash(meta.localisation);
+        const studyVersion = dash(meta.versionEtude);
+        const studyStatus = dash(meta.statutEtude);
+        const exportDate = this.formatPdfExportDateDisplay(new Date());
+
+        const metaRows = [
+            this.buildPdfCoverMetaRow(tpdf('pdf.meta.diagnosticianWood', 'Diagnostiqueur (Bois)', 'Assessor (wood)'), diagnostician, f),
+            this.buildPdfCoverMetaRow(tpdf('pdf.meta.location', 'Adresse de l\'opération', 'Operation address'), operationAddress, f),
+            this.buildPdfCoverMetaRow(tpdf('pdf.meta.versionEtude', 'Version de l\'évaluation', 'Study version'), studyVersion, f),
+            this.buildPdfCoverMetaRow(tpdf('pdf.meta.statutEtude', 'Statut de l\'étude', 'Study status'), studyStatus, f),
+            this.buildPdfCoverMetaRow(tpdf('pdf.cover.exportDate', 'Date d\'export', 'Export date'), exportDate, f)
+        ];
+
+        const pageMargins = this.getPdfRevueCompleteCoverPageMargins();
+        const { topSpacerPt, contentZonePt } = this.getPdfRevueCompleteCoverVerticalLayout(pageMargins);
+        const coverContentStack = {
+            stack: [
+                {
+                    svg: this.getPdfValoxyloLogoSvg('#173898'),
+                    width: 150,
+                    alignment: 'center',
+                    margin: [0, 0, 0, 18]
+                },
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.title.revueCompleteCover', 'Revue complète', 'Full review')),
+                    fontSize: Math.max(f.sectionTitle, 11),
+                    bold: true,
+                    color: '#173898',
+                    alignment: 'center',
+                    margin: [0, 0, 0, 4]
+                },
+                {
+                    text: this.sanitizePdfText(tpdf('pdf.cover.valoboisSubtitle', 'Évaluation bois d\'occasion', 'Reclaimed timber assessment')),
+                    fontSize: f.label,
+                    color: '#6a6257',
+                    alignment: 'center',
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    text: this.sanitizePdfText(operationName),
+                    fontSize: Math.max(f.title - 2, 18),
+                    bold: true,
+                    color: '#111111',
+                    alignment: 'center',
+                    margin: [0, 0, 0, 24]
+                },
+                {
+                    canvas: [{ type: 'line', x1: 0, y1: 0, x2: 320, y2: 0, lineWidth: 0.6, lineColor: '#d4cdc2' }],
+                    alignment: 'center',
+                    margin: [0, 0, 0, 20]
+                },
+                {
+                    stack: metaRows
+                }
+            ]
+        };
+
+        return {
+            pageOrientation: 'landscape',
+            pageMargins,
+            table: {
+                widths: ['*'],
+                heights: [topSpacerPt, contentZonePt],
+                body: [
+                    [{ text: '' }],
+                    [{ ...coverContentStack, verticalAlignment: 'middle' }]
+                ]
+            },
+            layout: this.getPdfCoverPageNoBorderLayout()
+        };
     }
 
     /** Marges communes à l'export PDF « Revue complète » (paysage). */
@@ -48448,7 +48601,8 @@ renderRadar() {
             [
                 this.pdfDataTable(recapHeaders, recapRows, {
                     fontSize: f.tableCompact,
-                    widths: recapHeaders.map(() => 'auto'),
+                    widths: recapHeaders.map(() => '*'),
+                    fullWidth: true,
                     dontBreakRows: true,
                     columnAlignments: recapHeaders.map(() => 'left'),
                     padding: { left: 2.5, right: 2.5, top: 2, bottom: 2 }
@@ -48562,10 +48716,15 @@ renderRadar() {
 
         if (!hasRows) return [];
 
+        const annexMargins = this.getPdfPiecesDetailAnnexPageMargins();
+
         return [
             {
                 text: this.sanitizePdfText(tpdf('pdf.title.piecesAnnex', 'Annexe — Pièces détaillées', 'Annex — Detailed pieces')),
                 style: 'title',
+                pageBreak: 'before',
+                pageOrientation: 'landscape',
+                pageMargins: annexMargins,
                 margin: [0, 0, 0, 8]
             },
             ...recapContent,
@@ -53209,13 +53368,16 @@ renderRadar() {
 
             // Merge all lot doc definitions into a single document
             const mergedContent = [];
-            const includeCoverPage = true;
 
             const revueMargins = this.getPdfRevueCompletePageMargins();
             const lotPageMargins = this.getPdfRevueCompleteLotPageMargins();
             const operationMargins = this.getPdfOperationSheetPageMargins();
             const coverContent = this.buildPdfSelectedLotsCoverContent(validLotIndices);
+
+            mergedContent.push(this.buildPdfRevueCompleteCoverPage(validLotIndices));
             mergedContent.push({
+                text: '',
+                pageBreak: 'before',
                 pageOrientation: 'landscape',
                 pageMargins: operationMargins,
                 stack: coverContent
