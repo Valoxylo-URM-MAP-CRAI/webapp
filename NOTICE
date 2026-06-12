@@ -1,0 +1,87 @@
+Valoxylo
+Copyright (C) 2026 URM MAP CRAI, ENSA de Nancy, Maxence Lebossé et al.
+
+Ce projet a été développé dans le cadre d'une thèse de doctorat,
+avec un financement public, au sein de l'URM MAP CRAI, ENSA de Nancy.
+
+Le dépôt de développement interne utilise le préfixe « valobois » dans le code ;
+le nom public du logiciel est Valoxylo.
+
+Dépôt : https://github.com/Valoxylo-URM-MAP-CRAI/webapp
+
+================================================================================
+Répartition des licences
+================================================================================
+
+Code source (HTML, CSS, JavaScript, scripts Node)
+  Licence : GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)
+  Fichier : LICENSE
+
+Documentation (fichiers Markdown, guides, rapports textuels à la racine)
+  Licence : Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0)
+  Fichier : LICENSE-docs
+
+Données de référence (CSV sources, jeux de données documentaires à la racine)
+  Licence : CC BY-SA 4.0, sauf mention contraire dans le fichier concerné
+
+Code généré à partir de données (js/data/*.js)
+  Licence : AGPL-3.0-or-later (considéré comme partie du code source)
+
+================================================================================
+Attribution requise
+================================================================================
+
+Lors de toute réutilisation ou redistribution, vous devez :
+
+  1. Conserver les mentions de copyright et de licence ;
+  2. Citer URM MAP CRAI, ENSA de Nancy, Lebossé et al. comme auteurs de Valoxylo ;
+  3. Indiquer les modifications apportées le cas échéant ;
+  4. Pour une version modifiée exploitée comme service réseau (SaaS),
+     mettre le code source correspondant à disposition des utilisateurs
+     (obligation AGPL, section 13).
+
+Citation suggérée :
+
+  URM MAP CRAI, ENSA de Nancy, Lebossé et al. (2026). Valoxylo — outil web d'évaluation
+  des bois d'occasion. Logiciel AGPL-3.0-or-later.
+  https://github.com/Valoxylo-URM-MAP-CRAI/webapp
+
+================================================================================
+Bibliothèques et composants tiers
+================================================================================
+
+Les composants suivants conservent leurs licences d'origine.
+Leur inclusion n'altère pas la licence AGPL du reste du code Valoxylo,
+sous réserve de compatibilité juridique (voir section « Points de vigilance »
+du README).
+
+  lib/qrcode.min.js          — MIT (Kazuhiko Arase / Ryan Day)
+  lib/bwip-js-min.js         — MIT (Metafontware / bwip-js)
+  node_modules/bwip-js       — MIT
+  node_modules/qrcode        — MIT
+
+Chargés depuis CDN en exécution (non inclus dans le dépôt) :
+
+  Chart.js 4.4.0             — MIT
+  pdfmake 0.2.10              — MIT
+  jsPDF 2.5.1                 — MIT
+  Firebase JS SDK 11.6.0      — Apache-2.0
+  Google Fonts (Roboto)       — SIL Open Font License 1.1
+
+================================================================================
+Données tierces et sources ouvertes
+================================================================================
+
+Certaines données intégrées proviennent de sources publiques ou réglementaires
+(CEREMA, normes FD P20-651, référentiels géographiques, etc.).
+Leurs conditions de réutilisation propres peuvent s'appliquer en complément ;
+voir les commentaires dans js/data/ et les fichiers CSV sources.
+
+================================================================================
+CeCILL-2.1
+================================================================================
+
+CeCILL-2.1 n'est pas utilisée dans ce dépôt. L'AGPL-3.0-or-later a été retenue
+pour sa couverture explicite des services réseau (SaaS) et sa reconnaissance
+internationale. CeCILL-2.1 pourrait être envisagée uniquement sur demande
+institutionnelle explicite (établissement français imposant une licence nationale).

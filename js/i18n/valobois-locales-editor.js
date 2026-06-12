@@ -274,6 +274,16 @@
             },
             apropos: {
                 title: 'À propos',
+                licenseIntro: 'Valoxylo est un logiciel libre développé par Maxence Lebossé et al. dans le cadre d’une thèse financée sur fonds publics (URM MAP CRAI, ENSA de Nancy).',
+                licenseDetails: 'Le code est publié sous licence AGPL-3.0-or-later ; la documentation sous CC BY-SA 4.0.',
+                licenseLink: 'Mentions légales et licences',
+            },
+            footer: {
+                ariaLabel: 'Informations de licence',
+                copyright: '© 2026 URM MAP CRAI, ENSA de Nancy, Lebossé et al. — Valoxylo',
+                codeLabel: 'Code :',
+                docsLabel: 'Documentation :',
+                legalLink: 'Mentions légales',
             },
             tabs: {
                 tablistAria: 'Sections de l’évaluation',
@@ -732,7 +742,19 @@
                 orientation: 'Routing',
                 evalOp: 'Operation summary',
             },
-            apropos: { title: 'About' },
+            apropos: {
+                title: 'About',
+                licenseIntro: 'Valoxylo is free software developed by Maxence Lebossé et al. as part of a publicly funded doctoral thesis (URM MAP CRAI, ENSA de Nancy).',
+                licenseDetails: 'Code is released under AGPL-3.0-or-later; documentation under CC BY-SA 4.0.',
+                licenseLink: 'Legal notice and licences',
+            },
+            footer: {
+                ariaLabel: 'Licence information',
+                copyright: '© 2026 URM MAP CRAI, ENSA de Nancy, Lebossé et al. — Valoxylo',
+                codeLabel: 'Code:',
+                docsLabel: 'Documentation:',
+                legalLink: 'Legal notice',
+            },
             tabs: {
                 tablistAria: 'Evaluation sections',
                 general: 'General',

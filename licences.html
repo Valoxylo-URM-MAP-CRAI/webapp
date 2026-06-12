@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <title>VALOBOIS – Licences</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body class="day-mode licences-page">
+    <script>
+        (function () {
+            try {
+                var v = localStorage.getItem('valobois_lang');
+                if (v === 'en' || v === 'fr') document.documentElement.lang = v;
+            } catch (e) { /* ignore */ }
+        })();
+    </script>
+    <div class="auth-top-banner auth-page-top-banner" role="toolbar" data-i18n-aria-label="banner.toolbarDisplay"
+        aria-label="Affichage">
+        <label id="valobois-lang-label" class="sr-only" for="valobois-lang-select" data-i18n="banner.langSelectLabel">Langue</label>
+        <select id="valobois-lang-select" class="auth-lang-select" aria-labelledby="valobois-lang-label">
+            <option value="fr" data-i18n="lang.optionFr">Français</option>
+            <option value="en" data-i18n="lang.optionEn">English</option>
+        </select>
+    </div>
+    <main class="auth-main licences-main">
+        <p class="auth-back">
+            <a href="index.html" data-i18n="licencesPage.backLink">← Retour à l'évaluation</a>
+        </p>
+
+        <div class="card auth-card licences-card">
+            <h1 class="auth-title" data-i18n="licencesPage.title">Mentions légales et licences</h1>
+
+            <section class="licences-section">
+                <h2 data-i18n="licencesPage.aboutTitle">À propos de Valoxylo</h2>
+                <p data-i18n="licencesPage.aboutText">Valoxylo est un outil web d'évaluation des bois d'occasion, développé par Maxence Lebossé et al. dans le cadre d'une thèse de doctorat financée sur fonds publics, au sein de l'URM MAP CRAI, ENSA de Nancy.</p>
+                <p>
+                    <span data-i18n="licencesPage.repoLabel">Dépôt public :</span>
+                    <a href="https://github.com/Valoxylo-URM-MAP-CRAI/webapp" target="_blank" rel="noopener noreferrer">github.com/Valoxylo-URM-MAP-CRAI/webapp</a>
+                </p>
+            </section>
+
+            <section class="licences-section">
+                <h2 data-i18n="licencesPage.codeTitle">Code source — AGPL-3.0-or-later</h2>
+                <p data-i18n="licencesPage.codeText">Le code de l'application (HTML, CSS, JavaScript, scripts) est distribué sous la GNU Affero General Public License version 3 ou ultérieure. Vous pouvez utiliser, modifier et redistribuer ce code, y compris à des fins commerciales, à condition de conserver les mentions de licence et de mettre à disposition le code source des versions modifiées — y compris si vous proposez une version modifiée comme service accessible via un réseau (SaaS).</p>
+                <p>
+                    <a href="LICENSE" data-i18n="licencesPage.readLicense">Lire la licence complète (LICENSE)</a>
+                    ·
+                    <a href="https://www.gnu.org/licenses/agpl-3.0.fr.html" target="_blank" rel="noopener noreferrer" data-i18n="licencesPage.agplLink">Texte officiel AGPL-3.0 (GNU)</a>
+                </p>
+            </section>
+
+            <section class="licences-section">
+                <h2 data-i18n="licencesPage.docsTitle">Documentation — CC BY-SA 4.0</h2>
+                <p data-i18n="licencesPage.docsText">La documentation du projet (fichiers Markdown, guides, rapports textuels) est publiée sous Creative Commons Attribution-ShareAlike 4.0 International. Vous pouvez la réutiliser et l'adapter, y compris commercialement, en citant l'auteur et en partageant vos adaptations sous la même licence.</p>
+                <p>
+                    <a href="LICENSE-docs" data-i18n="licencesPage.readDocsLicense">Lire la licence complète (LICENSE-docs)</a>
+                    ·
+                    <a href="https://creativecommons.org/licenses/by-sa/4.0/deed.fr" target="_blank" rel="noopener noreferrer" data-i18n="licencesPage.ccLink">Résumé CC BY-SA 4.0</a>
+                </p>
+            </section>
+
+            <section class="licences-section">
+                <h2 data-i18n="licencesPage.attributionTitle">Attribution</h2>
+                <p data-i18n="licencesPage.attributionText">Lors de toute réutilisation, veuillez citer URM MAP CRAI, ENSA de Nancy, Lebossé et al. comme auteurs de Valoxylo et conserver les mentions de copyright et de licence. Indiquez les modifications apportées le cas échéant.</p>
+                <blockquote class="licences-citation">
+                    <p data-i18n="licencesPage.citation">URM MAP CRAI, ENSA de Nancy, Lebossé et al. (2026). Valoxylo — outil web d'évaluation des bois d'occasion. Logiciel AGPL-3.0-or-later. https://github.com/Valoxylo-URM-MAP-CRAI/webapp</p>
+                </blockquote>
+                <p><a href="NOTICE" data-i18n="licencesPage.readNotice">Attributions et bibliothèques tierces (NOTICE)</a></p>
+            </section>
+
+            <section class="licences-section">
+                <h2 data-i18n="licencesPage.cautionTitle">Points de vigilance</h2>
+                <ul class="licences-list">
+                    <li data-i18n="licencesPage.caution1">Vérifier la titularité des droits avec votre université, laboratoire ou financeur.</li>
+                    <li data-i18n="licencesPage.caution2">Confirmer la compatibilité des licences des dépendances tierces (voir NOTICE).</li>
+                    <li data-i18n="licencesPage.caution3">Obtenir l'accord des contributeurs externes avant d'intégrer leur code.</li>
+                    <li data-i18n="licencesPage.caution4">Certaines données intégrées (CEREMA, normes, référentiels) peuvent avoir leurs propres conditions de réutilisation.</li>
+                </ul>
+                <p class="licences-disclaimer" data-i18n="licencesPage.disclaimer">Cette page est fournie à titre informatif et ne constitue pas un conseil juridique.</p>
+            </section>
+        </div>
+    </main>
+
+    <script defer src="js/i18n/valobois-locales.js"></script>
+    <script defer src="js/i18n/valobois-i18n.js"></script>
+    <script defer src="js/ui/licences-page.js"></script>
+</body>
+
+</html>

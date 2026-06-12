@@ -11703,39 +11703,88 @@ body.day-mode .lot-group--collapsible summary:hover {
             min-width: 0;
         }
 
-        .cc-license-wrap {
+        .app-site-footer {
             display: flex;
-            justify-content: center;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-4);
             margin-top: var(--space-12);
             margin-bottom: var(--space-8);
+            padding: var(--space-8) var(--space-12);
+            text-align: center;
+            font-size: 0.8125rem;
+            line-height: 1.5;
+            color: var(--color-text-muted, #666);
         }
 
-        .cc-license-link {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4px 6px;
-            line-height: 0;
-            border-radius: 4px;
-            background: #FFFFFF;
-            border: 1px solid #D9D9D9;
-            transition: border-color 0.2s ease;
+        .app-site-footer-copy {
+            margin: 0;
         }
 
-        .cc-license-link:hover {
-            border-color: #BDBDBD;
+        .app-site-footer-licenses {
+            margin: 0;
         }
 
-        .cc-license-link:focus-visible {
+        .app-site-footer a {
+            color: var(--bleu-crai);
+            text-decoration: underline;
+            text-underline-offset: 2px;
+        }
+
+        .app-site-footer a:hover {
+            color: #152d6e;
+        }
+
+        .app-site-footer a:focus-visible {
             outline: 2px solid var(--bleu-crai);
             outline-offset: 2px;
         }
 
-        .cc-license-badge {
-            width: 88px;
-            height: 31px;
-            display: block;
-            border-radius: 3px;
+        .licences-main {
+            max-width: 720px;
+        }
+
+        .licences-card .licences-section {
+            margin-top: var(--space-16);
+        }
+
+        .licences-card .licences-section:first-of-type {
+            margin-top: var(--space-8);
+        }
+
+        .licences-card h2 {
+            font-size: 1.05rem;
+            margin: 0 0 var(--space-8);
+            color: var(--bleu-crai);
+        }
+
+        .licences-card p,
+        .licences-card li {
+            font-size: 0.9375rem;
+            line-height: 1.55;
+        }
+
+        .licences-citation {
+            margin: var(--space-8) 0;
+            padding: var(--space-8) var(--space-12);
+            border-left: 3px solid var(--bleu-crai);
+            background: rgba(26, 54, 126, 0.04);
+        }
+
+        .licences-citation p {
+            margin: 0;
+            font-style: italic;
+        }
+
+        .licences-list {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .licences-disclaimer {
+            font-size: 0.8125rem;
+            color: var(--color-text-muted, #666);
+            font-style: italic;
         }
 
         #btnResetAll {
