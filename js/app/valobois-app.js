@@ -37338,7 +37338,7 @@ renderMatrice() {
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
-            link.download = `valobois-matrice-config-${Date.now()}.json`;
+            link.download = this.buildExportFilenameMatriceConfig();
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -40596,9 +40596,131 @@ renderRadar() {
         }
     }
 
+    getExportFilenameDate() {
+        return new Date().toISOString().slice(0, 10);
+    }
+
+    sanitizeExportFilenameSegment(value, options = {}) {
+        const fallback = options.fallback || 'sans_nom';
+        const maxLength = options.maxLength || 80;
+        const raw = String(value == null ? '' : value).trim();
+        if (!raw) return fallback;
+        const normalized = raw
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/[^a-zA-Z0-9]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        if (!normalized) return fallback;
+        return normalized.length > maxLength ? normalized.slice(0, maxLength) : normalized;
+    }
+
+    getExportRefGisementSegment() {
+        const ref = this.getReferenceGisement(this.data && this.data.meta);
+        return this.sanitizeExportFilenameSegment(ref, { fallback: 'SANS_REFERENCE' });
+    }
+
+    getExportLotNameSegment(lot, lotIndex) {
+        const rawName = ((lot && lot.nom) || '').trim() || ((lot && lot.nomLot) || '').trim();
+        const fallback = `lot_${String((Number.isInteger(lotIndex) ? lotIndex : 0) + 1).padStart(2, '0')}`;
+        return this.sanitizeExportFilenameSegment(rawName, { fallback });
+    }
+
+    getExportPieceKindSegment(isDefaultPiece) {
+        return isDefaultPiece ? 'Piece_par_defaut' : 'Piece_detaillee';
+    }
+
+    buildExportPiecesInventory(lot) {
+        const entries = [];
+        const defaultPieces = this.ensureDefaultPiecesData(lot);
+        defaultPieces.forEach((defaultPiece, defaultIndex) => {
+            const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
+            for (let q = 0; q < qty; q += 1) {
+                entries.push({ piece: defaultPiece, isDefault: true, defaultIndex, detailedIndex: null });
+            }
+        });
+        if (Array.isArray(lot.pieces)) {
+            lot.pieces.forEach((piece, detailedIndex) => {
+                if (piece && typeof piece === 'object') {
+                    entries.push({ piece, isDefault: false, defaultIndex: null, detailedIndex });
+                }
+            });
+        }
+        return entries;
+    }
+
+    buildExportFilenameSynthese(extension) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        return `synthese_diagnostic_${ref}_${date}.${extension}`;
+    }
+
+    buildExportFilenameRevueLot(lotIndex, extension) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        const numero = String((lotIndex || 0) + 1).padStart(2, '0');
+        return `revue_${numero}_diagnostic_${ref}_${date}.${extension}`;
+    }
+
+    buildExportFilenameRevueComplete(extension) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        return `revue_complete_diagnostic_${ref}_${date}.${extension}`;
+    }
+
+    buildExportFilenamePiecesDetaillees(extension) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        return `diagnostic_${ref}_pieces_detaillees_${date}.${extension}`;
+    }
+
+    buildExportFilenameSauvegardeJson() {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        return `sauvegarde_diagnostic_${ref}_${date}.json`;
+    }
+
+    buildExportFilenameGrasshopperJson() {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        return `export_grasshopper_diagnostic_${ref}_${date}.json`;
+    }
+
+    buildExportFilename3DLot(lot, lotIndex, extension) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        const nomLot = this.getExportLotNameSegment(lot, lotIndex);
+        return `export3D_${nomLot}_${ref}_${date}.${extension}`;
+    }
+
+    buildExportFilename3DPiece(lot, lotIndex, isDefaultPiece, pieceNumber) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        const nomLot = this.getExportLotNameSegment(lot, lotIndex);
+        const nomPiece = this.getExportPieceKindSegment(isDefaultPiece);
+        const numero = String(pieceNumber || 1);
+        return `export3D_${nomLot}_${nomPiece}_${numero}_${ref}_${date}.glb`;
+    }
+
+    buildExportFilenameEtiquettes(lotIndices, layoutMode) {
+        const date = this.getExportFilenameDate();
+        const ref = this.getExportRefGisementSegment();
+        const layout = layoutMode === 'a3' ? 'a3' : 'a4';
+        const lots = this.data.lots || [];
+        const indices = Array.isArray(lotIndices)
+            ? lotIndices.filter((i) => Number.isInteger(i) && lots[i])
+            : [];
+        const lotNames = indices.map((lotIndex) => this.getExportLotNameSegment(lots[lotIndex], lotIndex));
+        const lotPart = lotNames.length ? lotNames.join('_') : 'lot';
+        return `etiquettes_${lotPart}_${ref}_${date}_${layout}.pdf`;
+    }
+
+    buildExportFilenameMatriceConfig() {
+        const date = this.getExportFilenameDate();
+        return `configuration_matrice_valoxylo_${date}.json`;
+    }
+
     exportEvaluationJson() {
         try {
-            const stamp = new Date().toISOString().slice(0, 10);
             const exportData = this.buildEvaluationJsonExportData();
             const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json;charset=utf-8',
@@ -40606,7 +40728,7 @@ renderRadar() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `valobois_evaluation_${stamp}.json`;
+            a.download = this.buildExportFilenameSauvegardeJson();
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -40625,9 +40747,6 @@ renderRadar() {
         }
         const allLots = this.data.lots || [];
         const lots = allLots.filter((_, idx) => selectedLotIndices.includes(idx));
-        const stamp = new Date().toISOString().slice(0, 10);
-        const opSlug = (this.data.meta.operation || 'operation')
-            .replace(/\s+/g, '_').toLowerCase();
 
         const lotsExport = lots.map((lot) => {
             const realIdx = allLots.indexOf(lot);
@@ -40741,7 +40860,7 @@ renderRadar() {
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `valobois-gh-${opSlug}-${stamp}.json`;
+            a.download = this.buildExportFilenameGrasshopperJson();
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -44055,13 +44174,9 @@ renderRadar() {
                 pageNoteLabel
             });
 
-            const safeLayout = layoutMode === 'a3' ? 'a3' : 'a4';
-            const multiSuffix = validLotIndices.length > 1
-                ? `${String(validLotIndices.length).padStart(2, '0')}_lots`
-                : `lot-${String(validLotIndices[0] + 1).padStart(2, '0')}`;
             await this.downloadEtiquettePdf(
                 svgPages,
-                `valobois_etiquettes_${multiSuffix}_${safeLayout}.pdf`,
+                this.buildExportFilenameEtiquettes(validLotIndices, layoutMode),
                 { layoutMode }
             );
         } catch (error) {
@@ -53450,14 +53565,18 @@ renderRadar() {
             return;
         }
 
-        const stamp = new Date().toISOString().slice(0, 10);
-        const suffix = mode === 'synthese'
-            ? 'synthese'
-            : mode === 'pieces-detaillees'
-                ? 'pieces_detaillees'
-            : (validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne');
+        let filename;
+        if (mode === 'synthese') {
+            filename = this.buildExportFilenameSynthese('csv');
+        } else if (mode === 'pieces-detaillees') {
+            filename = this.buildExportFilenamePiecesDetaillees('csv');
+        } else if (validLotIndices.length > 1) {
+            filename = this.buildExportFilenameRevueComplete('csv');
+        } else {
+            filename = this.buildExportFilenameRevueLot(validLotIndices[0], 'csv');
+        }
 
-        this.downloadCsvFile(`valobois_evaluation_${suffix}_${stamp}.csv`, headers, rows);
+        this.downloadCsvFile(filename, headers, rows);
     }
 
 
@@ -53492,24 +53611,7 @@ renderRadar() {
 
         const grouped = document.getElementById('exportGlbGroupCheck')?.checked ?? false;
 
-        /**
-         * Construit la liste complète des pièces d'un lot
-         * (pièces par défaut × quantité + pièces individuelles).
-         */
-        const buildAllPieces = (lot) => {
-            const allPieces = [];
-            const defaultPieces = this.ensureDefaultPiecesData(lot);
-            defaultPieces.forEach((defaultPiece) => {
-                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
-                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
-            });
-            if (Array.isArray(lot.pieces)) {
-                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
-            }
-            return allPieces;
-        };
-
-        const buildMetadata = (lot, lotIdx, piece) => ({
+        const buildPieceMetadata = (lot, lotIdx, piece) => ({
             lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
             essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
             typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
@@ -53519,16 +53621,14 @@ renderRadar() {
         });
 
         if (grouped) {
-            // ── Mode regroupé : un .glb par lot, toutes pièces dedans ──────────
             targetLotIndices.forEach((lotIdx, lotPos) => {
-                const lot       = lots[lotIdx];
-                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
-                const allPieces = buildAllPieces(lot);
-                if (!allPieces.length) return;
+                const lot = lots[lotIdx];
+                const pieceEntries = this.buildExportPiecesInventory(lot);
+                if (!pieceEntries.length) return;
 
-                const piecesData = allPieces.map((piece) => ({
+                const piecesData = pieceEntries.map(({ piece }) => ({
                     piece,
-                    metadata: buildMetadata(lot, lotIdx, piece),
+                    metadata: buildPieceMetadata(lot, lotIdx, piece),
                 }));
 
                 setTimeout(() => {
@@ -53538,7 +53638,7 @@ renderRadar() {
                         const url   = URL.createObjectURL(blob);
                         const a     = document.createElement('a');
                         a.href     = url;
-                        a.download = 'VALOBOIS_' + lotSlug + '.glb';
+                        a.download = this.buildExportFilename3DLot(lot, lotIdx, 'glb');
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -53549,27 +53649,30 @@ renderRadar() {
                 }, lotPos * 300);
             });
         } else {
-            // ── Mode individuel : un .glb par pièce (comportement d'origine) ───
             let downloadCount = 0;
 
             targetLotIndices.forEach((lotIdx) => {
-                const lot       = lots[lotIdx];
-                const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
-                const allPieces = buildAllPieces(lot);
+                const lot = lots[lotIdx];
+                const pieceEntries = this.buildExportPiecesInventory(lot);
 
-                allPieces.forEach((piece, pieceIndex) => {
-                    const metadata = buildMetadata(lot, lotIdx, piece);
+                pieceEntries.forEach((entry, pieceIndex) => {
+                    const metadata = buildPieceMetadata(lot, lotIdx, entry.piece);
                     const delay    = downloadCount * 200;
                     downloadCount++;
 
                     setTimeout(() => {
                         try {
-                            const uint8 = window.buildGLB(piece, metadata, { nCirc });
+                            const uint8 = window.buildGLB(entry.piece, metadata, { nCirc });
                             const blob  = new Blob([uint8], { type: 'model/gltf-binary' });
                             const url   = URL.createObjectURL(blob);
                             const a     = document.createElement('a');
                             a.href     = url;
-                            a.download = 'VALOBOIS_' + lotSlug + '_piece_' + (pieceIndex + 1) + '.glb';
+                            a.download = this.buildExportFilename3DPiece(
+                                lot,
+                                lotIdx,
+                                entry.isDefault,
+                                pieceIndex + 1
+                            );
                             document.body.appendChild(a);
                             a.click();
                             document.body.removeChild(a);
@@ -53602,19 +53705,7 @@ renderRadar() {
             alert(window.t('editor.alerts.selectLotExport'));
             return;
         }
-        const buildAllPieces = (lot) => {
-            const allPieces = [];
-            const defaultPieces = this.ensureDefaultPiecesData(lot);
-            defaultPieces.forEach((defaultPiece) => {
-                const qty = Math.max(0, Math.floor(parseFloat((defaultPiece && defaultPiece.quantite) || 0) || 0));
-                for (let q = 0; q < qty; q++) allPieces.push(defaultPiece);
-            });
-            if (Array.isArray(lot.pieces)) {
-                lot.pieces.forEach((piece) => { if (piece && typeof piece === 'object') allPieces.push(piece); });
-            }
-            return allPieces;
-        };
-        const buildMetadata = (lot, lotIdx, piece) => ({
+        const buildPieceMetadata = (lot, lotIdx, piece) => ({
             lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
             essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
             typePiece:      piece.typePiece || (lot.allotissement && lot.allotissement.typePiece) || '',
@@ -53624,12 +53715,11 @@ renderRadar() {
         });
         targetLotIndices.forEach((lotIdx, lotPos) => {
             const lot       = lots[lotIdx];
-            const lotSlug   = (lot.nom || ('lot_' + (lotIdx + 1))).replace(/\s+/g, '_').toLowerCase();
-            const allPieces = buildAllPieces(lot);
-            if (!allPieces.length) return;
-            const piecesData = allPieces.map((piece) => ({
+            const pieceEntries = this.buildExportPiecesInventory(lot);
+            if (!pieceEntries.length) return;
+            const piecesData = pieceEntries.map(({ piece }) => ({
                 piece,
-                metadata: buildMetadata(lot, lotIdx, piece),
+                metadata: buildPieceMetadata(lot, lotIdx, piece),
             }));
             setTimeout(() => {
                 try {
@@ -53637,7 +53727,7 @@ renderRadar() {
                     const url  = URL.createObjectURL(blob);
                     const a    = document.createElement('a');
                     a.href     = url;
-                    a.download = 'VALOBOIS_' + lotSlug + '.dae';
+                    a.download = this.buildExportFilename3DLot(lot, lotIdx, 'dae');
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -53681,9 +53771,6 @@ renderRadar() {
             }
             const lotForIfc = Object.assign({}, lot, { pieces: combinedPieces });
 
-            const lotSlug = ((lot.nomLot || lot.nom || ('lot_' + (lotIdx + 1))) + '')
-                .replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_\-]/g, '').toLowerCase();
-
             setTimeout(() => {
                 try {
                     const ifcText = window.buildIFC(lotForIfc, activePset, ifcMode, exportMeta);
@@ -53691,7 +53778,7 @@ renderRadar() {
                     const url  = URL.createObjectURL(blob);
                     const a    = document.createElement('a');
                     a.href     = url;
-                    a.download = 'VALOBOIS_' + lotSlug + '.ifc';
+                    a.download = this.buildExportFilename3DLot(lot, lotIdx, 'ifc');
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -53716,8 +53803,7 @@ renderRadar() {
 
         try {
             const docDef = this.buildPdfSynthesisDocDef();
-            const stamp = new Date().toISOString().slice(0, 10);
-            pdfMake.createPdf(docDef).download('valobois_evaluation_synthese_' + stamp + '.pdf');
+            pdfMake.createPdf(docDef).download(this.buildExportFilenameSynthese('pdf'));
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
@@ -53809,9 +53895,10 @@ renderRadar() {
                 info: this.getPdfDocInfo('lots-selectionnes')
             };
 
-            const stamp = new Date().toISOString().slice(0, 10);
-            const suffix = validLotIndices.length > 1 ? 'lots_selectionnes' : 'lot_selectionne';
-            pdfMake.createPdf(mergedDocDef).download('valobois_evaluation_' + suffix + '_' + stamp + '.pdf');
+            const pdfFilename = validLotIndices.length > 1
+                ? this.buildExportFilenameRevueComplete('pdf')
+                : this.buildExportFilenameRevueLot(validLotIndices[0], 'pdf');
+            pdfMake.createPdf(mergedDocDef).download(pdfFilename);
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
