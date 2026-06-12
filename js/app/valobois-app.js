@@ -18641,7 +18641,17 @@ class ValoboisApp {
             mode: useEnrichedDims ? 'multiple' : 'single',
             scoreMinPiece: scoreMin ? Math.round(scoreMin.score) : null,
             scoreMinPieceLabel: scoreMin ? scoreMin.label : null,
+            scoreMinKey: scoreMin ? scoreMin.key : null,
             dispersionScores: dispersion !== null ? Math.round(dispersion) : null,
+            atomScores: scored.map((a) => {
+                const sim = pairScore(a.dims, medoide.dims);
+                return {
+                    key: a.key,
+                    label: a.label,
+                    score: a.score,
+                    similarityToMedoid: sim != null ? sim * 100 : null
+                };
+            }),
             mad,
         };
     }
@@ -45233,6 +45243,8 @@ renderRadar() {
             'pdf.piece.sourceDefault': { fr: 'Pièce par défaut', en: 'Default piece' },
             'pdf.piece.sourceDetail': { fr: 'Pièce détaillée', en: 'Detailed piece' },
             'pdf.piece.recapTable': { fr: 'Tableau récapitulatif', en: 'Summary table' },
+            'pdf.piece.positionLot': { fr: 'Position lot', en: 'Lot position' },
+            'pdf.piece.conformity': { fr: 'Conformité', en: 'Conformity' },
             'pdf.lot.sheetContinuation': { fr: 'Suite de la fiche du lot', en: 'Lot sheet continuation' }
         };
 
@@ -45445,15 +45457,15 @@ renderRadar() {
         return [10 * MM_TO_PT, 10 * MM_TO_PT, 12 * MM_TO_PT, 10 * MM_TO_PT];
     }
 
-    /** Maquette annexe pièces : titre lot 10 mm, en-tête pièce 10 mm, 4 colonnes 65 mm, interstice 5 mm. */
+    /** Maquette annexe pièces : titre lot 5 mm, en-tête pièce 5 mm, 4 colonnes 70 mm, interstice 1 mm. */
     getPdfPiecesDetailAnnexLayout() {
         const MM_TO_PT = 72 / 25.4;
         return {
             columnsPerPage: 4,
-            columnWidthPt: 65 * MM_TO_PT,
-            lotTitleHeightPt: 10 * MM_TO_PT,
-            pieceHeaderHeightPt: 10 * MM_TO_PT,
-            columnGapPt: 5 * MM_TO_PT
+            columnWidthPt: 70 * MM_TO_PT,
+            lotTitleHeightPt: 5 * MM_TO_PT,
+            pieceHeaderHeightPt: 5 * MM_TO_PT,
+            columnGapPt: 1 * MM_TO_PT
         };
     }
 
@@ -45477,8 +45489,9 @@ renderRadar() {
     getPdfPieceDetailColumnMaxRows(f, layout, pageMargins) {
         const scale = f || this.getPdfOperationSheetFontScale();
         const dataHeightPt = this.getPdfPieceDetailDataHeightPt(pageMargins);
-        const dataHeightMm = dataHeightPt * 25.4 / 72;
-        return this.getPdfLotSheetMaxRowsForHeight(dataHeightMm, scale, false);
+        const rowPt = this.getPdfLotSheetKvRowHeightPt(scale);
+        // En-tête lot + pièce déjà soustraits ; pas de marge fantôme (title/padding).
+        return Math.max(1, Math.floor(dataHeightPt / rowPt));
     }
 
     /** Découpage « (suite) » : remplir toute la hauteur utile avant de couper. */
@@ -45490,17 +45503,15 @@ renderRadar() {
     getPdfPieceDetailPairRowWeight(pair) {
         if (!pair || typeof pair !== 'object') return 1;
         if (pair.multi && Array.isArray(pair.fields)) {
-            return Math.max(1.5, ...pair.fields.map((field) => this.getPdfPieceDetailPairRowWeight(field)));
+            // Dual/triple = une seule ligne de tableau (dontBreakRows).
+            return Math.max(1, ...pair.fields.map((field) => this.getPdfPieceDetailPairRowWeight(field)));
         }
         if (pair.fieldKind === 'longText') {
             const len = String(pair.value || '').length;
-            if (len > 100) return 2.5;
-            if (len > 50) return 2;
+            if (len > 120) return 3;
+            if (len > 70) return 2;
             return 1.5;
         }
-        const valueLen = String(pair.value || '').length;
-        if (valueLen > 70) return 2;
-        if (valueLen > 40) return 1.5;
         return 1;
     }
 
@@ -45726,23 +45737,53 @@ renderRadar() {
         return text + ' ' + unitToken;
     }
 
-    /** Deux champs label/valeur en ligne pleine largeur (séparés par · ). */
-    buildPdfPieceDualKvPair(left, right) {
-        return this.buildPdfPieceMultiKvPair(left, right);
+    /** Deux champs label/valeur sur une même ligne (cellules séparées). */
+    buildPdfPieceDualKvPair(left, right, options) {
+        const pair = this.buildPdfPieceMultiKvPair(left, right);
+        const weights = options && options.colWeights;
+        if (Array.isArray(weights) && weights.length === pair.fields.length) {
+            pair.colWeights = weights;
+        }
+        return pair;
     }
 
-    /** Deux champs ou plus en ligne (texte fluide pleine largeur). */
-    buildPdfPieceMultiKvPair(...fields) {
-        return { multi: true, fields: (fields || []).filter(Boolean) };
+    /** Deux champs ou plus sur une même ligne (cellules séparées). Dernier argument optionnel : { colWeights }. */
+    buildPdfPieceMultiKvPair(...args) {
+        let colWeights = null;
+        const last = args[args.length - 1];
+        if (last && typeof last === 'object' && !last.label && Array.isArray(last.colWeights)) {
+            colWeights = last.colWeights;
+            args = args.slice(0, -1);
+        }
+        const pair = { multi: true, fields: args.filter(Boolean) };
+        if (Array.isArray(colWeights) && colWeights.length === pair.fields.length) {
+            pair.colWeights = colWeights;
+        }
+        return pair;
     }
 
-    buildPdfPieceDetailKvFieldParts(field, scale, withLeadingSeparator) {
+    /** Répartit totalCols en spans entiers proportionnels aux poids (ex. 4+6 → 40/60 sur 10). */
+    allocatePdfGridColSpans(weights, totalCols) {
+        const safeWeights = (weights || []).map((w) => Math.max(0, Number(w) || 0));
+        const sum = safeWeights.reduce((acc, w) => acc + w, 0);
+        const count = safeWeights.length;
+        if (!count || !sum) return Array(count).fill(Math.floor(totalCols / Math.max(1, count)));
+        const raw = safeWeights.map((w) => (w / sum) * totalCols);
+        const spans = raw.map((v) => Math.floor(v));
+        let remainder = totalCols - spans.reduce((acc, span) => acc + span, 0);
+        const order = raw
+            .map((v, i) => ({ i, frac: v - spans[i] }))
+            .sort((a, b) => b.frac - a.frac);
+        for (let r = 0; r < remainder; r++) {
+            spans[order[r % order.length].i] += 1;
+        }
+        return spans;
+    }
+
+    buildPdfPieceDetailKvFieldParts(field, scale) {
         const safeLabel = this.sanitizePdfText((field && field.label) || '', { fallback: '' });
         const safeValue = this.sanitizePdfFieldText(field && field.value, (field && field.fieldKind) || 'text');
         const parts = [];
-        if (withLeadingSeparator) {
-            parts.push({ text: ' · ', fontSize: scale.label, color: '#6a6257' });
-        }
         if (safeLabel) {
             parts.push({ text: safeLabel + ' : ', fontSize: scale.label, color: '#6a6257' });
         }
@@ -45752,25 +45793,37 @@ renderRadar() {
 
     buildPdfPieceDetailKvGrid(pairs, f) {
         const scale = f || this.getPdfOperationSheetFontScale();
-        const compactCell = (pair) => ({
-            text: this.buildPdfPieceDetailKvFieldParts(pair, scale, false)
+        const GRID_COLS = 30;
+        const compactCell = (field) => ({
+            text: this.buildPdfPieceDetailKvFieldParts(field, scale)
         });
+
+        const buildRowCells = (fields, colWeights) => {
+            const safeFields = (fields || []).filter(Boolean);
+            const count = Math.max(1, safeFields.length);
+            const spans = Array.isArray(colWeights) && colWeights.length === count
+                ? this.allocatePdfGridColSpans(colWeights, GRID_COLS)
+                : safeFields.map(() => GRID_COLS / count);
+            const row = [];
+            safeFields.forEach((field, idx) => {
+                const colSpan = spans[idx];
+                row.push({ ...compactCell(field), colSpan });
+                for (let i = 1; i < colSpan; i++) row.push({});
+            });
+            return row;
+        };
 
         const rows = [];
         (Array.isArray(pairs) ? pairs : []).forEach((pair) => {
             if (pair && pair.multi && Array.isArray(pair.fields) && pair.fields.length) {
-                const parts = [];
-                pair.fields.forEach((field, index) => {
-                    parts.push(...this.buildPdfPieceDetailKvFieldParts(field, scale, index > 0));
-                });
-                rows.push([{ text: parts, colSpan: 2 }, {}]);
+                rows.push(buildRowCells(pair.fields, pair.colWeights));
                 return;
             }
-            rows.push([{ ...compactCell(pair), colSpan: 2 }, {}]);
+            rows.push(buildRowCells([pair]));
         });
 
         return {
-            table: { dontBreakRows: true, widths: ['*', '*'], body: rows },
+            table: { dontBreakRows: true, widths: Array(GRID_COLS).fill('*'), body: rows },
             layout: {
                 hLineWidth: () => 0.3,
                 vLineWidth: () => 0.3,
@@ -47731,26 +47784,161 @@ renderRadar() {
         };
     }
 
-    buildPdfPieceMultipleMeasurementsPairs(piece, tpdf) {
+    resolvePdfPieceMedoidAtomKey(entry, lot) {
+        if (!entry || !lot) return null;
+        const defaultPieces = this.ensureDefaultPiecesData(lot, { createIfEmpty: false });
+        if (entry.groupedDefault || entry.sourceType === 'default') {
+            const sourcePiece = entry.piece || {};
+            let idx = defaultPieces.findIndex((dp) => dp && sourcePiece.id != null && dp.id === sourcePiece.id);
+            if (idx < 0) idx = defaultPieces.findIndex((dp) => dp === sourcePiece);
+            if (idx < 0) idx = 0;
+            const dp = defaultPieces[idx] || sourcePiece;
+            return `default_${dp.id || idx}`;
+        }
+        const detailedPieces = Array.isArray(lot.pieces) ? lot.pieces : [];
+        let idx = detailedPieces.indexOf(entry.piece);
+        if (idx < 0 && entry.sourceType === 'detail' && Number.isFinite(Number(entry.sourceOccurrence))) {
+            idx = Math.max(0, Number(entry.sourceOccurrence) - 1);
+        }
+        return `piece_${idx >= 0 ? idx : 0}`;
+    }
+
+    classifyPdfPieceDestinationLabel(lot, pieceLike) {
+        if (!lot || !pieceLike) return null;
+        const allotissement = lot.allotissement || {};
+        const seuils = lot.seuilsDestination || {};
+        const hasBounds = ['longueur', 'largeur', 'epaisseur', 'diametre'].some((dim) => {
+            const b = seuils[dim] || {};
+            return b.min != null || b.max != null;
+        });
+        if (!hasBounds) return null;
+
+        const stats = this.computePieceDimensionStats(pieceLike, {
+            fallbackLongueur: allotissement.longueur,
+            fallbackLargeur: allotissement.largeur,
+            fallbackEpaisseur: allotissement.epaisseur,
+            fallbackDiametre: allotissement.diametre
+        });
+        const useEnriched = this.getSimilarityStrategy(lot) === 'multiple';
+        const mmProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
+        const lotHasDiametre = mmProfile === 'rect-present'
+            ? false
+            : (mmProfile === 'circle-only' || (parseFloat(allotissement.diametre) || 0) > 0);
+
+        const vL = stats.longueur;
+        const vLa = useEnriched ? stats.largeurEnrichie : stats.largeurScalar;
+        const vE = useEnriched ? stats.epaisseurEnrichie : stats.epaisseurScalar;
+        const vD = useEnriched ? stats.diametreEnrichi : stats.diametreScalar;
+
+        const bL = seuils.longueur || {};
+        const lengthInvalid = !Number.isFinite(vL) || vL <= 0;
+        const lengthMin = !lengthInvalid && bL.min != null && vL < parseFloat(bL.min);
+        const lengthMax = !lengthInvalid && bL.max != null && vL > parseFloat(bL.max);
+
+        let sectionMin = false;
+        let sectionMax = false;
+        if (lotHasDiametre) {
+            const bD = seuils.diametre || {};
+            const vDi = parseFloat(vD);
+            if (bD.min != null && Number.isFinite(vDi) && vDi < parseFloat(bD.min)) sectionMin = true;
+            if (bD.max != null && Number.isFinite(vDi) && vDi > parseFloat(bD.max)) sectionMax = true;
+        } else {
+            const bLa = seuils.largeur || {};
+            const bE = seuils.epaisseur || {};
+            const vLar = parseFloat(vLa);
+            const vEp = parseFloat(vE);
+            if (bLa.min != null && Number.isFinite(vLar) && vLar < parseFloat(bLa.min)) sectionMin = true;
+            if (bE.min != null && Number.isFinite(vEp) && vEp < parseFloat(bE.min)) sectionMin = true;
+            if (bLa.max != null && Number.isFinite(vLar) && vLar > parseFloat(bLa.max)) sectionMax = true;
+            if (bE.max != null && Number.isFinite(vEp) && vEp > parseFloat(bE.max)) sectionMax = true;
+        }
+
+        if (lengthInvalid || sectionMin || (lengthMin && sectionMin)) return 'Rejet';
+        if (lengthMin) return 'Bois court';
+        if (!lengthMax && !sectionMax) return 'Conforme';
+        if (lengthMax && !sectionMax) return 'Recoupe';
+        if (!lengthMax && sectionMax) return 'Corroyage';
+        return 'R&C';
+    }
+
+    getPdfPieceSimilarityAtomContext(entry, lot) {
+        if (!lot || !entry) return null;
+        const useEnriched = this.getSimilarityStrategy(lot) === 'multiple';
+        const medoideResult = this.computeMedoideLot(lot, {
+            longueur: [],
+            largeur: [],
+            epaisseur: [],
+            diametre: []
+        }, { useEnrichedDims: useEnriched });
+        if (!medoideResult || !Array.isArray(medoideResult.atomScores) || !medoideResult.atomScores.length) {
+            return null;
+        }
+
+        const atomKey = this.resolvePdfPieceMedoidAtomKey(entry, lot);
+        const atom = medoideResult.atomScores.find((a) => a.key === atomKey);
+        if (!atom) return null;
+
+        const sorted = medoideResult.atomScores.slice().sort((a, b) => (b.score || 0) - (a.score || 0));
+        const rank = sorted.findIndex((a) => a.key === atomKey) + 1;
+        const medoideScore = medoideResult.score;
+        const deltaMedoid = (medoideScore != null && atom.score != null)
+            ? Math.round(medoideScore) - Math.round(atom.score)
+            : null;
+
+        return {
+            atom,
+            rank,
+            total: sorted.length,
+            medoideScore,
+            deltaMedoid,
+            isMedoid: atomKey === medoideResult.key,
+            isExtreme: atomKey === medoideResult.scoreMinKey,
+            lotDispersion: (() => {
+                const a = lot.allotissement || {};
+                if (useEnriched && a.dispersionScoresEnrichi != null) return a.dispersionScoresEnrichi;
+                return a.dispersionScores != null ? a.dispersionScores : null;
+            })()
+        };
+    }
+
+    buildPdfPieceHomogeneityHeterogeneityPairs(entry, lot, piece, tpdf) {
+        const ctx = this.getPdfPieceSimilarityAtomContext(entry, lot);
+        if (!ctx) return [];
+
         const dash = (v) => this.pdfMetaDash(v);
+        const pct = (v) => (v != null && Number.isFinite(Number(v))
+            ? this.formatExportPercentDisplay(v, 0)
+            : null);
+        const dual = (left, right, options) => this.buildPdfPieceDualKvPair(left, right, options);
+
+        let positionValue = `${ctx.rank} / ${ctx.total}`;
+        if (ctx.isMedoid) positionValue += ' (médoïde)';
+        else if (ctx.isExtreme) positionValue += ' (extrême)';
+
+        const destinationLabel = this.classifyPdfPieceDestinationLabel(lot, piece);
+        const pairs = [
+            dual(
+                { label: tpdf('pdf.piece.positionLot', 'Position lot', 'Lot position'), value: dash(positionValue) },
+                { label: tpdf('pdf.piece.conformity', 'Conformité', 'Conformity'), value: dash(destinationLabel) }
+            ),
+            dual(
+                { label: tpdf('pdf.pieceType.medoidScore', 'Score pièce', 'Piece score'), value: dash(pct(ctx.atom.score)) },
+                { label: tpdf('pdf.piece.similarityType', 'Simil. type', 'Type sim.'), value: dash(pct(ctx.atom.similarityToMedoid)) }
+            ),
+            dual(
+                { label: tpdf('pdf.piece.deltaMedoid', 'Δ médoïde', 'Medoid Δ'), value: dash(ctx.deltaMedoid != null ? `Δ ${ctx.deltaMedoid} %` : null) },
+                { label: tpdf('pdf.pieceType.variation', 'Variation lot', 'Lot variation'), value: dash(ctx.lotDispersion != null ? `± ${Math.round(ctx.lotDispersion)} %` : null) }
+            )
+        ];
+
+        return pairs;
+    }
+
+    buildPdfPieceMultipleMeasurementsPairs(piece, tpdf) {
         const sections = this.getPdfPieceMultipleMeasurementsValidSections(piece);
         if (!sections.length) return [];
 
         const pairs = [];
-
-        if (piece.mmCvEpaisseurIntra != null && piece.mmCvEpaisseurIntra !== '') {
-            pairs.push({
-                label: tpdf('pdf.piece.mmCvEpaisseur', 'CV é. intra', 'Intra T CV'),
-                value: dash(piece.mmCvEpaisseurIntra)
-            });
-        }
-        if (piece.mmDeltaEpaisseurIntra != null && piece.mmDeltaEpaisseurIntra !== '') {
-            pairs.push({
-                label: tpdf('pdf.piece.mmDeltaEpaisseur', 'Δ é. intra', 'Intra T Δ'),
-                value: dash(piece.mmDeltaEpaisseurIntra)
-            });
-        }
-
         const mmSectionPair = (section) => {
             const { posLabel, sectionLabel, dimsLabel, perimeterLabel } = this.formatPdfMultipleMeasurementsSectionLabels(section);
             const valueParts = [sectionLabel + ' ' + this.formatPdfPieceDetailWithUnit(dimsLabel, 'mm')];
@@ -47949,10 +48137,10 @@ renderRadar() {
             ? String(durabiliteEssence.codeEn13556).trim()
             : null;
 
-        const dual = (left, right) => this.buildPdfPieceDualKvPair(left, right);
+        const dual = (left, right, options) => this.buildPdfPieceDualKvPair(left, right, options);
         const multi = (...fields) => this.buildPdfPieceMultiKvPair(...fields);
 
-        const identityPairs = [
+        const pieceIdPairs = [
             dual(
                 { label: tpdf('pdf.piece.name', 'Nom pièce', 'Piece name'), value: dash(sourcePiece.nom) },
                 isGroupedDefault
@@ -47961,11 +48149,15 @@ renderRadar() {
             ),
             { label: tpdf('pdf.lot.pieceType', 'Type pièce', 'Piece type'), value: dash(getPieceValue(piece.typePiece, allotissement.typePiece)) },
             { label: tpdf('pdf.lot.productType', 'Type produit', 'Product type'), value: dash(getPieceValue(piece.typeProduit, allotissement.typeProduit)) },
-            { label: tpdf('pdf.lot.woodClass', 'Classe bois', 'Wood class'), value: dash(getPieceValue(piece.classeBois, allotissement.classeBois)) },
+            { label: tpdf('pdf.lot.woodClass', 'Classe bois', 'Wood class'), value: dash(getPieceValue(piece.classeBois, allotissement.classeBois)) }
+        ];
+
+        const essencePairs = [
             { label: tpdf('pdf.lot.species', 'Essence', 'Species'), value: dash(getPieceValue(piece.essenceNomCommun, allotissement.essenceNomCommun)) },
             dual(
-                { label: tpdf('pdf.lot.speciesScientific', 'Ess. scientifique', 'Scientific sp.'), value: dash(getPieceValue(piece.essenceNomScientifique, allotissement.essenceNomScientifique)) },
-                { label: tpdf('pdf.lot.en13556Short', 'EN 13556', 'EN 13556'), value: dash(en13556Display) }
+                { label: tpdf('pdf.lot.speciesScientificShort', 'Ess. Scient.', 'Scientific sp.'), value: dash(getPieceValue(piece.essenceNomScientifique, allotissement.essenceNomScientifique)) },
+                { label: tpdf('pdf.lot.en13556Short', 'EN 13556', 'EN 13556'), value: dash(en13556Display) },
+                { colWeights: [65, 35] }
             )
         ];
 
@@ -47975,12 +48167,12 @@ renderRadar() {
             piece.prixMode
         );
 
-        const volumeDisplay = this.formatPdfPieceExportNumber(piece.volumePiece, 3, 4)
+        const volumeDisplay = this.formatPdfPieceExportNumber(piece.volumePiece, 3, 3)
             || getPieceValue(piece.volumePiecem3, piece.volumePiece);
         const surfaceDisplay = this.formatPdfPieceExportNumber(piece.surfacePiece, 2, 2)
             || getPieceValue(piece.surfacePiecem2, piece.surfacePiece);
         const volEnrichiDisplay = Number.isFinite(parseFloat(piece.volumePieceEnrichi))
-            ? this.formatPdfDecimal(parseFloat(piece.volumePieceEnrichi), 4, 4)
+            ? this.formatPdfDecimal(parseFloat(piece.volumePieceEnrichi), 3, 3)
             : null;
         const prixDisplay = this.formatPdfPieceExportNumber(piece.prixPiece, 0, 0) || piece.prixPiece;
         const prixAjusteDisplay = this.formatPdfPieceExportNumber(piece.prixPieceAjusteIntegrite, 0, 0)
@@ -48012,7 +48204,8 @@ renderRadar() {
                 ? multi(
                     { label: tpdf('pdf.lot.volumePieceShort', 'Vol.', 'Vol.'), value: withUnit(volumeDisplay, 'm³') },
                     { label: tpdf('pdf.lot.surfacePieceShort', 'Surf.', 'Surf.'), value: withUnit(surfaceDisplay, 'm²') },
-                    { label: tpdf('pdf.mmAnnex.enrichedVolShort', 'Vol. enrichi', 'Enriched vol.'), value: withUnit(volEnrichiDisplay, 'm³') }
+                    { label: tpdf('pdf.mmAnnex.enrichedVolShort', 'Vol. enrichi', 'Enriched vol.'), value: withUnit(volEnrichiDisplay, 'm³') },
+                    { colWeights: [30, 30, 40] }
                 )
                 : dual(
                     { label: tpdf('pdf.lot.volumePieceShort', 'Vol.', 'Vol.'), value: withUnit(volumeDisplay, 'm³') },
@@ -48021,10 +48214,11 @@ renderRadar() {
             { label: 'L × l × e', value: formatDims() }
         ];
 
-        const massPairs = [
+        const physiquePairs = [
             dual(
                 { label: tpdf('pdf.lot.masseVolumiqueShort', 'Masse vol.', 'Bulk dens.'), value: withUnit(getPieceValue(piece.masseVolumique, allotissement.masseVolumique), 'kg/m³') },
-                { label: tpdf('pdf.piece.masseVolumiqueMesuree', 'Masse vol. mes.', 'Meas. bulk dens.'), value: withUnit(measuredDensityDisplay, 'kg/m³') }
+                { label: tpdf('pdf.piece.masseVolumiqueMesuree', 'Masse vol. mes.', 'Meas. bulk dens.'), value: withUnit(measuredDensityDisplay, 'kg/m³') },
+                { colWeights: [4, 6] }
             ),
             multi(
                 { label: tpdf('pdf.lot.humidite', 'Humidité', 'Moisture'), value: withUnit(getPieceValue(piece.humidite, allotissement.humidite), '%') },
@@ -48032,18 +48226,24 @@ renderRadar() {
                 { label: tpdf('pdf.lot.bois', 'Bois', 'Wood'), value: withUnit(getPieceValue(piece.bois, allotissement.bois), '%') }
             ),
             dual(
+                { label: tpdf('pdf.piece.massePiece', 'Masse théo.', 'Theo. mass'), value: withUnit(masseDisplay, 'kg') },
+                { label: tpdf('pdf.piece.massePieceMesuree', 'Masse mes.', 'Meas. mass'), value: withUnit(masseMesureeDisplay, 'kg') }
+            ),
+            { label: tpdf('pdf.piece.pco2Piece', 'PCO₂ théo.', 'Theo. PCO₂'), value: withUnit(pco2Display, 'kg CO₂') }
+        ];
+
+        const valorisationPairs = [
+            dual(
                 { label: tpdf('pdf.lot.prixMarche', 'Prix marché', 'Market price'), value: withUnit(getPieceValue(piece.prixMarche, allotissement.prixMarche), prixMarcheUnit) },
                 { label: tpdf('pdf.piece.prixPiece', 'Prix pièce', 'Piece price'), value: withUnit(prixDisplay, '€') }
             ),
             dual(
                 { label: tpdf('pdf.piece.prixPieceAjuste', 'Prix ajusté', 'Adjusted price'), value: withUnit(prixAjusteDisplay, '€') },
                 { label: tpdf('pdf.piece.integriteLot', 'Intégrité lot', 'Lot integrity'), value: dash(integriteLabel) }
-            ),
-            dual(
-                { label: tpdf('pdf.piece.massePiece', 'Masse théo.', 'Theo. mass'), value: withUnit(masseDisplay, 'kg') },
-                { label: tpdf('pdf.piece.massePieceMesuree', 'Masse mes.', 'Meas. mass'), value: withUnit(masseMesureeDisplay, 'kg') }
-            ),
-            { label: tpdf('pdf.piece.pco2Piece', 'PCO₂ théo.', 'Theo. PCO₂'), value: withUnit(pco2Display, 'kg CO₂') },
+            )
+        ];
+
+        const cycleViePairs = [
             multi(
                 { label: tpdf('pdf.piece.ageArbre', 'Âge arbre', 'Tree age'), value: withUnit(sourcePiece.ageArbre, 'ans') },
                 { label: tpdf('pdf.piece.dateMiseEnService', 'Date service', 'Service date'), value: dash(sourcePiece.dateMiseEnService), fieldKind: 'date' },
@@ -48076,15 +48276,20 @@ renderRadar() {
         });
 
         const mmPairs = this.buildPdfPieceMultipleMeasurementsPairs(piece, tpdf);
+        const similarityPairs = this.buildPdfPieceHomogeneityHeterogeneityPairs(entry, lot, piece, tpdf);
         const durabilitePairs = this.buildPdfPieceDurabiliteSummaryPairs(sourcePiece, lot, tpdf);
 
         const allPairs = [
-            ...identityPairs,
-            ...dimsPairs,
-            ...massPairs,
-            ...mmPairs,
-            ...locSitPairs,
+            ...pieceIdPairs,
+            ...essencePairs,
             ...durabilitePairs,
+            ...dimsPairs,
+            ...mmPairs,
+            ...similarityPairs,
+            ...physiquePairs,
+            ...valorisationPairs,
+            ...cycleViePairs,
+            ...locSitPairs,
             ...customPairs
         ];
 
@@ -48106,7 +48311,8 @@ renderRadar() {
             bold: true,
             fontSize: Math.max(5.5, f.sectionTitle - 0.5),
             alignment: 'left',
-            margin: [0, 0, 0, 0]
+            margin: [0, 0, 0, 0],
+            verticalAlignment: 'bottom'
         });
     }
 
@@ -48144,7 +48350,8 @@ renderRadar() {
             bold: true,
             fontSize: this.getPdfZonedSheetPageTitleFontSize(),
             alignment: 'left',
-            margin: [0, 0, 0, 0]
+            margin: [0, 0, 0, 0],
+            verticalAlignment: 'bottom'
         });
     }
 

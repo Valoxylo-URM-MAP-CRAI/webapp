@@ -48,18 +48,20 @@ const asserts = [
             && fn.includes('buildPdfPieceDurabiliteSummaryPairs(sourcePiece, lot, tpdf)')
             && src.includes('buildPdfPieceDetailKvGrid(rows, f)')
             && src.includes('buildPdfPieceDetailColumnData(pairs, layout, f')
-            && src.includes('buildPdfPieceDualKvPair(left, right)')
+            && src.includes('buildPdfPieceDualKvPair(left, right, options)')
     }],
     ['marges détail pièces annexe 10/10/12/10 mm', () => src.includes('getPdfPiecesDetailAnnexPageMargins()')
         && src.includes('10 * MM_TO_PT, 10 * MM_TO_PT, 12 * MM_TO_PT, 10 * MM_TO_PT')],
-    ['grille 4 colonnes 65 mm + interstice 5 mm', () => {
+    ['grille 4 colonnes 70 mm + interstice 1 mm', () => {
         const layoutFn = src.slice(
             src.indexOf('getPdfPiecesDetailAnnexLayout()'),
             src.indexOf('getPdfPiecesDetailAnnexLayout()') + 600
         );
         return layoutFn.includes('columnsPerPage: 4')
-            && layoutFn.includes('columnWidthPt: 65 * MM_TO_PT')
-            && layoutFn.includes('columnGapPt: 5 * MM_TO_PT')
+            && layoutFn.includes('columnWidthPt: 70 * MM_TO_PT')
+            && layoutFn.includes('columnGapPt: 1 * MM_TO_PT')
+            && layoutFn.includes('lotTitleHeightPt: 5 * MM_TO_PT')
+            && layoutFn.includes('pieceHeaderHeightPt: 5 * MM_TO_PT')
             && !layoutFn.includes('pieceDataHeightPt')
             && src.includes('getPdfPieceDetailDataHeightPt(pageMargins)')
             && src.includes('buildPdfLotPiecesDetailPages(')
@@ -80,20 +82,123 @@ const asserts = [
         const fnStart = src.indexOf('buildPdfPieceDetailPairs(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {');
         const fnEnd = src.indexOf('\n    buildPdfPieceDetailFiche(entry, lot', fnStart);
         const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
-        return fn.includes('const dual = (left, right) => this.buildPdfPieceDualKvPair(left, right)')
+        const gridFn = src.slice(
+            src.indexOf('buildPdfPieceDetailKvGrid(pairs, f)'),
+            src.indexOf('buildPdfPieceDetailKvGrid(pairs, f)') + 1200
+        );
+        return fn.includes('const dual = (left, right, options) => this.buildPdfPieceDualKvPair(left, right, options)')
             && fn.includes("tpdf('pdf.lot.lengthShort'")
             && fn.includes("tpdf('pdf.piece.massivite'")
-            && src.includes('buildPdfPieceDetailKvGrid(pairs, f)');
+            && src.includes('buildPdfPieceDetailKvGrid(pairs, f)')
+            && gridFn.includes('GRID_COLS = 30')
+            && gridFn.includes('buildRowCells(pair.fields, pair.colWeights)');
+    }],
+    ['ess. scientifique / EN 13556 dual 65/35 fiche pièce', () => {
+        const fnStart = src.indexOf('buildPdfPieceDetailPairs(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {');
+        const fnEnd = src.indexOf('\n    buildPdfPieceDetailFiche(entry, lot', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        return fn.includes("tpdf('pdf.lot.speciesScientificShort'")
+            && fn.includes("tpdf('pdf.lot.en13556Short'")
+            && fn.includes('colWeights: [65, 35]');
+    }],
+    ['masse vol. dual 40/60 fiche pièce', () => {
+        const fnStart = src.indexOf('buildPdfPieceDetailPairs(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {');
+        const fnEnd = src.indexOf('\n    buildPdfPieceDetailFiche(entry, lot', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        const gridFn = src.slice(
+            src.indexOf('buildPdfPieceDetailKvGrid(pairs, f)'),
+            src.indexOf('buildPdfPieceDetailKvGrid(pairs, f)') + 1600
+        );
+        return fn.includes("tpdf('pdf.lot.masseVolumiqueShort'")
+            && fn.includes("tpdf('pdf.piece.masseVolumiqueMesuree'")
+            && fn.includes('colWeights: [4, 6]')
+            && src.includes('allocatePdfGridColSpans(weights, totalCols)')
+            && gridFn.includes('pair.colWeights');
     }],
     ['mesures multiples dans fiches pièce', () => src.includes('buildPdfPieceMultipleMeasurementsPairs(piece, tpdf)')
         && src.includes('getPdfPieceMultipleMeasurementsValidSections(piece)')
-        && src.includes('...mmPairs')],
+        && src.includes('...mmPairs')
+        && !src.includes("tpdf('pdf.piece.mmCvEpaisseur'")
+        && (() => {
+            const fnStart = src.indexOf('const allPairs = [');
+            const fnEnd = src.indexOf('];', fnStart);
+            const block = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+            const dimsIdx = block.indexOf('...dimsPairs');
+            const mmIdx = block.indexOf('...mmPairs');
+            const simIdx = block.indexOf('...similarityPairs');
+            return dimsIdx >= 0 && mmIdx > dimsIdx && simIdx > mmIdx;
+        })()],
+    ['ordonnancement thématique fiche pièce', () => {
+        const fnStart = src.indexOf('const allPairs = [');
+        const fnEnd = src.indexOf('];', fnStart);
+        const block = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        const idx = (name) => block.indexOf(name);
+        return block.includes('...pieceIdPairs')
+            && block.includes('...essencePairs')
+            && block.includes('...durabilitePairs')
+            && block.includes('...dimsPairs')
+            && block.includes('...mmPairs')
+            && block.includes('...similarityPairs')
+            && block.includes('...physiquePairs')
+            && block.includes('...valorisationPairs')
+            && block.includes('...cycleViePairs')
+            && block.includes('...locSitPairs')
+            && block.includes('...customPairs')
+            && idx('...pieceIdPairs') < idx('...essencePairs')
+            && idx('...essencePairs') < idx('...durabilitePairs')
+            && idx('...durabilitePairs') < idx('...dimsPairs')
+            && idx('...dimsPairs') < idx('...mmPairs')
+            && idx('...mmPairs') < idx('...similarityPairs')
+            && idx('...similarityPairs') < idx('...physiquePairs')
+            && idx('...physiquePairs') < idx('...valorisationPairs')
+            && idx('...valorisationPairs') < idx('...cycleViePairs')
+            && idx('...cycleViePairs') < idx('...locSitPairs')
+            && idx('...locSitPairs') < idx('...customPairs');
+    }],
+    ['césure fiche pièce budget hauteur utile', () => {
+        const fn = src.slice(
+            src.indexOf('getPdfPieceDetailColumnMaxRows(f, layout, pageMargins)'),
+            src.indexOf('getPdfPieceDetailColumnMaxRows(f, layout, pageMargins)') + 500
+        );
+        return fn.includes('getPdfPieceDetailDataHeightPt(pageMargins)')
+            && fn.includes('getPdfLotSheetKvRowHeightPt(scale)')
+            && !fn.includes('getPdfLotSheetMaxRowsForHeight(dataHeightMm');
+    }],
+    ['homogénéité / hétérogénéité fiche pièce', () => src.includes('buildPdfPieceHomogeneityHeterogeneityPairs(entry, lot, piece, tpdf)')
+        && src.includes('getPdfPieceSimilarityAtomContext(entry, lot)')
+        && src.includes('resolvePdfPieceMedoidAtomKey(entry, lot)')
+        && src.includes('classifyPdfPieceDestinationLabel(lot, pieceLike)')
+        && src.includes('atomScores: scored.map')
+        && (() => {
+            const fnStart = src.indexOf('buildPdfPieceHomogeneityHeterogeneityPairs(entry, lot, piece, tpdf) {');
+            const fnEnd = src.indexOf('\n    buildPdfPieceMultipleMeasurementsPairs(piece, tpdf)', fnStart);
+            const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+            return fn.includes("tpdf('pdf.piece.positionLot'")
+                && fn.includes("tpdf('pdf.piece.conformity'")
+                && fn.includes('classifyPdfPieceDestinationLabel(lot, piece)')
+                && !fn.includes("tpdf('pdf.piece.destinationClass'");
+        })()],
     ['export pièce recalculé (preview)', () => src.includes('resolvePdfPieceExportPiece(entry, lot)')
         && src.includes('buildPieceFromDefault(lot, -1, sourcePiece.id')
         && src.includes('this.recalculatePiece(exportPiece, lot)')],
     ['unités dans les valeurs fiche pièce', () => src.includes('formatPdfPieceDetailWithUnit(value, unit)')
         && src.includes("withUnit(getPieceValue(piece.longueur, allotissement.longueur), 'mm')")
         && src.includes("withUnit(prixDisplay, '€')")],
+    ['vol / surf / vol enrichi triple 30/30/40 fiche pièce', () => {
+        const fnStart = src.indexOf('buildPdfPieceDetailPairs(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {');
+        const fnEnd = src.indexOf('\n    buildPdfPieceDetailFiche(entry, lot', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        return fn.includes("tpdf('pdf.mmAnnex.enrichedVolShort'")
+            && fn.includes('colWeights: [30, 30, 40]');
+    }],
+    ['volumes fiche pièce arrondis au millième', () => {
+        const fnStart = src.indexOf('buildPdfPieceDetailPairs(entry, lot, lotIndex, pieceIndex, tpdf, customInfoColumns) {');
+        const fnEnd = src.indexOf('\n    buildPdfPieceDetailFiche(entry, lot', fnStart);
+        const fn = fnStart >= 0 && fnEnd > fnStart ? src.slice(fnStart, fnEnd) : '';
+        return fn.includes('formatPdfPieceExportNumber(piece.volumePiece, 3, 3)')
+            && fn.includes('formatPdfDecimal(parseFloat(piece.volumePieceEnrichi), 3, 3)')
+            && fn.includes('formatPdfPieceExportNumber(piece.surfacePiece, 2, 2)');
+    }],
     ['sans annexe technique mesures multiples', () => !src.includes('buildPdfMultipleMeasurementsAnnexContent(')
         && !exportSlice.includes('buildPdfMultipleMeasurementsAnnexContent')],
     ['annexe pièces dans la revue complète PDF', () => {
