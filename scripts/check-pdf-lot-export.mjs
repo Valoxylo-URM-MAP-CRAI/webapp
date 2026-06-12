@@ -97,6 +97,20 @@ const asserts = [
         && src.includes("pageBreak: 'before'")
         && src.includes('buildPdfLotSummaryZonedPages')
         && src.includes('splitPdfKvPairsByRowBudget')],
+    ['fiche lot valeurs alignées UI', () => {
+        const lotPairsStart = fnBody.indexOf('const lotPairs = [');
+        const lotPairsEnd = fnBody.indexOf('const customInfoColumns', lotPairsStart);
+        const lotPairsBlock = lotPairsStart >= 0 && lotPairsEnd > lotPairsStart
+            ? fnBody.slice(lotPairsStart, lotPairsEnd)
+            : '';
+        return src.includes('formatPdfLotMasseDisplay(')
+            && src.includes('formatPdfLotPco2Display(')
+            && src.includes('formatPdfLotAllotissementNumeric(')
+            && src.includes('formatPdfLotCarbonFieldDisplay(currentLot, this.getLotHumiditeDetailSummary)')
+            && lotPairsBlock.includes('formatPdfLotMasseDisplay(allotissement.masseLot)')
+            && lotPairsBlock.includes('formatPdfLotPco2Display(allotissement.carboneBiogeniqueEstime)')
+            && !lotPairsBlock.includes('String(parseFloat(allotissement.masseLot)');
+    }],
     ['inspection retirée du haut fiche lot', () => !fnBody.includes('orientationJustificationCard')
         && fnBody.includes('buildPdfLotInspectionReminderTable(currentLot, tpdf')],
     ['plus de carte justification orientation', () => !fnBody.includes('orientationJustificationCard')

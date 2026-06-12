@@ -136,6 +136,11 @@ const asserts = [
     ['localisation dans geoContext', () => {
         const block = src.slice(src.indexOf('geoContext: ['), src.indexOf('geoContext: [') + 900);
         return block.includes("pdf.meta.location");
+    }],
+    ['cahier charges déconstruction export PDF', () => {
+        const block = src.slice(src.indexOf('diagnosticsDocs: ['), src.indexOf('diagnosticsDocs: [') + 1200);
+        return block.includes('documentCahierDeconstruction')
+            && block.includes('Cahier des charges de déconstruction');
     }]
 ];
 
