@@ -22127,6 +22127,10 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
 
             btnRunExport.addEventListener('click', () => {
                 const formatVal = exportFileFormatSelect.value;
+                const openFilenameModalThen = (defaultFilename, runner) => {
+                    this.openExportFilenameModal(defaultFilename, runner);
+                };
+
                 if (formatVal === 'ifc') {
                     const selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     if (!selectedLotIndices.length) {
@@ -22153,12 +22157,16 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 if (formatVal === 'json-gh') {
                     const selectedLotIndices = this.getSelectedExportPdfLotIndices();
                     closeExportPdf();
-                    this.exportToGrasshopperJson(selectedLotIndices);
+                    openFilenameModalThen(this.buildExportFilenameGrasshopperJson(), (finalFilename) => {
+                        this.exportToGrasshopperJson(selectedLotIndices, finalFilename);
+                    });
                     return;
                 }
                 if (formatVal === 'json') {
                     closeExportPdf();
-                    this.exportEvaluationJson();
+                    openFilenameModalThen(this.buildExportFilenameSauvegardeJson(), (finalFilename) => {
+                        this.exportEvaluationJson(finalFilename);
+                    });
                     return;
                 }
                 const selectedMode = exportContentModeSelect.value;
@@ -22181,12 +22189,17 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                     return;
                 }
 
+                closeExportPdf();
                 if (format === 'pdf') {
-                    closeExportPdf();
-                    this.exportToPdf(mode, selectedLotIndices);
+                    openFilenameModalThen(
+                        this.buildExportFilenameForPdfMode(mode, selectedLotIndices),
+                        (finalFilename) => this.exportToPdf(mode, selectedLotIndices, finalFilename)
+                    );
                 } else {
-                    closeExportPdf();
-                    this.exportToCsv(mode, selectedLotIndices);
+                    openFilenameModalThen(
+                        this.buildExportFilenameForCsvMode(mode, selectedLotIndices),
+                        (finalFilename) => this.exportToCsv(mode, selectedLotIndices, finalFilename)
+                    );
                 }
             });
 
@@ -37334,15 +37347,11 @@ renderMatrice() {
     if (exportBtn) {
         exportBtn.addEventListener('click', () => {
             const payload = this.buildValoboisMatrixConfigExportDiff();
-            const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = this.buildExportFilenameMatriceConfig();
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            URL.revokeObjectURL(url);
+            const defaultFilename = this.buildExportFilenameMatriceConfig();
+            this.openExportFilenameModal(defaultFilename, (finalFilename) => {
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                this.triggerBrowserFileDownload(blob, finalFilename);
+            });
         });
     }
 
@@ -40719,20 +40728,225 @@ renderRadar() {
         return `configuration_matrice_valoxylo_${date}.json`;
     }
 
-    exportEvaluationJson() {
+    splitExportFilenameParts(filename) {
+        const safe = String(filename || '').trim();
+        const lastDot = safe.lastIndexOf('.');
+        if (lastDot <= 0) {
+            return { base: safe, extension: '' };
+        }
+        return {
+            base: safe.slice(0, lastDot),
+            extension: safe.slice(lastDot + 1).toLowerCase(),
+        };
+    }
+
+    resolveCustomExportFilename(defaultFilename, userBaseInput) {
+        const trimmedInput = String(userBaseInput || '').trim();
+        if (!trimmedInput) return defaultFilename;
+        const { extension } = this.splitExportFilenameParts(defaultFilename);
+        const sanitized = this.sanitizeExportFilenameSegment(trimmedInput, {
+            fallback: 'sans_nom',
+            maxLength: 120,
+        });
+        if (!sanitized || sanitized === 'sans_nom') return defaultFilename;
+        return extension ? `${sanitized}.${extension}` : sanitized;
+    }
+
+    buildExportFilenameForPdfMode(mode, lotIndices = []) {
+        const validLotIndices = Array.isArray(lotIndices)
+            ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index])
+            : [];
+        if (mode === 'synthese') return this.buildExportFilenameSynthese('pdf');
+        if (validLotIndices.length > 1) return this.buildExportFilenameRevueComplete('pdf');
+        if (validLotIndices.length === 1) return this.buildExportFilenameRevueLot(validLotIndices[0], 'pdf');
+        return this.buildExportFilenameSynthese('pdf');
+    }
+
+    buildExportFilenameForCsvMode(mode, lotIndices = []) {
+        let validLotIndices = [];
+        if (mode === 'synthese') {
+            validLotIndices = (this.data.lots || []).map((_, index) => index);
+        } else {
+            validLotIndices = Array.isArray(lotIndices)
+                ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index])
+                : [];
+        }
+        if (mode === 'synthese') return this.buildExportFilenameSynthese('csv');
+        if (mode === 'pieces-detaillees') return this.buildExportFilenamePiecesDetaillees('csv');
+        if (validLotIndices.length > 1) return this.buildExportFilenameRevueComplete('csv');
+        if (validLotIndices.length === 1) return this.buildExportFilenameRevueLot(validLotIndices[0], 'csv');
+        return this.buildExportFilenameSynthese('csv');
+    }
+
+    triggerBrowserFileDownload(blob, filename) {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    }
+
+    /**
+     * Ouvre la modale de personnalisation du nom de fichier avant export.
+     * @param {string} defaultFilename - Nom de fichier complet pré-calculé (avec extension)
+     * @param {function} onConfirm - Callback(finalFilename) si l'utilisateur valide
+     * @param {function} [onCancel] - Callback optionnelle si annulation
+     */
+    openExportFilenameModal(defaultFilename, onConfirm, onCancel = null) {
+        const safeDefault = String(defaultFilename || '').trim() || 'export.valobois';
+        const { base: defaultBase, extension } = this.splitExportFilenameParts(safeDefault);
+
+        let backdrop = document.getElementById('exportFilenameModalBackdrop');
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'exportFilenameModalBackdrop';
+            backdrop.className = 'modal-backdrop hidden';
+            backdrop.setAttribute('aria-hidden', 'true');
+            backdrop.setAttribute('inert', '');
+            backdrop.innerHTML = `
+                <div class="modal" role="dialog" aria-modal="true" aria-labelledby="exportFilenameModalTitle">
+                    <div class="modal-header">
+                        <h2 id="exportFilenameModalTitle" class="text-center">Nom du fichier</h2>
+                        <button type="button" class="modal-close" id="btnCloseExportFilenameModal" aria-label="Fermer">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <p id="exportFilenameModalHint" class="export-filename-modal__hint">
+                            Personnalisez le nom du fichier avant de lancer l'export.
+                            Les caractères spéciaux seront automatiquement nettoyés.
+                        </p>
+                        <div class="export-filename-modal__input-row">
+                            <input
+                                type="text"
+                                id="exportFilenameInput"
+                                class="lot-input export-filename-modal__input"
+                                placeholder="nom-du-fichier"
+                                autocomplete="off"
+                                spellcheck="false"
+                            />
+                            <span id="exportFilenameExtension" class="export-filename-modal__extension">.ext</span>
+                        </div>
+                        <p class="export-filename-modal__preview-line">
+                            Aperçu : <span id="exportFilenamePreview" class="export-filename-modal__preview"></span>
+                        </p>
+                    </div>
+                    <div class="modal-footer export-filename-modal__footer">
+                        <button type="button" class="btn btn-primary btn-full" id="btnConfirmExportFilename">
+                            Exporter
+                        </button>
+                        <button type="button" class="btn btn-secondary btn-full" id="btnCancelExportFilename">
+                            Annuler
+                        </button>
+                    </div>
+                </div>`;
+            document.body.appendChild(backdrop);
+        }
+
+        const inputEl = backdrop.querySelector('#exportFilenameInput');
+        const extensionEl = backdrop.querySelector('#exportFilenameExtension');
+        const previewEl = backdrop.querySelector('#exportFilenamePreview');
+        const hintEl = backdrop.querySelector('#exportFilenameModalHint');
+        const closeBtn = backdrop.querySelector('#btnCloseExportFilenameModal');
+        const cancelBtn = backdrop.querySelector('#btnCancelExportFilenameModal');
+        const confirmBtn = backdrop.querySelector('#btnConfirmExportFilename');
+        if (!inputEl || !extensionEl || !previewEl || !confirmBtn) return;
+
+        if (hintEl) {
+            hintEl.textContent = 'Personnalisez le nom du fichier avant de lancer l\'export. Les caractères spéciaux seront automatiquement nettoyés.';
+        }
+        confirmBtn.textContent = 'Exporter';
+
+        extensionEl.textContent = extension ? `.${extension}` : '';
+        inputEl.value = defaultBase;
+
+        const updatePreview = () => {
+            previewEl.textContent = this.resolveCustomExportFilename(safeDefault, inputEl.value);
+        };
+        updatePreview();
+
+        if (backdrop._exportFilenameCleanup) {
+            backdrop._exportFilenameCleanup();
+        }
+
+        const cleanupModalListeners = () => {
+            if (backdrop._exportFilenameEscapeHandler) {
+                document.removeEventListener('keydown', backdrop._exportFilenameEscapeHandler);
+                backdrop._exportFilenameEscapeHandler = null;
+            }
+            inputEl.removeEventListener('input', updatePreview);
+            if (inputEl._exportFilenameKeyHandler) {
+                inputEl.removeEventListener('keydown', inputEl._exportFilenameKeyHandler);
+                inputEl._exportFilenameKeyHandler = null;
+            }
+            backdrop.onclick = null;
+            if (closeBtn) closeBtn.onclick = null;
+            if (cancelBtn) cancelBtn.onclick = null;
+            confirmBtn.onclick = null;
+        };
+        backdrop._exportFilenameCleanup = cleanupModalListeners;
+
+        const closeModal = (invokeCancel) => {
+            const activeEl = document.activeElement;
+            if (activeEl && backdrop.contains(activeEl) && typeof activeEl.blur === 'function') {
+                activeEl.blur();
+            }
+            cleanupModalListeners();
+            backdrop.setAttribute('inert', '');
+            backdrop.classList.add('hidden');
+            backdrop.setAttribute('aria-hidden', 'true');
+            if (invokeCancel && typeof onCancel === 'function') onCancel();
+        };
+
+        const cancelModal = () => closeModal(true);
+
+        const confirmModal = () => {
+            const finalFilename = this.resolveCustomExportFilename(safeDefault, inputEl.value);
+            closeModal(false);
+            if (typeof onConfirm === 'function') onConfirm(finalFilename);
+        };
+
+        inputEl._exportFilenameKeyHandler = (event) => {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                confirmModal();
+            }
+        };
+
+        backdrop._exportFilenameEscapeHandler = (event) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                cancelModal();
+            }
+        };
+
+        if (closeBtn) closeBtn.onclick = cancelModal;
+        if (cancelBtn) cancelBtn.onclick = cancelModal;
+        confirmBtn.onclick = confirmModal;
+        backdrop.onclick = (event) => {
+            if (event.target === backdrop) cancelModal();
+        };
+
+        inputEl.addEventListener('input', updatePreview);
+        inputEl.addEventListener('keydown', inputEl._exportFilenameKeyHandler);
+        document.addEventListener('keydown', backdrop._exportFilenameEscapeHandler);
+
+        backdrop.classList.remove('hidden');
+        backdrop.removeAttribute('inert');
+        backdrop.setAttribute('aria-hidden', 'false');
+        inputEl.focus();
+        inputEl.select();
+    }
+
+    exportEvaluationJson(downloadFilename = null) {
         try {
+            const filename = downloadFilename || this.buildExportFilenameSauvegardeJson();
             const exportData = this.buildEvaluationJsonExportData();
             const blob = new Blob([JSON.stringify(exportData, null, 2)], {
                 type: 'application/json;charset=utf-8',
             });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = this.buildExportFilenameSauvegardeJson();
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            this.triggerBrowserFileDownload(blob, filename);
         } catch (e) {
             console.error(e);
             alert('Export JSON impossible.');
@@ -40740,7 +40954,7 @@ renderRadar() {
     }
 
     // TODO: fonctionnalité en cours de développement — le schéma JSON peut évoluer
-    exportToGrasshopperJson(selectedLotIndices) {
+    exportToGrasshopperJson(selectedLotIndices, downloadFilename = null) {
         if (!selectedLotIndices || !selectedLotIndices.length) {
             alert(window.t('editor.alerts.selectLotExport'));
             return;
@@ -40856,15 +41070,9 @@ renderRadar() {
         };
 
         try {
+            const filename = downloadFilename || this.buildExportFilenameGrasshopperJson();
             const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = this.buildExportFilenameGrasshopperJson();
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            this.triggerBrowserFileDownload(blob, filename);
         } catch (e) {
             console.error(e);
             alert('Export JSON Grasshopper impossible.');
@@ -44174,11 +44382,21 @@ renderRadar() {
                 pageNoteLabel
             });
 
-            await this.downloadEtiquettePdf(
-                svgPages,
-                this.buildExportFilenameEtiquettes(validLotIndices, layoutMode),
-                { layoutMode }
-            );
+            const defaultFilename = this.buildExportFilenameEtiquettes(validLotIndices, layoutMode);
+            await new Promise((resolve, reject) => {
+                this.openExportFilenameModal(
+                    defaultFilename,
+                    async (finalFilename) => {
+                        try {
+                            await this.downloadEtiquettePdf(svgPages, finalFilename, { layoutMode });
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    },
+                    resolve
+                );
+            });
         } catch (error) {
             console.error(error);
             failedLots.push(error && error.message ? error.message : 'erreur inconnue');
@@ -53539,7 +53757,7 @@ renderRadar() {
         return { headers, rows };
     }
 
-    exportToCsv(mode = 'synthese', lotIndices = []) {
+    exportToCsv(mode = 'synthese', lotIndices = [], downloadFilename = null) {
         let validLotIndices = [];
 
         if (mode === 'synthese') {
@@ -53565,15 +53783,17 @@ renderRadar() {
             return;
         }
 
-        let filename;
-        if (mode === 'synthese') {
-            filename = this.buildExportFilenameSynthese('csv');
-        } else if (mode === 'pieces-detaillees') {
-            filename = this.buildExportFilenamePiecesDetaillees('csv');
-        } else if (validLotIndices.length > 1) {
-            filename = this.buildExportFilenameRevueComplete('csv');
-        } else {
-            filename = this.buildExportFilenameRevueLot(validLotIndices[0], 'csv');
+        let filename = downloadFilename;
+        if (!filename) {
+            if (mode === 'synthese') {
+                filename = this.buildExportFilenameSynthese('csv');
+            } else if (mode === 'pieces-detaillees') {
+                filename = this.buildExportFilenamePiecesDetaillees('csv');
+            } else if (validLotIndices.length > 1) {
+                filename = this.buildExportFilenameRevueComplete('csv');
+            } else {
+                filename = this.buildExportFilenameRevueLot(validLotIndices[0], 'csv');
+            }
         }
 
         this.downloadCsvFile(filename, headers, rows);
@@ -53585,7 +53805,7 @@ renderRadar() {
      * Itère sur les pièces par défaut expansées (quantite) + les pièces individuelles.
      * Utilise window.buildGLB (js/lib/build-glb.js).
      */
-    exportToGLB(selectedLotIndices = []) {
+    exportToGLB(selectedLotIndices = [], downloadFilename = null) {
         if (typeof window.buildGLB !== 'function') {
             alert(window.t('editor.alerts.glbError'));
             return;
@@ -53610,6 +53830,15 @@ renderRadar() {
         }
 
         const grouped = document.getElementById('exportGlbGroupCheck')?.checked ?? false;
+
+        if (grouped && targetLotIndices.length === 1 && !downloadFilename) {
+            const lotIdx = targetLotIndices[0];
+            const defaultFilename = this.buildExportFilename3DLot(lots[lotIdx], lotIdx, 'glb');
+            this.openExportFilenameModal(defaultFilename, (finalFilename) => {
+                this.exportToGLB(selectedLotIndices, finalFilename);
+            });
+            return;
+        }
 
         const buildPieceMetadata = (lot, lotIdx, piece) => ({
             lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
@@ -53638,7 +53867,7 @@ renderRadar() {
                         const url   = URL.createObjectURL(blob);
                         const a     = document.createElement('a');
                         a.href     = url;
-                        a.download = this.buildExportFilename3DLot(lot, lotIdx, 'glb');
+                        a.download = downloadFilename || this.buildExportFilename3DLot(lot, lotIdx, 'glb');
                         document.body.appendChild(a);
                         a.click();
                         document.body.removeChild(a);
@@ -53686,7 +53915,7 @@ renderRadar() {
         }
     }
 
-    exportToDAE(selectedLotIndices = []) {
+    exportToDAE(selectedLotIndices = [], downloadFilename = null) {
         if (typeof window.buildMultiDAE !== 'function') {
             alert('Export DAE indisponible.');
             return;
@@ -53705,6 +53934,16 @@ renderRadar() {
             alert(window.t('editor.alerts.selectLotExport'));
             return;
         }
+
+        if (targetLotIndices.length === 1 && !downloadFilename) {
+            const lotIdx = targetLotIndices[0];
+            const defaultFilename = this.buildExportFilename3DLot(lots[lotIdx], lotIdx, 'dae');
+            this.openExportFilenameModal(defaultFilename, (finalFilename) => {
+                this.exportToDAE(selectedLotIndices, finalFilename);
+            });
+            return;
+        }
+
         const buildPieceMetadata = (lot, lotIdx, piece) => ({
             lotNom:         lot.nom || ('Lot ' + (lotIdx + 1)),
             essence:        piece.essenceNomCommun || (lot.allotissement && lot.allotissement.essenceNomCommun) || '',
@@ -53727,7 +53966,9 @@ renderRadar() {
                     const url  = URL.createObjectURL(blob);
                     const a    = document.createElement('a');
                     a.href     = url;
-                    a.download = this.buildExportFilename3DLot(lot, lotIdx, 'dae');
+                    a.download = (targetLotIndices.length === 1 && downloadFilename)
+                        ? downloadFilename
+                        : this.buildExportFilename3DLot(lot, lotIdx, 'dae');
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -53739,7 +53980,7 @@ renderRadar() {
         });
     }
 
-    exportToIFC(selectedLotIndices = [], psetConfig, ifcMode = 'library') {
+    exportToIFC(selectedLotIndices = [], psetConfig, ifcMode = 'library', downloadFilename = null) {
         if (typeof window.buildIFC !== 'function') {
             alert('Export IFC indisponible.');
             return;
@@ -53756,6 +53997,16 @@ renderRadar() {
             alert(window.t('editor.alerts.selectLotExport'));
             return;
         }
+
+        if (targetLotIndices.length === 1 && !downloadFilename) {
+            const lotIdx = targetLotIndices[0];
+            const defaultFilename = this.buildExportFilename3DLot(lots[lotIdx], lotIdx, 'ifc');
+            this.openExportFilenameModal(defaultFilename, (finalFilename) => {
+                this.exportToIFC(selectedLotIndices, psetConfig, ifcMode, finalFilename);
+            });
+            return;
+        }
+
         const activePset = psetConfig || DEFAULT_PSET_CONFIG;
         const exportMeta = (this.data && this.data.meta) || null;
 
@@ -53778,7 +54029,9 @@ renderRadar() {
                     const url  = URL.createObjectURL(blob);
                     const a    = document.createElement('a');
                     a.href     = url;
-                    a.download = this.buildExportFilename3DLot(lot, lotIdx, 'ifc');
+                    a.download = (targetLotIndices.length === 1 && downloadFilename)
+                        ? downloadFilename
+                        : this.buildExportFilename3DLot(lot, lotIdx, 'ifc');
                     document.body.appendChild(a);
                     a.click();
                     document.body.removeChild(a);
@@ -53790,27 +54043,28 @@ renderRadar() {
         });
     }
 
-    exportToPdf(mode = 'synthese', lotIndices = []) {
+    exportToPdf(mode = 'synthese', lotIndices = [], downloadFilename = null) {
         if (typeof pdfMake === 'undefined') {
             alert('Export PDF indisponible (bibliothèque pdfmake manquante).');
             return;
         }
 
         if (mode === 'lots-selectionnes') {
-            this.exportSelectedLotsToPdf(lotIndices);
+            this.exportSelectedLotsToPdf(lotIndices, downloadFilename);
             return;
         }
 
         try {
             const docDef = this.buildPdfSynthesisDocDef();
-            pdfMake.createPdf(docDef).download(this.buildExportFilenameSynthese('pdf'));
+            const filename = downloadFilename || this.buildExportFilenameSynthese('pdf');
+            pdfMake.createPdf(docDef).download(filename);
         } catch (error) {
             console.error(error);
             alert('Une erreur est survenue pendant la génération du PDF.');
         }
     }
 
-    exportSelectedLotsToPdf(lotIndices) {
+    exportSelectedLotsToPdf(lotIndices, downloadFilename = null) {
         const validLotIndices = Array.isArray(lotIndices) ? lotIndices.filter((index) => Number.isInteger(index) && this.data.lots[index]) : [];
         if (!validLotIndices.length) {
             alert('Aucun lot valide sélectionné pour l\u2019export.');
@@ -53895,9 +54149,9 @@ renderRadar() {
                 info: this.getPdfDocInfo('lots-selectionnes')
             };
 
-            const pdfFilename = validLotIndices.length > 1
+            const pdfFilename = downloadFilename || (validLotIndices.length > 1
                 ? this.buildExportFilenameRevueComplete('pdf')
-                : this.buildExportFilenameRevueLot(validLotIndices[0], 'pdf');
+                : this.buildExportFilenameRevueLot(validLotIndices[0], 'pdf'));
             pdfMake.createPdf(mergedDocDef).download(pdfFilename);
         } catch (error) {
             console.error(error);

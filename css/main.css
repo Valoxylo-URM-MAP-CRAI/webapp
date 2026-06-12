@@ -19856,3 +19856,50 @@ body.day-mode .inspection-ignore-box {
         font-size: 12px;
     }
 
+/* ── Modale personnalisation nom de fichier export ── */
+#exportFilenameModalBackdrop .export-filename-modal__hint {
+    font-size: 13px;
+    color: var(--color-text-secondary, #555);
+    margin: 0 0 12px;
+    line-height: 1.45;
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__input-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__input {
+    flex: 1;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    border: 1px solid var(--color-border, #ccc);
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__extension {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 13px;
+    color: var(--color-text-secondary, #555);
+    white-space: nowrap;
+    padding: 0 4px;
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__preview-line {
+    font-size: 12px;
+    color: var(--color-text-secondary, #777);
+    margin: 0;
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__preview {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-style: italic;
+    color: var(--color-text-primary, #222);
+}
+
+#exportFilenameModalBackdrop .export-filename-modal__footer {
+    flex-direction: column;
+    align-items: stretch;
+}
+
