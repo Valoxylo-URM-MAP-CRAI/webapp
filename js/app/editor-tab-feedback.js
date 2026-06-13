@@ -176,7 +176,7 @@
                     prefillEmailIfSignedIn();
                 })
                 .catch(function (err) {
-                    console.warn('Valobois feedback Firestore', err);
+                    console.warn('Valobois feedback Firestore', err && err.code, err && err.message, err);
                     if (err && err.code === 'permission-denied') {
                         showFeedbackError(t('editor.feedback.errorPermissionDenied'));
                     } else {

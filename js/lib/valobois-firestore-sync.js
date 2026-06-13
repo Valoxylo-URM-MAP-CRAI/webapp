@@ -50,7 +50,7 @@
  *         && request.resource.data.message.size() <= 10000
  *         && request.resource.data.sourceApp == 'Valobois'
  *         && (!('createdAt' in request.resource.data)
- *              || request.resource.data.createdAt == null);
+ *              || request.resource.data.createdAt == request.time);
  *       allow update, delete: if false;
  *     }
  *   }
