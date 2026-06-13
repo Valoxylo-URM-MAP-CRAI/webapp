@@ -8,6 +8,6 @@
 
     global.valoboisFeedbackNotifyConfig =
         global.__VALOBOIS_FEEDBACK_NOTIFY_CONFIG__ || {
-            web3formsAccessKey: 'REPLACE_ME'
+            web3formsAccessKey: '6976df23-b488-4232-8242-4243105c977d'
         };
 })(typeof window !== 'undefined' ? window : globalThis);
