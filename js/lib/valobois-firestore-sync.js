@@ -7,6 +7,8 @@
  *
  * Règles Firestore à publier dans la console Firebase (copier-coller) :
  *
+ * Notification e-mail (sans plan Blaze) : voir js/config/feedback-notify-config.js (Web3Forms, gratuit).
+ *
  * rules_version = '2';
  * service cloud.firestore {
  *   match /databases/{database}/documents {
@@ -30,10 +32,13 @@
  *                        'statutEtude', 'versionEtude', 'localisation', 'volumeTotal', 'bilanEconomique']);
  *     }
  *     match /users/{userId}/evaluations/{evalId} {
- *       allow read: if canReadEval(userId);
+ *       allow read: if signedIn();
  *       allow create: if isOwner(userId);
  *       allow update: if isOwner(userId) || sharedEditorPayloadOnlyUpdate();
  *       allow delete: if isOwner(userId);
+ *     }
+ *     match /{path=**}/evaluations/{evalId} {
+ *       allow read: if signedIn();
  *     }
  *     match /feedback/{docId} {
  *       allow read: if false;

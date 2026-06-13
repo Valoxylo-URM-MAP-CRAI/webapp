@@ -3,6 +3,7 @@
 
     var FEEDBACK_EMAIL = 'maxence.lebosse@nancy.archi.fr';
     var COL_FEEDBACK = 'feedback';
+    var WEB3FORMS_URL = 'https://api.web3forms.com/submit';
     var EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
     global.ValoboisEditorTabPanels = global.ValoboisEditorTabPanels || {};
@@ -13,6 +14,14 @@
 
     function byId(id) {
         return document.getElementById(id);
+    }
+
+    function getNotifyConfig() {
+        var cfg = global.valoboisFeedbackNotifyConfig;
+        if (!cfg || !cfg.web3formsAccessKey || cfg.web3formsAccessKey === 'REPLACE_ME') {
+            return null;
+        }
+        return cfg;
     }
 
     function getFieldValues() {
@@ -127,6 +136,54 @@
         return payload;
     }
 
+    function buildNotificationEmailBody(fields, feedbackPayload) {
+        var lines = [
+            'Valobois — commentaire utilisateur',
+            '',
+            'Titre : ' + fields.title,
+            'E-mail utilisateur : ' + fields.email,
+            '',
+            fields.message
+        ];
+        if (feedbackPayload.currentRoute) lines.push('', 'Route : ' + feedbackPayload.currentRoute);
+        if (feedbackPayload.activeTab) lines.push('Onglet actif : ' + feedbackPayload.activeTab);
+        if (feedbackPayload.userId) lines.push('UID : ' + feedbackPayload.userId);
+        return lines.join('\n');
+    }
+
+    function sendFeedbackNotificationEmail(fields, feedbackPayload) {
+        var cfg = getNotifyConfig();
+        if (!cfg) return Promise.resolve({ skipped: true });
+
+        return fetch(WEB3FORMS_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json'
+            },
+            body: JSON.stringify({
+                access_key: cfg.web3formsAccessKey,
+                subject: 'Valobois — ' + fields.title,
+                from_name: 'Valobois',
+                name: fields.email,
+                email: fields.email,
+                message: buildNotificationEmailBody(fields, feedbackPayload)
+            })
+        })
+            .then(function (res) {
+                return res.json().catch(function () {
+                    return {};
+                }).then(function (data) {
+                    if (!res.ok || !data || !data.success) {
+                        var err = new Error((data && data.message) || 'web3forms-failed');
+                        err.code = 'notify-failed';
+                        throw err;
+                    }
+                    return data;
+                });
+            });
+    }
+
     function prefillEmailIfSignedIn() {
         var emailEl = byId('feedbackEmail');
         if (!emailEl || emailEl.value.trim()) return;
@@ -169,9 +226,22 @@
             }
 
             setLoading(true);
-            db.collection(COL_FEEDBACK).add(buildFeedbackPayload(values))
+            var feedbackPayload = buildFeedbackPayload(values);
+            db.collection(COL_FEEDBACK).add(feedbackPayload)
                 .then(function () {
-                    showFeedbackSuccess(t('editor.feedback.success'));
+                    return sendFeedbackNotificationEmail(values, feedbackPayload).catch(function (notifyErr) {
+                        console.warn('Valobois feedback notify email', notifyErr && notifyErr.message, notifyErr);
+                        return { notifyFailed: true };
+                    });
+                })
+                .then(function (notifyResult) {
+                    if (notifyResult && notifyResult.notifyFailed) {
+                        showFeedbackSuccess(t('editor.feedback.successNoEmail'));
+                    } else if (notifyResult && notifyResult.skipped) {
+                        showFeedbackSuccess(t('editor.feedback.success'));
+                    } else {
+                        showFeedbackSuccess(t('editor.feedback.successWithEmail'));
+                    }
                     form.reset();
                     prefillEmailIfSignedIn();
                 })

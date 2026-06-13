@@ -1,5 +1,6 @@
 dist/
 js/config/firebase-config.local.js
+js/config/feedback-notify-config.local.js
 
 # macOS
 .DS_Store
