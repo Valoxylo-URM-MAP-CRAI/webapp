@@ -11873,9 +11873,9 @@ class ValoboisApp {
     }
 
     buildInclusiviteAlertModalMessage(alertState, details) {
-        if (alertState === 'none' || !details || !details.hasData) {
+        if (!details || !details.hasData) {
             return [
-                'Aucune alerte Inclusivité exploitable.',
+                'Impossible d\'évaluer l\'inclusivité.',
                 '',
                 'Vérifier que Régularité, Rusticité, Déformation et le score de la pièce type sont renseignés.'
             ].join('\n');
@@ -11885,6 +11885,25 @@ class ValoboisApp {
             minimumFractionDigits: 0,
             maximumFractionDigits: 1
         });
+
+        if (alertState === 'none') {
+            return [
+                'Inclusivité : alerte non exploitable',
+                '',
+                'Données utilisées.',
+                `Régularité : ${details.regularite}`,
+                `Rusticité : ${details.rusticite}`,
+                `Déformation : ${details.deformation}`,
+                `Score de la pièce type : ${scoreLabel} %`,
+                '',
+                'Logique de l\'alerte Inclusivité.',
+                '- Faible : régularité faible, ou rusticité forte, ou déformation forte, avec score < 66 %',
+                '- Forte : régularité forte, rusticité faible, déformation faible et score ≥ 66 %',
+                '- Moyenne : combinaisons intermédiaires compatibles avec score < 66 %',
+                '',
+                'Cette combinaison ne déclenche pas de recommandation selon la règle actuelle (ex. score ≥ 66 % sans profil fort).'
+            ].join('\n');
+        }
 
         const lines = [
             'Inclusivité.',
@@ -27976,6 +27995,7 @@ closeEvalOpModal() {
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
+            this.refreshInclusiviteAlertButton(lot);
             this.refreshFeuMechAlertButton(lot);
             this.refreshMacroHistoireAlertButton(lot);
             this.refreshVieillissementAlertButton(lot);
@@ -28912,6 +28932,7 @@ closeEvalOpModal() {
             this.refreshStabiliteAlertButton(lot);
             this.refreshArtisanaliteAlertButton(lot);
             this.refreshIndustrialiteAlertButton(lot);
+            this.refreshInclusiviteAlertButton(lot);
             this.refreshFeuMechAlertButton(lot);
             this.refreshMacroHistoireAlertButton(lot);
             this.refreshVieillissementAlertButton(lot);
@@ -29409,6 +29430,7 @@ closeEvalOpModal() {
                 this.refreshStabiliteAlertButton(lot);
                 this.refreshArtisanaliteAlertButton(lot);
                 this.refreshIndustrialiteAlertButton(lot);
+                this.refreshInclusiviteAlertButton(lot);
                 this.refreshFeuMechAlertButton(lot);
                 this.refreshVieillissementAlertButton(lot);
                 this.refreshHumiditeUsageAlertButton(lot);
@@ -31249,6 +31271,8 @@ updateDebitRow(row, key, lot) {
         if (artisanaliteAlertBtn) {
             this.refreshArtisanaliteAlertButton(lot);
         }
+
+        this.refreshInclusiviteAlertButton(lot);
     };
 
     updateDebitAlertBtns();
@@ -35776,7 +35800,7 @@ buildValoboisMatrixGenericInclusiviteModalMessage() {
         '- Faible : si Régularité = Faible, ou Rusticité = Forte, ou Déformation = Forte, avec score < 66 %.',
         '- Forte : Régularité = Forte ET Rusticité = Faible ET Déformation = Faible ET score >= 66 %.',
         '- Moyenne : combinaisons intermédiaires compatibles avec score < 66 %.',
-        '- Non exploitable : au moins un contributeur manquant.',
+        '- Non exploitable : contributeur manquant, ou combinaison hors règle (ex. score ≥ 66 % sans profil fort).',
         '',
         'Effet sur l\'orientation.',
         'Dans la matrice, le critère Inclusivité est contributif positif : Forte = +3, Moyenne = +2, Faible = +1.',
