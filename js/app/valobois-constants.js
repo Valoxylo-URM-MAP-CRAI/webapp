@@ -170,12 +170,14 @@
     ]);
 
     var VALOBOIS_ANALYSIS_LOT_SELECTOR_CONFIG = Object.freeze({
+        allotissement: Object.freeze({ triggerId: 'activeLotLabel', menuId: 'allotissementLotSelectorMenu' }),
+        detailLot: Object.freeze({ triggerId: 'detailLotActiveLotLabel', menuId: 'detailLotLotSelectorMenu' }),
         seuils: Object.freeze({ triggerId: 'seuilsActiveLotLabel', menuId: 'seuilsLotSelectorMenu' }),
         radar: Object.freeze({ triggerId: 'radarActiveLotLabel', menuId: 'radarLotSelectorMenu' }),
         scatterDims: Object.freeze({ triggerId: 'scatterDimsActiveLotLabel', menuId: 'scatterDimsLotSelectorMenu' })
     });
 
-    var VALOBOIS_ANALYSIS_LOT_SELECTOR_KEYS = Object.freeze(['seuils', 'radar', 'scatterDims']);
+    var VALOBOIS_ANALYSIS_LOT_SELECTOR_KEYS = Object.freeze(['allotissement', 'detailLot', 'seuils', 'radar', 'scatterDims']);
 
     var VALOBOIS_ORIENTATION_THRESHOLD_DESCRIPTORS = Object.freeze([
         Object.freeze({

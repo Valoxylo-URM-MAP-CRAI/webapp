@@ -2798,16 +2798,20 @@ body.day-mode .accueil-collapsible-summary:hover {
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--space-12);
+    position: relative;
+    overflow: visible;
 }
 
 .allotissement-lot-badge {
     padding: var(--space-4) var(--space-12);
-    background-color: var(--color-white);
-    color: var(--color-text);
+    background-color: var(--bleu-crai);
+    color: var(--color-white);
     border-radius: var(--radius-base);
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--bleu-crai);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    font-family: inherit;
 }
 
 .allotissement-info-btn {
@@ -6597,6 +6601,8 @@ body.day-mode .lot-group--collapsible summary:hover {
     justify-content: space-between;
     align-items: center;
     margin-bottom: var(--space-12);
+    position: relative;
+    overflow: visible;
 }
 
 .detail-lot-toolbar {

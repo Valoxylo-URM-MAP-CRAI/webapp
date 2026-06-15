@@ -14018,11 +14018,14 @@ class ValoboisApp {
         const fallback = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot …';
         if (!lot || typeof lot !== 'object') return fallback;
         const lotName = (lot.nom || '').toString().trim();
-        return lotName || fallback;
+        if (!lotName || lotName === 'Nouveau Lot') return fallback;
+        return lotName;
     }
 
     getAnalysisLotSelectorConfig(sectionKey) {
         const configs = window.VALOBOIS_ANALYSIS_LOT_SELECTOR_CONFIG || {
+            allotissement: { triggerId: 'activeLotLabel', menuId: 'allotissementLotSelectorMenu' },
+            detailLot: { triggerId: 'detailLotActiveLotLabel', menuId: 'detailLotLotSelectorMenu' },
             seuils: { triggerId: 'seuilsActiveLotLabel', menuId: 'seuilsLotSelectorMenu' },
             radar: { triggerId: 'radarActiveLotLabel', menuId: 'radarLotSelectorMenu' },
             scatterDims: { triggerId: 'scatterDimsActiveLotLabel', menuId: 'scatterDimsLotSelectorMenu' }
@@ -14031,7 +14034,7 @@ class ValoboisApp {
     }
 
     getAllAnalysisLotSelectorConfigs() {
-        const keys = window.VALOBOIS_ANALYSIS_LOT_SELECTOR_KEYS || ['seuils', 'radar', 'scatterDims'];
+        const keys = window.VALOBOIS_ANALYSIS_LOT_SELECTOR_KEYS || ['allotissement', 'detailLot', 'seuils', 'radar', 'scatterDims'];
         return keys
             .map((key) => ({ key, config: this.getAnalysisLotSelectorConfig(key) }))
             .filter(({ config }) => !!config);
@@ -27005,7 +27008,6 @@ closeEvalOpModal() {
     renderAllotissement () {
     const rail = document.getElementById('lotRail');
     const sliderTrack = document.getElementById('lotSliderTrack');
-    const lotLabel = document.getElementById('activeLotLabel');
 
     if (!rail || !sliderTrack) return;
 
@@ -27015,10 +27017,9 @@ closeEvalOpModal() {
     const lots = this.data.lots;
     const currentLot = this.getCurrentLot();
 
-    // Titre de l'en-tête
-    if (lotLabel && currentLot) {
+    if (currentLot) {
         const index = lots.indexOf(currentLot);
-        lotLabel.textContent = index >= 0 ? `Lot ${index + 1}` : 'Lot';
+        this.renderAnalysisLotSelector('allotissement', currentLot, index);
     }
 
     // BOUCLE SUR CHAQUE LOT
@@ -28796,7 +28797,6 @@ closeEvalOpModal() {
     renderDetailLot() {
         const section = document.getElementById('detailLotSection');
         const pieceRail = document.getElementById('pieceRail');
-        const lotLabel = document.getElementById('detailLotActiveLotLabel');
         const lot = this.getCurrentLot();
 
         if (!section || !pieceRail) return;
@@ -28814,7 +28814,7 @@ closeEvalOpModal() {
 
         section.style.display = '';
         const lotIndex = this.data.lots.indexOf(lot);
-        if (lotLabel) lotLabel.textContent = lotIndex >= 0 ? `Lot ${lotIndex + 1}` : 'Lot';
+        this.renderAnalysisLotSelector('detailLot', lot, lotIndex);
 
         const customScoresMount = document.getElementById('detailLotCustomScoresMount');
         if (customScoresMount) customScoresMount.remove();

@@ -11,6 +11,7 @@
     "check:artisanalite-alert": "node scripts/check-artisanalite-alert.mjs",
     "check:naturalite-alert": "node scripts/check-naturalite-alert.mjs",
     "check:inclusivite-alert": "node scripts/check-inclusivite-alert.mjs",
+    "check:lot-selector-config": "node scripts/check-lot-selector-config.mjs",
     "check:massivite-alert": "node scripts/check-massivite-alert.mjs",
     "check:code-zone-size": "node scripts/check-code-zone-size.mjs",
     "check:pdf-lot-export": "node scripts/check-pdf-lot-export.mjs",
