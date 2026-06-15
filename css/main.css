@@ -3798,6 +3798,14 @@ body.day-mode .lot-group--collapsible summary::after {
     font-style: italic;
 }
 
+.lot-input--loc-sit-situation {
+    cursor: text;
+}
+
+.lot-input--loc-sit-situation[readonly] {
+    cursor: text;
+}
+
 .loc-sit-conception-group {
     display: flex;
     gap: 6px;

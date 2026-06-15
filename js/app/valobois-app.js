@@ -3560,6 +3560,7 @@ class ValoboisApp {
         return fixed;
     }
 
+    /** Libellé court historique — conservé pour la résolution des valeurs déjà enregistrées. */
     getLocSitEntrySelectionLabel(entry, maxLength = 50) {
         const label = String(entry && entry.label || '').replace(/\s+/g, ' ').trim();
         if (!label) return '';
@@ -3579,23 +3580,34 @@ class ValoboisApp {
         return classPrefix ? `${classPrefix} - ${label}` : label;
     }
 
-    getLocSitSituationDisplayValue(valueRaw) {
+    normalizeLocSitSituationFieldValue(valueRaw) {
         const raw = String(valueRaw || '').trim();
-        if (!raw) return '';
+        if (!raw) return { value: '', title: '' };
         const entry = this.resolveLocSitSituationEntry(raw);
-        return entry ? this.getLocSitEntrySelectionLabel(entry) : raw;
+        if (!entry) return { value: raw, title: raw };
+        const full = this.getLocSitEntryTooltip(entry);
+        return { value: full, title: full };
+    }
+
+    applyLocSitSituationInputState(inputEl, valueRaw) {
+        const normalized = this.normalizeLocSitSituationFieldValue(valueRaw);
+        if (inputEl) {
+            inputEl.value = normalized.value;
+            inputEl.title = normalized.title;
+        }
+        return normalized;
+    }
+
+    getLocSitSituationDisplayValue(valueRaw) {
+        return this.normalizeLocSitSituationFieldValue(valueRaw).value;
     }
 
     getLocSitSituationTooltip(valueRaw) {
-        const entry = this.resolveLocSitSituationEntry(valueRaw);
-        return entry ? this.getLocSitEntryTooltip(entry) : '';
+        return this.normalizeLocSitSituationFieldValue(valueRaw).title;
     }
 
-    /** Libellé situation complet pour export PDF (sans troncature datalist UI). */
     getLocSitSituationPdfLabel(valueRaw) {
-        const full = this.getLocSitSituationTooltip(valueRaw);
-        if (full) return full;
-        return String(valueRaw || '').trim();
+        return this.getLocSitSituationDisplayValue(valueRaw);
     }
 
     /** Note guide situation complète pour export PDF (sans troncature normalizeLocSitGuideShort). */
@@ -3613,9 +3625,10 @@ class ValoboisApp {
             const key = this.normalizeLocSitKey(label);
             if (!key || seen.has(key)) return;
             seen.add(key);
+            const fullLabel = this.getLocSitEntryTooltip(entry);
             out.push({
-                value: this.getLocSitEntrySelectionLabel(entry),
-                title: this.getLocSitEntryTooltip(entry),
+                value: fullLabel,
+                title: fullLabel,
                 rawLabel: label
             });
         });
@@ -26275,7 +26288,7 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
-                            <input type="text" class="lot-input" value="${attrValue(locSitSituationDisplayDp)}" title="${attrValue(locSitSituationTooltipDp)}" placeholder="Situation dans la construction" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
+                            <input type="text" class="lot-input lot-input--loc-sit-situation" value="${attrValue(locSitSituationDisplayDp)}" title="${attrValue(locSitSituationTooltipDp)}" placeholder="Situation dans la construction" data-default-piece-id="${defaultPieceId}" data-default-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label">Condition climatique d’humidification</label>
@@ -26667,7 +26680,7 @@ closeEvalOpModal() {
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label lot-field-label--hidden">Situation</label>
-                            <input type="text" class="lot-input" value="${attrValue(locSitSituationDisplayP)}" title="${attrValue(locSitSituationTooltipP)}" placeholder="Situation dans la construction" data-piece-input="situation" list="liste-situations" autocomplete="off">
+                            <input type="text" class="lot-input lot-input--loc-sit-situation" value="${attrValue(locSitSituationDisplayP)}" title="${attrValue(locSitSituationTooltipP)}" placeholder="Situation dans la construction" data-piece-input="situation" list="liste-situations" autocomplete="off">
                         </div>
                         <div class="lot-field-block">
                             <label class="lot-field-label">Condition climatique d’humidification</label>
@@ -27081,7 +27094,7 @@ closeEvalOpModal() {
                                     <div class="lot-field-block">
                                         <label class="lot-field-label" data-lot-location-label="situation">${situationTitle}</label>
                                         <div class="lot-location-field-row">
-                                            <input type="text" class="lot-input" value="" readonly data-lot-location-field="situation">
+                                            <input type="text" class="lot-input lot-input--loc-sit-situation" value="" readonly data-lot-location-field="situation">
                                             <button type="button" class="btn btn-primary lot-location-cycle-btn" data-lot-location-prev ${hasLocationGroups ? '' : 'disabled'} aria-label="Combinaison précédente"><svg class="lot-location-cycle-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-8 6 8 6V6z"/></svg></button>
                                         </div>
                                     </div>
@@ -28129,7 +28142,10 @@ closeEvalOpModal() {
                 nav.dataset.groupCount = '0';
                 nav.dataset.groupIndex = '0';
                 if (locInput) locInput.value = '';
-                if (sitInput) sitInput.value = '';
+                if (sitInput) {
+                    sitInput.value = '';
+                    sitInput.title = '';
+                }
                 if (piecesInput) piecesInput.value = '';
                 if (employmentClassInput) employmentClassInput.value = classSummary.display;
                 if (piecesLabel) piecesLabel.textContent = 'Pièce dans cette combinaison';
@@ -28160,7 +28176,11 @@ closeEvalOpModal() {
             nav.dataset.groupCount = String(count);
             nav.dataset.groupIndex = String(currentIndex);
             if (locInput) locInput.value = current.localisation || '';
-            if (sitInput) sitInput.value = current.situation || '';
+            if (sitInput) {
+                const situationDisplay = this.getLocSitSituationDisplayValue(current.situation) || current.situation || '';
+                sitInput.value = situationDisplay;
+                sitInput.title = this.getLocSitSituationTooltip(current.situation) || situationDisplay;
+            }
             if (piecesInput) {
                 const labels = (current.labels && current.labels.length) ? current.labels : [];
                 if (labels.length > 2) {
@@ -29095,6 +29115,12 @@ closeEvalOpModal() {
                         dp[field] = e.target.value;
                     }
 
+                    if (field === 'situation' && (e.type === 'blur' || e.type === 'change')) {
+                        const normalizedSituation = this.applyLocSitSituationInputState(e.target, dp.situation);
+                        dp.situation = normalizedSituation.value;
+                        this.updateLocSitCardDisplays(defaultPieceCard, dp, lot, { isDefault: true, defaultPieceId, pieceIndex: -1 });
+                    }
+
                     if (field === 'diametre') {
                         const hasDiam = (dp.diametre || '') !== '';
                         if (hasDiam) {
@@ -29507,6 +29533,12 @@ closeEvalOpModal() {
                         }
                     } else {
                         piece[field] = e.target.value;
+                    }
+
+                    if (field === 'situation' && (e.type === 'blur' || e.type === 'change')) {
+                        const normalizedSituation = this.applyLocSitSituationInputState(e.target, piece.situation);
+                        piece.situation = normalizedSituation.value;
+                        this.updateLocSitCardDisplays(pieceCard, piece, lot, { isDefault: false, defaultPieceId: '', pieceIndex: pi });
                     }
 
                     // Exclusion mutuelle diamètre/largeur-epaisseur
