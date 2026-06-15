@@ -22357,6 +22357,21 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
         const rowsContainer = document.getElementById('prixPresetEditorRows');
         if (!rowsContainer) return;
 
+        const resetIconMarkup = `
+            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                <polyline points="3 3 3 8 8 8" />
+            </svg>
+            <span class="sr-only">Réinitialiser</span>
+        `;
+        const deleteIconMarkup = `
+            <svg aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+            </svg>
+            <span class="sr-only">Supprimer</span>
+        `;
+
         const presets = this.buildEffectivePricePresetList();
         const renderUnitOptions = (selectedUnit) => {
             const current = this.normalizePricePresetUnit(selectedUnit, '');
@@ -22382,13 +22397,13 @@ if (evalOpBtn && evalOpBackdrop && evalOpClose && evalOpCloseFooter) {
                 || String(preset.unit || '') !== String(preset.defaultUnit || '')
             ));
             const removeButton = preset.isBase
-                ? `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset" data-price-preset-kind="base" data-price-preset-id="${this.escapeHtml(preset.id)}"${baseIsOverridden ? '' : ' disabled aria-disabled="true"'} title="Rétablir les paramètres par défaut">Réinitialiser</button>`
+                ? `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset" data-price-preset-kind="base" data-price-preset-id="${this.escapeHtml(preset.id)}"${baseIsOverridden ? '' : ' disabled aria-disabled="true"'} title="Rétablir les paramètres par défaut" aria-label="Rétablir les paramètres par défaut">${resetIconMarkup}</button>`
                 : (() => {
                     const isCeeebPreset = ((preset.source || '') + '').toUpperCase() === 'CEEB' && !!this.getCeeebBasePresetById(preset.id);
                     if (isCeeebPreset) {
-                        return `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset-ceeb" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" title="Rétablir les paramètres CEEB">Réinitialiser</button>`;
+                        return `<button type="button" class="price-preset-row__remove" data-price-preset-action="reset-ceeb" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" title="Rétablir les paramètres CEEB" aria-label="Rétablir les paramètres CEEB">${resetIconMarkup}</button>`;
                     }
-                    return `<button type="button" class="price-preset-row__remove" data-price-preset-action="remove" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}">Supprimer</button>`;
+                    return `<button type="button" class="price-preset-row__remove" data-price-preset-action="remove" data-price-preset-kind="custom" data-price-preset-id="${this.escapeHtml(preset.id)}" title="Supprimer la catégorie" aria-label="Supprimer la catégorie">${deleteIconMarkup}</button>`;
                 })();
             const noteTitle = (!preset.isBase && preset.note)
                 ? ` title="${this.escapeHtml(preset.note)}"`

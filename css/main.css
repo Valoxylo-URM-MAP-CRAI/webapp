@@ -2096,6 +2096,15 @@ body.day-mode .accueil-collapsible-summary:hover {
             color: #fff;
             cursor: pointer;
             flex-shrink: 0;
+            font-size: 0;
+            line-height: 1;
+            overflow: hidden;
+        }
+
+        .price-preset-row__remove svg {
+            width: 16px;
+            height: 16px;
+            display: block;
         }
 
         .price-preset-row__remove:hover {
