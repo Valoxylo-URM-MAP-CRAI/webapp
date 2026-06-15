@@ -11749,27 +11749,23 @@ class ValoboisApp {
 
         const epaisseurNum = parseFloat(String(details.epaisseurValue || '').replace(/,/, '.'));
         const dataBlock = Number.isFinite(epaisseurNum) ? `Valeur lue : ${this.formatAlertMm(details.epaisseurValue)}` : 'Épaisseur : aucune valeur valide';
+        const levelLabel = alertState === 'strong' ? 'Forte' : alertState === 'medium' ? 'Moyenne' : 'Faible';
 
         const lines = [
-            'Massivité.',
-            '',
-            'Noter l\'importance de la massivité des bois évalués.',
+            `Massivité : ${levelLabel}`,
             '',
             'Données utilisées.',
             dataBlock,
-            ''
+            '',
+            'Logique de l\'alerte Massivité.',
+            '- Forte : épaisseur > 75 mm',
+            '- Moyenne : épaisseur > 28 mm et ≤ 75 mm',
+            '- Faible : épaisseur ≤ 28 mm',
+            '',
+            'Note.',
+            'Cette alerte repose sur une règle simplifiée à partir de l\'épaisseur représentative du lot.',
+            'Pour les critères détaillés BLC/BMA (lamelles, chant), voir le bouton info du critère Massivité.'
         ];
-
-        if (alertState === 'strong') {
-            lines.push('Une massivité « forte » vaut pour les pièces de bois massif et de Bois Massif Abouté (BMA) d\'une épaisseur (e ou b) strictement supérieure à 75 mm, pour les pièces en bois lamellé-collé (BLC) d\'une épaisseur de lamelles strictement supérieure à 35 mm et d\'une épaisseur de chant strictement supérieure à 150 mm, ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm d\'une épaisseur de chant strictement supérieure à 210 mm [+3].');
-        } else if (alertState === 'medium') {
-            lines.push('Une massivité « moyenne » vaut pour les pièces : de bois massif et de BMA d\'une épaisseur strictement supérieure à 28 mm et inférieure ou égale à 75 mm, pour les pièces de BLC avec épaisseur de lamelles strictement supérieure à 35 mm d\'une épaisseur de chant inférieure ou égale à 150 mm, ou pour les pièces de BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant strictement supérieure à 28 mm et inférieure ou égale à 210 mm [+2].');
-        } else {
-            lines.push('Une massivité « faible » vaut pour les pièces de bois massif et BMA d\'une épaisseur inférieure ou égale à 28 mm ou pour les pièces en BLC avec une épaisseur de lamelles inférieure ou égale à 35 mm et d\'une épaisseur de chant inférieure ou égale à 28 mm [+1].');
-        }
-
-        lines.push('');
-        lines.push('Catégorisation conforme à la FD P20-651.');
 
         return lines.join('\n');
     }
