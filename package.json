@@ -9,6 +9,7 @@
     "check:matrix-export-config": "node scripts/check-matrix-export-config-regression.mjs",
     "check:orientation-parity": "node scripts/check-orientation-class-parity.mjs",
     "check:artisanalite-alert": "node scripts/check-artisanalite-alert.mjs",
+    "check:naturalite-alert": "node scripts/check-naturalite-alert.mjs",
     "check:massivite-alert": "node scripts/check-massivite-alert.mjs",
     "check:code-zone-size": "node scripts/check-code-zone-size.mjs",
     "check:pdf-lot-export": "node scripts/check-pdf-lot-export.mjs",

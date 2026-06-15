@@ -246,6 +246,9 @@
         }
 
         if (
+            typeProduit === normalizeProductType('Bois Brut Sec (BBS)') ||
+            typeProduit === normalizeProductType('Bois Non Taillé (BNT)') ||
+            typeProduit === normalizeProductType('Bois Équarri Non Scié (BENS)') ||
             typeProduit === normalizeProductType('Bois Raboté Séché (BRS)') ||
             typeProduit === normalizeProductType('Bois Contre-Collé (CC)') ||
             typeProduit === normalizeProductType('Bois Lamellé-Collé (BLC)') ||

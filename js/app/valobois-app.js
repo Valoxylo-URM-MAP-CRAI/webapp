@@ -12457,12 +12457,44 @@ class ValoboisApp {
     }
 
     buildNaturaliteAlertModalMessage(alertState, details) {
-        if (alertState === 'none' || !details || !details.hasData) {
+        if (!details || !details.hasData) {
             return [
                 'Impossible d\'évaluer la naturalité.',
                 '',
                 'Vérifier que le Type de produit est renseigné dans le Détail du lot.'
             ].join('\n');
+        }
+
+        if (alertState === 'none') {
+            const unavailableLines = [
+                'Naturalité : alerte non exploitable',
+                '',
+                'Données utilisées.',
+                `Type de produit : ${details.typeProduit}`,
+                `Présence de diamètre : ${details.hasDiametre ? 'Oui' : 'Non'}`
+            ];
+
+            if (details.lotDiametre || details.detailedPiecesDiametres.length > 0 || details.defaultPiecesDiametres.length > 0) {
+                unavailableLines.push('Sources de diamètre :');
+                if (details.lotDiametre) unavailableLines.push(`- Lot : ${this.formatAlertDiametre(details.lotDiametre)}`);
+                details.detailedPiecesDiametres.forEach((entry) => {
+                    unavailableLines.push(`- ${entry.pieceLabel} : ${this.formatAlertDiametre(entry.diametre)}`);
+                });
+                details.defaultPiecesDiametres.forEach((entry) => {
+                    unavailableLines.push(`- ${entry.pieceLabel} (x${Math.round(entry.quantite)}) : ${this.formatAlertDiametre(entry.diametre)}`);
+                });
+            }
+
+            unavailableLines.push(
+                '',
+                'Logique de l\'alerte Naturalité.',
+                '- Potentiellement forte : type BBS, BNT ou BENS ET diamètre renseigné',
+                '- Moyenne à faible : autres types de produit répertoriés, ou BBS/BNT/BENS sans diamètre',
+                '',
+                'Ce type de produit ne déclenche pas d\'alerte forte ou moyenne selon la nomenclature actuelle.'
+            );
+
+            return unavailableLines.join('\n');
         }
 
         const lines = [
@@ -12486,7 +12518,7 @@ class ValoboisApp {
 
         lines.push('', 'Logique de l\'alerte Naturalité.');
         lines.push('- Potentiellement forte : type BBS, BNT ou BENS ET diamètre renseigné');
-        lines.push('- Moyenne à faible : autres types de produit ou absence de diamètre');
+        lines.push('- Moyenne à faible : autres types de produit répertoriés, ou BBS/BNT/BENS sans diamètre');
         lines.push('', 'Note : une naturalité forte suppose aussi que le bois soit libre de finition.');
 
         return lines.join('\n');
@@ -35891,7 +35923,7 @@ buildValoboisMatrixGenericNaturaliteModalMessage() {
         'Règle.',
         '',
         '- alerte forte si le type de produit est BBS, BNT ou BENS et qu’un diamètre est renseigné ;',
-        '- alerte moyenne si le type de produit est BRS, CC, BLC, CLT, BO, BF, BMA ou BMR ;',
+        '- alerte moyenne si le type de produit est BRS, CC, BLC, CLT, BO, BF, BMA ou BMR, ou si le type est BBS, BNT ou BENS sans diamètre ;',
         '- aucune alerte exploitable dans les autres cas.',
         '',
         'Lecture.',
