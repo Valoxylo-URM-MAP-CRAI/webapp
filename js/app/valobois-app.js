@@ -24513,7 +24513,7 @@ closeDebitModal() {
 Noter le degré de régularité du débit des bois évalués.
 
 Une régularité « forte », ou parallélépipédique forte vaut pour des pièces de bois dont les arêtes sont parallèles et/ou perpendiculaires entre elles et des extrémités anguleuses sur moins de 25 cm [+3].
-Une régularité « moyenne » vaut pour des pièces qui comportent des flaches localisés et des extrémités anguleuses sur plus de 26 cm [+2].
+Une régularité « moyenne » vaut pour des pièces qui comportent des flaches localisés et/ou des extrémités anguleuses sur plus de 26 cm [+2].
 Une régularité « faible » vaut pour des pièces qui comportent plusieurs flaches étendus sur toute la longueur de la pièce, demi-rond ou rond [+1].`,
         volumetrieDebit: `Volumétrie.
 
