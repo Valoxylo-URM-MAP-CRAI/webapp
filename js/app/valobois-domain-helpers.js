@@ -198,13 +198,10 @@
         if (!typeProduit) return 'none';
 
         if (
-            typeProduit === normalizeProductType('Bois Lamellé-Collé (BLC)') ||
-            typeProduit === normalizeProductType('Bois Lamellé-Croisé (CLT)') ||
-            typeProduit === normalizeProductType('Bois Massif Abouté (BMA)') ||
-            typeProduit === normalizeProductType('Bois Massif Reconstitué (BMR)') ||
-            typeProduit === normalizeProductType('Bois Contre-Collé') ||
-            typeProduit === normalizeProductType('Bois Contre-Collé (CC)') ||
-            typeProduit === normalizeProductType('Bois Fermette (BF)')
+            typeProduit === normalizeProductType('Bois Brut Sec (BBS)') ||
+            typeProduit === normalizeProductType('Bois Non Taillé (BNT)') ||
+            typeProduit === normalizeProductType('Bois Avivé (BA)') ||
+            typeProduit === normalizeProductType('Bois Équarri Non Scié (BENS)')
         ) {
             return 'strong';
         }
@@ -217,10 +214,13 @@
         }
 
         if (
-            typeProduit === normalizeProductType('Bois Brut Sec (BBS)') ||
-            typeProduit === normalizeProductType('Bois Non Taillé (BNT)') ||
-            typeProduit === normalizeProductType('Bois Avivé (BA)') ||
-            typeProduit === normalizeProductType('Bois Équarri Non Scié (BENS)')
+            typeProduit === normalizeProductType('Bois Lamellé-Collé (BLC)') ||
+            typeProduit === normalizeProductType('Bois Lamellé-Croisé (CLT)') ||
+            typeProduit === normalizeProductType('Bois Massif Abouté (BMA)') ||
+            typeProduit === normalizeProductType('Bois Massif Reconstitué (BMR)') ||
+            typeProduit === normalizeProductType('Bois Contre-Collé') ||
+            typeProduit === normalizeProductType('Bois Contre-Collé (CC)') ||
+            typeProduit === normalizeProductType('Bois Fermette (BF)')
         ) {
             return 'low';
         }

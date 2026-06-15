@@ -11661,18 +11661,18 @@ class ValoboisApp {
 
     buildArtisanaliteAlertModalMessage(alertState, details) {
         const typeCategories = {
-            'BLC': ['Bois Lamellé-Collé (BLC)', 'strong'],
-            'CLT': ['Bois Lamellé-Croisé (CLT)', 'strong'],
-            'BMA': ['Bois Massif Abouté (BMA)', 'strong'],
-            'BMR': ['Bois Massif Reconstitué (BMR)', 'strong'],
-            'CC': ['Bois Contre-Collé (CC)', 'strong'],
-            'BF': ['Bois Fermette (BF)', 'strong'],
+            'BBS': ['Bois Brut Sec (BBS)', 'strong'],
+            'BNT': ['Bois Non Taillé (BNT)', 'strong'],
+            'BA': ['Bois Avivé (BA)', 'strong'],
+            'BENS': ['Bois Équarri Non Scié (BENS)', 'strong'],
             'BRS': ['Bois Raboté Séché (BRS)', 'medium'],
             'BO': ['Bois Ossature (BO)', 'medium'],
-            'BBS': ['Bois Brut Sec (BBS)', 'low'],
-            'BNT': ['Bois Non Taillé (BNT)', 'low'],
-            'BA': ['Bois Avivé (BA)', 'low'],
-            'BENS': ['Bois Équarri Non Scié (BENS)', 'low']
+            'BLC': ['Bois Lamellé-Collé (BLC)', 'low'],
+            'CLT': ['Bois Lamellé-Croisé (CLT)', 'low'],
+            'BMA': ['Bois Massif Abouté (BMA)', 'low'],
+            'BMR': ['Bois Massif Reconstitué (BMR)', 'low'],
+            'CC': ['Bois Contre-Collé (CC)', 'low'],
+            'BF': ['Bois Fermette (BF)', 'low']
         };
 
         if (alertState === 'none' || !details || !details.hasData) {
@@ -11712,9 +11712,9 @@ class ValoboisApp {
             `Type de produit : ${details.typeProduit}`,
             '',
             'Logique de l\'alerte Artisanalité.',
-            '- Catégories fortes : BLC, CLT, BMA, BMR, CC, BF',
+            '- Catégories fortes : BBS, BNT, BA, BENS',
             '- Catégories moyennes : BRS, BO',
-            '- Catégories faibles : BBS, BNT, BA, BENS'
+            '- Catégories faibles : BLC, CLT, BMA, BMR, CC, BF'
         ];
 
         return lines.join('\n');
@@ -35605,9 +35605,9 @@ buildValoboisMatrixGenericArtisanaliteModalMessage() {
         '',
         'Règle de décision.',
         '',
-        '- Forte : BLC, CLT, BMA, BMR, CC, BF.',
+        '- Forte : BBS, BNT, BA, BENS.',
         '- Moyenne : BRS, BO.',
-        '- Faible : BBS, BNT, BA, BENS.',
+        '- Faible : BLC, CLT, BMA, BMR, CC, BF.',
         '- Non exploitable : type absent ou hors nomenclature.',
         '',
         'Effet sur l\'orientation.',
