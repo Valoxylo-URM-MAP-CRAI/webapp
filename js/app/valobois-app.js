@@ -20518,7 +20518,14 @@ deleteLot(index) {
             }
             this.recalculateLotAllotissement(lot);
             this.saveData();
+            // Preserve accordion open states across renderAllotissement rebuild
+            const _openAccordions = [...document.querySelectorAll('details[data-ui-collapsible][open]')]
+                .map(d => d.getAttribute('data-ui-collapsible'));
             this.renderAllotissement();
+            _openAccordions.forEach(id => {
+                const el = document.querySelector(`details[data-ui-collapsible="${id}"]`);
+                if (el) el.open = true;
+            });
         });
 
         // Champs méta
