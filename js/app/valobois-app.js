@@ -13737,6 +13737,7 @@ class ValoboisApp {
         const priceMode = ((priceModeRaw || '') + '').toLowerCase();
         if (priceMode === 't') return '€/t';
         const priceUnit = ((priceUnitRaw || 'm3') + '').toLowerCase();
+        if (priceUnit === 'piece') return '€/pièce';
         const normalizedUnit = (priceUnit === 'ml' || priceUnit === 'm2' || priceUnit === 'm3') ? priceUnit : 'm3';
         return '€/' + normalizedUnit;
     }
@@ -19001,7 +19002,7 @@ class ValoboisApp {
         const pm = parseFloat(lot.allotissement.prixMarche) || 0;
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
         const priceUnitRaw = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-        const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3') ? priceUnitRaw : 'm3';
+        const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3' || priceUnitRaw === 'piece') ? priceUnitRaw : 'm3';
         const isLotTonneMode = ((lot.allotissement.prixMode || '') + '').toLowerCase() === 't';
         lot.allotissement.prixUnite = priceUnit;
 
@@ -19019,6 +19020,7 @@ class ValoboisApp {
         const pricingBase = isLotTonneMode
             ? (((parseFloat(lot.allotissement.masseVolumique) || 0) * lot.allotissement.volumeLot) / 1000)
             : (
+                priceUnit === 'piece' ? q :
                 priceUnit === 'ml' ? lot.allotissement.lineaireLot :
                 priceUnit === 'm2' ? lot.allotissement.surfaceLot :
                 lot.allotissement.volumeLot
@@ -19868,7 +19870,7 @@ class ValoboisApp {
         const d = parseFloat(piece.diametre) || 0;
         const pm = parseFloat(piece.prixMarche || lot.allotissement.prixMarche) || 0;
         const priceUnitRaw = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-        const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3') ? priceUnitRaw : 'm3';
+        const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3' || priceUnitRaw === 'piece') ? priceUnitRaw : 'm3';
         const isTonneMode = ((piece.prixMode || '') + '').toLowerCase() === 't';
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
 
@@ -19896,6 +19898,7 @@ class ValoboisApp {
 
         const lineairePiece = L / 1000;
         const geometryPricingBase =
+            priceUnit === 'piece' ? 1 :
             priceUnit === 'ml' ? lineairePiece :
             priceUnit === 'm2' ? piece.surfacePiece :
             piece.volumePiece;
@@ -26477,6 +26480,7 @@ closeEvalOpModal() {
                                 <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
                                     <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
                                     <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
                                 </div>
                             </div>
                             <div class="lot-price-market-row lot-price-market-row--bottom">
@@ -26488,7 +26492,7 @@ closeEvalOpModal() {
                                 </div>
                                 <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
                                     <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                                 </div>
                             </div>
                         </div>
@@ -26863,6 +26867,7 @@ closeEvalOpModal() {
                                 <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
                                     <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
                                     <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
                                 </div>
                             </div>
                             <div class="lot-price-market-row lot-price-market-row--bottom">
@@ -26874,7 +26879,7 @@ closeEvalOpModal() {
                                 </div>
                                 <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
                                     <button type="button" class="lot-price-unit-btn" data-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                                 </div>
                             </div>
                         </div>
@@ -27598,6 +27603,7 @@ closeEvalOpModal() {
                                             <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix du marché">
                                                 <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
                                                 <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+                                                <button type="button" class="lot-price-unit-btn" data-price-unit="piece" aria-pressed="${priceUnit === 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
                                             </div>
                                         </div>
                                         <div class="lot-price-market-row lot-price-market-row--bottom">
@@ -27609,7 +27615,7 @@ closeEvalOpModal() {
                                             </div>
                                             <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
                                                 <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' && priceUnit !== 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
                                             </div>
                                         </div>
                                     </div>

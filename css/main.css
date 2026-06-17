@@ -6091,6 +6091,8 @@ body.day-mode .lot-group--collapsible summary:hover {
     padding-right: 22px;
     text-align: left;
     font-size: calc(var(--font-size-sm) - 2px);
+    max-width: 118px;
+    min-width: 80px;
 }
 
 .lot-price-orientation-select:has(option[value=""]:checked) {
