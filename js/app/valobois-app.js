@@ -20518,14 +20518,6 @@ deleteLot(index) {
             }
             this.recalculateLotAllotissement(lot);
             this.saveData();
-            // Preserve accordion open states across renderAllotissement rebuild
-            const _openAccordions = [...document.querySelectorAll('details[data-ui-collapsible][open]')]
-                .map(d => d.getAttribute('data-ui-collapsible'));
-            this.renderAllotissement();
-            _openAccordions.forEach(id => {
-                const el = document.querySelector(`details[data-ui-collapsible="${id}"]`);
-                if (el) el.open = true;
-            });
         });
 
         // Champs méta
@@ -27133,7 +27125,7 @@ closeEvalOpModal() {
             </div>
             <div class="lot-form-grid mt-16">
                 <div class="lot-field-block lot-field-block--full">
-                    <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination">
+                    <details class="lot-group lot-group--collapsible lot-group--location-combination" data-ui-collapsible="lot-location-combination" data-ui-scope="${index}" ${this._accordionOpenStates.get(`${index}:lot-location-combination`) ? "open" : ""}>
                         <summary class="lot-group-summary">
                             <span>Localisation - Situation</span>
                             <button type="button" class="lot-alert-btn lot-alert-btn--loc-sit" data-lot-locsit-alert-btn data-alert-loc-sit="${lotEmploymentClassSummary.hasMissing ? 'true' : 'false'}" aria-label="Alerte Localisation - Situation">
@@ -27446,7 +27438,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </div>
-                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest">
+                        <details class="lot-group lot-group--collapsible lot-group--seuils-dest" data-ui-collapsible="seuils-dest" data-ui-scope="${index}" ${this._accordionOpenStates.get(`${index}:seuils-dest`) ? "open" : ""}>
                             <summary class="lot-group-summary">
                                 <span>Seuils de destination</span>
                             </summary>
@@ -27528,7 +27520,7 @@ closeEvalOpModal() {
                                 </div>
                             </div>
                         </details>
-                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot">
+                        <details class="lot-group lot-group--collapsible lot-group--conformite-lot" data-ui-collapsible="conformite-lot" data-ui-scope="${index}" ${this._accordionOpenStates.get(`${index}:conformite-lot`) ? "open" : ""}>
                             <summary class="lot-group-summary">
                                 <span>Conformité du lot</span>
                             </summary>
@@ -27583,7 +27575,7 @@ closeEvalOpModal() {
                         </details>
                     </div>
                     <div class="lot-group">
-                        <details class="lot-group lot-group--collapsible lot-group--economie-lot" data-ui-collapsible="economie-lot">
+                        <details class="lot-group lot-group--collapsible lot-group--economie-lot" data-ui-collapsible="economie-lot" data-ui-scope="${index}" ${this._accordionOpenStates.get(`${index}:economie-lot`) ? "open" : ""}>
                             <summary class="lot-group-summary">
                                 <span>Économie du lot</span>
                             </summary>
@@ -27798,6 +27790,17 @@ closeEvalOpModal() {
         // Permet de déplier/replier le bloc Destination sans changer la sélection du lot
         card.querySelectorAll('.lot-group--collapsible').forEach((detailsEl) => {
             detailsEl.addEventListener('click', (e) => e.stopPropagation());
+        });
+
+        // Mémoriser l'état ouvert/fermé des accordéons data-ui-collapsible
+        card.querySelectorAll('details[data-ui-collapsible]').forEach((detailsEl) => {
+            const accordionId = detailsEl.getAttribute('data-ui-collapsible');
+            const scope = detailsEl.getAttribute('data-ui-scope');
+            if (!accordionId || scope == null) return;
+            const stateKey = `${scope}:${accordionId}`;
+            detailsEl.addEventListener('toggle', () => {
+                this._accordionOpenStates.set(stateKey, detailsEl.open);
+            });
         });
 
         // Suppression
