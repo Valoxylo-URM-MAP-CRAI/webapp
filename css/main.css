@@ -5277,7 +5277,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .piece-card--passive .lot-field-block--classe-bois-select::after,
 .piece-card--disabled .lot-field-block--classe-bois-select::after,
-[data-prix-group-disabled="true"] .lot-field-block--inline-price-select::after,
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-field-block--inline-price-select::after,
 [data-lot-prix-market-block][data-muted="true"] .lot-field-block--inline-price-select::after {
     color: var(--color-gray-300);
 }
@@ -6182,25 +6182,32 @@ body.day-mode .lot-group--collapsible summary:hover {
 /* Grisage du groupe Prix dans les formulaires Pièce / Pièce par défaut en mode ON */
 [data-prix-group-disabled="true"] {
     position: relative;
+}
+
+[data-prix-group-disabled="true"] .lot-price-market-layout {
     pointer-events: none;
 }
 
-[data-prix-group-disabled="true"] .lot-field-label,
-[data-prix-group-disabled="true"] .lot-field-label--subsection {
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-field-label,
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-field-label--subsection {
     color: var(--color-gray-300);
 }
 
-[data-prix-group-disabled="true"] .lot-input {
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-input {
     background-color: #F4F4F4;
     color: var(--color-gray-300);
 }
 
-[data-prix-group-disabled="true"] .lot-input-unit {
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-input-unit {
     color: var(--color-gray-300);
 }
 
-[data-prix-group-disabled="true"] .lot-price-unit-btn {
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-price-unit-btn {
     opacity: 0.4;
+}
+
+[data-prix-group-disabled="true"] .lot-price-market-layout .lot-prix-info-btn {
+    pointer-events: auto;
 }
 
 .lot-price-market-layout {
