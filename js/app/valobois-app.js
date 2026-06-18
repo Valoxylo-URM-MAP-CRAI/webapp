@@ -6276,12 +6276,13 @@ class ValoboisApp {
     }
 
     getPricePresetAllowedUnits() {
-        return ['', 't', 'm3', 'ml', 'm2'];
+        return ['', 't', 'm3', 'ml', 'm2', 'piece'];
     }
 
     getPricePresetUnitLabel(unitRaw) {
         const unit = ((unitRaw || '') + '').toLowerCase();
         if (unit === 't' || unit === 'm3' || unit === 'ml' || unit === 'm2') return unit;
+        if (unit === 'piece') return 'pièce';
         return '';
     }
 
@@ -19100,8 +19101,8 @@ class ValoboisApp {
                 const de = parseFloat(defaultPiece.epaisseur !== '' ? defaultPiece.epaisseur : lot.allotissement.epaisseur) || 0;
                 const dd = parseFloat(defaultPiece.diametre !== '' ? defaultPiece.diametre : lot.allotissement.diametre) || 0;
                 const dPm = parseFloat(defaultPiece.prixMarche !== '' ? defaultPiece.prixMarche : lot.allotissement.prixMarche) || 0;
-                const dPriceUnitRaw = ((defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-                const dPriceUnit = (dPriceUnitRaw === 'ml' || dPriceUnitRaw === 'm2' || dPriceUnitRaw === 'm3') ? dPriceUnitRaw : 'm3';
+                const dPriceUnitRaw = (defaultPiece.prixUnite || lot.allotissement.prixUnite || 'm3').toLowerCase();
+                const dPriceUnit = (['ml', 'm2', 'm3', 'piece'].indexOf(dPriceUnitRaw) >= 0) ? dPriceUnitRaw : 'm3';
                 const dIsTonneMode = ((defaultPiece.prixMode || '') + '').toLowerCase() === 't';
                 const dRho = parseFloat(defaultPiece.masseVolumique !== '' ? defaultPiece.masseVolumique : lot.allotissement.masseVolumique) || 0;
                 const dWood = parseFloat(defaultPiece.bois !== '' ? defaultPiece.bois : lot.allotissement.bois);
@@ -19122,11 +19123,10 @@ class ValoboisApp {
                 const defaultMasseEffectivePerPieceKg = this.getEffectiveMassKg(defaultPiece.massePieceMesuree, defaultMasseTheoriquePerPiece);
                 const defaultPricingBase = dIsTonneMode
                     ? (defaultMasseEffectivePerPieceKg / 1000)
-                    : (
-                        dPriceUnit === 'ml' ? defaultLinPerPiece :
-                        dPriceUnit === 'm2' ? defaultSurfPerPiece :
-                        defaultVolPerPiece
-                    );
+                    : dPriceUnit === 'ml' ? defaultLinPerPiece
+                    : dPriceUnit === 'm2' ? defaultSurfPerPiece
+                    : dPriceUnit === 'piece' ? 1
+                    : defaultVolPerPiece;
                 const selectedDefaultPresetId = ((defaultPiece.prixOrientationPresetId || lot.allotissement.prixOrientationPresetId || '') + '').trim();
                 const selectedDefaultPreset = selectedDefaultPresetId ? this.getPricePresetById(selectedDefaultPresetId) : null;
                 const defaultPremiumRate = selectedDefaultPreset ? (parseFloat(selectedDefaultPreset.value) || 0) : dPm;
@@ -19206,13 +19206,11 @@ class ValoboisApp {
                 lot.allotissement.prixLotAjusteIntegrite = sumPrixAjuste;
             } else {
                 // Recalculer le prix lot direct sur la base des volumes/surfaces/linéaires agrégés
-                const directPricingBase = isLotTonneMode
-                    ? (sumMasseEffectiveKg / 1000)
-                    : (
-                        priceUnit === 'ml' ? sumLineaire :
-                        priceUnit === 'm2' ? sumSurface :
-                        sumVolume
-                    );
+                const directPricingBase = isLotTonneMode ? (sumMasseEffectiveKg / 1000)
+                    : priceUnit === 'ml' ? sumLineaire
+                    : priceUnit === 'm2' ? sumSurface
+                    : priceUnit === 'piece' ? q
+                    : sumVolume;
                 lot.allotissement.prixLot = directPricingBase * pm;
                 lot.allotissement.prixLotAjusteIntegrite = lot.allotissement.prixLot * integrityFactor;
             }
@@ -19870,7 +19868,7 @@ class ValoboisApp {
         const d = parseFloat(piece.diametre) || 0;
         const pm = parseFloat(piece.prixMarche || lot.allotissement.prixMarche) || 0;
         const priceUnitRaw = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
-        const priceUnit = (priceUnitRaw === 'ml' || priceUnitRaw === 'm2' || priceUnitRaw === 'm3' || priceUnitRaw === 'piece') ? priceUnitRaw : 'm3';
+        const priceUnit = (['ml', 'm2', 'm3', 'piece'].indexOf(priceUnitRaw) >= 0) ? priceUnitRaw : 'm3';
         const isTonneMode = ((piece.prixMode || '') + '').toLowerCase() === 't';
         const integrityFactor = this.getLotIntegrityPriceFactor(lot);
 
@@ -26244,6 +26242,8 @@ closeEvalOpModal() {
             : integriteData.niveau === 'moyenne' ? `Moyenne (${integriteData.coeff ?? '...'})`
             : integriteData.niveau === 'faible' ? `Faible (${integriteData.coeff ?? '...'})`
             : '...';
+        const masseVolumiqueSourceLabel = this.getMasseVolumiqueSourceLabel(lot.allotissement);
+        const masseVolumiqueMoyenneMesureeDisplay = this.getMeasuredLotDensityDisplay(lot);
 
         const hasDiametre = dpPreview.diametre !== '' && dpPreview.diametre != null;
         const hasLH = (dpPreview.largeur !== '' && dpPreview.largeur != null) || (dpPreview.epaisseur !== '' && dpPreview.epaisseur != null);
@@ -26469,54 +26469,55 @@ closeEvalOpModal() {
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
-                        <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                        <div class="lot-price-market-layout">
-                            <div class="lot-price-market-row lot-price-market-row--top">
-                                <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                    <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
-                                </div>
-                                <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
-                                <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
-                                </div>
-                            </div>
-                            <div class="lot-price-market-row lot-price-market-row--bottom">
-                                <div class="lot-field-block lot-field-block--inline-price-select">
-                                    <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
-                                    <select class="lot-input lot-price-orientation-select" data-default-piece-id="${defaultPieceId}" data-default-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
-                                        <option value="">Prix à l'orientation</option>
-                                    </select>
-                                </div>
-                                <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                    <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="lot-price-summary-row">
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Prix de la pièce</label>
-                            <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${viewValue(formatGrouped(Math.round(dpPreview.prixPiece || 0), 0))}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPiece">
-                                <span class="lot-input-unit">€</span>
-                            </div>
-                        </div>
-                        <div class="lot-field-block"${integriteData.ignore ? ' data-muted="true"' : ''}>
-                            <label class="lot-field-label">Prix ajusté</label>
-                            <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${(isDisabled || integriteData.ignore) ? '' : formatGrouped(Math.round(dpPreview.prixPieceAjusteIntegrite || 0), 0)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPieceAjuste">
-                                <span class="lot-input-unit">€</span>
-                            </div>
-                        </div>
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Intégrité du lot</label>
-                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="integriteLot">
-                        </div>
-                    </div>
+                                                <div class="lot-price-market-layout">
+                                                    <div class="lot-price-fields-grid">
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix du marché</label>
+                                                            <div class="lot-input-with-unit">
+                                                                <input type="text" inputmode="decimal" class="lot-input" value="${viewValue(this.formatAllotissementNumericDisplay(pPrixMarche))}" data-default-piece-id="${defaultPieceId}" data-default-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                                                <span class="lot-input-unit" data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix de la pièce</label>
+                                                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                <input type="text" class="lot-input" value="${viewValue(formatGrouped(Math.round(dpPreview.prixPiece || 0), 0))}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPiece">
+                                                                <span class="lot-input-unit">€</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix ajusté</label>
+                                                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                <input type="text" class="lot-input" value="${(isDisabled || integriteData.ignore) ? '' : formatGrouped(Math.round(dpPreview.prixPieceAjusteIntegrite || 0), 0)}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="prixPieceAjuste">
+                                                                <span class="lot-input-unit">€</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Intégrité du lot</label>
+                                                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-default-piece-id="${defaultPieceId}" data-default-piece-display="integriteLot">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="lot-field-block lot-field-block--inline-price-select">
+                                                        <select class="lot-input lot-price-orientation-select lot-price-orientation-select--narrow" data-default-piece-id="${defaultPieceId}" data-default-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                                            <option value="">Prix à l'orientation</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="lot-price-btn-grid">
+                                                        <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+
+                                                        <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-default-piece-id="${defaultPieceId}" data-default-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                                    </div>
+
+                                                </div>
                 </div>
                 <div class="lot-group">
                     <p class="lot-group-title">Carbone</p>
@@ -26856,54 +26857,55 @@ closeEvalOpModal() {
                 <div class="lot-group" data-prix-group-disabled="${lot.allotissement.prixLotDirect ? 'true' : 'false'}">
                     <p class="lot-group-title">Prix</p>
                     <div class="lot-field-block">
-                        <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                        <div class="lot-price-market-layout">
-                            <div class="lot-price-market-row lot-price-market-row--top">
-                                <div class="lot-input-with-unit">
-                                    <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                    <span class="lot-input-unit" data-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
-                                </div>
-                                <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
-                                <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix">
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
-                                </div>
-                            </div>
-                            <div class="lot-price-market-row lot-price-market-row--bottom">
-                                <div class="lot-field-block lot-field-block--inline-price-select">
-                                    <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
-                                    <select class="lot-input lot-price-orientation-select" data-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
-                                        <option value="">Prix à l'orientation</option>
-                                    </select>
-                                </div>
-                                <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                    <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="lot-price-summary-row">
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Prix de la pièce</label>
-                            <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${formatGrouped(Math.round(piece.prixPiece || 0), 0)}" readonly data-piece-display="prixPiece">
-                                <span class="lot-input-unit">€</span>
-                            </div>
-                        </div>
-                        <div class="lot-field-block"${integriteData.ignore ? ' data-muted="true"' : ''}>
-                            <label class="lot-field-label">Prix ajusté</label>
-                            <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                <input type="text" class="lot-input" value="${integriteData.ignore ? '' : formatGrouped(Math.round(piece.prixPieceAjusteIntegrite || 0), 0)}" readonly data-piece-display="prixPieceAjuste">
-                                <span class="lot-input-unit">€</span>
-                            </div>
-                        </div>
-                        <div class="lot-field-block">
-                            <label class="lot-field-label">Intégrité du lot</label>
-                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-piece-display="integriteLot">
-                        </div>
-                    </div>
+                                                <div class="lot-price-market-layout">
+                                                    <div class="lot-price-fields-grid">
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix du marché</label>
+                                                            <div class="lot-input-with-unit">
+                                                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(pPrixMarche)}" data-piece-input="prixMarche"${lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                                                <span class="lot-input-unit" data-piece-display="prixMarcheUnit">${pPriceUnitLabel}</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix de la pièce</label>
+                                                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                <input type="text" class="lot-input" value="${formatGrouped(Math.round(piece.prixPiece || 0), 0)}" readonly data-piece-display="prixPiece">
+                                                                <span class="lot-input-unit">€</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Prix ajusté</label>
+                                                            <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                <input type="text" class="lot-input" value="${integriteData.ignore ? '' : formatGrouped(Math.round(piece.prixPieceAjusteIntegrite || 0), 0)}" readonly data-piece-display="prixPieceAjuste">
+                                                                <span class="lot-input-unit">€</span>
+                                                            </div>
+                                                        </div>
+
+                                                        <div class="lot-field-block">
+                                                            <label class="lot-field-label">Intégrité du lot</label>
+                                                            <input type="text" class="lot-input" value="${integrityLabel}" readonly data-piece-display="integriteLot">
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="lot-field-block lot-field-block--inline-price-select">
+                                                        <select class="lot-input lot-price-orientation-select lot-price-orientation-select--narrow" data-piece-price-orientation${lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                                            <option value="">Prix à l'orientation</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div class="lot-price-btn-grid">
+                                                        <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-piece-price-info-btn aria-label="Informations sur la logique de prix"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>info</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-piece-price-tonne-toggle aria-pressed="${pTonneMode ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m2" aria-pressed="${pPriceUnit === 'm2' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+
+                                                        <button type="button" class="lot-price-unit-btn" data-piece-price-unit="ml" aria-pressed="${pPriceUnit === 'ml' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-piece-price-unit="piece" aria-pressed="${pPriceUnit === 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
+                                                        <button type="button" class="lot-price-unit-btn" data-piece-price-unit="m3" aria-pressed="${!pTonneMode && pPriceUnit !== 'ml' && pPriceUnit !== 'm2' && pPriceUnit !== 'piece' ? 'true' : 'false'}"${lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                                    </div>
+
+                                                </div>
                 </div>
                 <div class="lot-group">
                     <p class="lot-group-title">Carbone</p>
@@ -27058,23 +27060,16 @@ closeEvalOpModal() {
         const showClasseBoisDetailsBtn = lotClasseBoisDisplay === 'Multiples';
         const showEssenceDetailsBtn = lotEssenceCommonDisplay === 'Multiples' || lotEssenceScientificDisplay === 'Multiples';
         const lotTropixInfo = showEssenceDetailsBtn ? { url: '' } : this.getLotSingleTropixInfo(lot);
-        const priceUnit = ((lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
+        const priceUnitRaw = (lot.allotissement.prixUnite || 'm3').toLowerCase();
+        const priceUnit = ['ml', 'm2', 'm3', 'piece'].includes(priceUnitRaw) ? priceUnitRaw : 'm3';
         const priceUnitLabel = this.getPriceMarketUnitLabel(priceUnit, lot.allotissement.prixMode);
         const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
-        const masseLotDisplay = this.formatMasseDisplay(lot.allotissement.masseLot);
-        const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
-        const masseVolumiqueMoyenneMesureeDisplay = this.getMeasuredLotDensityDisplay(lot);
-        const masseVolumiqueSourceLabel = this.getMasseVolumiqueSourceLabel(lot.allotissement);
         const integriteData = (lot.inspection && lot.inspection.integrite) || {};
-        const lotIntegrityLabel = integriteData.ignore
-            ? 'Ignoré'
-            : integriteData.niveau === 'forte'
-                ? `Forte (${integriteData.coeff ?? '...'})`
-                : integriteData.niveau === 'moyenne'
-                    ? `Moyenne (${integriteData.coeff ?? '...'})`
-                    : integriteData.niveau === 'faible'
-                        ? `Faible (${integriteData.coeff ?? '...'})`
-                        : '...';
+        const integrityLabel = integriteData.ignore ? 'Ignoré'
+            : integriteData.niveau === 'forte' ? `Forte (${integriteData.coeff ?? '...'})`
+            : integriteData.niveau === 'moyenne' ? `Moyenne (${integriteData.coeff ?? '...'})`
+            : integriteData.niveau === 'faible' ? `Faible (${integriteData.coeff ?? '...'})`
+            : '...';
 
         const hasDetailDimensions = this.getLotQuantityFromDetail(lot) > 0;
         const mmGeometryProfile = this.getLotMultipleMeasurementsGeometryProfile(lot);
@@ -27104,6 +27099,10 @@ closeEvalOpModal() {
         const lotEmploymentClassSummary = this.getLotEmploymentClassSummary(lot);
         const hasNotationAlert = this.hasIncompleteNotationCriteria(lot);
         const hasDestinationAlert = this.hasIncompleteDestinationFields(lot);
+        const masseLotDisplay = this.formatMasseDisplay(lot.allotissement.masseLot);
+        const masseLotMesureeDisplay = this.getMeasuredLotMassDisplay(lot);
+        const masseVolumiqueSourceLabel = this.getMasseVolumiqueSourceLabel(lot.allotissement);
+        const masseVolumiqueMoyenneMesureeDisplay = this.getMeasuredLotDensityDisplay(lot);
         const displayLongueur = hasDetailDimensions ? ((lot.allotissement._avgLongueur || 0) > 0 ? String(Math.round(lot.allotissement._avgLongueur)) : '') : lot.allotissement.longueur;
         const displayLargeur = hasDetailDimensions ? ((lot.allotissement._avgLargeur || 0) > 0 ? String(Math.round(lot.allotissement._avgLargeur)) : '') : lot.allotissement.largeur;
         const displayEpaisseur = hasDetailDimensions ? ((lot.allotissement._avgEpaisseur || 0) > 0 ? String(Math.round(lot.allotissement._avgEpaisseur)) : '') : lot.allotissement.epaisseur;
@@ -27592,56 +27591,60 @@ closeEvalOpModal() {
                                     <button type="button" class="lot-price-unit-btn lot-prix-toggle-btn" data-lot-prix-toggle-btn aria-pressed="${lot.allotissement.prixLotDirect ? 'true' : 'false'}" aria-label="Activer/désactiver le prix">${lot.allotissement.prixLotDirect ? 'ON' : 'OFF'}</button>
                                 </div>
                                 <div class="lot-field-block" data-lot-prix-market-block${!lot.allotissement.prixLotDirect ? ' data-muted="true"' : ''}>
-                                    <label class="lot-field-label lot-field-label--subsection">Prix du marché</label>
-                                    <div class="lot-price-market-layout" data-lot-prix-market-row>
-                                        <div class="lot-price-market-row lot-price-market-row--top">
-                                            <div class="lot-input-with-unit">
-                                                <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
-                                                <span class="lot-input-unit" data-display="prixMarcheUnit">${priceUnitLabel}</span>
-                                            </div>
-                                            <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix">info</button>
-                                            <div class="lot-price-unit-toggle lot-price-unit-toggle--top" role="group" aria-label="Unité de prix du marché">
-                                                <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
-                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
-                                                <button type="button" class="lot-price-unit-btn" data-price-unit="piece" aria-pressed="${priceUnit === 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
-                                            </div>
-                                        </div>
-                                        <div class="lot-price-market-row lot-price-market-row--bottom">
-                                            <div class="lot-field-block lot-field-block--inline-price-select">
-                                                <label class="lot-field-label lot-field-label--hidden">Prix à l'orientation</label>
-                                                <select class="lot-input lot-price-orientation-select" data-lot-price-orientation${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>
-                                                    <option value="">Prix à l'orientation</option>
-                                                </select>
-                                            </div>
-                                            <div class="lot-price-unit-toggle lot-price-unit-toggle--bottom" role="group" aria-label="Mode de prix du marché">
-                                                <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
-                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' && priceUnit !== 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
-                                            </div>
+                                                                        <div class="lot-price-market-layout" data-lot-prix-market-row>
+                                                                            <div class="lot-price-fields-grid">
+                                                                                <div class="lot-field-block">
+                                                                                    <label class="lot-field-label">Prix du marché</label>
+                                                                                    <div class="lot-input-with-unit">
+                                                                                        <input type="text" inputmode="decimal" class="lot-input" value="${this.formatAllotissementNumericDisplay(lot.allotissement.prixMarche)}" data-lot-input="prixMarche"${!lot.allotissement.prixLotDirect ? ' readonly' : ''}>
+                                                                                        <span class="lot-input-unit" data-display="prixMarcheUnit">${priceUnitLabel}</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div class="lot-field-block">
+                                                                                    <label class="lot-field-label">Prix du lot</label>
+                                                                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                                        <input type="text" class="lot-input" value="${formatGrouped(Math.round(lot.allotissement.prixLot || 0), 0)}" readonly data-display="prixLot">
+                                                                                        <span class="lot-input-unit">€</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div class="lot-field-block">
+                                                                                    <label class="lot-field-label">Prix ajusté</label>
+                                                                                    <div class="lot-input-with-unit lot-input-with-unit--compact">
+                                                                                        <input type="text" class="lot-input" value="${integriteData.ignore ? '' : formatGrouped(Math.round(lot.allotissement.prixLotAjusteIntegrite || 0), 0)}" readonly data-display="prixLotAjusteIntegrite">
+                                                                                        <span class="lot-input-unit">€</span>
+                                                                                    </div>
+                                                                                </div>
+
+                                                                                <div class="lot-field-block">
+                                                                                    <label class="lot-field-label">Intégrité du lot</label>
+                                                                                    <input type="text" class="lot-input" value="${integrityLabel}" readonly data-display="integriteLot">
+                                                                                </div>
+                                                                            </div>
+
+                                                                            <div class="lot-field-block lot-field-block--inline-price-select">
+                                                                                <select class="lot-input lot-price-orientation-select lot-price-orientation-select--narrow" data-lot-price-orientation${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>
+                                                                                    <option value="">Prix à l'orientation</option>
+                                                                                </select>
+                                                                            </div>
+
+                                                                            <div class="lot-price-btn-grid">
+                                                                                <button type="button" class="lot-price-unit-btn lot-prix-info-btn" data-lot-prix-info-btn aria-label="Informations sur la logique de prix">info</button>
+                                                                                <button type="button" class="lot-price-unit-btn" data-lot-price-tonne-toggle aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() === 't' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la t</button>
+                                                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m2" aria-pressed="${priceUnit === 'm2' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m2</button>
+
+                                                                                <button type="button" class="lot-price-unit-btn" data-price-unit="ml" aria-pressed="${priceUnit === 'ml' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au ml</button>
+                                                                                <button type="button" class="lot-price-unit-btn" data-price-unit="piece" aria-pressed="${priceUnit === 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>à la pce</button>
+                                                                                <button type="button" class="lot-price-unit-btn" data-price-unit="m3" aria-pressed="${((lot.allotissement.prixMode || '') + '').toLowerCase() !== 't' && priceUnit !== 'ml' && priceUnit !== 'm2' && priceUnit !== 'piece' ? 'true' : 'false'}"${!lot.allotissement.prixLotDirect ? ' disabled' : ''}>au m3</button>
+                                                                            </div>
+                                                                        </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </details>
-                        <div class="lot-price-summary-row">
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">Prix du lot</label>
-                                <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" class="lot-input" value="${formatGrouped(Math.round(lot.allotissement.prixLot || 0), 0)}" readonly data-display="prixLot">
-                                    <span class="lot-input-unit">€</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block" data-display="prixLotAjusteBlock"${integriteData.ignore ? ' data-muted="true"' : ''}>
-                                <label class="lot-field-label">Prix ajusté</label>
-                                <div class="lot-input-with-unit lot-input-with-unit--compact">
-                                    <input type="text" class="lot-input" value="${integriteData.ignore ? '' : formatGrouped(Math.round(lot.allotissement.prixLotAjusteIntegrite || 0), 0)}" readonly data-display="prixLotAjusteIntegrite">
-                                    <span class="lot-input-unit">€</span>
-                                </div>
-                            </div>
-                            <div class="lot-field-block">
-                                <label class="lot-field-label">Intégrité du lot</label>
-                                <input type="text" class="lot-input" value="${lotIntegrityLabel}" readonly data-display="integriteLot">
-                            </div>
-                        </div>
+                        
                     </div>
                     <div class="lot-group">
                         <p class="lot-group-title">Groupe : carbone</p>
@@ -28103,7 +28106,7 @@ closeEvalOpModal() {
                     return;
                 }
                 const nextUnit = (button.dataset.priceUnit || '').toLowerCase();
-                if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
+                if (!['ml', 'm2', 'm3', 'piece'].includes(nextUnit)) return;
                 lot.allotissement.prixUnite = nextUnit;
                 lot.allotissement.prixMode = '';
                 lot.allotissement.prixOrientationPresetId = '';
@@ -28849,6 +28852,46 @@ closeEvalOpModal() {
             + lot.pieces.map((p, pi) => this.renderPieceCardHTML(p, pi, lot, activeCardKey === `piece:${pi}`)).join('');
         this.applyDetailLotCardActivation(pieceRail, lot);
 
+        // Fix possible nesting bug: move any .piece-card accidentally rendered inside another
+        // so all .piece-card are direct children of pieceRail and apply flex layout.
+        try {
+            // Detach nested piece-cards to become siblings
+            pieceRail.querySelectorAll('.piece-card .piece-card').forEach((nested) => {
+                if (!pieceRail.contains(nested)) return;
+                pieceRail.appendChild(nested);
+            });
+
+            // Ensure horizontal rail layout and prevent shrink
+            pieceRail.style.display = 'flex';
+            pieceRail.style.flexDirection = 'row';
+            pieceRail.style.gap = '16px';
+            pieceRail.querySelectorAll('.piece-card').forEach((c) => c.style.flexShrink = '0');
+        } catch (err) {
+            // swallow any errors — non-critical fix
+            console.warn('pieceRail nesting cleanup failed', err);
+        }
+
+        // MutationObserver to enforce internal layout when JS re-renders inline styles
+        try {
+            if (typeof MutationObserver !== 'undefined') {
+                const mo = new MutationObserver(() => {
+                    document.querySelectorAll('.lot-price-market-layout').forEach((layout) => {
+                        try {
+                            layout.style.setProperty('width', '100%', 'important');
+                            layout.style.setProperty('display', 'grid', 'important');
+                            layout.style.setProperty('grid-template-columns', '1fr', 'important');
+                            layout.style.setProperty('box-sizing', 'border-box', 'important');
+                        } catch (e) {
+                            // ignore per-element errors
+                        }
+                    });
+                });
+                mo.observe(document.body, { childList: true, subtree: true });
+            }
+        } catch (err) {
+            console.warn('Failed to install lot-price layout observer', err);
+        }
+
         // Initialiser les accordéons durabilité naturelle
         defaultPieces.forEach(dp => {
             const acc = pieceRail.querySelector(`#durabiliteNaturelleAccordion--dp-${dp.id}`);
@@ -29049,7 +29092,7 @@ closeEvalOpModal() {
                     e.stopPropagation();
                     if (!this.isDetailLotCardActive(lot, cardKey)) return;
                     const nextUnit = (btn.dataset.defaultPiecePriceUnit || '').toLowerCase();
-                    if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
+                    if (!['ml', 'm2', 'm3', 'piece'].includes(nextUnit)) return;
                     const dp = this.ensureDefaultPieceData(lot, defaultPieceId);
                     dp.prixUnite = nextUnit;
                     dp.prixMode = '';
@@ -29481,7 +29524,7 @@ closeEvalOpModal() {
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     const nextUnit = (btn.dataset.piecePriceUnit || '').toLowerCase();
-                    if (nextUnit !== 'ml' && nextUnit !== 'm2' && nextUnit !== 'm3') return;
+                    if (!['ml', 'm2', 'm3', 'piece'].includes(nextUnit)) return;
                     piece.prixUnite = nextUnit;
                     piece.prixMode = '';
                     piece.prixOrientationPresetId = '';
@@ -38627,7 +38670,7 @@ renderRadar() {
                 if (pm > 0) {
                     const priceMode = ((piece.prixMode || '') + '').toLowerCase();
                     const priceUnitRaw = ((piece.prixUnite || allot.prixUnite || 'm3') + '').toLowerCase();
-                    const priceUnit = (['ml', 'm2', 'm3'].indexOf(priceUnitRaw) >= 0) ? priceUnitRaw : 'm3';
+                    const priceUnit = ['ml', 'm2', 'm3', 'piece'].includes(priceUnitRaw) ? priceUnitRaw : 'm3';
                     const masseEffectiveKg = this.getEffectiveMassKg(masseMesuree, masseTheorique);
                     if (priceMode === 't') prixUnitaire = pm * (masseEffectiveKg / 1000);
                     else if (priceUnit === 'm3') prixUnitaire = pm * volumeM3;

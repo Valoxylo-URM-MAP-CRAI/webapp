@@ -12,6 +12,126 @@
     vertical-align: middle;
     line-height: 1.2;
 }
+
+/* Style panel uniforme pour toutes les .lot-group dans #pieceRail */
+#pieceRail .lot-group {
+    display: grid;
+    border: 1px solid #d4d4d4;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.45);
+    padding: 5px;
+    gap: 8px;
+    margin-bottom: 2px;
+    box-sizing: border-box;
+}
+
+/* Assurer que le contenu prix occupe toute la largeur dans les formulaires pièce */
+.piece-form-grid .lot-price-market-layout {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* --- Implementation Panel Lot Group (class-based, resilient) --- */
+/* Neutraliser le wrapper parent dans les formulaires pièce */
+.piece-form-grid .lot-form-grid {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+}
+
+/* Transformer le bloc en panel autonome */
+.piece-form-grid .lot-field-block.lot-field-block--full {
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid #d4d4d4 !important;
+    background-color: rgba(255, 255, 255, 0.45) !important;
+    border-radius: 4px !important;
+    padding: 8px !important;
+    margin-bottom: 4px !important;
+    gap: 10px !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure all direct children take full width inside the full field block */
+.piece-form-grid .lot-field-block.lot-field-block--full > * {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+}
+
+/* Cible chirurgicale des conteneurs internes qui restent étroits */
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-price-market-layout,
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-carbon-input-row,
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-carbon-summary-row,
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-inline-grid--3 {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Éviter le centrage qui donne l'impression de champs étroits */
+.piece-form-grid .lot-carbon-input-row .lot-input-with-unit {
+    margin-inline: 0 !important;
+}
+
+/* Reduce horizontal padding of collapsible group content inside full blocks
+   so nested .lot-price-market-layout matches direct .lot-group width */
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-group--collapsible > .lot-group-content {
+    padding: 10px 5px !important;
+}
+
+/* Forcer le contenu interne à prendre toute la largeur du panel */
+.piece-form-grid .lot-field-block.lot-field-block--full .lot-price-market-layout {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Harmonisation : transformer .lot-price-market-layout en panel 'lot-group' */
+.piece-form-grid .lot-price-market-layout {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+    padding: 5px !important;
+    margin-bottom: 2px !important;
+    border: 1px solid #D4D4D4 !important;
+    border-radius: 4px !important;
+    background-color: rgba(255, 255, 255, 0.45) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+}
+
+/* Ensure child grids/controls expand to full width */
+.piece-form-grid .lot-price-fields-grid,
+.piece-form-grid .lot-field-block--inline-price-select,
+.piece-form-grid .lot-price-btn-grid {
+    width: 100% !important;
+    max-width: none !important;
+    box-sizing: border-box !important;
+}
+
+/* Suppression de la bordure et du fond du 4ème groupe de la grille piece-form-grid */
+.piece-form-grid > .lot-group:nth-child(4) {
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+}
+
+/* Si le parent .lot-form-grid contient notre panel full, laisser toute la place au panel */
+.lot-form-grid:has(.lot-field-block--full) {
+    display: block !important;
+    width: 100% !important;
+    grid-template-columns: none !important;
+}
+
+/* width handled by parent when panel full is present */
 .seuils-pill--a { background: #009E73; }
 .seuils-pill--b { background: #56B4E9; }
 .seuils-pill--c { background: #E69F00; color: #222; }
@@ -232,6 +352,10 @@
     font-size: 11px;
     line-height: 1.45;
     color: #4b5f75;
+}
+
+.lot-price-orientation-select {
+    max-width: 120px;
 }
 
 .seuils-modal-priority {
@@ -792,6 +916,28 @@
 .auth-banner-sync--saved .auth-banner-sync-check {
     color: #1e6b45;
     opacity: 1;
+}
+
+/* Grid for lot price unit buttons: 3 columns × 2 rows with small gaps */
+.lot-price-btn-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: repeat(2, auto);
+    gap: 8px;
+}
+
+/* let unit buttons size themselves to the grid cells */
+.lot-price-unit-btn {
+    width: auto;
+}
+
+/* Grid for lot price fields: 2 columns × 2 rows with larger gaps */
+.lot-price-fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    grid-template-rows: repeat(2, auto);
+    row-gap: 6px;
+    column-gap: 6px;
 }
 
 .auth-banner-sync--error .auth-banner-sync-check {
@@ -2997,7 +3143,7 @@ body.day-mode .accueil-collapsible-summary:hover {
     flex-direction: column;
     gap: var(--space-4);
     min-width: 0;
-    margin-bottom: 6px;
+    margin-bottom: 2px;
 }
 
 .lot-group {
@@ -5964,24 +6110,24 @@ body.day-mode .lot-group--collapsible summary:hover {
     align-self: flex-start;
 }
 
-.lot-price-market-row .lot-prix-info-btn,
-.lot-prix-group-header .lot-prix-info-btn,
-.lot-prix-info-btn {
+.lot-price-market-row .lot-price-unit-btn.lot-prix-info-btn,
+.lot-prix-group-header .lot-price-unit-btn.lot-prix-info-btn,
+.lot-price-unit-btn.lot-prix-info-btn {
     background-color: var(--bleu-crai);
     border-color: var(--bleu-crai);
     color: var(--color-white);
 }
 
-.lot-price-market-row .lot-prix-info-btn:disabled,
-.lot-prix-group-header .lot-prix-info-btn:disabled,
-.lot-prix-info-btn:disabled {
+.lot-price-market-row .lot-price-unit-btn.lot-prix-info-btn:disabled,
+.lot-prix-group-header .lot-price-unit-btn.lot-prix-info-btn:disabled,
+.lot-price-unit-btn.lot-prix-info-btn:disabled {
     background-color: var(--bleu-crai);
     border-color: var(--bleu-crai);
     color: var(--color-white);
     opacity: 0.55;
 }
 
-.lot-prix-info-btn {
+.lot-price-unit-btn.lot-prix-info-btn {
     min-width: 42px;
     background-color: var(--bleu-crai);
     border-color: var(--bleu-crai);
@@ -5990,7 +6136,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     text-transform: lowercase;
 }
 
-.lot-prix-info-btn,
+.lot-price-unit-btn.lot-prix-info-btn,
 .lot-prix-toggle-btn {
     width: auto;
     min-width: 28px;
@@ -5999,7 +6145,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-size: var(--font-size-xs);
 }
 
-.lot-prix-info-btn {
+.lot-price-unit-btn.lot-prix-info-btn {
     min-width: 42px;
 }
 
@@ -6071,28 +6217,64 @@ body.day-mode .lot-group--collapsible summary:hover {
     align-items: stretch;
 }
 
-.lot-price-market-row--top {
-    grid-template-columns: minmax(0, 1fr) var(--lot-price-info-width) minmax(0, var(--lot-price-unit-grid-width));
-}
+    .lot-price-market-row--top {
+        grid-template-columns: minmax(0, 1fr) var(--lot-price-info-width);
+    }
 
 .lot-price-market-row--bottom {
     grid-template-columns: minmax(0, 1fr) minmax(0, var(--lot-price-unit-grid-width));
 }
 
-.lot-field-block--inline-price-select {
-    margin-bottom: 0;
+.lot-price-market-layout > .lot-field-block--inline-price-select {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: none;
 }
 
+/* Label visible au-dessus du champ */
+.lot-field-block--inline-price-select .lot-field-label {
+    display: block;
+    visibility: visible;
+    position: static;
+    height: auto;
+    width: auto;
+    clip: auto;
+    overflow: visible;
+    white-space: normal;
+    font-size: 0.75rem;
+    color: #6b6b6b;
+    margin-bottom: 4px;
+}
+
+/* Select : fond blanc, bordure standard, chevron natif, pleine largeur */
 .lot-price-orientation-select {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background-image: none;
-    padding-right: 22px;
-    text-align: left;
-    font-size: calc(var(--font-size-sm) - 2px);
-    max-width: 118px;
-    min-width: 80px;
+    width: 100%;
+    max-width: none;
+    min-height: 28px;
+    background-color: #FFFFFF;
+    border: 1px solid #D4D4D4;
+    border-radius: 4px;
+    padding: 3px 12px;
+    font-family: inherit;
+    font-size: 0.8125rem;
+    color: #111111;
+    -webkit-appearance: menulist;
+    -moz-appearance: listbox;
+    appearance: auto;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+/* Supprimer le pseudo-chevron CSS (::after) qui créait un doublon */
+.lot-field-block--inline-price-select::after {
+    content: none;
+    display: none;
+}
+
+/* Supprimer l'ancienne contrainte de largeur réduite si elle existe encore */
+.lot-price-orientation-select--narrow {
+    max-width: none;
 }
 
 .lot-price-orientation-select:has(option[value=""]:checked) {
@@ -6100,12 +6282,17 @@ body.day-mode .lot-group--collapsible summary:hover {
     font-style: italic;
 }
 
+/* Espace sous l'en-tête du groupe prix */
+.lot-prix-group-header {
+    margin-bottom: 12px;
+}
+
 .lot-price-orientation-select option {
     color: var(--color-text);
     font-style: normal;
 }
 
-.lot-price-market-row .lot-prix-info-btn {
+.lot-price-market-row .lot-price-unit-btn.lot-prix-info-btn {
     width: 100%;
     min-width: 0;
     padding: 0 var(--space-4);
@@ -6179,8 +6366,9 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-carbon-input-row .lot-input-with-unit {
-    width: min(148px, 100%);
-    margin-inline: auto;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-inline: 0 !important;
 }
 
 .lot-carbon-input-row input[data-lot-input="masseVolumique"] {
@@ -6232,7 +6420,8 @@ body.day-mode .lot-group--collapsible summary:hover {
 }
 
 .lot-carbon-summary-row .lot-input-with-unit {
-    width: min(240px, 60%);
+    width: 100% !important;
+    max-width: 100% !important;
 }
 
 .lot-price-summary-row .lot-field-block {
@@ -6271,7 +6460,7 @@ body.day-mode .lot-group--collapsible summary:hover {
 
 .lot-price-unit-toggle {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: var(--lot-price-unit-gap);
     width: 100%;
     align-items: stretch;
@@ -6282,12 +6471,20 @@ body.day-mode .lot-group--collapsible summary:hover {
     min-width: 0;
 }
 
+.lot-price-unit-toggle--top {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+    /* make the first toggle button span two columns for emphasis */
+    .lot-price-unit-toggle--top > .lot-price-unit-toggle__btn:first-child {
+        grid-column: span 2;
+    }
+
 .lot-price-unit-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1px solid var(--color-border);
-    background-color: #E6E6E6;
     color: var(--color-text-secondary);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-xs);
@@ -6306,7 +6503,7 @@ body.day-mode .lot-group--collapsible summary:hover {
     }
 
     .lot-price-market-row--top {
-        grid-template-columns: minmax(0, 1fr) var(--lot-price-info-width) minmax(0, var(--lot-price-unit-grid-width));
+        grid-template-columns: minmax(0, 1fr) var(--lot-price-info-width);
     }
 
     .lot-price-market-row--bottom {
@@ -6327,6 +6524,10 @@ body.day-mode .lot-group--collapsible summary:hover {
     .lot-price-summary-row {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 6px;
+    }
+
+    .lot-price-summary-row .lot-price-summary-row__integrite {
+        grid-column: 1 / -1;
     }
 
     .lot-price-summary-row .lot-field-block:last-child {
