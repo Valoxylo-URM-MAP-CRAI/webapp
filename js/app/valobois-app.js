@@ -29451,6 +29451,32 @@ closeEvalOpModal() {
                 if (qCO2) qCO2.value = pco2D.value;
                 const qCO2U = pieceCard.querySelector('[data-piece-display="carboneBiogeniqueEstimeUnit"]');
                 if (qCO2U) qCO2U.textContent = pco2D.unit;
+                const lotCard = document.getElementById(`lotCard--${lot.id}`);
+                if (lotCard) {
+                    const prixLotEl = lotCard.querySelector('[data-display="prixLot"]');
+                    if (prixLotEl) prixLotEl.value = formatGrouped(Math.round(lot.allotissement.prixLot || 0), 0);
+                    const isIntegriteIgnored = !!(((lot.inspection || {}).integrite || {}).ignore);
+                    const prixLotAjusteEl = lotCard.querySelector('[data-display="prixLotAjusteIntegrite"]');
+                    if (prixLotAjusteEl) {
+                        prixLotAjusteEl.value = isIntegriteIgnored
+                            ? ''
+                            : formatGrouped(Math.round(lot.allotissement.prixLotAjusteIntegrite || 0), 0);
+                    }
+                    const prixAjusteBlock = lotCard.querySelector('[data-display="prixLotAjusteBlock"]');
+                    if (prixAjusteBlock) {
+                        prixAjusteBlock.dataset.muted = isIntegriteIgnored ? 'true' : 'false';
+                    }
+                    const masseLotDisplay = this.formatMasseDisplay(lot.allotissement.masseLot);
+                    const masseLotEl = lotCard.querySelector('[data-display="masseLot"]');
+                    if (masseLotEl) masseLotEl.value = masseLotDisplay.value;
+                    const masseLotUnitEl = lotCard.querySelector('[data-display="masseLotUnit"]');
+                    if (masseLotUnitEl) masseLotUnitEl.textContent = masseLotDisplay.unit;
+                    const pco2Display = this.formatPco2Display(lot.allotissement.carboneBiogeniqueEstime);
+                    const pco2LotEl = lotCard.querySelector('[data-display="carboneBiogeniqueEstime"]');
+                    if (pco2LotEl) pco2LotEl.value = pco2Display.value;
+                    const pco2UnitEl = lotCard.querySelector('[data-display="carboneBiogeniqueEstimeUnit"]');
+                    if (pco2UnitEl) pco2UnitEl.textContent = pco2Display.unit;
+                }
                 const unitDisp = pieceCard.querySelector('[data-piece-display="prixMarcheUnit"]');
                 if (unitDisp) {
                     const u = ((piece.prixUnite || lot.allotissement.prixUnite || 'm3') + '').toLowerCase();
