@@ -179,6 +179,7 @@ const DEFAULT_PSET_CONFIG = {
             diagnostiqueurMail:     { enabled: true,  label: 'DiagnostiqueurMail',           getValue: (piece, lot, meta) => meta?.diagnostiqueurMail || null },
             diagnostiqueurTelephone:{ enabled: true,  label: 'DiagnostiqueurTelephone',      getValue: (piece, lot, meta) => meta?.diagnostiqueurTelephone || null },
             diagnostiqueurAdresse:  { enabled: true,  label: 'DiagnostiqueurAdresse',        getValue: (piece, lot, meta) => meta?.diagnostiqueurAdresse || null },
+            classeBois:            { enabled: true,  label: 'Classe du bois',               getValue: (piece, lot) => piece?.classeBois || lot?.allotissement?.classeBois || null },
         },
     },
     dimensions: {
@@ -199,14 +200,17 @@ const DEFAULT_PSET_CONFIG = {
                 const v = parseFloat(piece?.surfacePiecem2); 
                 return !isNaN(v) ? v : null; 
             }},
-            lineaireLot:  { enabled: false, label: 'Linéaire lot (ml)',  getValue: (piece, lot) => { 
+            lineaireLot:  { enabled: true,  label: 'Linéaire lot (ml)',  getValue: (piece, lot) => { 
                 const v = parseFloat(lot?.allotissement?.lineaireLot); 
                 return !isNaN(v) ? v : null; 
             }},
-            masseLot:     { enabled: false, label: 'Masse lot (kg)',     getValue: (piece, lot) => { 
+            masseLot:     { enabled: true, label: 'Masse lot (kg)',     getValue: (piece, lot) => { 
                 const v = parseFloat(lot?.allotissement?.masseLot); 
                 return !isNaN(v) ? v : null; 
             }},
+            massePieceMesuree: { enabled: true, label: 'Masse unitaire mesurée (kg)', getValue: (piece) => { const v = parseFloat(piece?.massePieceMesuree); return !isNaN(v) ? v : null; } },
+            prixPiece:         { enabled: true, label: 'Prix pièce (€)', getValue: (piece) => { const v = parseFloat(piece?.prixPiece); return !isNaN(v) ? v : null; } },
+            prixPieceAjusteIntegrite: { enabled: true, label: 'Prix ajusté intégrité (€)', getValue: (piece) => { const v = parseFloat(piece?.prixPieceAjusteIntegrite); return !isNaN(v) ? v : null; } },
         },
     },
     destination: {
@@ -236,11 +240,11 @@ const DEFAULT_PSET_CONFIG = {
                 const v = parseFloat(lot?.allotissement?.prixLot); 
                 return !isNaN(v) ? v : null; 
             }},
-            circularite:    { enabled: false, label: 'Circularité (%)',       getValue: (piece, lot) => { 
+            circularite:    { enabled: true,  label: 'Circularité (%)',       getValue: (piece, lot) => { 
                 const v = parseFloat(lot?.circularite); 
                 return !isNaN(v) ? v : null; 
             }},
-            coeffIntegrite: { enabled: false, label: 'Coeff. intégrité',      getValue: (piece, lot) => { 
+            coeffIntegrite: { enabled: true,  label: 'Coeff. intégrité',      getValue: (piece, lot) => { 
                 const v = parseFloat(lot?.integrity?.coeff); 
                 return !isNaN(v) ? v : null; 
             }},
@@ -260,7 +264,7 @@ const DEFAULT_PSET_CONFIG = {
                 const v = parseFloat(lot?.allotissement?.carboneBiogeniqueEstime); 
                 return !isNaN(v) ? v : null; 
             }},
-            masseVolumique:    { enabled: false, label: 'Masse volumique (kg/m³)',   getValue: (piece, lot) => { 
+            masseVolumique:    { enabled: true,  label: 'Masse volumique (kg/m³)',   getValue: (piece, lot) => { 
                 const v = parseFloat(piece?.masseVolumique ?? lot?.allotissement?.masseVolumique); 
                 return !isNaN(v) ? v : null; 
             }},
@@ -474,6 +478,41 @@ const DEFAULT_PSET_CONFIG = {
                 getValue: (piece, lot) => {
                     const v = parseFloat(lot?.allotissement?.conformiteLot?.tauxConformite);
                     return Number.isFinite(v) ? v : null;
+                }
+            },
+        },
+    },
+    cycleDeVie: {
+        layer: 'valobois',
+        label: 'Cycle de vie',
+        psetName: 'Pset_Valobois_CycleDeVie',
+        enabled: true,
+        properties: {
+            ageArbre: {
+                enabled: true,
+                label: "Âge de l'arbre (ans)",
+                getValue: (piece, lot) => {
+                    const v = parseFloat(piece?.ageArbre ?? lot?.allotissement?._avgAgeArbre);
+                    return !isNaN(v) ? v : null;
+                }
+            },
+            dateMiseEnService: {
+                enabled: true,
+                label: 'Date de mise en service',
+                getValue: (piece, lot) => piece?.dateMiseEnService || lot?.allotissement?.dateMiseEnService || null
+            },
+            amortissementBiologique: {
+                enabled: true,
+                label: 'Amortissement biologique',
+                getValue: (piece, lot, meta) => {
+                    if (typeof window.valoboisComputeAmortissementBiologique === 'function') {
+                        const age = piece?.ageArbre || lot?.allotissement?._avgAgeArbre;
+                        const service = piece?.dateMiseEnService || lot?.allotissement?.dateMiseEnService;
+                        const evalDate = meta?.date;
+                        const result = window.valoboisComputeAmortissementBiologique(age, service, evalDate);
+                        return result !== '—' ? result : null;
+                    }
+                    return null;
                 }
             },
         },
