@@ -269,7 +269,7 @@
             } else {
                 var L_m = (sec.largeur > 0 ? sec.largeur : 100) / 1000;
                 var H_m = (sec.epaisseur > 0 ? sec.epaisseur : 100) / 1000;
-                lines.push('#' + profileId + '= IFCRECTANGLEPROFILEDEF(.AREA.,$,#' + axis2dId + ',' + (L_m / 2).toFixed(6) + ',' + (H_m / 2).toFixed(6) + ');');
+                lines.push('#' + profileId + '= IFCRECTANGLEPROFILEDEF(.AREA.,$,#' + axis2dId + ',' + L_m.toFixed(6) + ',' + H_m.toFixed(6) + ');');
             }
 
             // Placement du solide : axe local Z = monde X (pièce horizontale)
