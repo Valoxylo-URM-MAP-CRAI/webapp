@@ -19479,7 +19479,7 @@ class ValoboisApp {
                     return out;
                 };
 
-                const similarityBoundsByDim = buildSimilarityBoundsForMedoid(medoidDimsHistorique, { syncAbsolute: true });
+                const similarityBoundsByDim = buildSimilarityBoundsForMedoid(medoidDimsHistorique, { syncAbsolute: false });
 
                 const dimsUsedForSimilarity = activeDimsForSimilarity.filter((dim) => {
                     const b = similarityBoundsByDim[dim] || {};
